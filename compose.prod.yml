@@ -10,7 +10,7 @@ services:
     image: loresuelvo-webapp:prod
     container_name: loresuelvo-webapp-prod
     ports:
-      - "3000:3000"
+      - "3001:3000"
     env_file:
       - .env.production
     environment:

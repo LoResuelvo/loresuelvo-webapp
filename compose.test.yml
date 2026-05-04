@@ -1,0 +1,18 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_APP_ENV: test
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    image: loresuelvo-webapp:test
+    container_name: loresuelvo-webapp-test
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.test
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped

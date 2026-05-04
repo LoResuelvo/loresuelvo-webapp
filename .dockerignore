@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.gitignore
+*.md
+npm-debug.log*
+.DS_Store
+
+.env
+.env.*
+!.env.example
+
+compose.*.yml
+docker-compose.override.yml
+Dockerfile.dev

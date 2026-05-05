@@ -1,13 +1,6 @@
 services:
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_APP_ENV: test
-        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-    image: loresuelvo-webapp:test
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-loresuelvo}/loresuelvo-webapp:${IMAGE_TAG:-main}
     container_name: loresuelvo-webapp-test
     ports:
       - "3001:3000"

@@ -1,7 +1,6 @@
 services:
   loresuelvo:
     image: ghcr.io/${GITHUB_REPOSITORY}:${IMAGE_TAG:-latest}
-    container_name: ${CONTAINER_NAME:-loresuelvo-webapp-prod}
     env_file:
       - .env
     environment:

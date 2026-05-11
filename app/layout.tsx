@@ -3,6 +3,8 @@ import { ConfigProvider } from "./config-provider";
 
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Lo Resuelvo",
   description: "Lo Resuelvo web app",

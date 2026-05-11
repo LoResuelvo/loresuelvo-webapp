@@ -1,10 +1,14 @@
 services:
   loresuelvo:
-    image: ghcr.io/${GITHUB_REPOSITORY}:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/loresuelvo:${IMAGE_TAG:-latest}
     env_file:
       - .env
     environment:
       NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    expose:
+      - "3000"
     restart: unless-stopped
     networks:
       - app-network

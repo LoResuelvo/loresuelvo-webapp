@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "test:e2e": "TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js",
+    "test:e2e:report": "TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js --format html:reports/cucumber-report.html"
   },
   "dependencies": {
     "next": "^15.1.0",
@@ -15,6 +17,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@cucumber/cucumber": "^12.8.3",
     "@eslint/eslintrc": "^3.3.0",
     "@tailwindcss/postcss": "^4.1.0",
     "@types/node": "^22.10.0",
@@ -22,8 +25,10 @@
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.18.0",
     "eslint-config-next": "^15.1.0",
+    "playwright": "^1.60.0",
     "postcss": "^8.5.0",
     "tailwindcss": "^4.1.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.7.0",
     "vitest": "^4.1.5"
   }

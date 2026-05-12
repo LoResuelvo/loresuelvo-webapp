@@ -7,3 +7,7 @@ npm-debug.log*
 .env
 .env.*
 !.env.example
+
+# Cucumber
+reports/
+.cucumber-dist/

@@ -8,6 +8,7 @@
       "html:reports/cucumber-report.html",
       "json:reports/cucumber-report.json"
     ],
-    "publishQuiet": true
+    "publishQuiet": true,
+    "tags": "not @wip"
   }
 }

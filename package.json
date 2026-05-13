@@ -9,6 +9,7 @@
     "lint": "next lint",
     "test": "vitest run --passWithNoTests",
     "test:e2e": "TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js",
+    "test:e2e:wip": "TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js --tags @wip",
     "test:e2e:report": "TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js --format html:reports/cucumber-report.html"
   },
   "dependencies": {

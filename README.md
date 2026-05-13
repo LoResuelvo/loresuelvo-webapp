@@ -14,7 +14,7 @@ cp .env.example .env.local
 docker compose -f compose.dev.yml up --build
 ```
 
-App at `http://localhost:3001`.
+App at `http://localhost:3000`.
 
 ## Production build
 

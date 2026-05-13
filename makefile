@@ -7,7 +7,7 @@ BASE_URL     ?= http://localhost:3000
 
 export BASE_URL
 
-.PHONY: help install dev build start lint test test-e2e test-e2e-report \
+.PHONY: help install dev build start lint test test-e2e test-e2e-wip test-e2e-report \
 	docker-dev docker-dev-down
 
 help:
@@ -22,7 +22,7 @@ help:
 	@echo ""
 	@echo "  Tests"
 	@echo "    make test             Unitarios con Vitest (npm run test)"
-	@echo "    make test-e2e         Gherkin + Playwright (requires the app to be running at BASE_URL)"
+	@echo "    make test-e2e         Gherkin + Playwright"
 	@echo "    make test-e2e-report  Same as test-e2e but with HTML report in reports/"
 	@echo ""
 	@echo "  Docker"
@@ -52,6 +52,10 @@ test-e2e:
 
 test-e2e-report:
 	npm run test:e2e:report
+
+test-all-once:
+	npm run test
+	npm run test:e2e
 
 docker-dev:
 	docker compose -f $(COMPOSE_DEV) up --build

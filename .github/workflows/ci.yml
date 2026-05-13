@@ -26,11 +26,11 @@ jobs:
 
       - name: Ejecutar Linter y Pruebas
         run: |
-          npm run lint
-          npm test
+          make lint
+          make test-all-once
 
       - name: Construir Next.js
-        run: npm run build
+        run: make build
 
       - name: Construir la imagen de producción
         run: docker build -t loresuelvo-webapp-ci .

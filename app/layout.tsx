@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { ConfigProvider } from "./config-provider";
 
 import "./globals.css";
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +24,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en">
+    <html lang="en" className={cn("font-sans", geist.variable)}>
       <body>
         <ConfigProvider config={envConfig}>
           {children}

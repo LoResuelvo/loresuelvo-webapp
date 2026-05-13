@@ -14,5 +14,8 @@ describe("RegisterAccountPage", () => {
     expect(screen.getByText("Completa tus datos para comenzar")).toBeVisible();
   });
 
-
+  it("shows the registration form", () => {
+    render(<RegisterAccountPage />);
+    expect(screen.getByRole("form", { name: "Create account" })).toBeVisible();
+  });
 });

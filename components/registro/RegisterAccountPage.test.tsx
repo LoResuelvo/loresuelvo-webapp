@@ -1,0 +1,18 @@
+import React from "react";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { RegisterAccountPage } from "./RegisterAccountPage";
+
+describe("RegisterAccountPage", () => {
+  it('shows the title "Crear cuenta"', () => {
+    render(<RegisterAccountPage />);
+    expect(screen.getByRole("heading", { level: 1, name: "Crear cuenta" })).toBeVisible();
+  });
+
+  it('shows the subtitle "Completa tus datos para comenzar"', () => {
+    render(<RegisterAccountPage />);
+    expect(screen.getByText("Completa tus datos para comenzar")).toBeVisible();
+  });
+
+
+});

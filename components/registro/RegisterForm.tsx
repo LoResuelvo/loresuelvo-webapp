@@ -8,6 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+
+const formFieldClassName = "bg-muted/80";
+const submitButtonClassName =
+  "mt-1 w-full bg-[#1A2B48] text-white hover:bg-[#243a63]";
 
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -27,6 +32,7 @@ export function RegisterForm() {
             type="text"
             autoComplete="given-name"
             placeholder="Ej. Ana"
+            className={formFieldClassName}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -37,6 +43,7 @@ export function RegisterForm() {
             type="text"
             autoComplete="family-name"
             placeholder="Ej. García"
+            className={formFieldClassName}
           />
         </div>
       </div>
@@ -50,6 +57,7 @@ export function RegisterForm() {
           autoComplete="email"
           inputMode="email"
           placeholder="tu@email.com"
+          className={formFieldClassName}
         />
       </div>
 
@@ -62,7 +70,7 @@ export function RegisterForm() {
             type={showPassword ? "text" : "password"}
             autoComplete="new-password"
             placeholder="••••••••"
-            className="pr-10"
+            className={cn("pr-10", formFieldClassName)}
           />
           <Button
             type="button"
@@ -77,7 +85,7 @@ export function RegisterForm() {
         </div>
       </div>
 
-      <Button type="submit" size="lg" className="w-full mt-1">
+      <Button type="submit" size="lg" className={submitButtonClassName}>
         Crear cuenta
       </Button>
 
@@ -90,7 +98,7 @@ export function RegisterForm() {
         </span>
       </div>
 
-      <Button type="button" variant="outline" className="w-full gap-2">
+      <Button type="button" variant="outline" className="w-fit gap-2 self-center px-8">
         <GoogleIcon />
         Google
       </Button>

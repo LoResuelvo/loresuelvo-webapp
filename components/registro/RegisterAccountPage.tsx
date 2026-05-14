@@ -9,8 +9,8 @@ export function RegisterAccountPage() {
 
         <section className="flex flex-col gap-4 p-6 md:p-10">
           <header className="space-y-2">
-            <h1>Crear cuenta</h1>
-            <p className="text-muted-foreground">Completa tus datos para comenzar</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-blue-950">Crea tu cuenta</h1>
+            <p className="text-sm text-neutral-600">Completa tus datos para comenzar</p>
           </header>
           <RegisterForm />
         </section>

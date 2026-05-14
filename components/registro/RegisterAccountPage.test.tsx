@@ -6,7 +6,7 @@ import { RegisterAccountPage } from "./RegisterAccountPage";
 describe("RegisterAccountPage", () => {
   it('shows the title "Crear cuenta"', () => {
     render(<RegisterAccountPage />);
-    expect(screen.getByRole("heading", { level: 1, name: "Crear cuenta" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 1, name: "Crea tu cuenta" })).toBeVisible();
   });
 
   it('shows the subtitle "Completa tus datos para comenzar"', () => {

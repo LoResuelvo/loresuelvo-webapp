@@ -11,24 +11,93 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 const formFieldClassName = "bg-muted/80";
-const submitButtonClassName =
-  "mt-1 w-full bg-[#1A2B48] text-white hover:bg-[#243a63]";
+const submitButtonClassName = "mt-1 w-full bg-[#1A2B48] text-white hover:bg-[#243a63]";
 const successMessage = "Cuenta creada exitosamente";
+
+type RegisterFieldName = "firstName" | "lastName" | "email" | "password";
+type RegisterFieldErrors = Partial<Record<RegisterFieldName, string>>;
+
+const fieldErrorMessages: Record<RegisterFieldName, string> = {
+  firstName: "El nombre es obligatorio",
+  lastName: "El apellido es obligatorio",
+  email: "El correo electrónico es obligatorio",
+  password: "La contraseña es obligatoria",
+};
+
+function validateRegisterForm(form: HTMLFormElement): RegisterFieldErrors {
+  const formData = new FormData(form);
+  const errors: RegisterFieldErrors = {};
+
+  for (const fieldName of Object.keys(fieldErrorMessages) as RegisterFieldName[]) {
+    const value = formData.get(fieldName);
+    if (typeof value !== "string" || value.trim() === "") {
+      errors[fieldName] = fieldErrorMessages[fieldName];
+    }
+  }
+
+  return errors;
+}
+
+function FormField({
+  id,
+  label,
+  error,
+  children,
+}: {
+  id: string;
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+      {error ? (
+        <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [successMessageVisible, setSuccessMessageVisible] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({});
+
+  function clearFieldError(fieldName: RegisterFieldName) {
+    setFieldErrors((current) => {
+      if (!current[fieldName]) return current;
+      const next = { ...current };
+      delete next[fieldName];
+      return next;
+    });
+  }
+
+  function fieldInputProps(name: RegisterFieldName) {
+    const error = fieldErrors[name];
+    return {
+      "aria-invalid": error ? (true as const) : undefined,
+      "aria-describedby": error ? `${name}-error` : undefined,
+      onChange: () => clearFieldError(name),
+    };
+  }
 
   function handleSubmit(event: ChangeEvent<HTMLFormElement>) {
     event.preventDefault();
     setSuccessMessageVisible(false);
 
     const form = event.currentTarget;
-    if (!form.checkValidity()) {
-      form.reportValidity();
+    const errors = validateRegisterForm(form);
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
+    setFieldErrors({});
     setSuccessMessageVisible(true);
   }
 
@@ -38,10 +107,10 @@ export function RegisterForm() {
       autoComplete="on"
       className="flex flex-col gap-4"
       onSubmit={handleSubmit}
+      noValidate
     >
       <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="firstName">Nombre</Label>
+        <FormField id="firstName" label="Nombre" error={fieldErrors.firstName}>
           <Input
             id="firstName"
             name="firstName"
@@ -49,11 +118,11 @@ export function RegisterForm() {
             autoComplete="given-name"
             placeholder="Ej. Ana"
             className={formFieldClassName}
-            required
+            {...fieldInputProps("firstName")}
           />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="lastName">Apellido</Label>
+        </FormField>
+
+        <FormField id="lastName" label="Apellido" error={fieldErrors.lastName}>
           <Input
             id="lastName"
             name="lastName"
@@ -61,13 +130,12 @@ export function RegisterForm() {
             autoComplete="family-name"
             placeholder="Ej. García"
             className={formFieldClassName}
-            required
+            {...fieldInputProps("lastName")}
           />
-        </div>
+        </FormField>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="email">Correo electrónico</Label>
+      <FormField id="email" label="Correo electrónico" error={fieldErrors.email}>
         <Input
           id="email"
           name="email"
@@ -76,12 +144,11 @@ export function RegisterForm() {
           inputMode="email"
           placeholder="tu@email.com"
           className={formFieldClassName}
-          required
+          {...fieldInputProps("email")}
         />
-      </div>
+      </FormField>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="password">Contraseña</Label>
+      <FormField id="password" label="Contraseña" error={fieldErrors.password}>
         <div className="relative">
           <Input
             id="password"
@@ -90,7 +157,7 @@ export function RegisterForm() {
             autoComplete="new-password"
             placeholder="••••••••"
             className={cn("pr-10", formFieldClassName)}
-            required
+            {...fieldInputProps("password")}
           />
           <Button
             type="button"
@@ -103,7 +170,7 @@ export function RegisterForm() {
             {showPassword ? <EyeOff /> : <Eye />}
           </Button>
         </div>
-      </div>
+      </FormField>
 
       {successMessageVisible ? (
         <p

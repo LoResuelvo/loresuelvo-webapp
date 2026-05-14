@@ -55,4 +55,53 @@ describe("RegisterForm", () => {
 
     expect(screen.getByRole("status")).toHaveTextContent("Cuenta creada exitosamente");
   });
+
+  it("shows field error after submitting empty password", async () => {
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+
+    await user.type(screen.getByLabelText("Nombre"), "Ana");
+    await user.type(screen.getByLabelText("Apellido"), "García");
+    await user.type(screen.getByLabelText("Correo electrónico"), "ana@example.com");
+    await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+    expect(screen.getByText("La contraseña es obligatoria")).toBeVisible();
+  });
+
+  it("shows field error after submitting empty email", async () => {
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+
+    await user.type(screen.getByLabelText("Nombre"), "Ana");
+    await user.type(screen.getByLabelText("Apellido"), "García");
+    await user.type(screen.getByLabelText("Contraseña"), "password123");
+    await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+    expect(screen.getByText("El correo electrónico es obligatorio")).toBeVisible();
+  });
+
+  it("shows field error after submitting empty name", async () => {
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+
+    await user.type(screen.getByLabelText("Apellido"), "García");
+    await user.type(screen.getByLabelText("Correo electrónico"), "ana@example.com");
+    await user.type(screen.getByLabelText("Contraseña"), "password123");
+    await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+    expect(screen.getByText("El nombre es obligatorio")).toBeVisible();
+  });
+
+  it("shows field error after submitting empty last name", async () => {
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+
+    await user.type(screen.getByLabelText("Nombre"), "Ana");
+    await user.type(screen.getByLabelText("Correo electrónico"), "ana@example.com");
+    await user.type(screen.getByLabelText("Contraseña"), "password123");
+    await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+    expect(screen.getByText("El apellido es obligatorio")).toBeVisible();
+  });
 });
+

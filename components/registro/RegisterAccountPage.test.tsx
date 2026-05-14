@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { RegisterAccountPage } from "./RegisterAccountPage";
 
 describe("RegisterAccountPage", () => {
-  it('shows the title "Crear cuenta"', () => {
+  it('shows the title "Crea tu cuenta"', () => {
     render(<RegisterAccountPage />);
     expect(screen.getByRole("heading", { level: 1, name: "Crea tu cuenta" })).toBeVisible();
   });

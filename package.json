@@ -13,6 +13,7 @@
     "test:e2e:report": "TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js --format html:reports/cucumber-report.html"
   },
   "dependencies": {
+    "@auth0/nextjs-auth0": "^4.20.0",
     "@tanstack/react-query": "^5.100.10",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

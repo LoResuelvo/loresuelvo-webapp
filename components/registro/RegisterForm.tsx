@@ -13,21 +13,44 @@ export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <form aria-label="Create account" className="flex flex-col gap-4">
+    <form
+      aria-label="Create account"
+      autoComplete="on"
+      className="flex flex-col gap-4"
+    >
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="name">Nombre</Label>
-          <Input id="name" type="text" placeholder="Ej. Ana" />
+          <Label htmlFor="firstName">Nombre</Label>
+          <Input
+            id="firstName"
+            name="firstName"
+            type="text"
+            autoComplete="given-name"
+            placeholder="Ej. Ana"
+          />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="last name">Apellido</Label>
-          <Input id="last name" type="text" placeholder="Ej. García" />
+          <Label htmlFor="lastName">Apellido</Label>
+          <Input
+            id="lastName"
+            name="lastName"
+            type="text"
+            autoComplete="family-name"
+            placeholder="Ej. García"
+          />
         </div>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="email">Correo electrónico</Label>
-        <Input id="email" type="email" placeholder="tu@email.com" />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          placeholder="tu@email.com"
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">
@@ -35,7 +58,9 @@ export function RegisterForm() {
         <div className="relative">
           <Input
             id="password"
+            name="password"
             type={showPassword ? "text" : "password"}
+            autoComplete="new-password"
             placeholder="••••••••"
             className="pr-10"
           />

@@ -79,3 +79,9 @@ Then("veo un mensaje de error en el campo {string}", async (label: string) => {
   await field.waitFor({ state: "visible" });
   assert.ok(await field.isVisible(), `No se encontró el campo "${label}"`);
 });
+
+Then("veo el mensaje de éxito {string}", async (successMessage: string) => {
+  const successMessageElement = page.getByText(successMessage, { exact: true });
+  await successMessageElement.waitFor({ state: "visible" });
+  assert.ok(await successMessageElement.isVisible(), `No se encontró el mensaje de éxito "${successMessage}"`);
+});

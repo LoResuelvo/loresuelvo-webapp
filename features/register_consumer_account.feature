@@ -25,7 +25,11 @@ Feature: Registrar cuenta nueva de consumidor
   Scenario: 05-RCN Ver el botón para registrarse
     Then veo el botón "Crear cuenta"
 
-  Scenario: 06-RCN No puedo registrarme si dejo los campos obligatorios vacíos
+  Scenario: 06-RCN Registrarme exitosamente
+    When envío el formulario de registro de cuenta nueva
+    Then veo el mensaje de éxito "Cuenta creada exitosamente"
+
+  Scenario: 07-RCN No puedo registrarme si dejo los campos obligatorios vacíos
     When envío el formulario de registro de cuenta nueva
     Then veo un mensaje de error en el campo "Nombre"
     And veo un mensaje de error en el campo "Apellido"

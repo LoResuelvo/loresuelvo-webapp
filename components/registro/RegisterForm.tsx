@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { type ChangeEvent, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
@@ -13,15 +13,31 @@ import { cn } from "@/lib/utils";
 const formFieldClassName = "bg-muted/80";
 const submitButtonClassName =
   "mt-1 w-full bg-[#1A2B48] text-white hover:bg-[#243a63]";
+const successMessage = "Cuenta creada exitosamente";
 
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
+  const [successMessageVisible, setSuccessMessageVisible] = useState(false);
+
+  function handleSubmit(event: ChangeEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSuccessMessageVisible(false);
+
+    const form = event.currentTarget;
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+
+    setSuccessMessageVisible(true);
+  }
 
   return (
     <form
       aria-label="Create account"
       autoComplete="on"
       className="flex flex-col gap-4"
+      onSubmit={handleSubmit}
     >
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
@@ -33,6 +49,7 @@ export function RegisterForm() {
             autoComplete="given-name"
             placeholder="Ej. Ana"
             className={formFieldClassName}
+            required
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -44,6 +61,7 @@ export function RegisterForm() {
             autoComplete="family-name"
             placeholder="Ej. García"
             className={formFieldClassName}
+            required
           />
         </div>
       </div>
@@ -58,6 +76,7 @@ export function RegisterForm() {
           inputMode="email"
           placeholder="tu@email.com"
           className={formFieldClassName}
+          required
         />
       </div>
 
@@ -71,6 +90,7 @@ export function RegisterForm() {
             autoComplete="new-password"
             placeholder="••••••••"
             className={cn("pr-10", formFieldClassName)}
+            required
           />
           <Button
             type="button"
@@ -84,6 +104,16 @@ export function RegisterForm() {
           </Button>
         </div>
       </div>
+
+      {successMessageVisible ? (
+        <p
+          role="status"
+          aria-live="polite"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
+        >
+          {successMessage}
+        </p>
+      ) : null}
 
       <Button type="submit" size="lg" className={submitButtonClassName}>
         Crear cuenta

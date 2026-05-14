@@ -71,7 +71,7 @@ Then("veo el botón {string}", async (buttonName: string) => {
 
 When("envío el formulario de registro de cuenta nueva", async () => {
   const form = registerForm();
-  await form.getByRole("button", { name: "Create account" }).click();
+  await form.getByRole("button", { name: "Crear cuenta" }).click();
 });
 
 Then("veo un mensaje de error en el campo {string}", async (label: string) => {
@@ -84,4 +84,11 @@ Then("veo el mensaje de éxito {string}", async (successMessage: string) => {
   const successMessageElement = page.getByText(successMessage, { exact: true });
   await successMessageElement.waitFor({ state: "visible" });
   assert.ok(await successMessageElement.isVisible(), `No se encontró el mensaje de éxito "${successMessage}"`);
+});
+
+Given("completo los campos obligatorios del formulario de registro de cuenta nueva", async () => {
+  await page.fill("input[name='firstName']", "John");
+  await page.fill("input[name='lastName']", "Doe");
+  await page.fill("input[name='email']", "john.doe@example.com");
+  await page.fill("input[name='password']", "password123");
 });

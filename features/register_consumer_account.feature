@@ -26,6 +26,7 @@ Feature: Registrar cuenta nueva de consumidor
     Then veo el botón "Crear cuenta"
 
   Scenario: 06-RCN Registrarme exitosamente
+    Given completo los campos obligatorios del formulario de registro de cuenta nueva
     When envío el formulario de registro de cuenta nueva
     Then veo el mensaje de éxito "Cuenta creada exitosamente"
 

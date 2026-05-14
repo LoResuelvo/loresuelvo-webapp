@@ -42,4 +42,17 @@ describe("RegisterForm", () => {
     await user.click(screen.getByRole("button", { name: "Ocultar contraseña" }));
     expect(passwordInput).toHaveAttribute("type", "password");
   });
+
+  it('shows the success message after submitting valid data', async () => {
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+
+    await user.type(screen.getByLabelText("Nombre"), "Ana");
+    await user.type(screen.getByLabelText("Apellido"), "García");
+    await user.type(screen.getByLabelText("Correo electrónico"), "ana@example.com");
+    await user.type(screen.getByLabelText("Contraseña"), "password123");
+    await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Cuenta creada exitosamente");
+  });
 });

@@ -27,9 +27,17 @@ jobs:
       - name: Instalar browsers de Playwright
         run: npx playwright install --with-deps
 
+      - name: Preparar variables de entorno
+        run: cp .env.example .env
+
+      - name: Levantar servidor Next.js en background
+        run: npm run dev &
+
+      - name: Esperar que el servidor esté disponible
+        run: npx wait-on http://localhost:3000 --timeout 60000
+
       - name: Ejecutar Linter y Pruebas
         run: |
-          cp .env.example .env
           make lint
           make test-all-once
 

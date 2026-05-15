@@ -1,38 +1,26 @@
-@wip
+@wip @auth
 Feature: Registrar cuenta nueva de consumidor
   Como consumidor
   Quiero registrarme en Lo Resuelvo
   Para contratar servicios residenciales
 
-  Background:
-    Given que estoy en la página de registro de cuenta nueva
+  Scenario: 01-RCN Redirección al portal de registro de Auth0
+    Given que estoy en la página de inicio
+    When hago clic en el botón "Crea tu cuenta"
+    Then soy redirigido al portal de autenticación de Auth0
 
-  Scenario: 01-RCN Ver el título de la página de registro de cuenta nueva
-    Then veo el título "Crea tu cuenta"
+  Scenario: 02-RCN Registro exitoso
+    Given que me he registrado exitosamente en Auth0 con nombre "Andres", apellido "Colina" y email "andy@pro.com"
+    When vuelvo a la aplicación
+    Then veo mi nombre "Andres" en el encabezado
 
-  Scenario: 02-RCN Ver el formulario de registro de cuenta nueva
-    Then veo el formulario de registro de cuenta nueva
+  Scenario: 03-RCN Verificación de sesión persistente
+    Given que estoy autenticado como "Andres Colina"
+    When navego a la página principal
+    Then veo el botón de "Cerrar sesión"
+    And no veo el botón de "Registrarse"
 
-  Scenario: 03-RCN Ver el subtítulo de la página de registro
-    Then veo el subtítulo "Completa tus datos para comenzar"
-
-  Scenario: 04-RCN Ver los campos obligatorios del formulario de registro
-    Then veo el campo "Nombre"
-    And veo el campo "Apellido"
-    And veo el campo "Correo electrónico"
-    And veo el campo "Contraseña"
-
-  Scenario: 05-RCN Ver el botón para registrarse
-    Then veo el botón "Crear cuenta"
-
-  Scenario: 06-RCN Registrarme exitosamente
-    Given completo los campos obligatorios del formulario de registro de cuenta nueva
-    When envío el formulario de registro de cuenta nueva
-    Then veo el mensaje de éxito "Cuenta creada exitosamente"
-
-  Scenario: 07-RCN No puedo registrarme si dejo los campos obligatorios vacíos
-    When envío el formulario de registro de cuenta nueva
-    Then veo un mensaje de error en el campo "Nombre"
-    And veo un mensaje de error en el campo "Apellido"
-    And veo un mensaje de error en el campo "Correo electrónico"
-    And veo un mensaje de error en el campo "Contraseña"
+  Scenario: 04-RCN Registro fallido
+    Given que no me puedo registrar exitosamente en Auth0 con mi nombre "Andres", apellido "Colina" y email "andy@pro.com"
+    When vuelvo a la aplicación
+    Then no veo mi nombre "Andres" en el encabezado

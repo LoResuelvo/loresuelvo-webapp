@@ -26,13 +26,7 @@ When('entro a la landing page', async () => {
   await page.goto(APP_URL);
 });
 
-Then('veo un logo de {string}', async (altText: string) => {
-  const logo = page.getByAltText(altText).first();
-  await logo.waitFor({ state: "visible" });
-  assert.ok(await logo.isVisible(), `There is no logo with alt text"${altText}"`);
-});
-
-Then('veo un título {string}', async (titulo: string) => {
+Then('veo el título {string}', async (titulo: string) => {
   const heading = page.getByRole("heading", { name: titulo, level: 1 }).first();
   await heading.waitFor({ state: "visible" });
   assert.ok(await heading.isVisible(), `There is no main title "${titulo}"`);

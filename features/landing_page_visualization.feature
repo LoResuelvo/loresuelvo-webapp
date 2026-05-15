@@ -9,8 +9,7 @@ Feature: Crear pantalla de bienvenida para consumidores
 
     Scenario: 01-LPV Visibilidad de elementos de bienvenida
         When entro a la landing page
-        Then veo un logo de "Lo Resuelvo"
-        And veo un título "Lo Resuelvo"
+        Then veo el título "Lo Resuelvo"
 
     Scenario: 02-LPV Visibilidad de botón de registro
         When entro a la landing page

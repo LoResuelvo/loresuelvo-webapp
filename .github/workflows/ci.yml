@@ -2,9 +2,9 @@ name: CI Build & Test
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
@@ -23,6 +23,9 @@ jobs:
 
       - name: Instalar dependencias
         run: npm ci
+
+      - name: Instalar browsers de Playwright
+        run: npx playwright install --with-deps
 
       - name: Ejecutar Linter y Pruebas
         run: |

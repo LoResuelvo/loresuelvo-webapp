@@ -11,7 +11,7 @@ export default function Header() {
           href="/auth/login" 
           className="text-[15px] font-medium text-gray-900 hover:text-gray-600 transition-colors"
         >
-          Ingresar
+          Iniciar Sesión
         </Link>
         <Link 
           href="/auth/login?screen_hint=signup"

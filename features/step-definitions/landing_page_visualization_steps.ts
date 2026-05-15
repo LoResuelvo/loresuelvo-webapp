@@ -45,9 +45,8 @@ Then('veo el footer', async () => {
   assert.ok(await footer.isVisible(), "There is no footer");
 });
 
-Then('veo {string} copyright {int} todos los derechos reservados', async (empresa: string, anio: number) => {
-  const expectedText = `${empresa} copyright ${anio} todos los derechos reservados`;
-  const textElement = page.getByText(expectedText, { exact: false });
+Then('veo el texto {string}', async (text: string) => {
+  const textElement = page.getByText(text, { exact: false });
   await textElement.waitFor({ state: "visible" });
-  assert.ok(await textElement.isVisible(), `There is no copyright text: "${expectedText}"`);
+  assert.ok(await textElement.isVisible(), `There is no text: "${text}"`);
 });

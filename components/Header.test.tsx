@@ -10,7 +10,7 @@ describe("Header", () => {
 
     it("renders the 'Ingresar' link", () => {
         render(<Header />);
-        expect(screen.getByRole("link", { name: "Ingresar" })).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Iniciar Sesión" })).toBeInTheDocument();
     });
 
     it("renders the 'Registrarse' link", () => {

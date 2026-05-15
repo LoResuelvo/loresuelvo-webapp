@@ -7,7 +7,7 @@ export default function HomePage() {
       <main className="flex-1 flex items-center justify-center">
       </main>
       <footer className="py-6 text-center text-sm text-gray-500">
-        Lo Resuelvo &copy;2026 Todos los derechos reservados
+        LoResuelvo &copy;2026 Todos los derechos reservados
       </footer>
     </div>
   );

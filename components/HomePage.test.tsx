@@ -10,6 +10,6 @@ describe("HomePage", () => {
 
     it("renders the footer", () => {
         render(<HomePage />);
-        expect(screen.getByText(/Lo Resuelvo ©2026 Todos los derechos reservados/i)).toBeInTheDocument();
+        expect(screen.getByText(/LoResuelvo ©2026 Todos los derechos reservados/i)).toBeInTheDocument();
     });
 });

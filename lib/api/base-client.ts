@@ -11,7 +11,7 @@ export class ApiClient {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = process.env.API_URL || "http://localhost:8080"; // Todo: change all this to use app config
+    this.baseUrl = process.env.API_URL || "http://localhost:8080"; // TODO: change all this to use app config
   }
 
   private async getHeaders(): Promise<HeadersInit> {

@@ -22,10 +22,9 @@ export const auth0 = new Auth0Client({
           "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
-          auth0_id: user.sub,
           email: user.email,
-          nombre: user.given_name || "",
-          apellido: user.family_name || "",
+          name: user.given_name || "",
+          surname: user.family_name || "",
         }),
       });
     } catch (error) {

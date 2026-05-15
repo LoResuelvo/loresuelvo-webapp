@@ -2,7 +2,7 @@ name: Release & Deploy
 
 on:
   push:
-    tags: [ "v*.*.*" ]
+    tags: ["v*.*.*"]
 
 permissions:
   contents: read
@@ -49,7 +49,12 @@ jobs:
               'NODE_ENV=production' \
               'APP_ENV=staging' \
               'APP_URL=https://test.loresuelvo.com.ar' \
-              'API_URL=https://api-test.loresuelvo.com.ar' > .env
+              'API_URL=https://api-test.loresuelvo.com.ar' \
+              "AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN_STAGING }}" \
+              "AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID_STAGING }}" \
+              "AUTH0_CLIENT_SECRET=${{ secrets.AUTH0_CLIENT_SECRET_STAGING }}" \
+              "AUTH0_SECRET=${{ secrets.AUTH0_SECRET }}" \
+              "AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE_STAGING }}" > .env
 
             export IMAGE_TAG=${{ github.ref_name }}
             export GITHUB_REPOSITORY_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
@@ -81,7 +86,12 @@ jobs:
               'NODE_ENV=production' \
               'APP_ENV=production' \
               'APP_URL=https://loresuelvo.com.ar' \
-              'API_URL=https://api.loresuelvo.com.ar' > .env
+              'API_URL=https://api.loresuelvo.com.ar' \
+              "AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN_PROD }}" \
+              "AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID_PROD }}" \
+              "AUTH0_CLIENT_SECRET=${{ secrets.AUTH0_CLIENT_SECRET_PROD }}" \
+              "AUTH0_SECRET=${{ secrets.AUTH0_SECRET }}" \
+              "AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE_PROD }}" > .env
 
             export IMAGE_TAG=${{ github.ref_name }}
             export GITHUB_REPOSITORY_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')

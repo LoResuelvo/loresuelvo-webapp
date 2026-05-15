@@ -29,6 +29,7 @@ jobs:
 
       - name: Ejecutar Linter y Pruebas
         run: |
+          cp .env.example .env
           make lint
           make test-all-once
 

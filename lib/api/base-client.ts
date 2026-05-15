@@ -53,7 +53,7 @@ export class ApiClient {
     }
 
     if (response.status === 204) {
-      return null as any;
+      return null as unknown as T;
     }
 
     return response.json();
@@ -63,14 +63,14 @@ export class ApiClient {
     return this.request<T>(endpoint, { method: "GET" });
   }
 
-  async post<T>(endpoint: string, body: any): Promise<T> {
+  async post<T>(endpoint: string, body: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: "POST",
       body: JSON.stringify(body),
     });
   }
 
-  async put<T>(endpoint: string, body: any): Promise<T> {
+  async put<T>(endpoint: string, body: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: "PUT",
       body: JSON.stringify(body),

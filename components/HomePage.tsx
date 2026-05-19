@@ -1,15 +1,13 @@
-import Header from "@/components/Header";
 import HeroContent from "@/components/HeroContent";
 import RegistrationCard from "@/components/RegistrationCard";
-import Footer from "@/components/Footer";
 import { ROUTES } from "@/lib/routes";
+import { PageLayout } from "@/components/PageLayout";
+import { Container } from "@/components/Container";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-brand-neutral flex flex-col">
-      <Header />
-      <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-12 md:py-24 flex flex-col lg:flex-row items-center gap-16">
-        
+    <PageLayout>
+      <Container className="py-12 md:py-24 flex flex-col lg:flex-row items-center gap-16">
         <HeroContent />
 
         <div className="flex-1 w-full flex flex-col sm:flex-row gap-6">
@@ -28,8 +26,7 @@ export default function HomePage() {
             href={ROUTES.auth.signup}
           />
         </div>
-      </main>
-      <Footer />
-    </div>
+      </Container>
+    </PageLayout>
   );
 }

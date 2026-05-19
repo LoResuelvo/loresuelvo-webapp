@@ -10,10 +10,9 @@ Feature: Crear pantalla de bienvenida para consumidores
         When entro a la landing page
         Then veo el título "LoResuelvo"
 
-    @wip
     Scenario: 02-LPV Visibilidad de botón de registro
         When entro a la landing page
-        Then veo el botón "Registrarse"
+        Then veo el botón "Ser Cliente"
 
     Scenario: 03-LPV Visibilidad de botón de inicio de sesión
         When entro a la landing page

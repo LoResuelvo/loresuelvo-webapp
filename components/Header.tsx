@@ -1,15 +1,16 @@
 import Link from "next/link";
+import { ROUTES } from "@/lib/routes";
 
 export default function Header() {
   return (
-    <header className="flex h-[72px] items-center justify-between border-b border-gray-200 bg-white px-6 md:px-12 w-full">
-      <h1 className="text-[22px] font-medium tracking-tight text-[#002b49]">
-        <Link href="/">LoResuelvo</Link>
+    <header className="flex h-20 items-center justify-between border-b border-gray-100 bg-brand-neutral px-6 md:px-12 w-full">
+      <h1 className="flex items-center gap-2 text-[24px] font-bold tracking-tight text-brand-primary">
+        <Link href={ROUTES.home}>LoResuelvo</Link>
       </h1>
-      <nav className="flex items-center gap-6">
+      <nav className="flex items-center">
         <Link 
-          href="/auth/login"
-          className="text-[15px] font-medium text-gray-900 hover:text-gray-600 transition-colors"
+          href={ROUTES.auth.login} 
+          className="rounded-full border border-gray-200 bg-white px-6 py-2.5 text-[14px] font-medium text-brand-primary shadow-sm hover:bg-gray-50 transition-colors"
         >
           Iniciar Sesión
         </Link>

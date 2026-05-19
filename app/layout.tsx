@@ -1,11 +1,11 @@
-import { Inter } from "next/font/google";
+import { Manrope } from "next/font/google";
 import type { Metadata } from "next";
 import { Auth0Provider } from "@auth0/nextjs-auth0/client";
 import "./globals.css";
 
-const inter = Inter({
+const manrope = Manrope({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -20,7 +20,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={manrope.className}>
         <Auth0Provider>{children}</Auth0Provider>
       </body>
     </html>

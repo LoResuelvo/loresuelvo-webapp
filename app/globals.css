@@ -45,6 +45,12 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+
+    /* Brand Colors (from design system) */
+    --color-brand-primary: #1A2B48;
+    --color-brand-secondary: #2A9D8F;
+    --color-brand-tertiary: #E9C46A;
+    --color-brand-neutral: #F4F1EE;
 }
 
 :root {

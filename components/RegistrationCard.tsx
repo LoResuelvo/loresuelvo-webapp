@@ -18,7 +18,7 @@ export default function RegistrationCard({
 }: RegistrationCardProps) {
   return (
     <div className="flex-1 bg-white rounded-2xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col h-full ">
-      <h3 className="text-xl font-bold text-[#1A2B48] mb-3">{title}</h3>
+      <h3 className="text-xl font-bold text-brand-primary mb-3">{title}</h3>
       <p className="text-gray-500 mb-8 flex-1">
         {description}
       </p>

@@ -8,13 +8,8 @@ describe("Header", () => {
         expect(screen.getByRole("heading", { name: "LoResuelvo", level: 1 })).toBeInTheDocument();
     });
 
-    it("renders the 'Ingresar' link", () => {
+    it("renders the 'Iniciar Sesión' link", () => {
         render(<Header />);
         expect(screen.getByRole("link", { name: "Iniciar Sesión" })).toBeInTheDocument();
-    });
-
-    it("renders the 'Registrarse' link", () => {
-        render(<Header />);
-        expect(screen.getByRole("link", { name: "Registrarse" })).toBeInTheDocument();
     });
 });

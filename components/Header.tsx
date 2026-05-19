@@ -8,16 +8,10 @@ export default function Header() {
       </h1>
       <nav className="flex items-center gap-6">
         <Link 
-          href="/auth/login" 
+          href="/auth/login"
           className="text-[15px] font-medium text-gray-900 hover:text-gray-600 transition-colors"
         >
           Iniciar Sesión
-        </Link>
-        <Link 
-          href="/auth/login?screen_hint=signup"
-          className="rounded-md bg-[#006699] px-5 py-2 text-[15px] font-medium text-white transition-colors hover:bg-[#005580]"
-        >
-          Registrarse
         </Link>
       </nav>
     </header>

@@ -6,8 +6,8 @@ setDefaultTimeout(30_000);
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
-let browser: Browser;
-let page: Page;
+export let browser: Browser;
+export let page: Page;
 
 Before(async () => {
   browser = await chromium.launch({ headless: true });

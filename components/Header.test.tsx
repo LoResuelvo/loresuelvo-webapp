@@ -2,14 +2,37 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import Header from "@/components/Header";
 
+const mockUser = {
+  id: "1",
+  email: "andres@pro.com",
+  firstName: "Andres",
+  lastName: "Colina",
+};
+
 describe("Header", () => {
-    it("renders the 'LoResuelvo' logo/title", () => {
-        render(<Header />);
-        expect(screen.getByRole("heading", { name: "LoResuelvo", level: 1 })).toBeInTheDocument();
+    describe("user unauthenticated", () => {
+        it("renders the 'LoResuelvo' logo/title", () => {
+            render(<Header />);
+            expect(screen.getByRole("heading", { name: "LoResuelvo", level: 1 })).toBeInTheDocument();
+        });
+
+        it("renders the 'Iniciar Sesión' link", () => {
+            render(<Header />);
+            expect(screen.getByRole("link", { name: "Iniciar Sesión" })).toBeInTheDocument();
+        });
     });
 
-    it("renders the 'Iniciar Sesión' link", () => {
-        render(<Header />);
-        expect(screen.getByRole("link", { name: "Iniciar Sesión" })).toBeInTheDocument();
+    describe("user authenticated", () => {
+        it("renders the user's first name", () => {
+            render(<Header user={mockUser} />);
+            expect(screen.getByText(/Hola, Andres/i)).toBeInTheDocument();
+        });
+
+
+
+        it("does not render 'Iniciar Sesión' link", () => {
+            render(<Header user={mockUser} />);
+            expect(screen.queryByRole("link", { name: "Iniciar Sesión" })).not.toBeInTheDocument();
+        });
     });
 });

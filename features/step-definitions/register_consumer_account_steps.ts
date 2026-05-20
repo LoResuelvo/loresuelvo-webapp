@@ -17,13 +17,13 @@ async function setMockSession(session: AuthSession) {
   await page.context().addCookies([{
     name: MOCK_SESSION_COOKIE,
     value: encodeURIComponent(JSON.stringify(session)),
-    url: APP_URL,
+    domain: "localhost",
     path: "/",
   }]);
 }
 
 async function clearMockSession() {
-  await page.context().clearCookies({ name: MOCK_SESSION_COOKIE, domain: "localhost" });
+  await page.context().clearCookies();
 }
 
 Given('que estoy en la página de inicio', async () => {

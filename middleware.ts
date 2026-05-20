@@ -1,9 +1,20 @@
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth0 } from "./lib/auth0";
 
 export async function middleware(request: NextRequest) {
-  return await auth0.middleware(request);
+  const response = await auth0.middleware(request);
+
+  const session = await auth0.getSession();
+
+  if (session && session.user.isOnboarded === false) {
+    if (!request.nextUrl.pathname.startsWith('/onboarding')) {
+      return NextResponse.redirect(new URL('/onboarding', request.url));
+    }
+  }
+
+  return response;
 }
+
 
 export const config = {
   matcher: [

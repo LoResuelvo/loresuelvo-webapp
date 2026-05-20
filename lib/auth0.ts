@@ -7,28 +7,44 @@ export const auth0 = new Auth0Client({
   },
   async beforeSessionSaved(session) {
     const apiUrl = process.env.API_URL;
-    const user = session.user;
     const token = session.tokenSet?.accessToken;
 
     if (!token || !apiUrl) return session;
 
     // try to send user info to API
     try {
-
-      await fetch(`${apiUrl}/consumers`, {
-        method: "POST",
+      const response = await fetch(`${apiUrl}/me`, {
+        method: "GET",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          email: user.email,
-          name: user.given_name || "",
-          surname: user.family_name || "",
-        }),
+        }
       });
+
+      if (response.status === 404) {
+        session.user.isOnboarded = false;
+      } else {
+        const userData = await response.json();
+        session.user.isOnboarded = true;
+        session.user.role = userData.Role;
+      }
+
+
+
+      // await fetch(`${apiUrl}/consumers`, {
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //     "Authorization": `Bearer ${token}`
+      //   },
+      //   body: JSON.stringify({
+      //     email: user.email,
+      //     name: user.given_name || "",
+      //     surname: user.family_name || "",
+      //   }),
+      // });
     } catch (error) {
-      console.error("Failed to send user info to API:", error);
+      console.error(error);
     }
 
     return session;

@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
 
   const session = await getAuthService().getSession();
 
-  if (!session && pathname.startsWith("/consumer")) {
+  if (!session && (pathname.startsWith("/consumer") || pathname.startsWith("/prestador"))) {
     return NextResponse.redirect(new URL(ROUTES.home, request.url));
   }
 

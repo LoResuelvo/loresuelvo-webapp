@@ -33,11 +33,19 @@ describe("Header", () => {
             expect(screen.getByText(/Hola, Andres/i)).toBeInTheDocument();
         });
 
-
+        it("renders the 'Cerrar sesión' link", () => {
+            render(<Header user={mockUser} />);
+            expect(screen.getByRole("link", { name: "Cerrar sesión" })).toBeInTheDocument();
+        });
 
         it("does not render 'Iniciar Sesión' link", () => {
             render(<Header user={mockUser} />);
             expect(screen.queryByRole("link", { name: "Iniciar Sesión" })).not.toBeInTheDocument();
         });
+
+        it("does not render 'Registrarse' link", () => {
+            render(<Header user={mockUser} />);
+            expect(screen.queryByRole("link", { name: "Registrarse" })).not.toBeInTheDocument();
+        })
     });
 });

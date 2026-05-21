@@ -3,6 +3,7 @@ export const ROUTES = {
   auth: {
     login: "/auth/login",
     signup: "/auth/login?screen_hint=signup",
+    logout: "/auth/logout",
   },
   onboarding: "/onboarding",
   consumer: {

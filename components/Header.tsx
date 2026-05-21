@@ -16,11 +16,17 @@ export default function Header({ user }: HeaderProps) {
         </h1>
         <nav className="flex items-center">
           {user ? (
-            <>
+            <div className="flex items-center gap-4">
               <span className="text-[14px] font-medium text-brand-primary">
                 Hola, {user.firstName}
               </span>
-            </>
+              <Link
+                href={ROUTES.auth.logout}
+                className="rounded-full border border-gray-200 bg-white px-4 py-2 text-[14px] font-medium text-brand-primary shadow-sm hover:bg-gray-50 transition-colors"
+              >
+                Cerrar sesión
+              </Link>
+            </div>
           ) : (
             <div className="flex items-center gap-4">
               <Link

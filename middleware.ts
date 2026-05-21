@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth0 } from "./lib/auth0";
 import { ROUTES } from "./lib/routes";
-
-
+import { getAuthService } from "./lib/auth";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -11,7 +10,11 @@ export async function middleware(request: NextRequest) {
     return await auth0.middleware(request);
   }
 
-  const session = await auth0.getSession();
+  const session = await getAuthService().getSession();
+
+  if (!session && pathname.startsWith("/consumer")) {
+    return NextResponse.redirect(new URL(ROUTES.home, request.url));
+  }
 
   if (session && session.user.isOnboarded === false) {
     if (!pathname.startsWith(ROUTES.onboarding)) {

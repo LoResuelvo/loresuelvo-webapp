@@ -65,7 +65,7 @@ Given('que me registré exitosamente en Auth0 con email {string}',
 Given('complete mi nombre {string} y apellido {string} en la pagina de registro de LoResuelvo',
   async (firstName: string, lastName: string) => {
     await setMockSession({
-      user: { id: "mock-001", email: "andy@pro.com", firstName: firstName, lastName: lastName, isOnboarded: false },
+      user: { id: "mock-001", email: "andy@pro.com", firstName: firstName, lastName: lastName, isOnboarded: true },
       accessToken: "mock-access-token",
     });
   }
@@ -90,11 +90,12 @@ Given('que no me registré en Auth0', async () => {
 });
 
 Then('soy redirigido a la página de inicio', async () => {
-  const currentUrl = page.url();
-  const isOnProtectedRoute = currentUrl.includes("/consumer/home");
+  const currentUrl = page.url().replace(/\/$/, "");
+  const expectedUrl = APP_URL.replace(/\/$/, "");
+  const is_home_page = currentUrl === expectedUrl;
   assert.ok(
-    !isOnProtectedRoute,
-    `Was expected to be redirected outside of /consumer/home but the current URL is: ${currentUrl}`
+    is_home_page,
+    `Was expected to be redirected to "${expectedUrl}" but the current URL is: ${page.url()}`
   );
 });
 

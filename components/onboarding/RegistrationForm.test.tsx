@@ -9,6 +9,7 @@ const mockSession: AuthSession = {
     email: "test@example.com",
     firstName: "Maria",
     lastName: "Gomez",
+    isOnboarded: false
   },
 };
 

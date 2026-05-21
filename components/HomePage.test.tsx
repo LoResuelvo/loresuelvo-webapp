@@ -1,14 +1,9 @@
-/**
- * Los tests de HomePage se dividen por componente porque PageLayout es un async
- * Server Component que llama a getAuthService() en servidor.
- * React Testing Library no puede await Server Components asincrónicos.
- * Cada componente hijo se testea de forma independiente.
- */
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import Header from "@/components/Header";
 import HeroContent from "@/components/HeroContent";
-import RegistrationCard from "@/components/RegistrationCard";
+import RoleSelectionCard from "@/components/RoleSelectionCard";
+import { FeatureCard } from "@/components/FeatureCard";
 import Footer from "@/components/Footer";
 import { ROUTES } from "@/lib/routes";
 
@@ -31,32 +26,36 @@ describe("HomePage", () => {
     });
 });
 
-describe("HomePage - RegistrationCard", () => {
-    it("renders the 'Registrarme como Cliente' card", () => {
+describe("HomePage - RoleSelectionCard", () => {
+    it("renders the unified client and technician role columns with custom content", () => {
         render(
-            <RegistrationCard
-                title="Registrarme como Cliente"
-                description="Necesito ayuda profesional en mi hogar."
-                buttonText="Ser Cliente"
-                buttonClass="bg-brand-primary text-white"
-                href={ROUTES.auth.signup}
+            <RoleSelectionCard
+                clienteDesc="Busco ayuda profesional en mi hogar."
+                clienteBtn="Encontrar un profesional"
+                clienteHref={ROUTES.auth.signup}
+                tecnicoDesc="Quiero ofrecer mis servicios especializados."
+                tecnicoBtn="Unirme como profesional"
+                tecnicoHref={ROUTES.auth.signup}
             />
         );
-        expect(screen.getByRole("heading", { name: "Registrarme como Cliente", level: 3 })).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: /Ser Cliente/i })).toBeInTheDocument();
+        expect(screen.getByText("Soy Cliente")).toBeInTheDocument();
+        expect(screen.getByText("Soy Técnico")).toBeInTheDocument();
+        expect(screen.getByText("Busco ayuda profesional en mi hogar.")).toBeInTheDocument();
+        expect(screen.getByText("Quiero ofrecer mis servicios especializados.")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: /Encontrar un profesional/i })).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: /Unirme como profesional/i })).toBeInTheDocument();
     });
+});
 
-    it("renders the 'Registrarme como Técnico' card", () => {
+describe("HomePage - FeatureCard", () => {
+    it("renders the feature title and description", () => {
         render(
-            <RegistrationCard
-                title="Registrarme como Técnico"
-                description="Quiero ofrecer mis servicios y crecer mi negocio."
-                buttonText="Ser Técnico"
-                buttonClass="border text-brand-primary"
-                href={ROUTES.auth.signup}
+            <FeatureCard
+                title="Diagnóstico con IA"
+                description="Sube una foto o describe el problema."
             />
         );
-        expect(screen.getByRole("heading", { name: "Registrarme como Técnico", level: 3 })).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: /Ser Técnico/i })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Diagnóstico con IA", level: 4 })).toBeInTheDocument();
+        expect(screen.getByText("Sube una foto o describe el problema.")).toBeInTheDocument();
     });
 });

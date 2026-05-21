@@ -24,8 +24,6 @@ Feature: Registrar cuenta nueva de consumidor
 
   Rule: No se puede acceder al home sin completar el registro de LoResuelvo
 
-    @wip
-
     Scenario: 04-RCN Registro incompleto
       Given que me registré exitosamente en Auth0 con email "andy@pro.com"
       And no completé mis datos en la pagina de registro de LoResuelvo

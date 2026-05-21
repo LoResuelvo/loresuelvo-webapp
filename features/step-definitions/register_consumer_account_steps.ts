@@ -100,7 +100,7 @@ Then('soy redirigido a la página de inicio', async () => {
 });
 
 
-Given('no complete mis datos en la pagina de registro de LoResuelvo', async () => {
+Given('no completé mis datos en la pagina de registro de LoResuelvo', async () => {
   await setMockSession({
     user: { id: "mock-001", email: "andy@pro.com", firstName: "", lastName: "", isOnboarded: false },
     accessToken: "mock-access-token",

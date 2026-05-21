@@ -3,6 +3,7 @@ import { page } from "./landing_page_visualization_steps";
 import { AuthSession } from "../../lib/auth/types";
 import { MOCK_SESSION_COOKIE } from "../../lib/auth/mock-adapter";
 import assert from "assert";
+import { ROUTES } from "../../lib/routes";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 const CONSUMER_URL = APP_URL + "/consumer/home";
@@ -46,14 +47,25 @@ Then('soy redirigido al portal de autenticación de Auth0', async () => {
     req => req.url().includes(AUTH0_SIGNUP_URL),
     { timeout: 5000 }
   );
-  assert.ok(request, `No se realizó ninguna navegación hacia "${AUTH0_SIGNUP_URL}"`);
+  assert.ok(request, `No navigation was made towards "${AUTH0_SIGNUP_URL}"`);
 });
 
 
-Given('que me he registrado exitosamente en Auth0 con nombre {string}, apellido {string} y email {string}',
-  async (nombre: string, apellido: string, email: string) => {
+
+Given('que me registré exitosamente en Auth0 con email {string}',
+  async (email: string) => {
     await setMockSession({
-      user: { id: "mock-001", email, firstName: nombre, lastName: apellido },
+      user: { id: "mock-001", email, firstName: "", lastName: "", isOnboarded: false },
+      accessToken: "mock-access-token",
+    });
+  }
+);
+
+
+Given('complete mi nombre {string} y apellido {string} en la pagina de registro de LoResuelvo',
+  async (firstName: string, lastName: string) => {
+    await setMockSession({
+      user: { id: "mock-001", email: "andy@pro.com", firstName: firstName, lastName: lastName, isOnboarded: false },
       accessToken: "mock-access-token",
     });
   }
@@ -66,13 +78,6 @@ Then('veo mi nombre {string} en el encabezado', async (name: string) => {
   assert.ok(text.includes(name), `Name "${name}" not found in header`);
 });
 
-Given('que estoy autenticado', async () => {
-  await setMockSession({
-    user: { id: "mock-001", email: "andres@loresuelvo.com", firstName: "Andres", lastName: "Colina" },
-    accessToken: "mock-access-token",
-  });
-});
-
 Then('veo el botón de {string}', async (buttonName: string) => {
   const button = page.getByRole('button', { name: buttonName })
                      .or(page.getByRole('link', { name: buttonName })).first();
@@ -80,14 +85,7 @@ Then('veo el botón de {string}', async (buttonName: string) => {
   assert.ok(await button.isVisible(), `There is no button or link "${buttonName}"`);
 });
 
-Then('no veo el botón de {string}', async (buttonName: string) => {
-  const button = page.getByRole('button', { name: buttonName })
-                     .or(page.getByRole('link', { name: buttonName })).first();
-  await page.waitForTimeout(500);
-  assert.ok(!(await button.isVisible()), `Button "${buttonName}" is visible but shouldn't be`);
-});
-
-Given('que no me puedo registrar exitosamente en Auth0', async () => {
+Given('que no me registré en Auth0', async () => {
   await clearMockSession();
 });
 
@@ -96,6 +94,19 @@ Then('veo un error de permisos invalidos', async () => {
   const isOnProtectedRoute = currentUrl.includes("/consumer/home");
   assert.ok(
     !isOnProtectedRoute,
-    `Se esperaba ser redirigido fuera de /consumer/home pero la URL actual es: ${currentUrl}`
+    `Was expected to be redirected outside of /consumer/home but the current URL is: ${currentUrl}`
   );
+});
+
+
+Given('no complete mis datos en la pagina de registro de LoResuelvo', async () => {
+  await setMockSession({
+    user: { id: "mock-001", email: "andy@pro.com", firstName: "", lastName: "", isOnboarded: false },
+    accessToken: "mock-access-token",
+  });
+})
+
+Then('soy redirigido a la pantalla de registro', async () => {
+  await page.waitForURL(`**${ROUTES.onboarding}`);
+  assert.equal(page.url().endsWith(ROUTES.onboarding), true, `Was expected to be at ${ROUTES.onboarding} but is at ${page.url()}`);
 });

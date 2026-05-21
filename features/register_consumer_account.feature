@@ -17,7 +17,6 @@ Feature: Registrar cuenta nueva de consumidor
 
   Rule: No se puede acceder al home sin registro en Auth0
 
-    @wip
     Scenario: 03-RCN Registro en Auth0 fallido
       Given que no me registré en Auth0
       When entro al home de consumidores

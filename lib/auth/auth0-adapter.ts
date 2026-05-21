@@ -13,7 +13,8 @@ export class Auth0Adapter implements AuthService {
         email: session.user.email || "",
         firstName: session.user.given_name || "",
         lastName: session.user.family_name || "",
-        isOnboarded: session.user.isOnboarded ?? false
+        isOnboarded: session.user.isOnboarded ?? false,
+        role: session.user.role
       },
       accessToken: session.tokenSet?.accessToken,
     };
@@ -27,6 +28,7 @@ export class Auth0Adapter implements AuthService {
     if (userUpdate.firstName !== undefined) updatedUser.given_name = userUpdate.firstName;
     if (userUpdate.lastName !== undefined) updatedUser.family_name = userUpdate.lastName;
     if (userUpdate.isOnboarded !== undefined) updatedUser.isOnboarded = userUpdate.isOnboarded;
+    if (userUpdate.role !== undefined) updatedUser.role = userUpdate.role;
 
     await auth0.updateSession({
       ...session,

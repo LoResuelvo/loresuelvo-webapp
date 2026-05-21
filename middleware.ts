@@ -22,6 +22,12 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  if (session && session.user.isOnboarded === true && pathname === ROUTES.home) {
+    const role = session.user.role; // TODO: hardcoded fields
+    const targetHome = role === "provider" ? ROUTES.provider.home : ROUTES.consumer.home;
+    return NextResponse.redirect(new URL(targetHome, request.url));
+  }
+
   return NextResponse.next();
 }
 

@@ -24,6 +24,8 @@ export const auth0 = new Auth0Client({
       if (response.ok) {
         const userData = await response.json();
         session.user.isOnboarded = true;
+        session.user.given_name = userData.Name;
+        session.user.family_name = userData.Surname;
         session.user.role = userData.Role;
       }
     } catch (error) {

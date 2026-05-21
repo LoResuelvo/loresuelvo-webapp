@@ -8,10 +8,10 @@ export const auth0 = new Auth0Client({
   async beforeSessionSaved(session) {
     const apiUrl = process.env.API_URL;
     const token = session.tokenSet?.accessToken;
+    session.user.isOnboarded = false;
 
     if (!token || !apiUrl) return session;
 
-    // try to send user info to API
     try {
       const response = await fetch(`${apiUrl}/me`, {
         method: "GET",
@@ -21,30 +21,13 @@ export const auth0 = new Auth0Client({
         }
       });
 
-      if (response.status === 404) {
-        session.user.isOnboarded = false;
-      } else {
+      if (response.ok) {
         const userData = await response.json();
         session.user.isOnboarded = true;
         session.user.role = userData.Role;
       }
-
-
-
-      // await fetch(`${apiUrl}/consumers`, {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //     "Authorization": `Bearer ${token}`
-      //   },
-      //   body: JSON.stringify({
-      //     email: user.email,
-      //     name: user.given_name || "",
-      //     surname: user.family_name || "",
-      //   }),
-      // });
     } catch (error) {
-      console.error(error);
+      console.warn("[auth0] beforeSessionSaved: could not reach API, defaulting to isOnboarded=false", error);
     }
 
     return session;

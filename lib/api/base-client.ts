@@ -48,8 +48,8 @@ export class ApiClient {
     });
 
     if (!response.ok) {
-      console.error(`[ApiClient] Error ${response.status} en ${url}`);
-      throw new ApiClientError(response.status, response.statusText);
+      const errorBody = await response.text();
+      console.error(`[ApiClient] Error ${response.status} en ${url}: ${errorBody}`);
     }
 
     if (response.status === 204) {

@@ -6,10 +6,21 @@ import { redirect } from "next/navigation";
 import { api } from "@/lib/api/base-client";
 
 export async function submitRegistration(formData: FormData) {
+  console.log("-> submitRegistration: Iniciando Server Action");
+  
+  const { cookies } = await import("next/headers");
+  const cookieStore = await cookies();
+  console.log("-> submitRegistration: cookies =", cookieStore.getAll().map(c => c.name));
+
+  const auth0Session = await auth0.getSession();
+  console.log("-> submitRegistration: auth0Session =", !!auth0Session);
+  
   const session = await getAuthService().getSession();
+  console.log("-> submitRegistration: authService session =", !!session);
 
   if (!session) {
-    throw new Error("User is unauthenticated");
+    console.error("User is unauthenticated (session is null)");
+    return;
   }
 
   const firstName = formData.get("firstName") as string;
@@ -23,7 +34,6 @@ export async function submitRegistration(formData: FormData) {
     });
   } catch (error) {
     console.error("Error al registrar usuario:", error);
-    throw new Error("Failed to register user");
   }
 
   try {

@@ -21,7 +21,7 @@ Feature: Registrar cuenta nueva de consumidor
     Scenario: 03-RCN Registro en Auth0 fallido
       Given que no me registré en Auth0
       When entro al home de consumidores
-      Then veo un error de permisos invalidos
+      Then soy redirigido a la página de inicio
 
   Rule: No se puede acceder al home sin completar el registro de LoResuelvo
 

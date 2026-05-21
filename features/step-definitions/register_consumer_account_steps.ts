@@ -89,7 +89,7 @@ Given('que no me registré en Auth0', async () => {
   await clearMockSession();
 });
 
-Then('veo un error de permisos invalidos', async () => {
+Then('soy redirigido a la página de inicio', async () => {
   const currentUrl = page.url();
   const isOnProtectedRoute = currentUrl.includes("/consumer/home");
   assert.ok(

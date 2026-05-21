@@ -8,7 +8,6 @@ Feature: Registrar cuenta nueva de consumidor
     When hago clic en el botón "Registrarse"
     Then soy redirigido al portal de autenticación de Auth0
 
-  @wip
   Scenario: 02-RCN Registro exitoso
     Given que me registré exitosamente en Auth0 con email "andy@pro.com"
     And elegí la opción de consumidor en la pagina de registro

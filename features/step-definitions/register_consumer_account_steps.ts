@@ -107,7 +107,7 @@ Given('no completé mis datos en la pagina de registro de LoResuelvo', async () 
   });
 })
 
-Then('soy redirigido a la pantalla de registro', async () => {
+Then('soy redirigido a la página de registro', async () => {
   await page.waitForURL(`**${ROUTES.onboarding}`);
   assert.equal(page.url().endsWith(ROUTES.onboarding), true, `Was expected to be at ${ROUTES.onboarding} but is at ${page.url()}`);
 });

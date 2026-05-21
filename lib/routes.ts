@@ -8,5 +8,8 @@ export const ROUTES = {
   onboarding: "/onboarding",
   consumer: {
     home: "/consumer/home"
+  },
+  provider: {
+    home: "/prestador/home"
   }
 };

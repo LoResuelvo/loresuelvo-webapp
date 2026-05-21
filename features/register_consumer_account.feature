@@ -28,4 +28,4 @@ Feature: Registrar cuenta nueva de consumidor
       Given que me registré exitosamente en Auth0 con email "andy@pro.com"
       And no completé mis datos en la pagina de registro de LoResuelvo
       When entro al home de consumidores
-      Then soy redirigido a la pantalla de registro
+      Then soy redirigido a la página de registro

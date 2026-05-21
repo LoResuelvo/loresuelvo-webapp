@@ -19,5 +19,10 @@ describe('ConsumerHome', () => {
             render(<ConsumerHome session={mockSession} />);
             expect(screen.getByRole("heading", { name: "LoResuelvo", level: 1 })).toBeInTheDocument();
         });
+
+        it("renders the user's first name", () => {
+            render(<ConsumerHome session={mockSession} />);
+            expect(screen.getByText(/Hola, Andres/i)).toBeInTheDocument();
+        });
     }
 )})

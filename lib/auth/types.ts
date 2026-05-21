@@ -13,4 +13,5 @@ export interface AuthSession {
 
 export interface AuthService {
   getSession(): Promise<AuthSession | null>;
+  updateSession(userUpdate: Partial<AppUser>): Promise<void>;
 }

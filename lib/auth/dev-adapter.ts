@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { AuthService, AuthSession } from "./types";
+import { AuthService, AuthSession, AppUser } from "./types";
 import { MockAuthAdapter, MOCK_SESSION_COOKIE } from "./mock-adapter";
 import { Auth0Adapter } from "./auth0-adapter";
 
@@ -19,5 +19,14 @@ export class DevAuthAdapter implements AuthService {
       return this.mockAdapter.getSession();
     }
     return this.auth0Adapter.getSession();
+  }
+
+  async updateSession(userUpdate: Partial<AppUser>): Promise<void> {
+    const cookieStore = await cookies();
+    if (cookieStore.has(MOCK_SESSION_COOKIE)) {
+      await this.mockAdapter.updateSession(userUpdate);
+    } else {
+      await this.auth0Adapter.updateSession(userUpdate);
+    }
   }
 }

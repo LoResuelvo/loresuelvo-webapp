@@ -20,6 +20,11 @@ describe("Header", () => {
             render(<Header />);
             expect(screen.getByRole("link", { name: "Iniciar Sesión" })).toBeInTheDocument();
         });
+
+        it("renders the 'Registrarse' link", () => {
+            render(<Header />)
+            expect(screen.getByRole("link", { name: "Registrarse" })).toBeInTheDocument();
+        })
     });
 
     describe("user authenticated", () => {

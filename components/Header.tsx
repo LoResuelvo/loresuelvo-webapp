@@ -22,12 +22,20 @@ export default function Header({ user }: HeaderProps) {
               </span>
             </>
           ) : (
-            <Link
-              href={ROUTES.auth.login}
-              className="rounded-full border border-gray-200 bg-white px-6 py-2.5 text-[14px] font-medium text-brand-primary shadow-sm hover:bg-gray-50 transition-colors"
-            >
-              Iniciar Sesión
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link
+                href={ROUTES.auth.login}
+                className="rounded-full border border-gray-200 bg-white px-6 py-2.5 text-[14px] font-medium text-brand-primary shadow-sm hover:bg-gray-50 transition-colors"
+              >
+                Iniciar Sesión
+              </Link>
+              <Link
+                href={ROUTES.auth.signup}
+                className="rounded-full border border-transparent bg-brand-primary text-white px-6 py-2.5 text-[14px] font-medium shadow-sm hover:bg-brand-primary/90 transition-colors"
+              >
+                Registrarse
+              </Link>
+            </div>
           )}
         </nav>
       </Container>

@@ -11,5 +11,9 @@ When('entro al home de prestadores', async () => {
 });
 
 Given('elegí la opción de prestador en la pagina de registro', async () => {
-  // To be implemented
+  await page.goto(APP_URL + ROUTES.onboarding);
+  const providerButton = page.getByText("Soy Técnico").first();
+  await providerButton.click();
+  const continueButton = page.getByText("Continuar").first();
+  await continueButton.click();
 });

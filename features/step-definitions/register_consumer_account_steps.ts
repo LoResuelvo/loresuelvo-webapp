@@ -72,7 +72,11 @@ Given('complete mi nombre {string} y apellido {string} en la pagina de registro 
 );
 
 Given('elegí la opción de consumidor en la pagina de registro', async () => {
-  // To be implemented
+  await page.goto(APP_URL + ROUTES.onboarding);
+  const consumerButton = page.getByText("Soy Cliente").first();
+  await consumerButton.click();
+  const continueButton = page.getByText("Continuar").first();
+  await continueButton.click();
 });
 
 Then('veo mi nombre {string} en el encabezado', async (name: string) => {

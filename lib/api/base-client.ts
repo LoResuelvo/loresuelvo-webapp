@@ -1,7 +1,12 @@
 import { getAuthService } from "@/lib/auth";
 
 export class ApiClientError extends Error {
-  constructor(public status: number, public statusText: string, message?: string) {
+  constructor(
+    public status: number,
+    public statusText: string,
+    message?: string,
+    public body?: unknown,
+  ) {
     super(message || `API Error: ${status} ${statusText}`);
     this.name = "ApiClientError";
   }
@@ -47,16 +52,45 @@ export class ApiClient {
       },
     });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`[ApiClient] Error ${response.status} en ${url}: ${errorBody}`);
-    }
-
     if (response.status === 204) {
       return null as unknown as T;
     }
 
-    return response.json();
+    const responseBody = await response.text();
+    const parsedBody = this.parseResponseBody(responseBody);
+
+    if (!response.ok) {
+      const message = this.getErrorMessage(parsedBody) || responseBody || response.statusText;
+      console.error(`[ApiClient] Error ${response.status} en ${url}: ${responseBody}`);
+      throw new ApiClientError(response.status, response.statusText, message, parsedBody);
+    }
+
+    return parsedBody as T;
+  }
+
+  private parseResponseBody(responseBody: string): unknown {
+    if (!responseBody) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(responseBody);
+    } catch {
+      return responseBody;
+    }
+  }
+
+  private getErrorMessage(body: unknown): string | undefined {
+    if (typeof body === "object" && body !== null && "error" in body) {
+      const error = (body as { error?: unknown }).error;
+      return typeof error === "string" ? error : undefined;
+    }
+
+    if (typeof body === "string") {
+      return body;
+    }
+
+    return undefined;
   }
 
   async get<T>(endpoint: string): Promise<T> {

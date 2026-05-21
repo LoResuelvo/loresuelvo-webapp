@@ -4,6 +4,8 @@ import { getAuthService } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { api } from "@/lib/api/base-client";
 
+type UserRole = "consumer" | "provider";
+
 export async function submitRegistration(formData: FormData) {
   console.log("-> submitRegistration: Iniciando Server Action");
   
@@ -12,33 +14,26 @@ export async function submitRegistration(formData: FormData) {
 
   if (!session) {
     console.error("User is unauthenticated (session is null)");
-    return;
+    throw new Error("User is unauthenticated");
   }
 
   const firstName = formData.get("firstName") as string;
   const lastName = formData.get("lastName") as string;
-  const role = (formData.get("role") as string) || "consumer";
+  const rawRole = formData.get("role") as string;
+  const role: UserRole = rawRole === "provider" ? "provider" : "consumer";
 
   if (role === "provider") {
-    try {
-      await api.post("/providers", {
-        email: session.user.email,
-        name: firstName,
-        surname: lastName,
-      });
-    } catch (error) {
-      console.error("Error registering provider:", error);
-    }
+    await api.post("/providers", {
+      email: session.user.email,
+      name: firstName,
+      surname: lastName,
+    });
   } else {
-    try {
-      await api.post("/consumers", {
-        email: session.user.email,
-        name: firstName,
-        surname: lastName,
-      });
-    } catch (error) {
-      console.error("Error registering consumer:", error);
-    }
+    await api.post("/consumers", {
+      email: session.user.email,
+      name: firstName,
+      surname: lastName,
+    });
   }
 
   try {
@@ -46,7 +41,7 @@ export async function submitRegistration(formData: FormData) {
       firstName,
       lastName,
       isOnboarded: true,
-      role: role as "consumer" | "provider",
+      role,
     });
     console.log("-> submitRegistration: session updated successfully");
   } catch (error) {

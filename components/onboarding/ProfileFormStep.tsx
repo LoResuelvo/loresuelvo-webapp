@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { ChangeEvent } from "react";
+import { ChangeEvent, useState } from "react";
 
 interface ProfileFormStepProps {
   onBack: () => void;
-  onSubmit: (e: ChangeEvent<HTMLFormElement>) => void;
+  onSubmit: (formData: FormData) => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
@@ -19,6 +19,35 @@ export function ProfileFormStep({
   isLoading,
   error,
 }: ProfileFormStepProps) {
+  const [firstNameError, setFirstNameError] = useState<string | null>(null);
+  const [lastNameError, setLastNameError] = useState<string | null>(null);
+
+  async function handleFormSubmit(e: ChangeEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setFirstNameError(null);
+    setLastNameError(null);
+
+    const formData = new FormData(e.currentTarget);
+    const firstName = formData.get("firstName") as string;
+    const lastName = formData.get("lastName") as string;
+
+    let hasErrors = false;
+    if (!firstName || firstName.trim() === "") {
+      setFirstNameError("Campo obligatorio");
+      hasErrors = true;
+    }
+    if (!lastName || lastName.trim() === "") {
+      setLastNameError("Campo obligatorio");
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
+      return;
+    }
+
+    await onSubmit(formData);
+  }
+
   return (
     <div>
       <button
@@ -44,7 +73,7 @@ export function ProfileFormStep({
         </div>
       )}
 
-      <form onSubmit={onSubmit} className="space-y-5">
+      <form onSubmit={handleFormSubmit} className="space-y-5" noValidate>
         <div className="space-y-2">
           <Label htmlFor="firstName" className="text-[14px] font-semibold text-brand-primary">
             Nombre
@@ -55,8 +84,16 @@ export function ProfileFormStep({
             placeholder="Ej. Juan"
             required
             autoFocus
-            className="h-[46px] rounded-lg border-border bg-brand-neutral/30 text-[15px] placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary"
+            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-[15px] placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${
+              firstNameError ? "border-destructive focus-visible:ring-destructive" : ""
+            }`}
+            onChange={() => setFirstNameError(null)}
           />
+          {firstNameError && (
+            <p className="text-sm text-destructive" role="alert">
+              {firstNameError}
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -68,8 +105,16 @@ export function ProfileFormStep({
             name="lastName"
             placeholder="Ej. Pérez"
             required
-            className="h-[46px] rounded-lg border-border bg-brand-neutral/30 text-[15px] placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary"
+            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-[15px] placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${
+              lastNameError ? "border-destructive focus-visible:ring-destructive" : ""
+            }`}
+            onChange={() => setLastNameError(null)}
           />
+          {lastNameError && (
+            <p className="text-sm text-destructive" role="alert">
+              {lastNameError}
+            </p>
+          )}
         </div>
 
         <div className="pt-2">

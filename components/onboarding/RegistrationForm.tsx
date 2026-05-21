@@ -1,7 +1,7 @@
 "use client";
 
 import { AuthSession } from "@/lib/auth/types";
-import { ChangeEvent, useState } from "react";
+import { useState } from "react";
 
 import { submitRegistration } from "@/app/onboarding/registrationButtonAction";
 import { RoleSelectionStep } from "./RoleSelectionStep";
@@ -13,13 +13,11 @@ export default function RegistrationForm({ session }: { session: AuthSession | n
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function onSubmit(e: ChangeEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function handleFinalSubmit(formData: FormData) {
     setIsLoading(true);
     setError(null);
     
     try {
-      const formData = new FormData(e.currentTarget);
       if (role) {
         formData.append("role", role);
       }
@@ -44,7 +42,7 @@ export default function RegistrationForm({ session }: { session: AuthSession | n
         ) : (
           <ProfileFormStep
             onBack={() => setStep(1)}
-            onSubmit={onSubmit}
+            onSubmit={handleFinalSubmit}
             isLoading={isLoading}
             error={error}
           />

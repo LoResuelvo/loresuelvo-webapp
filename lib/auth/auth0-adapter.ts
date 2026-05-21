@@ -13,6 +13,7 @@ export class Auth0Adapter implements AuthService {
         email: session.user.email || "",
         firstName: session.user.given_name || "",
         lastName: session.user.family_name || "",
+        isOnboarded: session.user.isOnboarded ?? false
       },
       accessToken: session.tokenSet?.accessToken,
     };

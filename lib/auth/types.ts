@@ -3,6 +3,7 @@ export interface AppUser {
   email: string;
   firstName: string;
   lastName: string;
+  isOnboarded?: boolean;
 }
 
 export interface AuthSession {

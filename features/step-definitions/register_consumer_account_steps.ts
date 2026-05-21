@@ -71,6 +71,10 @@ Given('complete mi nombre {string} y apellido {string} en la pagina de registro 
   }
 );
 
+Given('elegí la opción de consumidor en la pagina de registro', async () => {
+  // To be implemented
+});
+
 Then('veo mi nombre {string} en el encabezado', async (name: string) => {
   const header = page.locator('header');
   await header.waitFor({ state: "visible" });

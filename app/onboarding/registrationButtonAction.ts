@@ -17,15 +17,28 @@ export async function submitRegistration(formData: FormData) {
 
   const firstName = formData.get("firstName") as string;
   const lastName = formData.get("lastName") as string;
+  const role = (formData.get("role") as string) || "consumer";
 
-  try {
-    await api.post("/consumers", {
-      email: session.user.email,
-      name: firstName,
-      surname: lastName,
-    });
-  } catch (error) {
-    console.error("Error al registrar usuario:", error);
+  if (role === "provider") {
+    try {
+      await api.post("/providers", {
+        email: session.user.email,
+        name: firstName,
+        surname: lastName,
+      });
+    } catch (error) {
+      console.error("Error registering provider:", error);
+    }
+  } else {
+    try {
+      await api.post("/consumers", {
+        email: session.user.email,
+        name: firstName,
+        surname: lastName,
+      });
+    } catch (error) {
+      console.error("Error registering consumer:", error);
+    }
   }
 
   try {
@@ -33,11 +46,16 @@ export async function submitRegistration(formData: FormData) {
       firstName,
       lastName,
       isOnboarded: true,
+      role: role as "consumer" | "provider",
     });
     console.log("-> submitRegistration: session updated successfully");
   } catch (error) {
     console.error("Error al actualizar la sesión:", error);
   }
 
-  redirect("/consumer/home");
+  if (role === "provider") {
+    redirect("/prestador/home");
+  } else {
+    redirect("/consumer/home");
+  }
 }

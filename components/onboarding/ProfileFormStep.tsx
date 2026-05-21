@@ -1,0 +1,88 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ChangeEvent } from "react";
+
+interface ProfileFormStepProps {
+  onBack: () => void;
+  onSubmit: (e: ChangeEvent<HTMLFormElement>) => void;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export function ProfileFormStep({
+  onBack,
+  onSubmit,
+  isLoading,
+  error,
+}: ProfileFormStepProps) {
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onBack}
+        className="mb-6 flex items-center text-sm font-semibold text-muted-foreground hover:text-brand-primary transition-colors"
+      >
+        <ArrowLeft className="mr-2 h-4 w-4" /> Volver
+      </button>
+
+      <div className="mb-8 text-center">
+        <h1 className="mb-2 text-[26px] font-bold leading-tight tracking-tight text-brand-primary">
+          Completar Perfil
+        </h1>
+        <p className="text-[15px] text-muted-foreground">
+          Por favor completa tus datos para finalizar el registro
+        </p>
+      </div>
+
+      {error && (
+        <div className="mb-6 rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={onSubmit} className="space-y-5">
+        <div className="space-y-2">
+          <Label htmlFor="firstName" className="text-[14px] font-semibold text-brand-primary">
+            Nombre
+          </Label>
+          <Input
+            id="firstName"
+            name="firstName"
+            placeholder="Ej. Juan"
+            required
+            autoFocus
+            className="h-[46px] rounded-lg border-border bg-brand-neutral/30 text-[15px] placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="lastName" className="text-[14px] font-semibold text-brand-primary">
+            Apellido
+          </Label>
+          <Input
+            id="lastName"
+            name="lastName"
+            placeholder="Ej. Pérez"
+            required
+            className="h-[46px] rounded-lg border-border bg-brand-neutral/30 text-[15px] placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary"
+          />
+        </div>
+
+        <div className="pt-2">
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="h-[46px] w-full rounded-lg bg-brand-primary text-[15px] font-medium text-white transition-colors hover:bg-brand-primary/90"
+          >
+            {isLoading ? "Guardando..." : "Finalizar Registro"}
+            {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}

@@ -4,6 +4,7 @@ export interface AppUser {
   firstName: string;
   lastName: string;
   isOnboarded?: boolean;
+  role?: "consumer" | "provider";
 }
 
 export interface AuthSession {

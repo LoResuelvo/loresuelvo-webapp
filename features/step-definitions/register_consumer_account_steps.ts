@@ -119,3 +119,9 @@ Then('soy redirigido a la página de registro', async () => {
   await page.waitForURL(`**${ROUTES.onboarding}`);
   assert.equal(page.url().endsWith(ROUTES.onboarding), true, `Was expected to be at ${ROUTES.onboarding} but is at ${page.url()}`);
 });
+
+Then('soy redirigido al home de consumidores', async () => {
+  await page.waitForURL(`**/consumer/home`);
+  assert.ok(page.url().endsWith("/consumer/home"), `Se esperaba estar en /consumer/home pero se está en ${page.url()}`);
+});
+

@@ -3,24 +3,42 @@ Feature: Registrar cuenta nueva de prestador
     Quiero registrarme en Lo Resuelvo
     Para poder ofrecer mis servicios a los consumidores
 
+    @wip
     Scenario: 01-RPN Registro exitoso
         Given que me registré exitosamente en Auth0 con email "andy@pro.com"
         And elegí la opción de prestador en la pagina de registro
-        And complete mi nombre "Andres" y apellido "Colina" en la pagina de registro de LoResuelvo
-        When entro al home de prestadores
-        Then veo mi nombre "Andres" en el encabezado
-        And veo el botón de "Cerrar sesión"
+        And ingreso mi nombre "Andres" y apellido "Colina" en el formulario
+        And elegí el rubro "Plomería" de la lista en la pagina de registro de LoResuelvo
+        When hago clic en el botón "Continuar"
+        Then soy redirigido al home de prestadores
+        And veo mi nombre "Andres" en el encabezado
 
-    Rule: No se puede acceder al home sin registro en Auth0
-        Scenario: 02-RPN Registro en Auth0 fallido
+    Rule: No se puede forzar el acceso al home sin haber completado el registro
+        Scenario: 02-RPN Intento de acceso directo sin registro en Auth0
             Given que no me registré en Auth0
             When entro al home de prestadores
             Then soy redirigido a la página de inicio
 
-    Rule: No se puede acceder al home sin completar el registro de LoResuelvo
-
-        Scenario: 03-RPN Registro incompleto
+        Scenario: 03-RPN Intento de acceso directo con registro incompleto
             Given que me registré exitosamente en Auth0 con email "andy@pro.com"
             And no completé mis datos en la pagina de registro de LoResuelvo
             When entro al home de prestadores
             Then soy redirigido a la página de registro
+
+    Rule: El formulario de registro requiere completar todos los campos obligatorios
+        @wip
+        Scenario: 04-RPN Intento de registro sin nombre y apellido
+            Given que me registré exitosamente en Auth0 con email "andy@pro.com"
+            And elegí la opción de prestador en la pagina de registro
+            And no completé mis datos en la pagina de registro de LoResuelvo
+            When hago clic en el botón "Continuar"
+            Then veo un mensaje de error "Campo obligatorio"
+
+        @wip
+        Scenario: 05-RPN Intento de registro sin elegir rubro
+            Given que me registré exitosamente en Auth0 con email "andy@pro.com"
+            And elegí la opción de prestador en la pagina de registro
+            And ingreso mi nombre "Andres" y apellido "Colina" en el formulario
+            When hago clic en el botón "Continuar"
+            Then veo un mensaje de error "Debe seleccionar un rubro"
+            And permanezco en la página de registro

@@ -1,5 +1,6 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import { page } from "./landing_page_visualization_steps";
+import { addApiStub, hasApiStub } from "./stubs-helper";
 import { AuthSession } from "../../lib/auth/types";
 import { MOCK_SESSION_COOKIE } from "../../lib/auth/mock-adapter";
 import assert from "assert";
@@ -9,11 +10,9 @@ const APP_URL = process.env.APP_URL || "http://localhost:3000";
 const CONSUMER_URL = APP_URL + "/consumer/home";
 const AUTH0_SIGNUP_URL = "/auth/login?screen_hint=signup";
 
-/**
- * Setea una sesión mockeada en el browser mediante una cookie.
- * DevAuthAdapter la detecta automáticamente y devuelve la sesión del mock.
- * No requiere variables de entorno adicionales.
- */
+let selectedRole: "consumer" | "provider" | null = null;
+export const setSelectedRole = (role: "consumer" | "provider") => { selectedRole = role; };
+
 async function setMockSession(session: AuthSession) {
   await page.context().addCookies([{
     name: MOCK_SESSION_COOKIE,
@@ -33,10 +32,30 @@ Given('que estoy en la página de inicio', async () => {
 
 When('hago clic en el botón {string}', async (buttonName: string) => {
   const button = page.getByRole('button', { name: buttonName })
-                     .or(page.getByRole('link', { name: buttonName })).first();
+    .or(page.getByRole('link', { name: buttonName })).first();
   await button.waitFor({ state: "visible" });
   await button.click();
 });
+
+When('finalizo el registro', async () => {
+  const endpoint = selectedRole === "provider" ? "/providers" : "/consumers";
+
+  if (!await hasApiStub("POST", endpoint)) {
+    await addApiStub({
+      method: "POST",
+      endpoint,
+      status: 201,
+      body: { id: `mock-${selectedRole}-001` },
+    });
+  }
+
+  const button = page.getByRole('button', { name: 'Finalizar Registro' }).first();
+  await button.waitFor({ state: "visible" });
+  await button.click();
+});
+
+
+
 
 When('entro al home de consumidores', async () => {
   await page.goto(CONSUMER_URL);
@@ -72,6 +91,7 @@ Given('complete mi nombre {string} y apellido {string} en la pagina de registro 
 );
 
 Given('elegí la opción de consumidor en la pagina de registro', async () => {
+  selectedRole = "consumer";
   await page.goto(APP_URL + ROUTES.onboarding);
   const consumerButton = page.getByText("Soy Cliente").first();
   await consumerButton.click();
@@ -88,7 +108,7 @@ Then('veo mi nombre {string} en el encabezado', async (name: string) => {
 
 Then('veo el botón de {string}', async (buttonName: string) => {
   const button = page.getByRole('button', { name: buttonName })
-                     .or(page.getByRole('link', { name: buttonName })).first();
+    .or(page.getByRole('link', { name: buttonName })).first();
   await button.waitFor({ state: "visible" });
   assert.ok(await button.isVisible(), `There is no button or link "${buttonName}"`);
 });
@@ -121,7 +141,12 @@ Then('soy redirigido a la página de registro', async () => {
 });
 
 Then('soy redirigido al home de consumidores', async () => {
-  await page.waitForURL(`**/consumer/home`);
-  assert.ok(page.url().endsWith("/consumer/home"), `Se esperaba estar en /consumer/home pero se está en ${page.url()}`);
+  await page.waitForURL(`**${CONSUMER_URL}`, { timeout: 2000 });
+  const currentUrl = page.url().replace(/\/$/, "");
+  const expectedUrl = CONSUMER_URL.replace(/\/$/, "");
+  assert.ok(
+    currentUrl === expectedUrl,
+    `Was expected to be redirected to "${expectedUrl}" but the current URL is: ${page.url()}`
+  );
 });
 

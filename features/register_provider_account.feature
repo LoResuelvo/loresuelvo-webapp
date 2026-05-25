@@ -9,7 +9,7 @@ Feature: Registrar cuenta nueva de prestador
         And elegí la opción de prestador en la pagina de registro
         And ingreso mi nombre "Andres" y apellido "Colina" en el formulario
         And elegí el rubro "Plomería" de la lista en la pagina de registro de LoResuelvo
-        When hago clic en el botón "Continuar"
+        When finalizo el registro
         Then soy redirigido al home de prestadores
         And veo mi nombre "Andres" en el encabezado
 
@@ -31,7 +31,7 @@ Feature: Registrar cuenta nueva de prestador
             Given que me registré exitosamente en Auth0 con email "andy@pro.com"
             And elegí la opción de prestador en la pagina de registro
             And no completé mis datos en la pagina de registro de LoResuelvo
-            When hago clic en el botón "Continuar"
+            When finalizo el registro
             Then veo un mensaje de error "Campo obligatorio"
 
         @wip
@@ -39,6 +39,6 @@ Feature: Registrar cuenta nueva de prestador
             Given que me registré exitosamente en Auth0 con email "andy@pro.com"
             And elegí la opción de prestador en la pagina de registro
             And ingreso mi nombre "Andres" y apellido "Colina" en el formulario
-            When hago clic en el botón "Continuar"
+            When finalizo el registro
             Then veo un mensaje de error "Debe seleccionar un rubro"
             And permanezco en la página de registro

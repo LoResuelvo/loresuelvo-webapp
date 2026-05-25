@@ -1,5 +1,6 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import { page } from "./landing_page_visualization_steps";
+import { setSelectedRole } from "./register_consumer_account_steps";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 
@@ -11,6 +12,8 @@ When('entro al home de prestadores', async () => {
 });
 
 Given('elegí la opción de prestador en la pagina de registro', async () => {
+  setSelectedRole("provider");
+
   await page.goto(APP_URL + ROUTES.onboarding);
   const providerButton = page.getByText("Soy Técnico").first();
   await providerButton.click();

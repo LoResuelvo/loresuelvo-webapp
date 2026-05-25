@@ -1,4 +1,5 @@
 import { getAuthService } from "@/lib/auth";
+import type { ApiStub } from "@/lib/api/types";
 
 export class ApiClientError extends Error {
   constructor(
@@ -27,7 +28,7 @@ export class ApiClient {
     try {
       const authService = getAuthService();
       const session = await authService.getSession();
-      
+
       if (session?.accessToken) {
         headers["Authorization"] = `Bearer ${session.accessToken}`;
       }
@@ -38,11 +39,47 @@ export class ApiClient {
     return headers;
   }
 
+  private async resolveE2EStub<T>(method: string, endpoint: string): Promise<T | null> {
+    try {
+      const { cookies } = await import("next/headers");
+      const cookieStore = await cookies();
+
+      if (!cookieStore.has("__e2e_session")) return null;
+
+      const stubsCookieValue = cookieStore.get("__e2e_api_stubs")?.value;
+      if (!stubsCookieValue) return null;
+
+      const stubs = JSON.parse(decodeURIComponent(stubsCookieValue)) as ApiStub[];
+      const match = stubs.find(
+        (s) => s.method.toUpperCase() === method.toUpperCase() && s.endpoint === endpoint
+      );
+
+      if (!match) return null;
+
+      console.log(`[ApiClient] [E2E] Stub found: ${match.status} for ${method} ${endpoint}`);
+
+      const isSuccess = match.status >= 200 && match.status < 300;
+      if (isSuccess) return match.body as T;
+
+      const errorMessage = typeof match.body === "object" && match.body !== null && "error" in match.body
+        ? String((match.body as Record<string, unknown>).error)
+        : `Error ${match.status}`;
+
+      throw new ApiClientError(match.status, `HTTP Error ${match.status}`, errorMessage, match.body);
+    } catch (e) {
+      if (e instanceof ApiClientError) throw e;
+      return null;
+    }
+  }
+
   private async request<T>(endpoint: string, options: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const headers = await this.getHeaders();
 
-    console.log(`[ApiClient] ${options.method} a ${url}`);
+    console.log(`[ApiClient] ${options.method} to ${url}`);
+
+    const e2eResult = await this.resolveE2EStub<T>(options.method ?? "", endpoint);
+    if (e2eResult !== null) return e2eResult;
 
     const response = await fetch(url, {
       ...options,

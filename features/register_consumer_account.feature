@@ -8,12 +8,11 @@ Feature: Registrar cuenta nueva de consumidor
     When hago clic en el botón "Registrarse"
     Then soy redirigido al portal de autenticación de Auth0
 
-  @wip
   Scenario: 02-RCN Registro exitoso
     Given que me registré exitosamente en Auth0 con email "andy@pro.com"
     And elegí la opción de consumidor en la pagina de registro
     And ingreso mi nombre "Andres" y apellido "Colina" en el formulario
-    When hago clic en el botón "Continuar"
+    When finalizo el registro
     Then soy redirigido al home de consumidores
     And veo mi nombre "Andres" en el encabezado
     And veo el botón de "Cerrar sesión"
@@ -33,11 +32,10 @@ Feature: Registrar cuenta nueva de consumidor
 
   Rule: El formulario de registro requiere completar todos los campos obligatorios
 
-    @wip
     Scenario: 05-RCN Intento de registro sin nombre y apellido
       Given que me registré exitosamente en Auth0 con email "andy@pro.com"
       And elegí la opción de consumidor en la pagina de registro
       And no completé mis datos en la pagina de registro de LoResuelvo
-      When hago clic en el botón "Continuar"
+      When finalizo el registro
       Then veo un mensaje de error "Campo obligatorio"
       And permanezco en la página de registro

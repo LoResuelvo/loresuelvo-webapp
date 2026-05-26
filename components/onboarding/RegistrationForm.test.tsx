@@ -39,7 +39,7 @@ describe("RegistrationForm", () => {
   describe("step 2", () => {
     it("renders empty 'Nombre' and 'Apellido' inputs after advancing to step 2", () => {
       render(<RegistrationForm session={null} />);
-    
+
       const clientButton = screen.getByText("Soy Cliente").closest("button");
       fireEvent.click(clientButton!);
       const continueButton = screen.getByRole("button", { name: /Continuar/i });
@@ -47,7 +47,7 @@ describe("RegistrationForm", () => {
 
       const firstNameInput = screen.getByLabelText(/Nombre/i) as HTMLInputElement;
       const lastNameInput = screen.getByLabelText(/Apellido/i) as HTMLInputElement;
-      
+
       expect(firstNameInput).toBeInTheDocument();
       expect(lastNameInput).toBeInTheDocument();
       expect(firstNameInput.value).toBe("");
@@ -57,27 +57,22 @@ describe("RegistrationForm", () => {
 
 
 
-  // ==========================================
-  // SUMISIÓN Y CASOS DE ÉXITO (HAPPY PATH)
-  // ==========================================
 
   describe("two steps", () => {
     it("submits the correct consumer role and inputs to the backend registration", async () => {
       const mockSubmit = vi.mocked(submitRegistration).mockResolvedValue(undefined as never);
       render(<RegistrationForm session={null} />);
-      
-      // Step 1: select consumer role and continue
+
       const clientButton = screen.getByText("Soy Cliente").closest("button");
       fireEvent.click(clientButton!);
       const continueButton = screen.getByRole("button", { name: /Continuar/i });
       fireEvent.click(continueButton);
 
-      // Step 2: fill valid inputs and submit
       const firstNameInput = screen.getByLabelText(/Nombre/i) as HTMLInputElement;
       const lastNameInput = screen.getByLabelText(/Apellido/i) as HTMLInputElement;
       fireEvent.change(firstNameInput, { target: { value: "Maria" } });
       fireEvent.change(lastNameInput, { target: { value: "Gomez" } });
-      
+
       const submitButton = screen.getByRole("button", { name: /Finalizar Registro/i });
       fireEvent.click(submitButton);
 
@@ -93,20 +88,22 @@ describe("RegistrationForm", () => {
 
     it("submits the correct provider role and inputs to the backend registration", async () => {
       const mockSubmit = vi.mocked(submitRegistration).mockResolvedValue(undefined as never);
-      render(<RegistrationForm session={null} />);
-      
-      // Step 1: select technical role and continue
+      const mockCategories = [{ id: 4, name: "Plomería" }];
+      render(<RegistrationForm session={null} categories={mockCategories} />);
+
       const techButton = screen.getByText("Soy Técnico").closest("button");
       fireEvent.click(techButton!);
       const continueButton = screen.getByRole("button", { name: /Continuar/i });
       fireEvent.click(continueButton);
 
-      // Step 2: fill valid inputs and submit
       const firstNameInput = screen.getByLabelText(/Nombre/i) as HTMLInputElement;
       const lastNameInput = screen.getByLabelText(/Apellido/i) as HTMLInputElement;
+      const categorySelect = screen.getByLabelText(/Rubro/i) as HTMLSelectElement;
+
       fireEvent.change(firstNameInput, { target: { value: "Andres" } });
       fireEvent.change(lastNameInput, { target: { value: "Colina" } });
-      
+      fireEvent.change(categorySelect, { target: { value: "4" } });
+
       const submitButton = screen.getByRole("button", { name: /Finalizar Registro/i });
       fireEvent.click(submitButton);
 
@@ -118,6 +115,30 @@ describe("RegistrationForm", () => {
       expect(submittedFormData.get("firstName")).toBe("Andres");
       expect(submittedFormData.get("lastName")).toBe("Colina");
       expect(submittedFormData.get("role")).toBe("provider");
+      expect(submittedFormData.get("categoryId")).toBe("4");
+    });
+
+    it("shows validation error if provider does not select a category", async () => {
+      const mockSubmit = vi.mocked(submitRegistration);
+      const mockCategories = [{ id: 4, name: "Plomería" }];
+      render(<RegistrationForm session={null} categories={mockCategories} />);
+
+      const techButton = screen.getByText("Soy Técnico").closest("button");
+      fireEvent.click(techButton!);
+      const continueButton = screen.getByRole("button", { name: /Continuar/i });
+      fireEvent.click(continueButton);
+
+      const firstNameInput = screen.getByLabelText(/Nombre/i) as HTMLInputElement;
+      const lastNameInput = screen.getByLabelText(/Apellido/i) as HTMLInputElement;
+
+      fireEvent.change(firstNameInput, { target: { value: "Andres" } });
+      fireEvent.change(lastNameInput, { target: { value: "Colina" } });
+
+      const submitButton = screen.getByRole("button", { name: /Finalizar Registro/i });
+      fireEvent.click(submitButton);
+
+      expect(await screen.findByText("Debe seleccionar un rubro")).toBeInTheDocument();
+      expect(mockSubmit).not.toHaveBeenCalled();
     });
   })
 });

@@ -6,6 +6,29 @@ import { api } from "@/lib/api/base-client";
 
 type UserRole = "consumer" | "provider";
 
+interface RegisterUserData {
+  email: string;
+  name: string;
+  surname: string;
+}
+
+async function registerProvider(data: RegisterUserData, categoryId: number) {
+  return api.post("/providers", {
+    email: data.email,
+    name: data.name,
+    surname: data.surname,
+    category_id: categoryId,
+  });
+}
+
+async function registerConsumer(data: RegisterUserData) {
+  return api.post("/consumers", {
+    email: data.email,
+    name: data.name,
+    surname: data.surname,
+  });
+}
+
 export async function submitRegistration(formData: FormData) {
   console.log("-> submitRegistration: Iniciando Server Action");
   
@@ -22,18 +45,18 @@ export async function submitRegistration(formData: FormData) {
   const rawRole = formData.get("role") as string;
   const role: UserRole = rawRole === "provider" ? "provider" : "consumer";
 
+  const userData: RegisterUserData = {
+    email: session.user.email,
+    name: firstName,
+    surname: lastName,
+  };
+
   if (role === "provider") {
-    await api.post("/providers", {
-      email: session.user.email,
-      name: firstName,
-      surname: lastName,
-    });
+    const rawCategoryId = formData.get("categoryId") as string;
+    const categoryId = rawCategoryId ? parseInt(rawCategoryId, 10) : 0;
+    await registerProvider(userData, categoryId);
   } else {
-    await api.post("/consumers", {
-      email: session.user.email,
-      name: firstName,
-      surname: lastName,
-    });
+    await registerConsumer(userData);
   }
 
   try {

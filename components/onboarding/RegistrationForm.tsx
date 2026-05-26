@@ -6,8 +6,15 @@ import { useState } from "react";
 import { submitRegistration } from "@/app/onboarding/registrationButtonAction";
 import { RoleSelectionStep } from "./RoleSelectionStep";
 import { ProfileFormStep } from "./ProfileFormStep";
+import { Category } from "@/lib/api/types";
 
-export default function RegistrationForm({ session }: { session: AuthSession | null }) {
+export default function RegistrationForm({
+  session,
+  categories = [],
+}: {
+  session: AuthSession | null;
+  categories?: Category[];
+}) {
   const [step, setStep] = useState(1);
   const [role, setRole] = useState<"consumer" | "provider" | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,6 +48,8 @@ export default function RegistrationForm({ session }: { session: AuthSession | n
           />
         ) : (
           <ProfileFormStep
+            role={role}
+            categories={categories}
             onBack={() => setStep(1)}
             onSubmit={handleFinalSubmit}
             isLoading={isLoading}

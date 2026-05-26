@@ -6,3 +6,9 @@ export interface ApiStub {
   status: number;
   body: unknown;
 }
+
+export interface Category {
+  id: number;
+  name: string;
+}
+

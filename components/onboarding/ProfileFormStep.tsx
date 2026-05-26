@@ -5,12 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { ChangeEvent, useState } from "react";
+import { Category } from "@/lib/api/types";
+import { CategorySelect } from "./CategorySelect";
 
 interface ProfileFormStepProps {
   onBack: () => void;
   onSubmit: (formData: FormData) => Promise<void>;
   isLoading: boolean;
   error: string | null;
+  role: "consumer" | "provider" | null;
+  categories: Category[];
 }
 
 export function ProfileFormStep({
@@ -18,18 +22,23 @@ export function ProfileFormStep({
   onSubmit,
   isLoading,
   error,
+  role,
+  categories,
 }: ProfileFormStepProps) {
   const [firstNameError, setFirstNameError] = useState<string | null>(null);
   const [lastNameError, setLastNameError] = useState<string | null>(null);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
 
   async function handleFormSubmit(e: ChangeEvent<HTMLFormElement>) {
     e.preventDefault();
     setFirstNameError(null);
     setLastNameError(null);
+    setCategoryError(null);
 
     const formData = new FormData(e.currentTarget);
     const firstName = formData.get("firstName") as string;
     const lastName = formData.get("lastName") as string;
+    const categoryId = formData.get("categoryId") as string;
 
     let hasErrors = false;
     if (!firstName || firstName.trim() === "") {
@@ -39,6 +48,13 @@ export function ProfileFormStep({
     if (!lastName || lastName.trim() === "") {
       setLastNameError("Campo obligatorio");
       hasErrors = true;
+    }
+
+    if (role === "provider") {
+      if (!categoryId || categoryId === "") {
+        setCategoryError("Debe seleccionar un rubro");
+        hasErrors = true;
+      }
     }
 
     if (hasErrors) {
@@ -84,9 +100,8 @@ export function ProfileFormStep({
             placeholder="Ej. Juan"
             required
             autoFocus
-            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-[15px] placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${
-              firstNameError ? "border-destructive focus-visible:ring-destructive" : ""
-            }`}
+            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-[15px] placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${firstNameError ? "border-destructive focus-visible:ring-destructive" : ""
+              }`}
             onChange={() => setFirstNameError(null)}
           />
           {firstNameError && (
@@ -105,9 +120,8 @@ export function ProfileFormStep({
             name="lastName"
             placeholder="Ej. Pérez"
             required
-            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-[15px] placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${
-              lastNameError ? "border-destructive focus-visible:ring-destructive" : ""
-            }`}
+            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-[15px] placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${lastNameError ? "border-destructive focus-visible:ring-destructive" : ""
+              }`}
             onChange={() => setLastNameError(null)}
           />
           {lastNameError && (
@@ -116,6 +130,14 @@ export function ProfileFormStep({
             </p>
           )}
         </div>
+
+        {role === "provider" && (
+          <CategorySelect
+            categories={categories}
+            error={categoryError}
+            onChange={() => setCategoryError(null)}
+          />
+        )}
 
         <div className="pt-2">
           <Button

@@ -3,7 +3,6 @@ Feature: Registrar cuenta nueva de prestador
     Quiero registrarme en Lo Resuelvo
     Para poder ofrecer mis servicios a los consumidores
 
-    @wip
     Scenario: 01-RPN Registro exitoso
         Given que me registré exitosamente en Auth0 con email "andy@pro.com"
         And elegí la opción de prestador en la pagina de registro
@@ -26,15 +25,14 @@ Feature: Registrar cuenta nueva de prestador
             Then soy redirigido a la página de registro
 
     Rule: El formulario de registro requiere completar todos los campos obligatorios
-        @wip
         Scenario: 04-RPN Intento de registro sin nombre y apellido
             Given que me registré exitosamente en Auth0 con email "andy@pro.com"
             And elegí la opción de prestador en la pagina de registro
             And no completé mis datos en la pagina de registro de LoResuelvo
             When finalizo el registro
             Then veo un mensaje de error "Campo obligatorio"
+            And permanezco en la página de registro
 
-        @wip
         Scenario: 05-RPN Intento de registro sin elegir rubro
             Given que me registré exitosamente en Auth0 con email "andy@pro.com"
             And elegí la opción de prestador en la pagina de registro

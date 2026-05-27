@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import ConsumerHome from "@/components/consumer/home/ConsumerHome";
 
@@ -14,15 +14,26 @@ const mockSession = {
 };
 
 describe('ConsumerHome', () => {
-    describe("header",()  => {
-        it("renders the 'LoResuelvo' logo/title", () => {
-            render(<ConsumerHome session={mockSession} />);
-            expect(screen.getByRole("heading", { name: "LoResuelvo", level: 1 })).toBeInTheDocument();
-        });
+    it("renders the 'LoResuelvo' brand title in sidebar", () => {
+        render(<ConsumerHome session={mockSession} />);
+        expect(screen.getByText("LoResuelvo")).toBeInTheDocument();
+    });
 
-        it("renders the user's first name", () => {
-            render(<ConsumerHome session={mockSession} />);
-            expect(screen.getByText(/Hola, Andres/i)).toBeInTheDocument();
-        });
-    }
-)})
+    it("renders the user's initials on the avatar button", () => {
+        render(<ConsumerHome session={mockSession} />);
+        expect(screen.getByText("A")).toBeInTheDocument();
+    });
+
+    it("opens the dropdown menu and displays user details and logout option on click", () => {
+        render(<ConsumerHome session={mockSession} />);
+        
+        expect(screen.queryByText("Andres Colina")).not.toBeInTheDocument();
+
+        const avatarButton = screen.getByRole("button", { name: "A" });
+        fireEvent.click(avatarButton);
+
+        expect(screen.getByText("Andres Colina")).toBeInTheDocument();
+        expect(screen.getByText("andres@pro.com")).toBeInTheDocument();
+        expect(screen.getByText("Cerrar sesión")).toBeInTheDocument();
+    });
+});

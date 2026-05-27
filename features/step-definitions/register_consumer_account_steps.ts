@@ -102,15 +102,17 @@ Given('elegí la opción de consumidor en la pagina de registro', async () => {
 Then('veo mi nombre {string} en el encabezado', async (name: string) => {
   const header = page.locator('header');
   await header.waitFor({ state: "visible" });
-  const initials = name.charAt(0).toUpperCase();
-  const avatarButton = header.getByRole('button', { name: initials }).or(header.locator('button')).first();
-  await avatarButton.waitFor({ state: "visible" });
   
-  await avatarButton.click();
-  await page.waitForTimeout(200);
-  
-  const text = await header.innerText();
-  assert.ok(text.includes(name), `Name "${name}" not found in header dropdown after clicking the avatar`);
+  let text = await header.innerText();
+  if (!text.includes(name)) {
+    const initials = name.charAt(0).toUpperCase();
+    const avatarButton = header.getByRole('button', { name: initials }).or(header.locator('button')).first();
+    await avatarButton.waitFor({ state: "visible" });
+    await avatarButton.click();
+    await page.waitForTimeout(200);
+    text = await header.innerText();
+  }
+  assert.ok(text.includes(name), `Name "${name}" not found in header`);
 });
 
 Then('veo el botón de {string}', async (buttonName: string) => {

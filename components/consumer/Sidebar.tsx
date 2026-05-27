@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Wrench, Home, MessageSquare, User, Settings } from "lucide-react";
+import { Home } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 
 export default function Sidebar() {

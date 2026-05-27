@@ -2,15 +2,22 @@
 
 import Sidebar from "@/components/consumer/Sidebar";
 import { AuthSession } from "@/lib/auth/types";
-import { User, LogOut } from "lucide-react";
+import { Category } from "@/lib/api/types";
+import { User, LogOut, Bath, Flame, Zap, Snowflake, PaintRoller, Hammer, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { ROUTES } from "@/lib/routes";
 
-const CATEGORIES = [
-];
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  "Plomería": Bath,
+  "Gas": Flame,
+  "Electricista": Zap,
+  "Climatización": Snowflake,
+  "Pintura": PaintRoller,
+  "Construcción": Hammer,
+};
 
-export default function ConsumerHome({ session }: { session: AuthSession | null }) {
+export default function ConsumerHome({ session, categories = [] }: { session: AuthSession | null; categories?: Category[] }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -88,7 +95,7 @@ export default function ConsumerHome({ session }: { session: AuthSession | null 
                 </p>
               </div>
               <Link 
-                href="/consumer/categorias" 
+                href={ROUTES.consumer.categorias} // TODO: Implementar esta ruta
                 className="text-brand-secondary font-bold text-[15px] hover:underline"
               >
                 Ver todas &rarr;
@@ -96,11 +103,11 @@ export default function ConsumerHome({ session }: { session: AuthSession | null 
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {CATEGORIES.map((category) => {
-                const Icon = category.icon;
+              {categories.map((category) => {
+                const Icon = ICON_MAP[category.name] || HelpCircle;
                 return (
                   <Link 
-                    href={`/consumer/buscar?category_id=${category.id}`} 
+                    href={`${ROUTES.consumer.buscar}?category_id=${category.id}`} 
                     key={category.id}
                   >
                     <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col h-[140px] justify-between">

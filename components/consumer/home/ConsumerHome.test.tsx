@@ -15,17 +15,17 @@ const mockSession = {
 
 describe('ConsumerHome', () => {
     it("renders the 'LoResuelvo' brand title in sidebar", () => {
-        render(<ConsumerHome session={mockSession} />);
+        render(<ConsumerHome session={mockSession} categories={[]} />);
         expect(screen.getByText("LoResuelvo")).toBeInTheDocument();
     });
 
     it("renders the user's initials on the avatar button", () => {
-        render(<ConsumerHome session={mockSession} />);
+        render(<ConsumerHome session={mockSession} categories={[]} />);
         expect(screen.getByText("A")).toBeInTheDocument();
     });
 
     it("opens the dropdown menu and displays user details and logout option on click", () => {
-        render(<ConsumerHome session={mockSession} />);
+        render(<ConsumerHome session={mockSession} categories={[]} />);
         
         expect(screen.queryByText("Andres Colina")).not.toBeInTheDocument();
 
@@ -35,5 +35,15 @@ describe('ConsumerHome', () => {
         expect(screen.getByText("Andres Colina")).toBeInTheDocument();
         expect(screen.getByText("andres@pro.com")).toBeInTheDocument();
         expect(screen.getByText("Cerrar sesión")).toBeInTheDocument();
+    });
+
+    it("renders the categories list", () => {
+        const mockCategories = [
+            { id: 1, name: "Plomería" },
+            { id: 2, name: "Electricista" }
+        ];
+        render(<ConsumerHome session={mockSession} categories={mockCategories} />);
+        expect(screen.getByText("Plomería")).toBeInTheDocument();
+        expect(screen.getByText("Electricista")).toBeInTheDocument();
     });
 });

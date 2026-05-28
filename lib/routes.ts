@@ -8,7 +8,6 @@ export const ROUTES = {
   onboarding: "/onboarding",
   consumer: {
     home: "/consumer/home",
-    categorias: "/consumer/categorias",
     buscar: "/consumer/buscar",
   },
   provider: {

@@ -62,7 +62,7 @@ export default function ProviderCard({ provider }: ProviderCardProps) {
           </span>
 
           <Link
-            href={`${ROUTES.consumer.buscar}/${provider.id}`}
+            href=''
             className="text-brand-secondary font-bold text-[13px] hover:underline flex items-center gap-0.5 group/link"
           >
             Ver perfil

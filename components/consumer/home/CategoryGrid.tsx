@@ -30,12 +30,6 @@ export default function CategoryGrid({ categories }: CategoryGridProps) {
             Encuentra profesionales especializados para cada necesidad del hogar.
           </p>
         </div>
-        <Link 
-          href={ROUTES.consumer.categorias} // TODO: Implementar esta ruta
-          className="text-brand-secondary font-bold text-[15px] hover:underline"
-        >
-          Ver todas &rarr;
-        </Link>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

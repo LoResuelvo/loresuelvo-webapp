@@ -17,8 +17,10 @@ export default function ConsumerHome({ session, categories = [] }: ConsumerHomeP
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <ConsumerHeader session={session} />
-        <main className="flex-1 p-8 lg:p-10">
-          <CategoryGrid categories={categories} />
+        <main className="flex-1 p-8 lg:p-10 flex justify-center">
+          <div className="max-w-6xl w-full">
+            <CategoryGrid categories={categories} />
+          </div>
         </main>
       </div>
     </div>

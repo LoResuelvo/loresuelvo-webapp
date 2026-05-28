@@ -60,7 +60,7 @@ Given('que no existen prestadores registrados para el rubro {string}', async (ca
   const categoryMap: Record<string, number> = {
     "Plomería": 1,
     "Electricista": 2,
-    "Gas": 3
+    "Gasista": 3
   };
   
   const categoryId = categoryMap[categoryName];

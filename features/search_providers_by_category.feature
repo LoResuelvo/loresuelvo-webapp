@@ -1,4 +1,3 @@
-@wip
 Feature: Buscar técnicos por rubro
     Como consumidor
     Quiero buscar técnicos por rubro

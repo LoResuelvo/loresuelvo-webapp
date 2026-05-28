@@ -2,6 +2,16 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import { page } from "./landing_page_visualization_steps";
 import { addApiStub } from "./stubs-helper";
 import assert from "assert";
+import { ROUTES } from "../../lib/routes";
+
+const APP_URL = process.env.APP_URL || "http://localhost:3000";
+const CONSUMER_URL = APP_URL + ROUTES.consumer.home;
+
+
+Given('estoy en el home de consumidores', async () => {
+  await page.goto(CONSUMER_URL);
+});
+
 
 Given('existen los rubros Plomería, Electricista y Gasista', async () => {
   await addApiStub({

@@ -6,13 +6,13 @@ Feature: Buscar técnicos por rubro
 
     Background:
         Given que me logueé exitosamente en Auth0 como cliente
-        And estoy en el home de consumidores
         And existen los rubros Plomería, Electricista y Gasista
         And existen los siguientes prestadores registrados:
             | id       | name  | surname | category_name | category_id |
             | prov-001 | Laura | Gómez   | Electricista  | 2           |
             | prov-002 | Juan  | Pérez   | Plomería      | 1           |
             | prov-003 | Pedro | Dib     | Plomería      | 1           |
+        And estoy en el home de consumidores
 
     Rule: El consumidor debe poder visualizar los técnicos del rubro seleccionado
 
@@ -30,7 +30,7 @@ Feature: Buscar técnicos por rubro
     Rule: El sistema debe informar cuando no existan resultados para el rubro buscado
 
         Scenario: 03-SPC Informar que no hay técnicos disponibles para el rubro seleccionado
-            Given que no existen prestadores registrados para el rubro "Gas"
-            When hago clic en la tarjeta del rubro "Gas"
-            Then soy redirigido al listado de técnicos del rubro "Gas"
+            Given que no existen prestadores registrados para el rubro "Gasista"
+            When hago clic en la tarjeta del rubro "Gasista"
+            Then soy redirigido al listado de técnicos del rubro "Gasista"
             And veo el mensaje "No se encontraron profesionales especializados en esta categoría"

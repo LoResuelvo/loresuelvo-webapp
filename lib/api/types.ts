@@ -12,3 +12,15 @@ export interface Category {
   name: string;
 }
 
+export interface Provider {
+  id: number;
+  name: string;
+  surname: string;
+  category_name: string;
+  category_id?: number;
+  description?: string;
+  rating?: number;
+  reviews?: number;
+  jobs?: number;
+}
+

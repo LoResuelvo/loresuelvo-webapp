@@ -6,5 +6,5 @@ export default async function PrestadorHomePage() {
   const session = await getAuthService().getSession();
   const dashboard = await getProviderHomeDashboard(session?.user.id ?? "");
 
-  return <ProviderHome session={session} workRequests={dashboard.workRequests} scheduledJobs={dashboard.scheduledJobs} />;
+  return <ProviderHome session={session} workRequests={dashboard.workRequests} scheduledJobs={dashboard.scheduledJobs} metrics={dashboard.metrics} />;
 }

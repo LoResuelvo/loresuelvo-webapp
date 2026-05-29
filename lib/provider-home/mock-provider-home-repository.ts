@@ -29,6 +29,11 @@ const mockDashboard: ProviderHomeDashboard = {
       priceLabel: "$45.000",
     },
   ],
+  metrics: {
+    incomeLabel: "$125.000",
+    jobsCompletedCount: 12,
+    ratingLabel: "4.8",
+  },
 };
 
 export class MockProviderHomeRepository implements ProviderHomeRepository {
@@ -36,6 +41,6 @@ export class MockProviderHomeRepository implements ProviderHomeRepository {
     if (providerId === "provider-home-001") {
       return mockDashboard;
     }
-    return { workRequests: [], scheduledJobs: [] };
+    return { workRequests: [], scheduledJobs: [], metrics: { incomeLabel: "$0", jobsCompletedCount: 0, ratingLabel: "0.0" } };
   }
 }

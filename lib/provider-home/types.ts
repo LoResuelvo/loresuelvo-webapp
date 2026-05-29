@@ -16,9 +16,16 @@ export interface ProviderScheduledJob {
   priceLabel: string;
 }
 
+export interface ProviderMetrics {
+  incomeLabel: string;
+  jobsCompletedCount: number;
+  ratingLabel: string;
+}
+
 export interface ProviderHomeDashboard {
   workRequests: ProviderWorkRequest[];
   scheduledJobs: ProviderScheduledJob[];
+  metrics: ProviderMetrics;
 }
 
 export interface ProviderHomeRepository {

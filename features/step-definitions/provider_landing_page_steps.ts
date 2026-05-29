@@ -214,3 +214,80 @@ async function assertEveryScheduledJobHasField(field: string, fieldLabel: string
     );
   }
 }
+
+Given("que ingreso a la HomePage como prestador con métricas", async () => {
+  const session: AuthSession = {
+    user: {
+      id: "provider-home-001",
+      email: "prestador@loresuelvo.test",
+      firstName: "Paula",
+      lastName: "Rios",
+      isOnboarded: true,
+      role: "provider",
+    },
+    accessToken: "mock-access-token",
+  };
+
+  await page.context().addCookies([{
+    name: MOCK_SESSION_COOKIE,
+    value: encodeURIComponent(JSON.stringify(session)),
+    domain: "localhost",
+    path: "/",
+  }]);
+
+  await page.goto(APP_URL + ROUTES.provider.home);
+});
+
+Then("visualizo un panel de métricas", async () => {
+  const panel = page.getByRole("region", { name: "Métricas del Prestador" });
+  await panel.waitFor({ state: "visible" });
+  assert.ok(await panel.isVisible(), "No se visualiza el panel de métricas");
+});
+
+Then("visualizo los ingresos del período", async () => {
+  const panel = page.getByRole("region", { name: "Métricas del Prestador" });
+  await panel.waitFor({ state: "visible" });
+  const incomeMetric = panel.locator('[data-metric="income"]');
+  assert.ok(await incomeMetric.isVisible(), "No se visualiza la métrica de ingresos");
+});
+
+Then("visualizo la cantidad de trabajos realizados", async () => {
+  const panel = page.getByRole("region", { name: "Métricas del Prestador" });
+  await panel.waitFor({ state: "visible" });
+  const jobsMetric = panel.locator('[data-metric="jobs-completed"]');
+  assert.ok(await jobsMetric.isVisible(), "No se visualiza la métrica de trabajos realizados");
+});
+
+Then("visualizo la calificación promedio del prestador", async () => {
+  const panel = page.getByRole("region", { name: "Métricas del Prestador" });
+  await panel.waitFor({ state: "visible" });
+  const ratingMetric = panel.locator('[data-metric="rating"]');
+  assert.ok(await ratingMetric.isVisible(), "No se visualiza la métrica de calificación");
+});
+
+Then("visualizo el panel de ingresos", async () => {
+  const panel = page.getByRole("complementary", { name: "Panel de ingresos" });
+  await panel.waitFor({ state: "visible" });
+  assert.ok(await panel.isVisible(), "No se visualiza el panel de ingresos");
+});
+
+Then("visualizo el título {string}", async (title: string) => {
+  const panel = page.getByRole("complementary", { name: "Panel de ingresos" });
+  await panel.waitFor({ state: "visible" });
+  const titleElement = panel.getByText(title);
+  assert.ok(await titleElement.isVisible(), `No se visualiza el título "${title}"`);
+});
+
+Then("visualizo el monto de ingresos", async () => {
+  const panel = page.getByRole("complementary", { name: "Panel de ingresos" });
+  await panel.waitFor({ state: "visible" });
+  const amountElement = panel.locator("text=/\\$[0-9,]+/");
+  assert.ok(await amountElement.isVisible(), "No se visualiza el monto de ingresos");
+});
+
+Then("visualizo el indicador de variación", async () => {
+  const panel = page.getByRole("complementary", { name: "Panel de ingresos" });
+  await panel.waitFor({ state: "visible" });
+  const variationElement = panel.getByText(/[\+−][0-9]+% vs mes anterior/);
+  assert.ok(await variationElement.isVisible(), "No se visualiza el indicador de variación");
+});

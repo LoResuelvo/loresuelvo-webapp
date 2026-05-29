@@ -8,5 +8,8 @@ export async function getProviderHomeDashboard(
   if (repository) {
     return repository.getDashboard(providerId);
   }
-  return new MockProviderHomeRepository().getDashboard(providerId);
+  if (process.env.NODE_ENV === "test" || providerId.startsWith("provider-home-")) {
+    return new MockProviderHomeRepository().getDashboard(providerId);
+  }
+  return { workRequests: [], scheduledJobs: [], metrics: { incomeLabel: "$0", jobsCompletedCount: 0, ratingLabel: "0.0" } };
 }

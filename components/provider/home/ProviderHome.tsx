@@ -1,5 +1,6 @@
 import { AuthSession } from "@/lib/auth/types";
-import { ProviderScheduledJob, ProviderWorkRequest } from "@/lib/provider-home/types";
+import { ProviderMetrics, ProviderScheduledJob, ProviderWorkRequest } from "@/lib/provider-home/types";
+import IncomePanel from "./IncomePanel";
 import ProviderSidebar from "./ProviderSidebar";
 import ScheduledJobsSection from "./ScheduledJobsSection";
 import WorkRequestsSection from "./WorkRequestsSection";
@@ -8,9 +9,10 @@ interface ProviderHomeProps {
   session: AuthSession | null;
   workRequests: ProviderWorkRequest[];
   scheduledJobs: ProviderScheduledJob[];
+  metrics: ProviderMetrics;
 }
 
-export default function ProviderHome({ session, workRequests, scheduledJobs }: ProviderHomeProps) {
+export default function ProviderHome({ session, workRequests, scheduledJobs, metrics }: ProviderHomeProps) {
   const userInitial = session?.user?.firstName?.charAt(0).toUpperCase() ?? "";
   const userFullName = [session?.user?.firstName, session?.user?.lastName].filter(Boolean).join(" ");
 
@@ -36,9 +38,12 @@ export default function ProviderHome({ session, workRequests, scheduledJobs }: P
           </div>
         </header>
         <main className="flex-1 p-8 lg:p-10">
-          <div className="max-w-6xl w-full space-y-10">
-            <WorkRequestsSection requests={workRequests} />
-            <ScheduledJobsSection jobs={scheduledJobs} />
+          <div className="flex gap-8">
+            <div className="flex-1 space-y-10">
+              <WorkRequestsSection requests={workRequests} />
+              <ScheduledJobsSection jobs={scheduledJobs} />
+            </div>
+            <IncomePanel metrics={metrics} />
           </div>
         </main>
       </div>

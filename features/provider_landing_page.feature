@@ -39,14 +39,13 @@ Scenario: 03-HPP Mostrar trabajos agendados
     And cada trabajo muestra la fecha y hora programada
     And cada trabajo muestra la ubicación
     And cada trabajo muestra el importe acordado
-#
-#  Scenario: 04-HPP Mostrar métricas del prestador
-#    Given que ingreso a la HomePage como prestador
-#    When se carga la pantalla principal
-#    Then visualizo un panel de métricas
-#    And visualizo los ingresos del período
-#    And visualizo la cantidad de trabajos realizados
-#    And visualizo la calificación promedio del prestador
+Scenario: 04-HPP Mostrar panel de ingresos
+    Given que ingreso a la HomePage como prestador con métricas
+    When se carga la pantalla principal
+    Then visualizo el panel de ingresos
+    And visualizo el título "INGRESOS DEL MES"
+    And visualizo el monto de ingresos
+    And visualizo el indicador de variación
 #
 #  Scenario: 05-HPP Mostrar datos simulados
 #    Given que la API aún no se encuentra disponible

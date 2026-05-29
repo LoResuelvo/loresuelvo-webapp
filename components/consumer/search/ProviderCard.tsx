@@ -1,5 +1,7 @@
 import { MessageCircle, Star, User, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { Provider } from "@/lib/api/types";
+import { ROUTES } from "@/lib/routes";
 
 interface ProviderCardProps {
   provider: Provider;
@@ -50,14 +52,13 @@ export default function ProviderCard({ provider }: ProviderCardProps) {
           </div>
 
           <div className="flex flex-col items-end gap-2 flex-shrink-0">
-            <button
-              type="button"
-              aria-label="Enviar mensaje a {provider.name} {provider.surname}"
+            <Link
+              href={`${ROUTES.consumer.messages}?provider_id=${provider.id}`}
               className="flex items-center gap-2 px-4 py-2 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-lg font-semibold text-[13px] transition-colors shadow-sm"
             >
               <MessageCircle className="w-4 h-4" aria-hidden="true" />
               Contactar
-            </button>
+            </Link>
 
             <button
               type="button"

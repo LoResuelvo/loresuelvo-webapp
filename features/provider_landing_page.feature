@@ -29,16 +29,16 @@ Feature: Provider Home Page
     And cada solicitud posee una acción "Responder"
     And cada solicitud posee una acción "Detalles"
 
-#  Scenario: 03-HPP Mostrar trabajos agendados
-#    Given que ingreso a la HomePage como prestador
-#    When se carga la pantalla principal
-#    Then visualizo la sección "Trabajos Agendados"
-#    And visualizo una lista de trabajos programados
-#    And cada trabajo muestra el título del trabajo
-#    And cada trabajo muestra el cliente asociado
-#    And cada trabajo muestra la fecha y hora programada
-#    And cada trabajo muestra la ubicación
-#    And cada trabajo muestra el importe acordado
+Scenario: 03-HPP Mostrar trabajos agendados
+    Given que ingreso a la HomePage como prestador con trabajos agendados
+    When se carga la pantalla principal
+    Then visualizo la sección "Trabajos Agendados"
+    And visualizo una lista de trabajos programados
+    And cada trabajo muestra el título del trabajo
+    And cada trabajo muestra el cliente asociado
+    And cada trabajo muestra la fecha y hora programada
+    And cada trabajo muestra la ubicación
+    And cada trabajo muestra el importe acordado
 #
 #  Scenario: 04-HPP Mostrar métricas del prestador
 #    Given que ingreso a la HomePage como prestador

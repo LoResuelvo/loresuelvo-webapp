@@ -1,14 +1,16 @@
 import { AuthSession } from "@/lib/auth/types";
-import { ProviderWorkRequest } from "@/lib/provider-home/types";
+import { ProviderScheduledJob, ProviderWorkRequest } from "@/lib/provider-home/types";
 import ProviderSidebar from "./ProviderSidebar";
+import ScheduledJobsSection from "./ScheduledJobsSection";
 import WorkRequestsSection from "./WorkRequestsSection";
 
 interface ProviderHomeProps {
   session: AuthSession | null;
   workRequests: ProviderWorkRequest[];
+  scheduledJobs: ProviderScheduledJob[];
 }
 
-export default function ProviderHome({ session, workRequests }: ProviderHomeProps) {
+export default function ProviderHome({ session, workRequests, scheduledJobs }: ProviderHomeProps) {
   const userInitial = session?.user?.firstName?.charAt(0).toUpperCase() ?? "";
   const userFullName = [session?.user?.firstName, session?.user?.lastName].filter(Boolean).join(" ");
 
@@ -34,8 +36,9 @@ export default function ProviderHome({ session, workRequests }: ProviderHomeProp
           </div>
         </header>
         <main className="flex-1 p-8 lg:p-10">
-          <div className="max-w-6xl w-full">
+          <div className="max-w-6xl w-full space-y-10">
             <WorkRequestsSection requests={workRequests} />
+            <ScheduledJobsSection jobs={scheduledJobs} />
           </div>
         </main>
       </div>

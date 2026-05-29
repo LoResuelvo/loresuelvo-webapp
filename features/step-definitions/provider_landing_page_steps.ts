@@ -147,3 +147,70 @@ Given("que ingreso a la HomePage como prestador con solicitudes", async () => {
 
   await page.goto(APP_URL + ROUTES.provider.home);
 });
+
+Given("que ingreso a la HomePage como prestador con trabajos agendados", async () => {
+  const session: AuthSession = {
+    user: {
+      id: "provider-home-001",
+      email: "prestador@loresuelvo.test",
+      firstName: "Paula",
+      lastName: "Rios",
+      isOnboarded: true,
+      role: "provider",
+    },
+    accessToken: "mock-access-token",
+  };
+
+  await page.context().addCookies([{
+    name: MOCK_SESSION_COOKIE,
+    value: encodeURIComponent(JSON.stringify(session)),
+    domain: "localhost",
+    path: "/",
+  }]);
+
+  await page.goto(APP_URL + ROUTES.provider.home);
+});
+
+Then("visualizo una lista de trabajos programados", async () => {
+  const list = page.getByRole("list", { name: "Lista de trabajos agendados" });
+  await list.waitFor({ state: "visible" });
+  const jobsCount = await list.getByRole("listitem").count();
+  assert.ok(jobsCount > 0, "No se visualiza ningún trabajo agendado");
+});
+
+Then("cada trabajo muestra el título del trabajo", async () => {
+  await assertEveryScheduledJobHasField("job-title", "título del trabajo");
+});
+
+Then("cada trabajo muestra el cliente asociado", async () => {
+  await assertEveryScheduledJobHasField("client-name", "cliente asociado");
+});
+
+Then("cada trabajo muestra la fecha y hora programada", async () => {
+  await assertEveryScheduledJobHasField("scheduled-at", "fecha y hora programada");
+});
+
+Then("cada trabajo muestra la ubicación", async () => {
+  await assertEveryScheduledJobHasField("location", "ubicación");
+});
+
+Then("cada trabajo muestra el importe acordado", async () => {
+  await assertEveryScheduledJobHasField("price", "importe acordado");
+});
+
+async function assertEveryScheduledJobHasField(field: string, fieldLabel: string) {
+  const jobs = page
+    .getByRole("list", { name: "Lista de trabajos agendados" })
+    .getByRole("listitem");
+  const jobsCount = await jobs.count();
+
+  assert.ok(jobsCount > 0, "No se visualiza ningún trabajo agendado");
+
+  for (let index = 0; index < jobsCount; index++) {
+    const fieldValue = jobs.nth(index).locator(`[data-field="${field}"]`);
+    assert.ok(
+      await fieldValue.isVisible(),
+      `El trabajo ${index + 1} no muestra ${fieldLabel}`,
+    );
+  }
+}

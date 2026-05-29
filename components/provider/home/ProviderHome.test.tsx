@@ -13,7 +13,7 @@ const mockSession = {
 
 describe("ProviderHome", () => {
   it("renders the provider navigation sidebar", () => {
-    render(<ProviderHome session={mockSession} workRequests={[]} />);
+    render(<ProviderHome session={mockSession} workRequests={[]} scheduledJobs={[]} />);
 
     const navigation = screen.getByRole("navigation", {
       name: "Navegación del prestador",
@@ -27,9 +27,16 @@ describe("ProviderHome", () => {
   });
 
   it("shows empty state message when there are no work requests", () => {
-    render(<ProviderHome session={mockSession} workRequests={[]} />);
+    render(<ProviderHome session={mockSession} workRequests={[]} scheduledJobs={[]} />);
 
     const section = screen.getByRole("region", { name: "Solicitudes de Trabajo" });
     expect(within(section).getByText("Todavía no tienes ninguna solicitud de trabajo :(")).toBeInTheDocument();
+  });
+
+  it("shows empty state message when there are no scheduled jobs", () => {
+    render(<ProviderHome session={mockSession} workRequests={[]} scheduledJobs={[]} />);
+
+    const section = screen.getByRole("region", { name: "Trabajos Agendados" });
+    expect(within(section).getByText("No tienes trabajos agendados")).toBeInTheDocument();
   });
 });

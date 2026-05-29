@@ -8,8 +8,5 @@ export async function getProviderHomeDashboard(
   if (repository) {
     return repository.getDashboard(providerId);
   }
-  if (providerId === "provider-home-001") {
-    return new MockProviderHomeRepository().getDashboard(providerId);
-  }
-  return { workRequests: [] };
+  return new MockProviderHomeRepository().getDashboard(providerId);
 }

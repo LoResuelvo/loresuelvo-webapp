@@ -19,6 +19,16 @@ const mockDashboard: ProviderHomeDashboard = {
       publishedAtLabel: "Hace 1 h",
     },
   ],
+  scheduledJobs: [
+    {
+      id: "job-1",
+      jobTitle: "Reparación de grifería",
+      clientName: "Carlos Méndez",
+      scheduledAtLabel: "Mañana, 10:00",
+      location: "Belgrano, CABA",
+      priceLabel: "$45.000",
+    },
+  ],
 };
 
 export class MockProviderHomeRepository implements ProviderHomeRepository {
@@ -26,6 +36,6 @@ export class MockProviderHomeRepository implements ProviderHomeRepository {
     if (providerId === "provider-home-001") {
       return mockDashboard;
     }
-    return { workRequests: [] };
+    return { workRequests: [], scheduledJobs: [] };
   }
 }

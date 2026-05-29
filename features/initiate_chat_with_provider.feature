@@ -11,9 +11,8 @@ Feature: Iniciar conversación con un prestador
   Scenario: 02-IC Redirigir a pantalla de chats al iniciar conversación
     Given que quiero iniciar chat con un prestador desde los resultados de búsqueda
     When hago clic en el botón "Contactar" del prestador
-    Then soy redirigido a la pantalla de mensajes para continuar la conversación
+    Then soy redirigido a la pantalla de mensajes con el prestador seleccionado
 
-  @wip
   Scenario: 03-IC Verificar que el prestador aparece como contacto después del primer mensaje
     Given que ya envié un mensaje a un prestador
     When accedo a la sección de mensajes

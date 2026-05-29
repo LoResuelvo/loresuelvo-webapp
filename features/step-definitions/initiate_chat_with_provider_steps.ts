@@ -137,7 +137,56 @@ When("hago clic en el botón {string} del prestador", async (buttonName: string)
   await button.click();
 });
 
-Then("soy redirigido a la pantalla de mensajes para continuar la conversación", async () => {
+Then("soy redirigido a la pantalla de mensajes con el prestador seleccionado", async () => {
   await page.waitForURL(`**${ROUTES.consumer.messages}**`);
   assert.ok(page.url().includes(ROUTES.consumer.messages), `Expected URL to contain ${ROUTES.consumer.messages} but got ${page.url()}`);
+});
+
+Given("que ya envié un mensaje a un prestador", async () => {
+  await setConsumerSession();
+
+  if (!await hasApiStub("GET", "/categories")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/categories",
+      status: 200,
+      body: [
+        { id: 1, name: "Plomería", description: "Servicios de plomería" },
+      ],
+    });
+  }
+
+  if (!await hasApiStub("GET", "/providers?category_id=1")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/providers?category_id=1",
+      status: 200,
+      body: [
+        {
+          id: "provider-001",
+          name: "Carlos",
+          surname: "Méndez",
+          rating: 4.8,
+          reviews: 124,
+          jobs: 452,
+          description: "Especialista en instalaciones hidrosanitarias.",
+          category_id: 1,
+        },
+      ],
+    });
+  }
+
+  await page.goto(APP_URL + ROUTES.consumer.messages + "?provider_id=provider-001");
+  await page.waitForLoadState("networkidle");
+});
+
+When("accedo a la sección de mensajes", async () => {
+  await page.goto(APP_URL + ROUTES.consumer.messages + "?provider_id=provider-001");
+  await page.waitForLoadState("networkidle");
+});
+
+Then("visualizo al prestador como contacto en mi lista", async () => {
+  const contactName = page.getByText("Carlos Méndez").first();
+  await contactName.waitFor({ state: "visible" });
+  assert.ok(await contactName.isVisible(), "El prestador Carlos Méndez no aparece como contacto");
 });

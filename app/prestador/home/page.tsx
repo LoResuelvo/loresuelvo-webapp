@@ -1,8 +1,8 @@
 import { getAuthService } from "@/lib/auth";
-import ConsumerHome from "@/components/consumer/home/ConsumerHome";
+import ProviderHome from "@/components/provider/home/ProviderHome";
 
 export default async function PrestadorHomePage() {
   const session = await getAuthService().getSession();
 
-  return <ConsumerHome session={session} />;
+  return <ProviderHome session={session} />;
 }

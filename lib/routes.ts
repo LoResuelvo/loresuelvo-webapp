@@ -11,6 +11,10 @@ export const ROUTES = {
     buscar: "/consumer/buscar",
   },
   provider: {
-    home: "/prestador/home"
+    home: "/prestador/home",
+    calendar: "/prestador/calendario",
+    messages: "/prestador/mensajes",
+    jobs: "/prestador/trabajos",
+    profile: "/prestador/perfil",
   }
 };

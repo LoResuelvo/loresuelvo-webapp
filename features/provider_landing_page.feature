@@ -10,8 +10,14 @@ Feature: Provider Home Page
     And veo la opción "Trabajos"
     And veo la opción "Perfil"
 
-  Scenario: 02-HPP Mostrar solicitudes de trabajo
+  Scenario: 02.1-HPP Mostrar mensaje cuando no hay solicitudes de trabajo
     Given que ingreso a la HomePage como prestador
+    When se carga la pantalla principal
+    Then visualizo la sección "Solicitudes de Trabajo"
+    And visualizo el mensaje "Todavía no tienes ninguna solicitud de trabajo :("
+
+  Scenario: 02.2-HPP Mostrar solicitudes de trabajo
+    Given que ingreso a la HomePage como prestador con solicitudes
     When se carga la pantalla principal
     Then visualizo la sección "Solicitudes de Trabajo"
     And visualizo una lista de solicitudes de trabajo

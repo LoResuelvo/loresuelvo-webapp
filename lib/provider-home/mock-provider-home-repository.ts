@@ -22,7 +22,10 @@ const mockDashboard: ProviderHomeDashboard = {
 };
 
 export class MockProviderHomeRepository implements ProviderHomeRepository {
-  async getDashboard(_providerId: string): Promise<ProviderHomeDashboard> {
-    return mockDashboard;
+  async getDashboard(providerId: string): Promise<ProviderHomeDashboard> {
+    if (providerId === "provider-home-001") {
+      return mockDashboard;
+    }
+    return { workRequests: [] };
   }
 }

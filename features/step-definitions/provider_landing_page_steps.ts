@@ -7,10 +7,10 @@ import { MOCK_SESSION_COOKIE } from "../../lib/auth/mock-adapter";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
-async function setProviderSession() {
+Given("que ingreso a la HomePage como prestador", async () => {
   const session: AuthSession = {
     user: {
-      id: "provider-home-001",
+      id: "provider-002",
       email: "prestador@loresuelvo.test",
       firstName: "Paula",
       lastName: "Rios",
@@ -26,10 +26,7 @@ async function setProviderSession() {
     domain: "localhost",
     path: "/",
   }]);
-}
 
-Given("que ingreso a la HomePage como prestador", async () => {
-  await setProviderSession();
   await page.goto(APP_URL + ROUTES.provider.home);
 });
 
@@ -57,6 +54,14 @@ Then("visualizo la sección {string}", async (sectionName: string) => {
   const section = page.getByRole("region", { name: sectionName });
   await section.waitFor({ state: "visible" });
   assert.ok(await section.isVisible(), `No se visualiza la sección "${sectionName}"`);
+});
+
+Then("visualizo el mensaje {string}", async (message: string) => {
+  const section = page.getByRole("region", { name: "Solicitudes de Trabajo" });
+  await section.waitFor({ state: "visible" });
+  const messageElement = section.getByText(message);
+  await messageElement.waitFor({ state: "visible" });
+  assert.ok(await messageElement.isVisible(), `No se visualiza el mensaje "${message}"`);
 });
 
 Then("visualizo una lista de solicitudes de trabajo", async () => {
@@ -119,3 +124,26 @@ async function assertEveryWorkRequestHasField(field: string, fieldLabel: string)
     );
   }
 }
+
+Given("que ingreso a la HomePage como prestador con solicitudes", async () => {
+  const session: AuthSession = {
+    user: {
+      id: "provider-home-001",
+      email: "prestador@loresuelvo.test",
+      firstName: "Paula",
+      lastName: "Rios",
+      isOnboarded: true,
+      role: "provider",
+    },
+    accessToken: "mock-access-token",
+  };
+
+  await page.context().addCookies([{
+    name: MOCK_SESSION_COOKIE,
+    value: encodeURIComponent(JSON.stringify(session)),
+    domain: "localhost",
+    path: "/",
+  }]);
+
+  await page.goto(APP_URL + ROUTES.provider.home);
+});

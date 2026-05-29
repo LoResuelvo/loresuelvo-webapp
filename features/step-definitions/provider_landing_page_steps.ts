@@ -291,3 +291,78 @@ Then("visualizo el indicador de variación", async () => {
   const variationElement = panel.getByText(/[\+−][0-9]+% vs mes anterior/);
   assert.ok(await variationElement.isVisible(), "No se visualiza el indicador de variación");
 });
+
+Given("que la API aún no se encuentra disponible", async () => {
+});
+
+Given("ingreso a la HomePage como prestador con datos simulados", async () => {
+  const session: AuthSession = {
+    user: {
+      id: "provider-home-001",
+      email: "prestador@loresuelvo.test",
+      firstName: "Paula",
+      lastName: "Rios",
+      isOnboarded: true,
+      role: "provider",
+    },
+    accessToken: "mock-access-token",
+  };
+
+  await page.context().addCookies([{
+    name: MOCK_SESSION_COOKIE,
+    value: encodeURIComponent(JSON.stringify(session)),
+    domain: "localhost",
+    path: "/",
+  }]);
+
+  await page.goto(APP_URL + ROUTES.provider.home);
+});
+
+Then("visualizo la sección {string} con datos simulados", async (sectionName: string) => {
+  const section = page.getByRole("region", { name: sectionName });
+  await section.waitFor({ state: "visible" });
+  assert.ok(await section.isVisible(), `No se visualiza la sección "${sectionName}" con datos simulados`);
+  
+  if (sectionName === "Solicitudes de Trabajo") {
+    const list = section.getByRole("list", { name: "Lista de solicitudes de trabajo" });
+    await list.waitFor({ state: "visible" });
+    const itemsCount = await list.getByRole("listitem").count();
+    assert.ok(itemsCount > 0, "La lista de solicitudes está vacía");
+  }
+  
+  if (sectionName === "Trabajos Agendados") {
+    const list = section.getByRole("list", { name: "Lista de trabajos agendados" });
+    await list.waitFor({ state: "visible" });
+    const itemsCount = await list.getByRole("listitem").count();
+    assert.ok(itemsCount > 0, "La lista de trabajos agendados está vacía");
+  }
+});
+
+Then("visualizo el panel de ingresos con datos simulados", async () => {
+  const panel = page.getByRole("complementary", { name: "Panel de ingresos" });
+  await panel.waitFor({ state: "visible" });
+  assert.ok(await panel.isVisible(), "No se visualiza el panel de ingresos con datos simulados");
+  
+  const amountElement = panel.locator("text=/\\$[0-9,]+/");
+  assert.ok(await amountElement.isVisible(), "El panel de ingresos no muestra el monto");
+  
+  const jobsCard = panel.getByText("TRABAJOS");
+  assert.ok(await jobsCard.isVisible(), "El panel de ingresos no muestra la tarjeta de TRABAJOS");
+  
+  const ratingCard = panel.getByText("PUNTAJE");
+  assert.ok(await ratingCard.isVisible(), "El panel de ingresos no muestra la tarjeta de PUNTAJE");
+});
+
+Then("todas las secciones renderizan correctamente utilizando datos mockeados", async () => {
+  const sidebar = page.getByRole("complementary", { name: "Panel lateral del prestador" });
+  assert.ok(await sidebar.isVisible(), "El sidebar no es visible");
+  
+  const incomePanel = page.getByRole("complementary", { name: "Panel de ingresos" });
+  assert.ok(await incomePanel.isVisible(), "El panel de ingresos no es visible");
+  
+  const workRequestsSection = page.getByRole("region", { name: "Solicitudes de Trabajo" });
+  assert.ok(await workRequestsSection.isVisible(), "La sección de solicitudes no es visible");
+  
+  const scheduledJobsSection = page.getByRole("region", { name: "Trabajos Agendados" });
+  assert.ok(await scheduledJobsSection.isVisible(), "La sección de trabajos agendados no es visible");
+});

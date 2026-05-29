@@ -46,11 +46,10 @@ Scenario: 04-HPP Mostrar panel de ingresos
     And visualizo el título "INGRESOS DEL MES"
     And visualizo el monto de ingresos
     And visualizo el indicador de variación
-#
-#  Scenario: 05-HPP Mostrar datos simulados
-#    Given que la API aún no se encuentra disponible
-#    When ingreso a la HomePage
-#    Then visualizo solicitudes de trabajo simuladas
-#    And visualizo trabajos agendados simulados
-#    And visualizo métricas simuladas
-#    And todas las secciones renderizan correctamente utilizando datos mockeados
+Scenario: 05-HPP Mostrar datos simulados
+    Given que la API aún no se encuentra disponible
+    When ingreso a la HomePage como prestador con datos simulados
+    Then visualizo la sección "Solicitudes de Trabajo" con datos simulados
+    And visualizo la sección "Trabajos Agendados" con datos simulados
+    And visualizo el panel de ingresos con datos simulados
+    And todas las secciones renderizan correctamente utilizando datos mockeados

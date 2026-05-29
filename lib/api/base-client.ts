@@ -30,7 +30,6 @@ export class ApiClient {
       const session = await authService.getSession();
 
       if (session?.accessToken) {
-        console.log("TOKEN:", session.accessToken);
         headers["Authorization"] = `Bearer ${session.accessToken}`;
       }
     } catch (error) {

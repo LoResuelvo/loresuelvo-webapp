@@ -10,19 +10,19 @@ Feature: Provider Home Page
     And veo la opción "Trabajos"
     And veo la opción "Perfil"
 
-#  Scenario: 02-HPP Mostrar solicitudes de trabajo
-#    Given que ingreso a la HomePage como prestador
-#    When se carga la pantalla principal
-#    Then visualizo la sección "Solicitudes de Trabajo"
-#    And visualizo una lista de solicitudes de trabajo
-#    And cada solicitud muestra el nombre del cliente
-#    And cada solicitud muestra el título del problema
-#    And cada solicitud muestra una descripción resumida
-#    And cada solicitud muestra la ubicación
-#    And cada solicitud muestra la fecha u hora de publicación
-#    And cada solicitud posee una acción "Responder"
-#    And cada solicitud posee una acción "Detalles"
-#
+  Scenario: 02-HPP Mostrar solicitudes de trabajo
+    Given que ingreso a la HomePage como prestador
+    When se carga la pantalla principal
+    Then visualizo la sección "Solicitudes de Trabajo"
+    And visualizo una lista de solicitudes de trabajo
+    And cada solicitud muestra el nombre del cliente
+    And cada solicitud muestra el título del problema
+    And cada solicitud muestra una descripción resumida
+    And cada solicitud muestra la ubicación
+    And cada solicitud muestra la fecha u hora de publicación
+    And cada solicitud posee una acción "Responder"
+    And cada solicitud posee una acción "Detalles"
+
 #  Scenario: 03-HPP Mostrar trabajos agendados
 #    Given que ingreso a la HomePage como prestador
 #    When se carga la pantalla principal

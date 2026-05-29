@@ -52,3 +52,70 @@ Then("veo la opción {string}", async (optionName: string) => {
   await option.waitFor({ state: "visible" });
   assert.ok(await option.isVisible(), `No se visualiza la opción "${optionName}"`);
 });
+
+Then("visualizo la sección {string}", async (sectionName: string) => {
+  const section = page.getByRole("region", { name: sectionName });
+  await section.waitFor({ state: "visible" });
+  assert.ok(await section.isVisible(), `No se visualiza la sección "${sectionName}"`);
+});
+
+Then("visualizo una lista de solicitudes de trabajo", async () => {
+  const list = page.getByRole("list", { name: "Lista de solicitudes de trabajo" });
+  await list.waitFor({ state: "visible" });
+  const requestsCount = await list.getByRole("listitem").count();
+  assert.ok(requestsCount > 0, "No se visualiza ninguna solicitud de trabajo");
+});
+
+Then("cada solicitud muestra el nombre del cliente", async () => {
+  await assertEveryWorkRequestHasField("client-name", "nombre del cliente");
+});
+
+Then("cada solicitud muestra el título del problema", async () => {
+  await assertEveryWorkRequestHasField("problem-title", "título del problema");
+});
+
+Then("cada solicitud muestra una descripción resumida", async () => {
+  await assertEveryWorkRequestHasField("summary", "descripción resumida");
+});
+
+Then("cada solicitud muestra la ubicación", async () => {
+  await assertEveryWorkRequestHasField("location", "ubicación");
+});
+
+Then("cada solicitud muestra la fecha u hora de publicación", async () => {
+  await assertEveryWorkRequestHasField("published-at", "fecha u hora de publicación");
+});
+
+Then("cada solicitud posee una acción {string}", async (actionName: string) => {
+  const requests = page
+    .getByRole("list", { name: "Lista de solicitudes de trabajo" })
+    .getByRole("listitem");
+  const requestsCount = await requests.count();
+
+  assert.ok(requestsCount > 0, "No se visualiza ninguna solicitud de trabajo");
+
+  for (let index = 0; index < requestsCount; index++) {
+    const action = requests.nth(index).getByRole("button", { name: actionName });
+    assert.ok(
+      await action.isVisible(),
+      `La solicitud ${index + 1} no posee la acción "${actionName}"`,
+    );
+  }
+});
+
+async function assertEveryWorkRequestHasField(field: string, fieldLabel: string) {
+  const requests = page
+    .getByRole("list", { name: "Lista de solicitudes de trabajo" })
+    .getByRole("listitem");
+  const requestsCount = await requests.count();
+
+  assert.ok(requestsCount > 0, "No se visualiza ninguna solicitud de trabajo");
+
+  for (let index = 0; index < requestsCount; index++) {
+    const fieldValue = requests.nth(index).locator(`[data-field="${field}"]`);
+    assert.ok(
+      await fieldValue.isVisible(),
+      `La solicitud ${index + 1} no muestra ${fieldLabel}`,
+    );
+  }
+}

@@ -29,6 +29,7 @@
   "devDependencies": {
     "@cucumber/cucumber": "^12.8.3",
     "@eslint/eslintrc": "^3.3.0",
+    "@tailwindcss/oxide-linux-x64-gnu": "^4.3.0",
     "@tailwindcss/postcss": "^4.1.0",
     "@tanstack/react-query-devtools": "^5.100.10",
     "@testing-library/dom": "^10.4.1",

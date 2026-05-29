@@ -150,7 +150,7 @@ Then('soy redirigido a la página de registro', async () => {
 });
 
 Then('soy redirigido al home de consumidores', async () => {
-  await page.waitForURL(`**${CONSUMER_URL}`, { timeout: 2000 });
+  await page.waitForURL(CONSUMER_URL);
   const currentUrl = page.url().replace(/\/$/, "");
   const expectedUrl = CONSUMER_URL.replace(/\/$/, "");
   assert.ok(
@@ -158,4 +158,3 @@ Then('soy redirigido al home de consumidores', async () => {
     `Was expected to be redirected to "${expectedUrl}" but the current URL is: ${page.url()}`
   );
 });
-

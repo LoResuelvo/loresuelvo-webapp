@@ -171,7 +171,7 @@ Given("que ingreso a la HomePage como prestador con trabajos agendados", async (
   await page.goto(APP_URL + ROUTES.provider.home);
 });
 
-Then("visualizo una lista de trabajos programados", async () => {
+Then("visualizo una lista de trabajos agendados", async () => {
   const list = page.getByRole("list", { name: "Lista de trabajos agendados" });
   await list.waitFor({ state: "visible" });
   const jobsCount = await list.getByRole("listitem").count();

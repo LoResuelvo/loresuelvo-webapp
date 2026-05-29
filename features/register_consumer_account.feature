@@ -39,3 +39,11 @@ Feature: Registrar cuenta nueva de consumidor
       When finalizo el registro
       Then veo un mensaje de error "Campo obligatorio"
       And permanezco en la página de registro
+
+  Scenario: 06-RCN Verificar opción de Mensajes en la barra lateral
+    Given que me registré exitosamente en Auth0 con email "andy@pro.com"
+    And elegí la opción de consumidor en la pagina de registro
+    And ingreso mi nombre "Andres" y apellido "Colina" en el formulario
+    When finalizo el registro
+    Then soy redirigido al home de consumidores
+    And la barra lateral muestra la opción "Mensajes"

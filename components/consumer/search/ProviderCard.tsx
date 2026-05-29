@@ -1,4 +1,4 @@
-import { Star, User, ArrowRight } from "lucide-react";
+import { MessageCircle, Star, User, ArrowRight } from "lucide-react";
 import { Provider } from "@/lib/api/types";
 
 interface ProviderCardProps {
@@ -49,13 +49,24 @@ export default function ProviderCard({ provider }: ProviderCardProps) {
             )}
           </div>
 
-          <button
-            type="button"
-            className="text-brand-secondary font-bold text-[13px] hover:underline flex items-center gap-0.5 flex-shrink-0"
-          >
-            Ver perfil
-            <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-          </button>
+          <div className="flex flex-col items-end gap-2 flex-shrink-0">
+            <button
+              type="button"
+              aria-label="Enviar mensaje a {provider.name} {provider.surname}"
+              className="flex items-center gap-2 px-4 py-2 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-lg font-semibold text-[13px] transition-colors shadow-sm"
+            >
+              <MessageCircle className="w-4 h-4" aria-hidden="true" />
+              Contactar
+            </button>
+
+            <button
+              type="button"
+              className="text-brand-secondary font-bold text-[13px] hover:underline flex items-center gap-0.5"
+            >
+              Ver perfil
+              <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

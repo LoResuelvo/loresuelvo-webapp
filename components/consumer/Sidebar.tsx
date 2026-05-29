@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home } from "lucide-react";
+import { Home, MessageSquare } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 
 export default function Sidebar() {
@@ -19,7 +19,7 @@ export default function Sidebar() {
         </Link>
       </div>
 
-      <nav className="flex-1 px-4 flex flex-col gap-2 mt-2">
+      <nav aria-label="Navegación del consumidor" className="flex-1 px-4 flex flex-col gap-2 mt-2">
         <Link 
           href={ROUTES.consumer.home}
           className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-colors ${
@@ -30,6 +30,14 @@ export default function Sidebar() {
         >
           <Home className="w-5 h-5" />
           <span>Inicio</span>
+        </Link>
+
+        <Link 
+          href={ROUTES.consumer.messages}
+          className="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+        >
+          <MessageSquare className="w-5 h-5" />
+          <span>Mensajes</span>
         </Link>
       </nav>
     </aside>

@@ -158,3 +158,11 @@ Then('soy redirigido al home de consumidores', async () => {
     `Was expected to be redirected to "${expectedUrl}" but the current URL is: ${page.url()}`
   );
 });
+
+Then('la barra lateral muestra la opción {string}', async (optionName: string) => {
+  const navigation = page.getByRole('navigation', { name: 'Navegación del consumidor' });
+  await navigation.waitFor({ state: 'visible' });
+  const option = navigation.getByRole('link', { name: optionName });
+  await option.waitFor({ state: 'visible' });
+  assert.ok(await option.isVisible(), `La opción "${optionName}" no se encontró en la barra lateral`);
+});

@@ -3,7 +3,6 @@ Feature: Iniciar conversación con un prestador
   Quiero enviar un mensaje de solicitud de contacto a un prestador con el que nunca interactué
   Para proponerle un trabajo e iniciar un chat
 
-  @wip
   Scenario: 01-IC Verificar logo de mensaje en resultados de búsqueda
     Given que estoy buscando prestadores por rubro
     When visualizo la lista de resultados

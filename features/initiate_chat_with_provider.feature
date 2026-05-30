@@ -18,14 +18,12 @@ Feature: Iniciar conversación con un prestador
     When accedo a la sección de mensajes
     Then visualizo al prestador como contacto en mi lista
 
-  @wip
   Scenario: 04-IC Verificar notificación de solicitud pendiente
     Given que inicié un chat con un prestador
     And el prestador aún no aceptó la conversación
     When visualizo el estado del contacto
     Then veo una notificación indicando que el prestador todavía no aceptó mi solicitud
 
-  @wip
   Scenario: 05-IC Verificar que el consumidor puede enviar más mensajes mientras el prestador no acepte
     Given que inicié un chat con un prestador y no fue aceptado
     When escribo un nuevo mensaje

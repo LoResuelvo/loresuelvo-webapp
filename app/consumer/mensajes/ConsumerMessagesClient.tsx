@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { MessageSquare, User } from "lucide-react";
+import { MessageSquare, User, Info, Send } from "lucide-react";
 import Sidebar from "@/components/consumer/Sidebar";
 import ConsumerHeader from "@/components/consumer/home/ConsumerHeader";
 import { AuthSession } from "@/lib/auth/types";
@@ -32,8 +33,23 @@ interface ConsumerMessagesClientProps {
 export default function ConsumerMessagesClient({ session, contacts = [] }: ConsumerMessagesClientProps) {
   const searchParams = useSearchParams();
   const selectedProviderId = searchParams.get("provider_id");
+  const [messageInput, setMessageInput] = useState("");
+  const [localMessages, setLocalMessages] = useState<Message[]>([]);
 
   const selectedContact = contacts.find(c => c.providerId === selectedProviderId);
+
+  const handleSendMessage = () => {
+    if (messageInput.trim()) {
+      const newMessage: Message = {
+        id: `local-${Date.now()}`,
+        content: messageInput,
+        senderId: session?.user?.id ?? "consumer-001",
+        sentAt: "Ahora",
+      };
+      setLocalMessages([...localMessages, newMessage]);
+      setMessageInput("");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-brand-neutral/30 flex font-sans text-brand-primary">
@@ -100,24 +116,62 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
                   </div>
                 </div>
 
-                <div className="flex-1 p-6 overflow-y-auto">
-                  <div className="flex flex-col gap-4">
+                <div className="flex-1 p-6 overflow-y-auto flex flex-col">
+                  <div className="flex-1 flex flex-col gap-4">
                     {selectedContact.pending && (
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
-                        <p className="text-amber-700 text-sm">
-                          Tu mensaje fue enviado. El prestador aún no aceptó la conversación.
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+                        <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                        <p className="text-blue-700 text-[14px]">
+                          Solicitud de contacto enviada. El prestador aún no aceptó la conversación.
                         </p>
                       </div>
                     )}
                     
-                    <div className="flex justify-end">
-                      <div className="bg-brand-primary text-white rounded-2xl rounded-tr-sm p-4 max-w-md">
-                        <p className="text-[14px]">
-                          {selectedContact.lastMessage}
-                        </p>
-                        <p className="text-[11px] text-white/70 mt-2">{selectedContact.lastMessageAt}</p>
+                    {selectedContact.lastMessage && (
+                      <div className="flex justify-end">
+                        <div className="bg-brand-primary text-white rounded-2xl rounded-tr-sm p-4 max-w-md">
+                          <p className="text-[14px]">
+                            {selectedContact.lastMessage}
+                          </p>
+                          <p className="text-[11px] text-white/70 mt-2">{selectedContact.lastMessageAt}</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
+
+                    {localMessages.map((msg) => (
+                      <div key={msg.id} className="flex justify-end">
+                        <div className="bg-brand-primary text-white rounded-2xl rounded-tr-sm p-4 max-w-md">
+                          <p className="text-[14px]">
+                            {msg.content}
+                          </p>
+                          <p className="text-[11px] text-white/70 mt-2">{msg.sentAt}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 flex gap-3">
+                    <input
+                      type="text"
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      placeholder="Escribe un mensaje..."
+                      className="flex-1 px-4 py-3 rounded-xl border border-slate-200 bg-white text-[14px] focus:outline-none focus:ring-2 focus:ring-brand-secondary/40"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSendMessage}
+                      disabled={!messageInput.trim()}
+                      className="px-5 py-3 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Send className="w-5 h-5" aria-hidden="true" />
+                    </button>
                   </div>
                 </div>
               </>

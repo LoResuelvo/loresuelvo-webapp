@@ -190,3 +190,111 @@ Then("visualizo al prestador como contacto en mi lista", async () => {
   await contactName.waitFor({ state: "visible" });
   assert.ok(await contactName.isVisible(), "El prestador Carlos Méndez no aparece como contacto");
 });
+
+Given("que inicié un chat con un prestador", async () => {
+  await setConsumerSession();
+
+  if (!await hasApiStub("GET", "/categories")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/categories",
+      status: 200,
+      body: [
+        { id: 1, name: "Plomería", description: "Servicios de plomería" },
+      ],
+    });
+  }
+
+  if (!await hasApiStub("GET", "/providers?category_id=1")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/providers?category_id=1",
+      status: 200,
+      body: [
+        {
+          id: "provider-001",
+          name: "Carlos",
+          surname: "Méndez",
+          rating: 4.8,
+          reviews: 124,
+          jobs: 452,
+          description: "Especialista en instalaciones hidrosanitarias.",
+          category_id: 1,
+        },
+      ],
+    });
+  }
+
+  await page.goto(APP_URL + ROUTES.consumer.messages + "?provider_id=provider-001");
+  await page.waitForLoadState("networkidle");
+});
+
+Given("el prestador aún no aceptó la conversación", async () => {
+});
+
+When("visualizo el estado del contacto", async () => {
+  await page.waitForLoadState("networkidle");
+});
+
+Then("veo una notificación indicando que el prestador todavía no aceptó mi solicitud", async () => {
+  const notification = page.getByText("Solicitud de contacto enviada. El prestador aún no aceptó la conversación.");
+  await notification.waitFor({ state: "visible" });
+  assert.ok(await notification.isVisible(), "No se visualiza la notificación de solicitud pendiente");
+});
+
+Given("que inicié un chat con un prestador y no fue aceptado", async () => {
+  await setConsumerSession();
+
+  if (!await hasApiStub("GET", "/categories")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/categories",
+      status: 200,
+      body: [
+        { id: 1, name: "Plomería", description: "Servicios de plomería" },
+      ],
+    });
+  }
+
+  if (!await hasApiStub("GET", "/providers?category_id=1")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/providers?category_id=1",
+      status: 200,
+      body: [
+        {
+          id: "provider-001",
+          name: "Carlos",
+          surname: "Méndez",
+          rating: 4.8,
+          reviews: 124,
+          jobs: 452,
+          description: "Especialista en instalaciones hidrosanitarias.",
+          category_id: 1,
+        },
+      ],
+    });
+  }
+
+  await page.goto(APP_URL + ROUTES.consumer.messages + "?provider_id=provider-001");
+  await page.waitForLoadState("networkidle");
+});
+
+When("escribo un nuevo mensaje", async () => {
+  const input = page.getByPlaceholder("Escribe un mensaje...");
+  await input.waitFor({ state: "visible" });
+  await input.fill("Hola, me gustaría contratarte para el trabajo");
+});
+
+Then("puedo enviar mensajes adicionales al prestador sin restricciones", async () => {
+  const input = page.getByPlaceholder("Escribe un mensaje...");
+  await input.waitFor({ state: "visible" });
+  
+  const inputValue = await input.inputValue();
+  assert.ok(inputValue.length > 0, "El campo de mensaje está vacío");
+  
+  const sendButton = page.locator("button[type='button']").filter({ has: page.locator("svg") }).last();
+  await sendButton.waitFor({ state: "visible" });
+  const isDisabled = await sendButton.getAttribute("disabled");
+  assert.ok(isDisabled === null, "El botón de enviar está deshabilitado");
+});

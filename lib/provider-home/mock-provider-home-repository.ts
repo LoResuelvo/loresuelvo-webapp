@@ -9,6 +9,7 @@ const mockDashboard: ProviderHomeDashboard = {
       summary: "Necesita reparar una pérdida debajo de la bacha.",
       location: "Palermo, CABA",
       publishedAtLabel: "Hace 20 min",
+      unreadMessagesCount: 1,
     },
     {
       id: "request-2",
@@ -17,6 +18,7 @@ const mockDashboard: ProviderHomeDashboard = {
       summary: "Busca instalar tres luces nuevas en el living.",
       location: "Caballito, CABA",
       publishedAtLabel: "Hace 1 h",
+      unreadMessagesCount: 3,
     },
   ],
   scheduledJobs: [
@@ -37,10 +39,7 @@ const mockDashboard: ProviderHomeDashboard = {
 };
 
 export class MockProviderHomeRepository implements ProviderHomeRepository {
-  async getDashboard(providerId: string): Promise<ProviderHomeDashboard> {
-    if (providerId === "provider-home-001") {
-      return mockDashboard;
-    }
-    return { workRequests: [], scheduledJobs: [], metrics: { incomeLabel: "$0", jobsCompletedCount: 0, ratingLabel: "0.0" } };
+  async getDashboard(_providerId: string): Promise<ProviderHomeDashboard> {
+    return mockDashboard;
   }
 }

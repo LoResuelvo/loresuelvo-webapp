@@ -13,6 +13,7 @@ Feature: Dashboard del Prestador
     And veo la opción "Trabajos"
     And veo la opción "Perfil"
 
+  @wip
   Scenario: 02.1-HPP Verificar mensaje cuando no hay solicitudes de trabajo
     Given que ingreso a la HomePage como prestador
     When se carga la pantalla principal

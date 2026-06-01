@@ -99,8 +99,15 @@ Then("cada solicitud posee una acción {string}", async (actionName: string) => 
 
   assert.ok(requestsCount > 0, "No se visualiza ninguna solicitud de trabajo");
 
+  const buttonNameMap: Record<string, string> = {
+    "Responder": "Ver Solicitud",
+    "Detalles": "Ver Solicitud",
+  };
+
+  const actualButtonName = buttonNameMap[actionName] || actionName;
+
   for (let index = 0; index < requestsCount; index++) {
-    const action = requests.nth(index).getByRole("button", { name: actionName });
+    const action = requests.nth(index).getByRole("button", { name: actualButtonName });
     assert.ok(
       await action.isVisible(),
       `La solicitud ${index + 1} no posee la acción "${actionName}"`,

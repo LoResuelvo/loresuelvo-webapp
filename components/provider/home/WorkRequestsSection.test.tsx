@@ -45,7 +45,6 @@ describe("WorkRequestsSection", () => {
     expect(within(firstRequest).getByText("Necesita reparar una pérdida debajo de la bacha.")).toBeInTheDocument();
     expect(within(firstRequest).getByText("Palermo, CABA")).toBeInTheDocument();
     expect(within(firstRequest).getByText("Hace 20 min")).toBeInTheDocument();
-    expect(within(firstRequest).getByRole("button", { name: "Responder" })).toBeInTheDocument();
-    expect(within(firstRequest).getByRole("button", { name: "Detalles" })).toBeInTheDocument();
+    expect(within(firstRequest).getByRole("button", { name: "Ver Solicitud" })).toBeInTheDocument();
   });
 });

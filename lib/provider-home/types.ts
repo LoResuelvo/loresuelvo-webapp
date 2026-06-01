@@ -5,6 +5,7 @@ export interface ProviderWorkRequest {
   summary: string;
   location: string;
   publishedAtLabel: string;
+  unreadMessagesCount: number;
 }
 
 export interface ProviderScheduledJob {

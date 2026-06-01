@@ -1,4 +1,4 @@
-import { MapPin, MessageCircle, Search, Timer } from "lucide-react";
+import { MapPin, MessageCircle, Timer, User } from "lucide-react";
 import { ProviderWorkRequest } from "@/lib/provider-home/types";
 import { Button } from "@/components/ui/button";
 
@@ -9,7 +9,9 @@ interface WorkRequestsSectionProps {
 export default function WorkRequestsSection({ requests }: WorkRequestsSectionProps) {
   return (
     <section
+      role="region"
       aria-labelledby="work-requests-title"
+      aria-label="Solicitudes de Trabajo"
       className="max-w-4xl"
     >
       <div className="mb-5">
@@ -33,10 +35,13 @@ export default function WorkRequestsSection({ requests }: WorkRequestsSectionPro
               key={request.id}
               className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm"
             >
-              <article className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
+              <article className="flex items-center gap-4 relative">
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-brand-neutral text-brand-secondary shrink-0">
+                  <User className="h-5 w-5" />
+                </div>
+                <div className="flex flex-col gap-3 flex-1 pr-[140px]">
                   <div className="flex items-start justify-between gap-4">
-                    <div>
+                    <div className="flex-1">
                       <p
                         data-field="client-name"
                         className="text-[14px] font-semibold text-brand-secondary"
@@ -50,13 +55,6 @@ export default function WorkRequestsSection({ requests }: WorkRequestsSectionPro
                         {request.problemTitle}
                       </h2>
                     </div>
-                    <p
-                      data-field="published-at"
-                      className="flex items-center gap-1.5 text-[13px] font-medium text-slate-500 whitespace-nowrap"
-                    >
-                      <Timer className="h-4 w-4" aria-hidden="true" />
-                      {request.publishedAtLabel}
-                    </p>
                   </div>
 
                   <p
@@ -66,23 +64,38 @@ export default function WorkRequestsSection({ requests }: WorkRequestsSectionPro
                     {request.summary}
                   </p>
 
-                  <p
-                    data-field="location"
-                    className="flex items-center gap-1.5 text-[14px] font-medium text-slate-600"
-                  >
-                    <MapPin className="h-4 w-4 text-brand-secondary" aria-hidden="true" />
-                    {request.location}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p
+                      data-field="location"
+                      className="flex items-center gap-1.5 text-[14px] font-medium text-slate-600"
+                    >
+                      <MapPin className="h-4 w-4 text-brand-secondary" aria-hidden="true" />
+                      {request.location}
+                    </p>
+
+                    {request.unreadMessagesCount > 0 && (
+                      <span
+                        data-badge="unread"
+                        className="flex items-center gap-1.5 px-2 py-1 bg-brand-primary text-white text-[12px] font-semibold rounded-full"
+                      >
+                        <MessageCircle className="h-3 w-3" aria-hidden="true" />
+                        {request.unreadMessagesCount} mensaje{request.unreadMessagesCount > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
-                  <Button type="button" className="rounded-lg">
-                    <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                    Responder
-                  </Button>
-                  <Button type="button" variant="outline" className="rounded-lg">
-                    <Search className="h-4 w-4" aria-hidden="true" />
-                    Detalles
+                <div data-field="published-at" className="absolute right-4 top-4 flex items-center gap-1.5 text-[13px] font-medium text-slate-500">
+                  <Timer className="h-4 w-4" aria-hidden="true" />
+                  {request.publishedAtLabel}
+                </div>
+
+                <div className="flex items-center justify-center min-w-[120px]">
+                  <Button
+                    type="button"
+                    className="bg-brand-secondary hover:bg-brand-secondary/80 text-white rounded-lg"
+                  >
+                    Ver Solicitud
                   </Button>
                 </div>
               </article>

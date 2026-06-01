@@ -3,7 +3,6 @@ Feature: Responder solicitud de trabajo
   Quiero responder solicitudes de trabajo recibidas mediante el chat
   Para poder aceptar el contacto inicial y comenzar a conversar con el consumidor.
 
-  @wip
   Scenario: 01-RST Visualizar solicitud pendiente
     Given que un consumidor inició una conversación conmigo
     And aún no respondí la solicitud

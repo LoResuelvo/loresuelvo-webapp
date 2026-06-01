@@ -100,6 +100,7 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
   const [loadedMessages, setLoadedMessages] = useState<Message[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const isSendingRef = useRef(false);
   const justCreatedRef = useRef(false);
 
@@ -156,6 +157,10 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
       })
       .catch(console.error);
   }, [selectedProviderId, effectiveConversationId, session?.accessToken]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [localMessages, loadedMessages]);
 
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedProviderId || isSending || isSendingRef.current) return;
@@ -318,12 +323,12 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
   };
 
   return (
-    <div className="min-h-screen bg-brand-neutral/30 flex font-sans text-brand-primary">
+    <div className="h-screen flex overflow-hidden bg-brand-neutral/30 font-sans text-brand-primary">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <ConsumerHeader session={session} />
-        <main className="flex-1 flex">
-          <div className="w-[360px] border-r border-slate-200 bg-white flex flex-col h-[calc(100vh-80px)]">
+        <main className="flex-1 flex h-[calc(100vh-80px)]">
+          <div className="w-[360px] border-r border-slate-200 bg-white flex flex-col h-full">
             <div className="p-4 border-b border-slate-100">
               <h2 className="text-[18px] font-bold text-brand-primary">Mensajes</h2>
             </div>
@@ -366,10 +371,10 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col bg-brand-neutral/30">
+          <div className="flex-1 flex flex-col bg-brand-neutral/30 h-full overflow-hidden">
             {selectedContact ? (
               <>
-                <div className="h-16 border-b border-slate-200 bg-white flex items-center px-6 gap-4">
+                <div className="h-16 border-b border-slate-200 bg-white flex items-center px-6 gap-4 flex-shrink-0">
                   <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
                     <User className="w-5 h-5 text-slate-400" />
                   </div>
@@ -383,8 +388,8 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
                   </div>
                 </div>
 
-                <div className="flex-1 p-6 overflow-y-auto flex flex-col">
-                  <div className="flex-1 flex flex-col gap-4">
+                <div className="flex-1 flex flex-col min-h-0">
+                  <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4">
                     {selectedContact.pending && (
                       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
                         <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" aria-hidden="true" />
@@ -404,9 +409,10 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
                         </div>
                       </div>
                     ))}
+                    <div ref={messagesEndRef} />
                   </div>
 
-                  <div className="mt-4 flex gap-3">
+                  <div className="p-4 flex gap-3 bg-white border-t border-slate-200 flex-shrink-0">
                     <input
                       type="text"
                       value={messageInput}

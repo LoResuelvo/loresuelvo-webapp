@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import ConsumerMessagesClient from "@/app/consumer/mensajes/ConsumerMessagesClient";
 
 vi.mock("next/navigation", () => ({
@@ -42,6 +42,10 @@ const mockContacts = [
 ];
 
 describe("ConsumerMessagesClient", () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
   it("renders the messages section with contact list", () => {
     global.fetch = vi.fn(() =>
       Promise.resolve({

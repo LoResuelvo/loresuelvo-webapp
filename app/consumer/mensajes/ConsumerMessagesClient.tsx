@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { MessageSquare, User, Info, Send } from "lucide-react";
 import Sidebar from "@/components/consumer/Sidebar";
 import ConsumerHeader from "@/components/consumer/home/ConsumerHeader";
+import ConsumerMessagesView from "@/components/consumer/mensajes/ConsumerMessagesView";
 import { AuthSession } from "@/lib/auth/types";
 import { ROUTES } from "@/lib/routes";
 
@@ -346,143 +346,31 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
     router.push(`${ROUTES.consumer.messages}?provider_id=${providerId}`);
   };
 
+  const viewMessages = allMessages.map(msg => ({
+    id: msg.id,
+    content: msg.content,
+    sentAt: msg.sentAt,
+  }));
+
   return (
     <div className="h-screen flex overflow-hidden bg-brand-neutral/30 font-sans text-brand-primary">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <ConsumerHeader session={session} />
-        <main className="flex-1 flex h-[calc(100vh-80px)]">
-          <div className="w-[360px] border-r border-slate-200 bg-white flex flex-col h-full">
-            <div className="p-4 border-b border-slate-100">
-              <h2 className="text-[18px] font-bold text-brand-primary">Mensajes</h2>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              {contacts.length === 0 ? (
-                <div className="p-8 text-center">
-                  <p className="text-slate-500">No tienes conversaciones aún</p>
-                  <p className="text-slate-400 text-sm mt-2">Inicia un chat con un prestador desde la búsqueda</p>
-                </div>
-              ) : (
-                contacts.map((contact) => (
-                  <div
-                    key={contact.id}
-                    onClick={() => handleContactClick(contact.providerId)}
-                    className={`flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors cursor-pointer border-b border-slate-100 ${
-                      selectedProviderId === contact.providerId ? "bg-brand-secondary/10" : ""
-                    }`}
-                  >
-                    <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-                      <User className="w-6 h-6 text-slate-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="font-semibold text-[14px] text-brand-primary truncate">
-                          {contact.providerName} {contact.providerSurname}
-                        </p>
-                        <p className="text-[11px] text-slate-400">{contact.lastMessageAt}</p>
-                      </div>
-                      <p className="text-[12px] text-slate-500 truncate">{contact.lastMessage}</p>
-                    </div>
-                    {contact.pending && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 rounded-full">
-                        Pendiente
-                      </span>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="flex-1 flex flex-col bg-brand-neutral/30 h-full overflow-hidden">
-            {selectedContact ? (
-              <>
-                <div className="h-16 border-b border-slate-200 bg-white flex items-center px-6 gap-4 flex-shrink-0">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
-                    <User className="w-5 h-5 text-slate-400" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-brand-primary">
-                      {selectedContact.providerName} {selectedContact.providerSurname}
-                    </p>
-                    {selectedContact.pending && (
-                      <p className="text-[11px] text-amber-600">Esperando aceptación</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex-1 flex flex-col min-h-0">
-                  <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4">
-                    {selectedContact.pending && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
-                        <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" aria-hidden="true" />
-                        <p className="text-blue-700 text-[14px]">
-                          Solicitud de contacto enviada. El prestador aún no aceptó la conversación.
-                        </p>
-                      </div>
-                    )}
-
-                    {allMessages.map((msg) => {
-                      const isExpanded = isMessageExpanded(msg.id);
-                      const showExpandButton = shouldShowExpandButton(msg.content);
-                      return (
-                        <div key={msg.id} className="flex justify-end">
-                          <div className="bg-brand-primary text-white rounded-2xl rounded-tr-sm p-4 max-w-md">
-                            <p className={`text-[14px] whitespace-pre-wrap break-words ${!isExpanded && showExpandButton ? "line-clamp-5" : ""}`}>
-                              {msg.content}
-                            </p>
-                            {showExpandButton && (
-                              <button
-                                onClick={() => toggleMessageExpanded(msg.id)}
-                                className="text-[11px] text-white/70 mt-1 hover:text-white underline"
-                              >
-                                {isExpanded ? "Ver menos" : "Ver más"}
-                              </button>
-                            )}
-                            <p className="text-[11px] text-white/70 mt-2">{msg.sentAt}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <div ref={messagesEndRef} />
-                  </div>
-
-                  <div className="p-4 flex gap-3 bg-white border-t border-slate-200 flex-shrink-0">
-                    <input
-                      type="text"
-                      value={messageInput}
-                      onChange={(e) => setMessageInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage();
-                        }
-                      }}
-                      placeholder="Escribe un mensaje..."
-                      className="flex-1 px-4 py-3 rounded-xl border border-slate-200 bg-white text-[14px] focus:outline-none focus:ring-2 focus:ring-brand-secondary/40"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleSendMessage}
-                      disabled={!messageInput.trim() || isSending}
-                      className="px-5 py-3 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Send className="w-5 h-5" aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center">
-                  <MessageSquare className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                  <p className="text-slate-400">Selecciona un contacto para ver la conversación</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </main>
+        <ConsumerMessagesView
+          contacts={contacts}
+          selectedContact={selectedContact ?? null}
+          selectedProviderId={selectedProviderId}
+          messages={viewMessages}
+          expandedMessages={expandedMessages}
+          onToggleExpand={toggleMessageExpanded}
+          onContactClick={handleContactClick}
+          messagesEndRef={messagesEndRef}
+          messageInput={messageInput}
+          onMessageInputChange={setMessageInput}
+          onSendMessage={handleSendMessage}
+          isSending={isSending}
+        />
       </div>
     </div>
   );

@@ -100,6 +100,7 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
   const [loadedMessages, setLoadedMessages] = useState<Message[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isSendingRef = useRef(false);
   const justCreatedRef = useRef(false);
@@ -107,6 +108,29 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
   const selectedContact = contacts.find(c => c.providerId === selectedProviderId);
 
   const effectiveConversationId = activeConversationId || selectedContact?.id?.replace("conv-", "");
+
+  const toggleMessageExpanded = (messageId: string) => {
+    setExpandedMessages(prev => {
+      const next = new Set(prev);
+      if (next.has(messageId)) {
+        next.delete(messageId);
+      } else {
+        next.add(messageId);
+      }
+      return next;
+    });
+  };
+
+  const isMessageExpanded = (messageId: string) => expandedMessages.has(messageId);
+
+  const shouldShowExpandButton = (content: string) => {
+    const lines = content.split("\n").length;
+    const approxLineHeight = 20;
+    const maxCharsPerLine = 40;
+    const totalChars = content.length;
+    const estimatedLines = Math.ceil(totalChars / maxCharsPerLine) + lines;
+    return estimatedLines > 5;
+  };
 
   const allMessages = [
     ...loadedMessages,
@@ -399,16 +423,28 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
                       </div>
                     )}
 
-                    {allMessages.map((msg) => (
-                      <div key={msg.id} className="flex justify-end">
-                        <div className="bg-brand-primary text-white rounded-2xl rounded-tr-sm p-4 max-w-md">
-                          <p className="text-[14px]">
-                            {msg.content}
-                          </p>
-                          <p className="text-[11px] text-white/70 mt-2">{msg.sentAt}</p>
+                    {allMessages.map((msg) => {
+                      const isExpanded = isMessageExpanded(msg.id);
+                      const showExpandButton = shouldShowExpandButton(msg.content);
+                      return (
+                        <div key={msg.id} className="flex justify-end">
+                          <div className="bg-brand-primary text-white rounded-2xl rounded-tr-sm p-4 max-w-md">
+                            <p className={`text-[14px] whitespace-pre-wrap break-words ${!isExpanded && showExpandButton ? "line-clamp-5" : ""}`}>
+                              {msg.content}
+                            </p>
+                            {showExpandButton && (
+                              <button
+                                onClick={() => toggleMessageExpanded(msg.id)}
+                                className="text-[11px] text-white/70 mt-1 hover:text-white underline"
+                              >
+                                {isExpanded ? "Ver menos" : "Ver más"}
+                              </button>
+                            )}
+                            <p className="text-[11px] text-white/70 mt-2">{msg.sentAt}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <div ref={messagesEndRef} />
                   </div>
 

@@ -108,9 +108,9 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
   const effectiveConversationId = activeConversationId || selectedContact?.id?.replace("conv-", "");
 
   const allMessages = [
-    ...localMessages,
-    ...loadedMessages.filter(
-      (lm) => !localMessages.some((local) => local.content === lm.content)
+    ...loadedMessages,
+    ...localMessages.filter(
+      (local) => !loadedMessages.some((loaded) => loaded.id === local.id)
     ),
   ];
 

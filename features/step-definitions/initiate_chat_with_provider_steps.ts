@@ -298,3 +298,192 @@ Then("puedo enviar mensajes adicionales al prestador sin restricciones", async (
   const isDisabled = await sendButton.getAttribute("disabled");
   assert.ok(isDisabled === null, "El botón de enviar está deshabilitado");
 });
+
+Given("que inicié un chat con un prestador y envié un mensaje", async () => {
+  await setConsumerSession();
+
+  if (!await hasApiStub("GET", "/categories")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/categories",
+      status: 200,
+      body: [
+        { id: 1, name: "Plomería", description: "Servicios de plomería" },
+      ],
+    });
+  }
+
+  if (!await hasApiStub("GET", "/providers?category_id=1")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/providers?category_id=1",
+      status: 200,
+      body: [
+        {
+          id: "provider-001",
+          name: "Carlos",
+          surname: "Méndez",
+          rating: 4.8,
+          reviews: 124,
+          jobs: 452,
+          description: "Especialista en instalaciones hidrosanitarias.",
+          category_id: 1,
+        },
+      ],
+    });
+  }
+
+  if (!await hasApiStub("GET", "/conversations")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/conversations",
+      status: 200,
+      body: [
+        {
+          id: 1,
+          status: "pending",
+          counterpart: {
+            id: 20,
+            role: "provider",
+            name: "Carlos",
+            surname: "Méndez",
+            category_name: "Plomería",
+          },
+          last_message: {
+            id: 1,
+            sender_role: "consumer",
+            content: "Hola, me gustaría contratarte para el trabajo",
+            created_on: "2026-05-31T12:00:00Z",
+          },
+          updated_on: "2026-05-31T12:00:00Z",
+        },
+      ],
+    });
+  }
+
+  if (!await hasApiStub("POST", "/conversations")) {
+    await addApiStub({
+      method: "POST",
+      endpoint: "/conversations",
+      status: 409,
+      body: { error: "Conversation already exists" },
+    });
+  }
+
+  if (!await hasApiStub("GET", "/conversations/1")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/conversations/1",
+      status: 200,
+      body: {
+        id: 1,
+        status: "pending",
+        counterpart: {
+          id: 20,
+          role: "provider",
+          name: "Carlos",
+          surname: "Méndez",
+          category_name: "Plomería",
+        },
+        messages: [],
+        updated_on: "2026-05-31T12:00:00Z",
+      },
+    });
+  }
+
+  if (!await hasApiStub("POST", "/conversations/1/messages")) {
+    await addApiStub({
+      method: "POST",
+      endpoint: "/conversations/1/messages",
+      status: 201,
+      body: {
+        id: 1,
+        conversation_id: 1,
+        sender_role: "consumer",
+        content: "Hola, me gustaría contratarte para el trabajo",
+        created_on: "2026-05-31T12:00:00Z",
+      },
+    });
+  }
+
+  await page.goto(APP_URL + ROUTES.consumer.messages + "?provider_id=20&name=Carlos&surname=Méndez");
+  await page.waitForLoadState("networkidle");
+
+  const input = page.getByPlaceholder("Escribe un mensaje...");
+  await input.waitFor({ state: "visible" });
+  await input.fill("Hola, me gustaría contratarte para el trabajo");
+
+  const sendButton = page.locator("button[type='button']").filter({ has: page.locator("svg") }).last();
+  await sendButton.waitFor({ state: "visible" });
+  await sendButton.click();
+
+  await page.waitForLoadState("networkidle");
+});
+
+When("navego a la página de inicio del consumidor", async () => {
+  await page.goto(APP_URL + ROUTES.consumer.home);
+  await page.waitForLoadState("networkidle");
+});
+
+When("vuelvo a la sección de mensajes con el mismo prestador", async () => {
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations",
+    status: 200,
+    body: [
+      {
+        id: 1,
+        status: "pending",
+        counterpart: {
+          id: 20,
+          role: "provider",
+          name: "Carlos",
+          surname: "Méndez",
+          category_name: "Plomería",
+        },
+        last_message: {
+          id: 1,
+          sender_role: "consumer",
+          content: "Hola, me gustaría contratarte para el trabajo",
+          created_on: "2026-05-31T12:00:00Z",
+        },
+        updated_on: "2026-05-31T12:00:00Z",
+      },
+    ],
+  });
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations/1",
+    status: 200,
+    body: {
+      id: 1,
+      status: "pending",
+      counterpart: {
+        id: 20,
+        role: "provider",
+        name: "Carlos",
+        surname: "Méndez",
+        category_name: "Plomería",
+      },
+      messages: [
+        {
+          id: 1,
+          sender_role: "consumer",
+          content: "Hola, me gustaría contratarte para el trabajo",
+          created_on: "2026-05-31T12:00:00Z",
+        },
+      ],
+      updated_on: "2026-05-31T12:00:00Z",
+    },
+  });
+
+  await page.goto(APP_URL + ROUTES.consumer.messages + "?provider_id=20");
+  await page.waitForLoadState("networkidle");
+});
+
+Then("sigo viendo el mensaje que envié anteriormente en la conversación", async () => {
+  const message = page.getByText("Hola, me gustaría contratarte para el trabajo").first();
+  await message.waitFor({ state: "visible" });
+  assert.ok(await message.isVisible(), "El mensaje enviado anteriormente no aparece en la conversación");
+});

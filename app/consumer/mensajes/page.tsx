@@ -1,6 +1,25 @@
 import { getAuthService } from "@/lib/auth";
-import { api, ApiClientError } from "@/lib/api/base-client";
+import { api } from "@/lib/api/base-client";
 import ConsumerMessagesClient from "./ConsumerMessagesClient";
+
+interface ApiConversation {
+  id: number;
+  status: string;
+  counterpart: {
+    id: number;
+    role: string;
+    name: string;
+    surname: string;
+    category_name: string;
+  };
+  last_message?: {
+    id: number;
+    sender_role: string;
+    content: string;
+    created_on: string;
+  };
+  updated_on: string;
+}
 
 interface ConversationContact {
   id: string;
@@ -12,77 +31,54 @@ interface ConversationContact {
   pending: boolean;
 }
 
-interface CreateConversationResponse {
-  id: number;
-  provider_id: number;
-  status: string;
-}
-
 interface PageProps {
   searchParams: Promise<{ provider_id?: string; name?: string; surname?: string }>;
+}
+
+function transformApiConversation(apiConv: ApiConversation): ConversationContact {
+  return {
+    id: `conv-${apiConv.id}`,
+    providerId: String(apiConv.counterpart.id),
+    providerName: apiConv.counterpart.name,
+    providerSurname: apiConv.counterpart.surname,
+    lastMessage: apiConv.last_message?.content || "",
+    lastMessageAt: apiConv.last_message?.created_on
+      ? new Date(apiConv.last_message.created_on).toLocaleString("es-AR", {
+          day: "2-digit",
+          month: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "",
+    pending: apiConv.status === "pending",
+  };
 }
 
 export default async function ConsumerMessagesPage({ searchParams }: PageProps) {
   const session = await getAuthService().getSession();
   const params = await searchParams;
-  const providerId = params.provider_id;
 
   let contacts: ConversationContact[] = [];
 
   try {
-    const apiContacts = await api.get<ConversationContact[]>("/conversations");
-    contacts = apiContacts;
+    const apiContacts = await api.get<ApiConversation[]>("/conversations");
+    contacts = apiContacts.map(transformApiConversation);
   } catch (error) {
     console.log("Could not fetch conversations:", error);
   }
 
-  if (providerId) {
-    const existingContact = contacts.find(c => c.providerId === providerId);
-
+  if (params.provider_id) {
+    const existingContact = contacts.find(c => c.providerId === params.provider_id);
     if (!existingContact) {
-      try {
-        const newConversation = await api.post<CreateConversationResponse>("/conversations", {
-          provider_id: parseInt(providerId),
-          content: "Hola, me gustaría contactarte para solicitar tus servicios.",
-        });
-
-        const newContact: ConversationContact = {
-          id: `conv-${newConversation.id}`,
-          providerId,
-          providerName: params.name || "Carlos",
-          providerSurname: params.surname || "Méndez",
-          lastMessage: "",
-          lastMessageAt: "Ahora",
-          pending: newConversation.status === "pending",
-        };
-        contacts = [newContact, ...contacts];
-      } catch (error) {
-        if (error instanceof ApiClientError && error.status === 409) {
-          console.log("Conversation already exists for this provider");
-          const mockContact: ConversationContact = {
-            id: `conv-${providerId}`,
-            providerId,
-            providerName: params.name || "Carlos",
-            providerSurname: params.surname || "Méndez",
-            lastMessage: "",
-            lastMessageAt: "Ahora",
-            pending: true,
-          };
-          contacts = [mockContact, ...contacts];
-        } else {
-          console.log("Could not create conversation:", error);
-          const mockContact: ConversationContact = {
-            id: `conv-${providerId}`,
-            providerId,
-            providerName: params.name || "Carlos",
-            providerSurname: params.surname || "Méndez",
-            lastMessage: "",
-            lastMessageAt: "Ahora",
-            pending: true,
-          };
-          contacts = [mockContact, ...contacts];
-        }
-      }
+      contacts.unshift({
+        id: `pending-${params.provider_id}`,
+        providerId: params.provider_id,
+        providerName: params.name || "Carlos",
+        providerSurname: params.surname || "Méndez",
+        lastMessage: "",
+        lastMessageAt: "",
+        pending: true,
+      });
     }
   }
 

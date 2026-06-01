@@ -28,3 +28,9 @@ Feature: Iniciar conversación con un prestador
     Given que inicié un chat con un prestador y no fue aceptado
     When escribo un nuevo mensaje
     Then puedo enviar mensajes adicionales al prestador sin restricciones
+
+  Scenario: 06-IC Verificar que los mensajes persisten al navegar fuera y volver
+    Given que inicié un chat con un prestador y envié un mensaje
+    When navego a la página de inicio del consumidor
+    And vuelvo a la sección de mensajes con el mismo prestador
+    Then sigo viendo el mensaje que envié anteriormente en la conversación

@@ -2,8 +2,7 @@
 
 import { X } from "lucide-react";
 import { ProviderWorkRequest } from "@/lib/provider-home/types";
-import { Button } from "@/components/ui/button";
-import { MapPin, Calendar, User } from "lucide-react";
+import { MapPin, Calendar } from "lucide-react";
 
 interface RequestDetailModalProps {
   request: ProviderWorkRequest;
@@ -27,7 +26,7 @@ export default function RequestDetailModal({
       aria-labelledby="modal-title"
     >
       <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden"
+        className="bg-white rounded-2xl shadow-xl w-full max-w-[580px] mx-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-slate-200">
@@ -43,54 +42,70 @@ export default function RequestDetailModal({
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center w-14 h-14 rounded-full bg-brand-neutral text-brand-secondary shrink-0">
-              <User className="h-6 w-6" />
+        <div className="p-6 space-y-5">
+          <div className="flex items-start gap-4 pb-5 border-b border-slate-100">
+            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-brand-neutral text-brand-secondary shrink-0">
+              <span className="text-lg font-semibold">
+                {request.clientName.charAt(0)}
+              </span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[16px] font-semibold text-brand-secondary">
+            <div className="flex-1 min-w-0 pt-1">
+              <p className="text-[18px] font-semibold text-slate-800">
                 {request.clientName}
               </p>
-              <p className="flex items-center gap-1.5 text-[14px] text-slate-500 mt-1">
-                <MapPin className="h-4 w-4" aria-hidden="true" />
-                {request.location}
-              </p>
-              <p className="flex items-center gap-1.5 text-[14px] text-slate-500 mt-0.5">
-                <Calendar className="h-4 w-4" aria-hidden="true" />
-                {request.publishedAtLabel}
-              </p>
+              <div className="mt-2 space-y-1">
+                <p className="flex items-center gap-2 text-[14px] text-slate-600">
+                  <MapPin className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                  {request.location}
+                </p>
+                <p className="flex items-center gap-2 text-[14px] text-slate-600">
+                  <Calendar className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                  {request.publishedAtLabel}
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-3">
-            <h3 className="text-[20px] font-bold text-brand-primary">
+          <div className="space-y-4">
+            <h3 className="text-[24px] font-bold text-brand-primary leading-tight">
               {request.problemTitle}
             </h3>
-            <span className="inline-block px-3 py-1 bg-brand-neutral text-brand-secondary text-[13px] font-medium rounded-full">
-              {request.category}
-            </span>
-            <p className="text-[15px] leading-6 text-slate-600">
-              {request.description}
-            </p>
+
+            <div className="space-y-1">
+              <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wide">
+                Categoría
+              </span>
+              <p className="text-[15px] text-slate-700">
+                {request.category}
+              </p>
+            </div>
+
+            <div className="pt-2 space-y-1">
+              <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wide">
+                Descripción
+              </span>
+              <p className="text-[15px] leading-relaxed text-slate-600 whitespace-pre-wrap">
+                {request.description}
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="flex gap-3 p-4 border-t border-slate-200 bg-slate-50">
-          <Button
+        <div className="p-6 pt-4 border-t border-slate-200 bg-slate-50 space-y-3">
+          <button
             type="button"
-            className="flex-1 bg-brand-secondary hover:bg-brand-secondary/80 text-white rounded-lg py-3 text-[15px] font-semibold"
+            className="w-full bg-brand-accept hover:bg-brand-accept/90 text-white rounded-lg py-3 text-[15px] font-semibold transition-colors"
             onClick={() => onAccept(request.id)}
           >
             Aceptar Solicitud
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            className="flex-1 bg-brand-danger hover:bg-brand-danger/90 text-white rounded-lg py-3 text-[15px] font-semibold"
+            className="w-full bg-brand-danger hover:bg-brand-danger/90 text-white rounded-lg py-3 text-[15px] font-semibold transition-colors"
             onClick={() => onReject(request.id)}
           >
             Rechazar Solicitud
-          </Button>
+          </button>
         </div>
       </div>
     </div>

@@ -48,7 +48,8 @@
 
     /* Brand Colors (from design system) */
     --color-brand-primary: #1A2B48;
-    --color-brand-secondary: #2A9D8F;
+    --color-brand-secondary: #147560;
+    --color-brand-accept: #1e293b;
     --color-brand-tertiary: #E9C46A;
     --color-brand-neutral: #F4F1EE;
     --color-brand-danger: #DC2626;

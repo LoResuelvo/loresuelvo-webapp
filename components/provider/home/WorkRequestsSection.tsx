@@ -88,16 +88,6 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
                         <MapPin className="h-4 w-4 text-brand-secondary" aria-hidden="true" />
                         {request.location}
                       </p>
-
-                      {request.unreadMessagesCount > 0 && (
-                        <span
-                          data-badge="unread"
-                          className="flex items-center gap-1.5 px-2 py-1 bg-brand-primary text-white text-[12px] font-semibold rounded-full"
-                        >
-                          <MessageCircle className="h-3 w-3" aria-hidden="true" />
-                          {request.unreadMessagesCount} mensaje{request.unreadMessagesCount > 1 ? "s" : ""}
-                        </span>
-                      )}
                     </div>
                   </div>
 
@@ -134,4 +124,4 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
   );
 }
 
-import { MapPin, MessageCircle, Timer, User } from "lucide-react";
+import { MapPin, Timer, User } from "lucide-react";

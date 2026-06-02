@@ -8,7 +8,7 @@ import { addApiStub, hasApiStub } from "./stubs-helper";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
-async function setConsumerSession(email: string = "consumer@test.com", firstName: string = "Andres") {
+export async function setConsumerSession(email: string = "consumer@test.com", firstName: string = "Andres") {
   const session: AuthSession = {
     user: {
       id: "consumer-001",

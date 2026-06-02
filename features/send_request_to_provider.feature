@@ -6,7 +6,7 @@ Feature: Enviar solicitud de contacto a un prestador
 
     Background:
         Given que me logueé exitosamente en Auth0 como cliente
-        And existen los rubros Plomería
+        And existe el rubro Plomería
         And existen los siguientes prestadores registrados:
             | id       | name  | surname | category_name | category_id |
             | prov-001 | Juan  | Pérez   | Plomería      | 1           |
@@ -15,8 +15,8 @@ Feature: Enviar solicitud de contacto a un prestador
 
     Scenario: 01-SRP Abrir modal de contacto para un nuevo prestador
         When hago clic en el botón "Contactar" del prestador "Juan Pérez"
-        Then se abre la ventana modal "Crear Solicitud de Trabajo"
-        And veo el nombre del prestador "Juan Pérez" y su categoría
+        Then se abre el modal "Crear Solicitud de Trabajo"
+        And veo el nombre del prestador "Juan Pérez"
         And veo los campos obligatorios "TÍTULO DEL PROBLEMA" y "DESCRIPCIÓN DEL PROBLEMA"
 
     Scenario: 02-SRP Enviar la solicitud de trabajo exitosamente

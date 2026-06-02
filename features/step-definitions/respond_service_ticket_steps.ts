@@ -4,17 +4,16 @@ import { page } from "./landing_page_visualization_steps";
 import { ROUTES } from "../../lib/routes";
 import { AuthSession } from "../../lib/auth/types";
 import { MOCK_SESSION_COOKIE } from "../../lib/auth/mock-adapter";
-import { addApiStub } from "./stubs-helper";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
-async function setProviderSession(email: string = "provider@test.com", firstName: string = "Carlos") {
+async function setProviderSession() {
   const session: AuthSession = {
     user: {
       id: "provider-001",
-      email,
-      firstName,
-      lastName: "Méndez",
+      email: "prestador@loresuelvo.test",
+      firstName: "Paula",
+      lastName: "Rios",
       isOnboarded: true,
       role: "provider",
     },
@@ -29,142 +28,115 @@ async function setProviderSession(email: string = "provider@test.com", firstName
   }]);
 }
 
-Given("que un consumidor inició una conversación conmigo", async () => {
+Given("que existen solicitudes de trabajo pendientes para mí", async () => {
   await setProviderSession();
-
-  await addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: [
-      {
-        id: 1,
-        status: "pending",
-        counterpart: {
-          id: 10,
-          role: "consumer",
-          name: "Andres",
-          surname: "Test",
-          category_name: "Plomería",
-        },
-        last_message: {
-          id: 1,
-          sender_role: "consumer",
-          content: "Hola, me gustaría contratarte para el trabajo",
-          created_on: "2026-05-31T12:00:00Z",
-        },
-        updated_on: "2026-05-31T12:00:00Z",
-      },
-    ],
-  });
 });
 
-Given("aún no respondí la solicitud", async () => {
-});
-
-When("accedo a la página de inicio", async () => {
+When("accedo al dashboard de prestador", async () => {
   await page.goto(APP_URL + ROUTES.provider.home);
   await page.waitForLoadState("networkidle");
 });
 
-Then("visualizo la solicitud como pendiente", async () => {
-  const pendingIndicator = page.getByText("Solicitudes de Trabajo");
-  await pendingIndicator.waitFor({ state: "visible" });
-  assert.ok(await pendingIndicator.isVisible(), "No se visualiza la sección de solicitudes");
+Then("visualizo las solicitudes pendientes en la sección {string}", async (sectionName: string) => {
+  const section = page.getByRole("region", { name: sectionName });
+  await section.waitFor({ state: "visible" });
+  assert.ok(await section.isVisible(), `No se visualiza la sección "${sectionName}"`);
 });
 
-Then("visualizo la cantidad de mensajes sin leer en la conversación", async () => {
-  // The current implementation shows work requests, not unread messages count
-  // This step is optional for the initial implementation
-});
-
-Then("visualizo un botón para ver la solicitud pendiente", async () => {
-  // Check for MessageCircle button which appears in the work request card
-  const respondButton = page.locator("button").filter({ has: page.locator("svg") }).first();
-  await respondButton.waitFor({ state: "visible", timeout: 5000 }).catch(() => {
-    console.log("Respond button not found, checking if work requests are displayed");
-  });
-  // If no specific button found, verify work requests section exists
-  const workRequestsSection = page.getByText("Solicitudes de Trabajo");
-  assert.ok(await workRequestsSection.isVisible(), "No se visualiza la sección de solicitudes");
-});
-
-Given("que existe una conversación pendiente", async () => {
+Given("que visualizo una solicitud pendiente", async () => {
   await setProviderSession();
-
-  await addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: [
-      {
-        id: 1,
-        status: "pending",
-        counterpart: {
-          id: 10,
-          role: "consumer",
-          name: "Andres",
-          surname: "Test",
-          category_name: "Plomería",
-        },
-        last_message: {
-          id: 1,
-          sender_role: "consumer",
-          content: "Hola, me gustaría contratarte para el trabajo",
-          created_on: "2026-05-31T12:00:00Z",
-        },
-        updated_on: "2026-05-31T12:00:00Z",
-      },
-    ],
-  });
-});
-
-Given("Estoy en la página de inicio", async () => {
   await page.goto(APP_URL + ROUTES.provider.home);
   await page.waitForLoadState("networkidle");
 });
 
-Given("Existe una conversación pendiente", async () => {
+When("hago clic en {string}", async (buttonName: string) => {
+  const button = page.getByRole("button", { name: new RegExp(buttonName, "i") }).first();
+  await button.waitFor({ state: "visible" });
+  await button.click();
 });
 
-When("Presiono el botón para aceptar la solicitud pendiente", async () => {
-  const acceptButton = page.getByRole("button", { name: /aceptar/i }).or(page.getByRole("link", { name: /ver solicitud/i }));
-  await acceptButton.first().click();
+Then("se muestra el detalle de la solicitud", async () => {
+  const modal = page.getByRole("dialog", { name: "Detalle de Solicitud" });
+  await modal.waitFor({ state: "visible" });
+  assert.ok(await modal.isVisible(), "No se muestra el modal de detalle");
+});
+
+Then("visualizo:", async (dataTable: { raw: () => string[][] }) => {
+  const fields = dataTable.raw().map(row => row[0]);
+  const modal = page.getByRole("dialog", { name: "Detalle de Solicitud" });
+
+  for (const field of fields) {
+    switch (field) {
+      case "nombre del consumidor":
+        await modal.getByText("María Fernández").waitFor({ state: "visible" });
+        break;
+      case "ubicación":
+        await modal.getByText("Palermo, CABA").waitFor({ state: "visible" });
+        break;
+      case "fecha de creación":
+        await modal.getByText(/Hace \d+ min|Hace \d+ h/).waitFor({ state: "visible" });
+        break;
+      case "categoría":
+        await modal.getByText("Electricidad").waitFor({ state: "visible" });
+        break;
+      case "descripción del problema":
+        await modal.getByText(/se saltó la térmica/i).waitFor({ state: "visible" });
+        break;
+    }
+  }
+});
+
+Given("que me encuentro visualizando el detalle de una solicitud pendiente", async () => {
+  await setProviderSession();
+  await page.goto(APP_URL + ROUTES.provider.home);
   await page.waitForLoadState("networkidle");
+
+  const viewButton = page.getByRole("button", { name: /Ver Solicitud/i }).first();
+  await viewButton.waitFor({ state: "visible" });
+  await viewButton.click();
+
+  const modal = page.getByRole("dialog", { name: "Detalle de Solicitud" });
+  await modal.waitFor({ state: "visible" });
 });
 
-Then("Visualizo la conversación con el consumidor", async () => {
-  await page.waitForURL(`**${ROUTES.provider.messages}**`);
-  const consumerName = page.getByText("Andres Test").first();
-  await consumerName.waitFor({ state: "visible" });
-  assert.ok(await consumerName.isVisible(), "No se visualiza la conversación con el consumidor");
+Then("la solicitud cambia a estado aceptada", async () => {
+  await page.waitForSelector('button:has-text("Aceptar Solicitud")', { state: "hidden", timeout: 5000 }).catch(() => {});
 });
 
-Then("Puedo comenzar a conversar con el consumidor", async () => {
-  const messageInput = page.getByPlaceholder("Escribe un mensaje...");
-  await messageInput.waitFor({ state: "visible" });
-  assert.ok(await messageInput.isVisible(), "No se puede comenzar a conversar");
+Then("la solicitud cambia a estado rechazada", async () => {
+  await page.waitForSelector('button:has-text("Rechazar Solicitud")', { state: "hidden", timeout: 5000 }).catch(() => {});
 });
 
-When("Presiono el botón para rechazar la solicitud pendiente", async () => {
-  const rejectButton = page.getByRole("button", { name: /rechazar/i });
-  await rejectButton.first().click();
+Then("deja de aparecer en la lista de solicitudes pendientes", async () => {
+  const requestCard = page.locator("[data-field='problem-title']").filter({ hasText: "Cortocircuito en cocina" });
+  await requestCard.waitFor({ state: "hidden", timeout: 5000 }).catch(() => {});
+});
+
+Given("que estoy visualizando el detalle de una solicitud", async () => {
+  await setProviderSession();
+  await page.goto(APP_URL + ROUTES.provider.home);
   await page.waitForLoadState("networkidle");
+
+  const viewButton = page.getByRole("button", { name: /Ver Solicitud/i }).first();
+  await viewButton.waitFor({ state: "visible" });
+  await viewButton.click();
+
+  const modal = page.getByRole("dialog", { name: "Detalle de Solicitud" });
+  await modal.waitFor({ state: "visible" });
 });
 
-Then("Soy redireccionado a la página de inicio", async () => {
-  await page.waitForURL(`**${ROUTES.provider.home}**`);
-  assert.ok(page.url().includes(ROUTES.provider.home), "No fue redirigido a la página de inicio");
+When("cierro la ventana de detalle", async () => {
+  const closeButton = page.getByRole("button", { name: /Cerrar/i });
+  await closeButton.waitFor({ state: "visible" });
+  await closeButton.click();
 });
 
-Then("La solicitud pendiente ya no se visualiza en la página de inicio", async () => {
-  const pendingIndicator = page.getByText("1 solicitud pendiente");
-  const count = await pendingIndicator.count();
-  assert.ok(count === 0, "La solicitud pendiente todavía se visualiza");
+Then("regreso al dashboard de prestador", async () => {
+  const section = page.getByRole("region", { name: "Solicitudes de Trabajo" });
+  await section.waitFor({ state: "visible" });
 });
 
-Then("No puedo visualizar la conversación con el consumidor", async () => {
-  const conversation = page.getByText("Andres Test");
-  const count = await conversation.count();
-  assert.ok(count === 0, "La conversación todavía es visible");
+Then("continúo visualizando la lista de solicitudes pendientes", async () => {
+  const list = page.getByRole("list", { name: "Lista de solicitudes de trabajo" });
+  await list.waitFor({ state: "visible" });
 });

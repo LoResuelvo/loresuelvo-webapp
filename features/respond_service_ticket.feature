@@ -1,32 +1,41 @@
-Feature: Responder solicitud de trabajo
+Feature: US-43 Responder solicitudes de trabajo
   Como prestador
-  Quiero responder solicitudes de trabajo recibidas mediante el chat
-  Para poder aceptar el contacto inicial y comenzar a conversar con el consumidor.
+  Quiero visualizar y responder solicitudes de trabajo pendientes
+  Para aceptar o rechazar el contacto inicial con el consumidor.
 
-  Scenario: 01-RST Visualizar solicitud pendiente
-    Given que un consumidor inició una conversación conmigo
-    And aún no respondí la solicitud
-    When accedo a la página de inicio
-    Then visualizo la solicitud como pendiente
-    And visualizo la cantidad de mensajes sin leer en la conversación
-    And visualizo un botón para ver la solicitud pendiente
+  Scenario: 01-RST Visualizar solicitudes pendientes
+    Given que existen solicitudes de trabajo pendientes para mí
+    When accedo al dashboard de prestador
+    Then visualizo las solicitudes pendientes en la sección "Solicitudes de Trabajo"
 
+  Scenario: 02-RST Abrir detalle de solicitud
+    Given que visualizo una solicitud pendiente
+    When hago clic en "Ver solicitud"
+    Then se muestra el detalle de la solicitud
+    And visualizo:
+      | Campo              |
+      | nombre del consumidor |
+      | ubicación           |
+      | fecha de creación   |
+      | categoría           |
+      | descripción del problema |
+
+  Scenario: 03-RST Aceptar solicitud
+    Given que me encuentro visualizando el detalle de una solicitud pendiente
+    When hago clic en "Aceptar Solicitud"
+    Then la solicitud cambia a estado aceptada
+    And deja de aparecer en la lista de solicitudes pendientes
 
   @wip
-  Scenario: 02-RST Aceptar solicitud pendiente
-    Given que existe una conversación pendiente
-    And Estoy en la página de inicio
-    And Existe una conversación pendiente
-    When Presiono el botón para aceptar la solicitud pendiente
-    Then Visualizo la conversación con el consumidor
-    And Puedo comenzar a conversar con el consumidor
+  Scenario: 04-RST Rechazar solicitud
+    Given que me encuentro visualizando el detalle de una solicitud pendiente
+    When hago clic en "Rechazar Solicitud"
+    Then la solicitud cambia a estado rechazada
+    And deja de aparecer en la lista de solicitudes pendientes
 
   @wip
-  Scenario: 03-RST Rechazar solicitud pendiente
-    Given que existe una conversación pendiente
-    And Estoy en la página de inicio
-    And Existe una conversación pendiente
-    When Presiono el botón para rechazar la solicitud pendiente
-    Then Soy redireccionado a la página de inicio
-    And La solicitud pendiente ya no se visualiza en la página de inicio
-    And No puedo visualizar la conversación con el consumidor
+  Scenario: 05-RST Cerrar detalle de solicitud
+    Given que estoy visualizando el detalle de una solicitud
+    When cierro la ventana de detalle
+    Then regreso al dashboard de prestador
+    And continúo visualizando la lista de solicitudes pendientes

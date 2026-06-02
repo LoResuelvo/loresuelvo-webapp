@@ -2,7 +2,8 @@ export interface ProviderWorkRequest {
   id: string;
   clientName: string;
   problemTitle: string;
-  summary: string;
+  category: string;
+  description: string;
   location: string;
   publishedAtLabel: string;
   unreadMessagesCount: number;

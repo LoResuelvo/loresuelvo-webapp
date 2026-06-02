@@ -7,18 +7,22 @@ const mockWorkRequests: ProviderWorkRequest[] = [
   {
     id: "request-1",
     clientName: "María Fernández",
-    problemTitle: "Pérdida de agua en cocina",
-    summary: "Necesita reparar una pérdida debajo de la bacha.",
+    problemTitle: "Cortocircuito en cocina",
+    category: "Electricidad",
+    description: "Se saltó la térmica al encender el horno eléctrico. Necesito que alguien lo revise urgente.",
     location: "Palermo, CABA",
     publishedAtLabel: "Hace 20 min",
+    unreadMessagesCount: 0,
   },
   {
     id: "request-2",
     clientName: "Javier Torres",
     problemTitle: "Instalación de luminarias",
-    summary: "Busca instalar tres luces nuevas en el living.",
+    category: "Electricidad",
+    description: "Busco instalar tres luces nuevas en el living.",
     location: "Caballito, CABA",
     publishedAtLabel: "Hace 1 h",
+    unreadMessagesCount: 0,
   },
 ];
 
@@ -41,8 +45,8 @@ describe("WorkRequestsSection", () => {
 
     const firstRequest = items[0];
     expect(within(firstRequest).getByText("María Fernández")).toBeInTheDocument();
-    expect(within(firstRequest).getByText("Pérdida de agua en cocina")).toBeInTheDocument();
-    expect(within(firstRequest).getByText("Necesita reparar una pérdida debajo de la bacha.")).toBeInTheDocument();
+    expect(within(firstRequest).getByText("Cortocircuito en cocina")).toBeInTheDocument();
+    expect(within(firstRequest).getByText("Se saltó la térmica al encender el horno eléctrico. Necesito que alguien lo revise urgente.")).toBeInTheDocument();
     expect(within(firstRequest).getByText("Palermo, CABA")).toBeInTheDocument();
     expect(within(firstRequest).getByText("Hace 20 min")).toBeInTheDocument();
     expect(within(firstRequest).getByRole("button", { name: "Ver Solicitud" })).toBeInTheDocument();

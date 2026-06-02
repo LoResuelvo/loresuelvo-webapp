@@ -1,108 +1,136 @@
-import { MapPin, MessageCircle, Timer, User } from "lucide-react";
+"use client";
+
+import { useState } from "react";
 import { ProviderWorkRequest } from "@/lib/provider-home/types";
-import { Button } from "@/components/ui/button";
+import RequestDetailModal from "./RequestDetailModal";
 
 interface WorkRequestsSectionProps {
   requests: ProviderWorkRequest[];
 }
 
 export default function WorkRequestsSection({ requests }: WorkRequestsSectionProps) {
-  return (
-    <section
-      role="region"
-      aria-labelledby="work-requests-title"
-      aria-label="Solicitudes de Trabajo"
-      className="max-w-4xl"
-    >
-      <div className="mb-5">
-        <h1
-          id="work-requests-title"
-          className="text-[26px] font-bold text-brand-primary"
-        >
-          Solicitudes de Trabajo
-        </h1>
-      </div>
+  const [selectedRequest, setSelectedRequest] = useState<ProviderWorkRequest | null>(null);
 
-      {requests.length === 0 ? (
-        <p className="text-[16px] text-slate-500 text-center py-8">Todavía no tienes ninguna solicitud de trabajo :(</p>
-      ) : (
-        <ul
-          aria-label="Lista de solicitudes de trabajo"
-          className="flex flex-col gap-4"
-        >
-          {requests.map((request) => (
-            <li
-              key={request.id}
-              className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm"
-            >
-              <article className="flex items-center gap-4 relative">
-                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-brand-neutral text-brand-secondary shrink-0">
-                  <User className="h-5 w-5" />
-                </div>
-                <div className="flex flex-col gap-3 flex-1 pr-[140px]">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
+  const handleAccept = (requestId: string) => {
+    console.log("Accept request:", requestId);
+    setSelectedRequest(null);
+  };
+
+  const handleReject = (requestId: string) => {
+    console.log("Reject request:", requestId);
+    setSelectedRequest(null);
+  };
+
+  return (
+    <>
+      <section
+        role="region"
+        aria-labelledby="work-requests-title"
+        aria-label="Solicitudes de Trabajo"
+        className="max-w-4xl"
+      >
+        <div className="mb-5">
+          <h1
+            id="work-requests-title"
+            className="text-[26px] font-bold text-brand-primary"
+          >
+            Solicitudes de Trabajo
+          </h1>
+        </div>
+
+        {requests.length === 0 ? (
+          <p className="text-[16px] text-slate-500 text-center py-8">Todavía no tienes ninguna solicitud de trabajo :(</p>
+        ) : (
+          <ul
+            aria-label="Lista de solicitudes de trabajo"
+            className="flex flex-col gap-4"
+          >
+            {requests.map((request) => (
+              <li
+                key={request.id}
+                className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm"
+              >
+                <article className="flex items-center gap-4 relative">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-brand-neutral text-brand-secondary shrink-0">
+                    <User className="h-5 w-5" />
+                  </div>
+                  <div className="flex flex-col gap-3 flex-1 pr-[140px]">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <p
+                          data-field="client-name"
+                          className="text-[14px] font-semibold text-brand-secondary"
+                        >
+                          {request.clientName}
+                        </p>
+                        <h2
+                          data-field="problem-title"
+                          className="mt-1 text-[18px] font-bold text-brand-primary"
+                        >
+                          {request.problemTitle}
+                        </h2>
+                      </div>
+                    </div>
+
+                    <p
+                      data-field="description"
+                      className="text-[14px] leading-6 text-slate-600"
+                    >
+                      {request.description}
+                    </p>
+
+                    <div className="flex items-center justify-between">
                       <p
-                        data-field="client-name"
-                        className="text-[14px] font-semibold text-brand-secondary"
+                        data-field="location"
+                        className="flex items-center gap-1.5 text-[14px] font-medium text-slate-600"
                       >
-                        {request.clientName}
+                        <MapPin className="h-4 w-4 text-brand-secondary" aria-hidden="true" />
+                        {request.location}
                       </p>
-                      <h2
-                        data-field="problem-title"
-                        className="mt-1 text-[18px] font-bold text-brand-primary"
-                      >
-                        {request.problemTitle}
-                      </h2>
+
+                      {request.unreadMessagesCount > 0 && (
+                        <span
+                          data-badge="unread"
+                          className="flex items-center gap-1.5 px-2 py-1 bg-brand-primary text-white text-[12px] font-semibold rounded-full"
+                        >
+                          <MessageCircle className="h-3 w-3" aria-hidden="true" />
+                          {request.unreadMessagesCount} mensaje{request.unreadMessagesCount > 1 ? "s" : ""}
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  <p
-                    data-field="summary"
-                    className="text-[14px] leading-6 text-slate-600"
-                  >
-                    {request.summary}
-                  </p>
-
-                  <div className="flex items-center justify-between">
-                    <p
-                      data-field="location"
-                      className="flex items-center gap-1.5 text-[14px] font-medium text-slate-600"
-                    >
-                      <MapPin className="h-4 w-4 text-brand-secondary" aria-hidden="true" />
-                      {request.location}
-                    </p>
-
-                    {request.unreadMessagesCount > 0 && (
-                      <span
-                        data-badge="unread"
-                        className="flex items-center gap-1.5 px-2 py-1 bg-brand-primary text-white text-[12px] font-semibold rounded-full"
-                      >
-                        <MessageCircle className="h-3 w-3" aria-hidden="true" />
-                        {request.unreadMessagesCount} mensaje{request.unreadMessagesCount > 1 ? "s" : ""}
-                      </span>
-                    )}
+                  <div data-field="published-at" className="absolute right-4 top-4 flex items-center gap-1.5 text-[13px] font-medium text-slate-500">
+                    <Timer className="h-4 w-4" aria-hidden="true" />
+                    {request.publishedAtLabel}
                   </div>
-                </div>
 
-                <div data-field="published-at" className="absolute right-4 top-4 flex items-center gap-1.5 text-[13px] font-medium text-slate-500">
-                  <Timer className="h-4 w-4" aria-hidden="true" />
-                  {request.publishedAtLabel}
-                </div>
+                  <div className="flex items-center justify-center min-w-[120px]">
+                    <button
+                      type="button"
+                      className="bg-brand-secondary hover:bg-brand-secondary/80 text-white rounded-lg px-4 py-2 text-[14px] font-medium transition-colors"
+                      onClick={() => setSelectedRequest(request)}
+                    >
+                      Ver Solicitud
+                    </button>
+                  </div>
+                </article>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
-                <div className="flex items-center justify-center min-w-[120px]">
-                  <Button
-                    type="button"
-                    className="bg-brand-secondary hover:bg-brand-secondary/80 text-white rounded-lg"
-                  >
-                    Ver Solicitud
-                  </Button>
-                </div>
-              </article>
-            </li>
-          ))}
-        </ul>
+      {selectedRequest && (
+        <RequestDetailModal
+          request={selectedRequest}
+          onClose={() => setSelectedRequest(null)}
+          onAccept={handleAccept}
+          onReject={handleReject}
+        />
       )}
-    </section>
+    </>
   );
 }
+
+import { MapPin, MessageCircle, Timer, User } from "lucide-react";

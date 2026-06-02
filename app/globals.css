@@ -51,6 +51,7 @@
     --color-brand-secondary: #2A9D8F;
     --color-brand-tertiary: #E9C46A;
     --color-brand-neutral: #F4F1EE;
+    --color-brand-danger: #DC2626;
 }
 
 :root {
@@ -69,6 +70,7 @@
     --accent: oklch(0.97 0 0);
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
+    --color-brand-danger: #DC2626;
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
     --ring: oklch(0.708 0 0);

@@ -26,14 +26,12 @@ Feature: US-43 Responder solicitudes de trabajo
     Then la solicitud cambia a estado aceptada
     And deja de aparecer en la lista de solicitudes pendientes
 
-  @wip
   Scenario: 04-RST Rechazar solicitud
     Given que me encuentro visualizando el detalle de una solicitud pendiente
     When hago clic en "Rechazar Solicitud"
     Then la solicitud cambia a estado rechazada
     And deja de aparecer en la lista de solicitudes pendientes
 
-  @wip
   Scenario: 05-RST Cerrar detalle de solicitud
     Given que estoy visualizando el detalle de una solicitud
     When cierro la ventana de detalle

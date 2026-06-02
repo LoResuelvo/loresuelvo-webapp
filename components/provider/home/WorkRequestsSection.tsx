@@ -8,16 +8,17 @@ interface WorkRequestsSectionProps {
   requests: ProviderWorkRequest[];
 }
 
-export default function WorkRequestsSection({ requests }: WorkRequestsSectionProps) {
+export default function WorkRequestsSection({ requests: initialRequests }: WorkRequestsSectionProps) {
+  const [requests, setRequests] = useState(initialRequests);
   const [selectedRequest, setSelectedRequest] = useState<ProviderWorkRequest | null>(null);
 
   const handleAccept = (requestId: string) => {
-    console.log("Accept request:", requestId);
+    setRequests(prev => prev.filter(r => r.id !== requestId));
     setSelectedRequest(null);
   };
 
   const handleReject = (requestId: string) => {
-    console.log("Reject request:", requestId);
+    setRequests(prev => prev.filter(r => r.id !== requestId));
     setSelectedRequest(null);
   };
 

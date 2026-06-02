@@ -80,7 +80,7 @@ Then("cada solicitud muestra el título del problema", async () => {
 });
 
 Then("cada solicitud muestra una descripción resumida", async () => {
-  await assertEveryWorkRequestHasField("summary", "descripción resumida");
+  await assertEveryWorkRequestHasField("description", "descripción resumida");
 });
 
 Then("cada solicitud muestra la ubicación", async () => {

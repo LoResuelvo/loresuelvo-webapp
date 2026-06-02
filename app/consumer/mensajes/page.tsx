@@ -1,25 +1,6 @@
 import { getAuthService } from "@/lib/auth";
-import { api } from "@/lib/api/base-client";
+import { conversationsClient, type ApiConversation } from "@/lib/conversations-client";
 import ConsumerMessagesClient from "./ConsumerMessagesClient";
-
-interface ApiConversation {
-  id: number;
-  status: string;
-  counterpart: {
-    id: number;
-    role: string;
-    name: string;
-    surname: string;
-    category_name: string;
-  };
-  last_message?: {
-    id: number;
-    sender_role: string;
-    content: string;
-    created_on: string;
-  };
-  updated_on: string;
-}
 
 interface ConversationContact {
   id: string;
@@ -61,7 +42,7 @@ export default async function ConsumerMessagesPage({ searchParams }: PageProps) 
   let contacts: ConversationContact[] = [];
 
   try {
-    const apiContacts = await api.get<ApiConversation[]>("/conversations");
+    const apiContacts = await conversationsClient.getConversations();
     contacts = apiContacts.map(transformApiConversation);
   } catch (error) {
     console.log("Could not fetch conversations:", error);

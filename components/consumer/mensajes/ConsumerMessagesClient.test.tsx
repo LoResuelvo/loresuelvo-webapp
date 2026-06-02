@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import ConsumerMessagesClient from "@/app/consumer/mensajes/ConsumerMessagesClient";
+import * as actions from "@/app/consumer/mensajes/actions";
 
 vi.mock("next/navigation", () => ({
   useSearchParams: vi.fn(() => ({
@@ -13,6 +14,12 @@ vi.mock("next/navigation", () => ({
   useRouter: vi.fn(() => ({
     push: vi.fn(),
   })),
+}));
+
+vi.mock("@/app/consumer/mensajes/actions", () => ({
+  getConversationDetail: vi.fn(),
+  sendMessage: vi.fn(),
+  createConversation: vi.fn(),
 }));
 
 const mockUser = {
@@ -44,21 +51,17 @@ const mockContacts = [
 describe("ConsumerMessagesClient", () => {
   beforeEach(() => {
     Element.prototype.scrollIntoView = vi.fn();
+    vi.clearAllMocks();
   });
 
-  it("renders the messages section with contact list", () => {
-    global.fetch = vi.fn(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({
-          id: 1,
-          status: "pending",
-          counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", category_name: "Plomería" },
-          messages: [],
-          updated_on: "2026-05-31T12:00:00Z",
-        }),
-      })
-    ) as unknown as typeof fetch;
+  it("renders the messages section with contact list", async () => {
+    (actions.getConversationDetail as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 1,
+      status: "pending",
+      counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", category_name: "Plomería" },
+      messages: [],
+      updated_on: "2026-05-31T12:00:00Z",
+    });
 
     render(
       <ConsumerMessagesClient session={mockSession} contacts={mockContacts} />
@@ -68,20 +71,15 @@ describe("ConsumerMessagesClient", () => {
   });
 
   it("displays loaded messages from API when selecting a contact", async () => {
-    global.fetch = vi.fn(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({
-          id: 1,
-          status: "pending",
-          counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", category_name: "Plomería" },
-          messages: [
-            { id: 1, sender_role: "consumer", content: "Hola, me gustaría contratarte para el trabajo", created_on: "2026-05-31T12:00:00Z" },
-          ],
-          updated_on: "2026-05-31T12:00:00Z",
-        }),
-      })
-    ) as unknown as typeof fetch;
+    (actions.getConversationDetail as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 1,
+      status: "pending",
+      counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", category_name: "Plomería" },
+      messages: [
+        { id: 1, sender_role: "consumer", content: "Hola, me gustaría contratarte para el trabajo", created_on: "2026-05-31T12:00:00Z" },
+      ],
+      updated_on: "2026-05-31T12:00:00Z",
+    });
 
     render(
       <ConsumerMessagesClient session={mockSession} contacts={mockContacts} />
@@ -93,30 +91,21 @@ describe("ConsumerMessagesClient", () => {
   });
 
   it("sends a message and displays it optimistically", async () => {
-    global.fetch = vi.fn((url: string) => {
-      if (typeof url === "string" && url.includes("/messages")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            id: 2,
-            conversation_id: 1,
-            sender_role: "consumer",
-            content: "Nuevo mensaje de prueba",
-            created_on: "2026-05-31T12:05:00Z",
-          }),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({
-          id: 1,
-          status: "pending",
-          counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", category_name: "Plomería" },
-          messages: [],
-          updated_on: "2026-05-31T12:00:00Z",
-        }),
-      });
-    }) as unknown as typeof fetch;
+    (actions.getConversationDetail as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 1,
+      status: "pending",
+      counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", category_name: "Plomería" },
+      messages: [],
+      updated_on: "2026-05-31T12:00:00Z",
+    });
+
+    (actions.sendMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 2,
+      conversation_id: 1,
+      sender_role: "consumer",
+      content: "Nuevo mensaje de prueba",
+      created_on: "2026-05-31T12:05:00Z",
+    });
 
     render(
       <ConsumerMessagesClient session={mockSession} contacts={mockContacts} />
@@ -133,19 +122,14 @@ describe("ConsumerMessagesClient", () => {
     expect(screen.getByText("Nuevo mensaje de prueba")).toBeInTheDocument();
   });
 
-  it("shows pending notification when contact is pending", () => {
-    global.fetch = vi.fn(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({
-          id: 1,
-          status: "pending",
-          counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", category_name: "Plomería" },
-          messages: [],
-          updated_on: "2026-05-31T12:00:00Z",
-        }),
-      })
-    ) as unknown as typeof fetch;
+  it("shows pending notification when contact is pending", async () => {
+    (actions.getConversationDetail as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 1,
+      status: "pending",
+      counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", category_name: "Plomería" },
+      messages: [],
+      updated_on: "2026-05-31T12:00:00Z",
+    });
 
     render(
       <ConsumerMessagesClient session={mockSession} contacts={mockContacts} />

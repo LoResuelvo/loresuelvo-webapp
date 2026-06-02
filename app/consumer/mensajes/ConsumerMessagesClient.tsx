@@ -7,6 +7,7 @@ import ConsumerHeader from "@/components/consumer/home/ConsumerHeader";
 import ConsumerMessagesView from "@/components/consumer/mensajes/ConsumerMessagesView";
 import { AuthSession } from "@/lib/auth/types";
 import { ROUTES } from "@/lib/routes";
+import { getConversationDetail, sendMessage, createConversation } from "./actions";
 
 interface Message {
   id: string;
@@ -36,14 +37,6 @@ interface ConversationDetail {
   updated_on: string;
 }
 
-interface SendMessageResponse {
-  id: number;
-  conversation_id: number;
-  sender_role: string;
-  content: string;
-  created_on: string;
-}
-
 interface ConversationContact {
   id: string;
   providerId: string;
@@ -59,8 +52,6 @@ interface ConsumerMessagesClientProps {
   session: AuthSession | null;
   contacts?: ConversationContact[];
 }
-
-const API_BASE_URL = "/api";
 
 function getLocalStorageKey(conversationId: string): string {
   return `pending_messages_${conversationId}`;
@@ -149,13 +140,8 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
       return;
     }
 
-    const accessToken = session?.accessToken;
-
-    fetch(`${API_BASE_URL}/conversations/${effectiveConversationId}`, {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    })
-      .then(res => res.json())
-      .then((data: ConversationDetail) => {
+    getConversationDetail(effectiveConversationId)
+      .then((data) => {
         const messages: Message[] = data.messages.map(msg => ({
           id: String(msg.id),
           content: msg.content,
@@ -180,7 +166,7 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
         setLoadedMessages(allMessages);
       })
       .catch(console.error);
-  }, [selectedProviderId, effectiveConversationId, session?.accessToken]);
+  }, [selectedProviderId, effectiveConversationId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -203,7 +189,6 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
     setLocalMessages(prev => [...prev, optimisticMessage]);
     setMessageInput("");
 
-    const accessToken = session?.accessToken;
     const currentConversationId = activeConversationId || selectedContact?.id?.replace("conv-", "");
 
     let conversationIdToUse = currentConversationId;
@@ -211,23 +196,7 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
 
     if (!conversationIdToUse || !/^\d+$/.test(conversationIdToUse)) {
       try {
-        const createResponse = await fetch(`${API_BASE_URL}/conversations`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-          },
-          body: JSON.stringify({
-            provider_id: parseInt(selectedProviderId),
-            content: messageContent,
-          }),
-        });
-
-        if (!createResponse.ok) {
-          throw new Error(`Failed to create conversation: ${createResponse.status}`);
-        }
-
-        const createData = await createResponse.json();
+        const createData = await createConversation(parseInt(selectedProviderId), messageContent) as { id: number };
         conversationIdToUse = String(createData.id);
         setActiveConversationId(conversationIdToUse);
         justCreatedRef.current = true;
@@ -261,14 +230,7 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/conversations/${conversationIdToUse}/messages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        },
-        body: JSON.stringify({ content: messageContent }),
-      });
+      const response = await sendMessage(conversationIdToUse, messageContent) as { id?: number; created_on?: string; content?: string };
 
       const sentAt = new Date().toLocaleString("es-AR", {
         day: "2-digit",
@@ -283,40 +245,26 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
         sentAt,
       };
 
-      if (response.ok) {
-        const contentLength = response.headers.get("Content-Length");
-        const hasBody = contentLength && parseInt(contentLength) > 0;
-
-        if (hasBody) {
-          try {
-            const data: SendMessageResponse = await response.json();
-            if (data && data.id) {
-              const serverSentAt = new Date(data.created_on).toLocaleString("es-AR", {
-                day: "2-digit",
-                month: "2-digit",
-                hour: "2-digit",
-                minute: "2-digit",
-              });
-              const updatedMessage: Message = {
-                id: String(data.id),
-                content: data.content,
-                senderId: session?.user?.id ?? "consumer-001",
-                sentAt: serverSentAt,
-              };
-              setLocalMessages(prev => prev.filter(msg => msg.id !== tempId));
-              setLoadedMessages(prev => [...prev, updatedMessage]);
-              setIsSending(false);
-              return;
-            }
-          } catch {
-            // Response was not valid JSON, keep optimistic message
-          }
-        }
+      if (response && response.id) {
+        const serverSentAt = response.created_on ? new Date(response.created_on).toLocaleString("es-AR", {
+          day: "2-digit",
+          month: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        }) : sentAt;
+        const updatedMessage: Message = {
+          id: String(response.id),
+          content: response.content || messageContent,
+          senderId: session?.user?.id ?? "consumer-001",
+          sentAt: serverSentAt,
+        };
         setLocalMessages(prev => prev.filter(msg => msg.id !== tempId));
-        setLoadedMessages(prev => [...prev, successfulMessage]);
-      } else {
-        throw new Error(`Failed to send message: ${response.status}`);
+        setLoadedMessages(prev => [...prev, updatedMessage]);
+        setIsSending(false);
+        return;
       }
+      setLocalMessages(prev => prev.filter(msg => msg.id !== tempId));
+      setLoadedMessages(prev => [...prev, successfulMessage]);
     } catch (error) {
       console.error("Error sending message:", error);
       setLocalMessages(prev =>

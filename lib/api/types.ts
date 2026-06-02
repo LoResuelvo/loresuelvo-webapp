@@ -24,3 +24,22 @@ export interface Provider {
   jobs?: number;
 }
 
+export interface ApiConversation {
+  id: number;
+  status: string;
+  counterpart: {
+    id: number;
+    role: string;
+    name: string;
+    surname: string;
+    category_name: string;
+  };
+  last_message?: {
+    id: number;
+    sender_role: string;
+    content: string;
+    created_on: string;
+  };
+  updated_on: string;
+}
+

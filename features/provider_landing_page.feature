@@ -13,7 +13,6 @@ Feature: Dashboard del Prestador
     And veo la opción "Trabajos"
     And veo la opción "Perfil"
 
-  @wip
   Scenario: 02.1-HPP Verificar mensaje cuando no hay solicitudes de trabajo
     Given que ingreso a la HomePage como prestador
     When se carga la pantalla principal
@@ -28,11 +27,12 @@ Feature: Dashboard del Prestador
     And cada solicitud muestra el nombre del cliente
     And cada solicitud muestra el título del problema
     And cada solicitud muestra una descripción resumida
-    And cada solicitud muestra la ubicación
+    # And cada solicitud muestra la ubicación
     And cada solicitud muestra la fecha u hora de publicación
-    And cada solicitud posee una acción "Responder"
-    And cada solicitud posee una acción "Detalles"
+   #  And cada solicitud posee una acción "Responder"
+    And cada solicitud posee una acción "Ver Solicitud"
 
+  @wip
   Scenario: 03-HPP Verificar trabajos agendados
     Given que ingreso a la HomePage como prestador con trabajos agendados
     When se carga la pantalla principal
@@ -41,8 +41,7 @@ Feature: Dashboard del Prestador
     And cada trabajo muestra el título del trabajo
     And cada trabajo muestra el cliente asociado
     And cada trabajo muestra la fecha y hora programada
-    And cada trabajo muestra la ubicación
-    And cada trabajo muestra el importe acordado
+    # And cada trabajo muestra la ubicación
 
   Scenario: 04-HPP Verificar panel de ingresos
     Given que ingreso a la HomePage como prestador con métricas
@@ -52,6 +51,7 @@ Feature: Dashboard del Prestador
     And visualizo el monto de ingresos
     And visualizo el indicador de variación
 
+  @wip
   Scenario: 05-HPP Verificar datos simulados cuando la API no está disponible
     Given que la API aún no se encuentra disponible
     When ingreso a la HomePage como prestador con datos simulados

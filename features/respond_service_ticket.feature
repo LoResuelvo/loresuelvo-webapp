@@ -37,3 +37,8 @@ Feature: US-43 Responder solicitudes de trabajo
     When cierro la ventana de detalle
     Then regreso al dashboard de prestador
     And continúo visualizando la lista de solicitudes pendientes
+  @wip
+  Scenario: 06-RST Aceptar solicitud abre el chat con el consumidor
+    Given que me encuentro visualizando el detalle de una solicitud pendiente
+    When hago clic en "Aceptar Solicitud"
+    Then se abre el chat con el consumidor para iniciar la comunicación

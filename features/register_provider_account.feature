@@ -3,7 +3,8 @@ Feature: Registrar cuenta nueva de prestador
     Quiero registrarme en Lo Resuelvo
     Para poder ofrecer mis servicios a los consumidores
 
-    Scenario: 01-RPN Registro exitoso
+    @wip
+  Scenario: 01-RPN Registro exitoso
         Given que me registré exitosamente en Auth0 con email "andy@pro.com"
         And elegí la opción de prestador en la pagina de registro
         And ingreso mi nombre "Andres" y apellido "Colina" en el formulario

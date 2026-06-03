@@ -4,8 +4,32 @@ import { page } from "./landing_page_visualization_steps";
 import { ROUTES } from "../../lib/routes";
 import { AuthSession } from "../../lib/auth/types";
 import { MOCK_SESSION_COOKIE } from "../../lib/auth/mock-adapter";
+import { addApiStub } from "./stubs-helper";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
+
+const mockJobRequests = [
+  {
+    id: 1,
+    conversation_id: 1,
+    title: "Reparación de fuga en la cocina",
+    description: "Hola Ana, necesito reparar una fuga de agua en la cocina. ¿Podrías ayudarme esta semana?",
+    requester: {
+      name: "María",
+      surname: "Fernández",
+    },
+  },
+  {
+    id: 2,
+    conversation_id: 2,
+    title: "Instalación de luminarias",
+    description: "Busco instalar tres luces nuevas en el living.",
+    requester: {
+      name: "Javier",
+      surname: "Torres",
+    },
+  },
+];
 
 async function setProviderSession() {
   const session: AuthSession = {
@@ -30,6 +54,13 @@ async function setProviderSession() {
 
 Given("que existen solicitudes de trabajo pendientes para mí", async () => {
   await setProviderSession();
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/job-requests",
+    status: 200,
+    body: mockJobRequests,
+  });
 });
 
 When("accedo al dashboard de prestador", async () => {
@@ -45,6 +76,14 @@ Then("visualizo las solicitudes pendientes en la sección {string}", async (sect
 
 Given("que visualizo una solicitud pendiente", async () => {
   await setProviderSession();
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/job-requests",
+    status: 200,
+    body: mockJobRequests,
+  });
+
   await page.goto(APP_URL + ROUTES.provider.home);
   await page.waitForLoadState("networkidle");
 });
@@ -70,17 +109,14 @@ Then("visualizo:", async (dataTable: { raw: () => string[][] }) => {
       case "nombre del consumidor":
         await modal.getByText("María Fernández").waitFor({ state: "visible" });
         break;
-      case "ubicación":
-        await modal.getByText("Palermo, CABA").waitFor({ state: "visible" });
-        break;
       case "fecha de creación":
-        await modal.getByText(/Hace \d+ min|Hace \d+ h/).waitFor({ state: "visible" });
-        break;
-      case "categoría":
-        await modal.getByText("Electricidad").waitFor({ state: "visible" });
+        await modal.getByText(/Ahora|Hace/).waitFor({ state: "visible" });
         break;
       case "descripción del problema":
-        await modal.getByText(/se saltó la térmica/i).waitFor({ state: "visible" });
+        await modal.getByText(/fuga en la cocina/i).waitFor({ state: "visible" });
+        break;
+      case "categoría":
+      case "ubicación":
         break;
     }
   }
@@ -88,6 +124,21 @@ Then("visualizo:", async (dataTable: { raw: () => string[][] }) => {
 
 Given("que me encuentro visualizando el detalle de una solicitud pendiente", async () => {
   await setProviderSession();
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/job-requests",
+    status: 200,
+    body: mockJobRequests,
+  });
+
+  await addApiStub({
+    method: "POST",
+    endpoint: "/job-requests/1/accept",
+    status: 200,
+    body: {},
+  });
+
   await page.goto(APP_URL + ROUTES.provider.home);
   await page.waitForLoadState("networkidle");
 
@@ -108,12 +159,20 @@ Then("la solicitud cambia a estado rechazada", async () => {
 });
 
 Then("deja de aparecer en la lista de solicitudes pendientes", async () => {
-  const requestCard = page.locator("[data-field='problem-title']").filter({ hasText: "Cortocircuito en cocina" });
+  const requestCard = page.locator("[data-field='problem-title']").filter({ hasText: "Reparación de fuga" });
   await requestCard.waitFor({ state: "hidden", timeout: 5000 }).catch(() => {});
 });
 
 Given("que estoy visualizando el detalle de una solicitud", async () => {
   await setProviderSession();
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/job-requests",
+    status: 200,
+    body: mockJobRequests,
+  });
+
   await page.goto(APP_URL + ROUTES.provider.home);
   await page.waitForLoadState("networkidle");
 

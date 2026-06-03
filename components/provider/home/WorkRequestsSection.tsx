@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { ProviderWorkRequest } from "@/lib/provider-home/types";
 import RequestDetailModal from "./RequestDetailModal";
+import { acceptJobRequest } from "./actions";
 
 interface WorkRequestsSectionProps {
   requests: ProviderWorkRequest[];
@@ -11,10 +12,14 @@ interface WorkRequestsSectionProps {
 export default function WorkRequestsSection({ requests: initialRequests }: WorkRequestsSectionProps) {
   const [requests, setRequests] = useState(initialRequests);
   const [selectedRequest, setSelectedRequest] = useState<ProviderWorkRequest | null>(null);
+  const [, startTransition] = useTransition();
 
   const handleAccept = (requestId: string) => {
-    setRequests(prev => prev.filter(r => r.id !== requestId));
-    setSelectedRequest(null);
+    startTransition(async () => {
+      await acceptJobRequest(requestId);
+      setRequests(prev => prev.filter(r => r.id !== requestId));
+      setSelectedRequest(null);
+    });
   };
 
   const handleReject = (requestId: string) => {

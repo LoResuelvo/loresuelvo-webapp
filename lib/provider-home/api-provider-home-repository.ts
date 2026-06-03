@@ -36,6 +36,10 @@ function transformApiWorkRequest(apiRequest: ApiWorkRequest): WorkRequest {
   };
 }
 
+export async function acceptWorkRequest(workRequestId: string): Promise<void> {
+  await api.post(`/job-requests/${workRequestId}/accept`, {});
+}
+
 export class ApiProviderHomeRepository {
   async getDashboard(providerId: string): Promise<ProviderHomeDashboard> {
     const response = await api.get<ApiWorkRequest[]>("/job-requests");

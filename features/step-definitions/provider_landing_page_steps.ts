@@ -4,6 +4,7 @@ import { page } from "./landing_page_visualization_steps";
 import { ROUTES } from "../../lib/routes";
 import { AuthSession } from "../../lib/auth/types";
 import { MOCK_SESSION_COOKIE } from "../../lib/auth/mock-adapter";
+import { addApiStub } from "./stubs-helper";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
@@ -27,7 +28,15 @@ Given("que ingreso a la HomePage como prestador", async () => {
     path: "/",
   }]);
 
-  await page.goto(APP_URL + ROUTES.provider.home);
+  await addApiStub({
+    method: "GET",
+    endpoint: "/job-requests",
+    status: 200,
+    body: [],
+  });
+
+  await page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "networkidle" });
+  await page.waitForTimeout(500);
 });
 
 When("se carga la pantalla principal", async () => {
@@ -152,6 +161,28 @@ Given("que ingreso a la HomePage como prestador con solicitudes", async () => {
     path: "/",
   }]);
 
+  await addApiStub({
+    method: "GET",
+    endpoint: "/job-requests",
+    status: 200,
+    body: [
+      {
+        id: 1,
+        conversation_id: 1,
+        title: "Reparación de fuga en la cocina",
+        description: "Hola, necesito reparar una fuga de agua.",
+        requester: { name: "María", surname: "Fernández" },
+      },
+      {
+        id: 2,
+        conversation_id: 2,
+        title: "Instalación de luminarias",
+        description: "Busco instalar tres luces nuevas.",
+        requester: { name: "Javier", surname: "Torres" },
+      },
+    ],
+  });
+
   await page.goto(APP_URL + ROUTES.provider.home);
 });
 
@@ -175,7 +206,23 @@ Given("que ingreso a la HomePage como prestador con trabajos agendados", async (
     path: "/",
   }]);
 
-  await page.goto(APP_URL + ROUTES.provider.home);
+  await addApiStub({
+    method: "GET",
+    endpoint: "/job-requests",
+    status: 200,
+    body: [
+      {
+        id: 1,
+        conversation_id: 1,
+        title: "Reparación de fuga",
+        description: "Necesito reparar una fuga de agua.",
+        requester: { name: "Carlos", surname: "Méndez" },
+      },
+    ],
+  });
+
+  await page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "networkidle" });
+  await page.waitForTimeout(1000);
 });
 
 Then("visualizo una lista de trabajos agendados", async () => {
@@ -242,7 +289,22 @@ Given("que ingreso a la HomePage como prestador con métricas", async () => {
     path: "/",
   }]);
 
-  await page.goto(APP_URL + ROUTES.provider.home);
+  await addApiStub({
+    method: "GET",
+    endpoint: "/job-requests",
+    status: 200,
+    body: [
+      {
+        id: 1,
+        conversation_id: 1,
+        title: "Reparación de fuga",
+        description: "Necesito reparar una fuga de agua.",
+        requester: { name: "Carlos", surname: "Méndez" },
+      },
+    ],
+  });
+
+  await page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "networkidle" });
 });
 
 Then("visualizo un panel de métricas", async () => {
@@ -322,7 +384,23 @@ Given("ingreso a la HomePage como prestador con datos simulados", async () => {
     path: "/",
   }]);
 
-  await page.goto(APP_URL + ROUTES.provider.home);
+  await addApiStub({
+    method: "GET",
+    endpoint: "/job-requests",
+    status: 200,
+    body: [
+      {
+        id: 1,
+        conversation_id: 1,
+        title: "Reparación de fuga en la cocina",
+        description: "Hola, necesito reparar una fuga de agua.",
+        requester: { name: "María", surname: "Fernández" },
+      },
+    ],
+  });
+
+  await page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "networkidle" });
+  await page.waitForTimeout(500);
 });
 
 Then("visualizo la sección {string} con datos simulados", async (sectionName: string) => {

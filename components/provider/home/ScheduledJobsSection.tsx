@@ -8,7 +8,9 @@ interface ScheduledJobsSectionProps {
 export default function ScheduledJobsSection({ jobs }: ScheduledJobsSectionProps) {
   return (
     <section
+      role="region"
       aria-labelledby="scheduled-jobs-title"
+      aria-label="Trabajos Agendados"
       className="max-w-4xl"
     >
       <div className="mb-5">

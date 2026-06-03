@@ -1,7 +1,19 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import WorkRequestModal from "@/components/consumer/search/WorkRequestModal";
+import * as actions from "@/app/consumer/buscar/actions";
 import { Provider } from "@/lib/api/types";
+
+const mockPush = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
+
+vi.mock("@/app/consumer/buscar/actions", () => ({
+  createJobRequest: vi.fn(),
+}));
 
 const mockProvider: Provider = {
   id: 1,
@@ -13,6 +25,10 @@ const mockProvider: Provider = {
 
 describe("WorkRequestModal", () => {
   const mockOnClose = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it("renders correctly with provider information and form fields", () => {
     render(<WorkRequestModal provider={mockProvider} onClose={mockOnClose} />);
@@ -32,5 +48,44 @@ describe("WorkRequestModal", () => {
     fireEvent.click(closeButton);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows validation error if submitted empty", async () => {
+    render(<WorkRequestModal provider={mockProvider} onClose={mockOnClose} />);
+
+    const submitButton = screen.getByRole("button", { name: "Enviar solicitud" });
+    fireEvent.click(submitButton);
+
+    expect(actions.createJobRequest).not.toHaveBeenCalled();
+  });
+
+  it("submits the form successfully and redirects", async () => {
+    (actions.createJobRequest as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 123,
+      conversation_id: 456,
+      title: "Gotera en cocina",
+      description: "Tengo una filtración debajo de la bacha.",
+    });
+
+    render(<WorkRequestModal provider={mockProvider} onClose={mockOnClose} />);
+
+    const titleInput = screen.getByLabelText(/título del problema/i);
+    const descInput = screen.getByLabelText(/descripción del problema/i);
+    const submitButton = screen.getByRole("button", { name: "Enviar solicitud" });
+
+    fireEvent.change(titleInput, { target: { value: "Gotera en cocina" } });
+    fireEvent.change(descInput, { target: { value: "Tengo una filtración debajo de la bacha." } });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(actions.createJobRequest).toHaveBeenCalledWith(
+        mockProvider.id,
+        "Gotera en cocina",
+        "Tengo una filtración debajo de la bacha."
+      );
+      expect(mockPush).toHaveBeenCalledWith(
+        expect.stringContaining(`/consumer/mensajes?provider_id=1&name=Juan&surname=P%C3%A9rez`)
+      );
+    });
   });
 });

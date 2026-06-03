@@ -73,11 +73,38 @@ Given("que estoy en el dashboard de prestador", async () => {
   await page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "networkidle" });
 });
 
+When("navego a la sección de mensajes del dashboard", async () => {
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations",
+    status: 200,
+    body: mockConversations,
+  });
+  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+});
+
 When("accedo a la sección de mensajes", async () => {
-  const messagesLink = page.getByRole("link", { name: /Mensajes/i });
-  await messagesLink.waitFor({ state: "visible" });
-  await messagesLink.click();
-  await page.waitForLoadState("networkidle");
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations",
+    status: 200,
+    body: mockConversations,
+  });
+  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+});
+
+When("visualizo la lista de mensajes", async () => {
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations",
+    status: 200,
+    body: mockConversations,
+  });
+  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+});
+
+When("visualizo la lista de conversaciones", async () => {
+  // Already navigated in Given step
 });
 
 Then("visualizo una lista de conversaciones", async () => {

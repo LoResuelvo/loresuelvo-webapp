@@ -18,8 +18,8 @@ interface ContactListProps {
 
 export default function ContactList({ contacts, selectedProviderId, onContactClick }: ContactListProps) {
   return (
-    <div className="flex flex-col h-full">
-      <div aria-label="Mensajes" className="p-4 border-b border-slate-100 flex-shrink-0">
+    <div className="flex flex-col h-full" role="region" aria-label="Mensajes">
+      <div className="p-4 border-b border-slate-100 flex-shrink-0">
         <h2 className="text-[18px] font-bold text-brand-primary">Mensajes</h2>
       </div>
       <div
@@ -33,7 +33,7 @@ export default function ContactList({ contacts, selectedProviderId, onContactCli
             <p className="text-slate-400 text-sm mt-2">Inicia un chat con un prestador desde la búsqueda</p>
           </div>
         ) : (
-          <div role="listitem">
+          <>
             {contacts.map((contact) => (
               <ContactItem
                 key={contact.id}
@@ -48,7 +48,7 @@ export default function ContactList({ contacts, selectedProviderId, onContactCli
                 onClick={onContactClick}
               />
             ))}
-          </div>
+          </>
         )}
       </div>
     </div>

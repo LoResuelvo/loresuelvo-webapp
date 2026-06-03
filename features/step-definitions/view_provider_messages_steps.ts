@@ -161,6 +161,49 @@ Then("cada conversación muestra el nombre del consumidor", async () => {
   }
 });
 
+Given("que tengo conversaciones con mensajes", async () => {
+  await setProviderSession();
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations",
+    status: 200,
+    body: mockConversations,
+  });
+
+  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+});
+
+Given("que tengo conversaciones pendientes de aceptación", async () => {
+  await setProviderSession();
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations",
+    status: 200,
+    body: mockConversations,
+  });
+
+  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+});
+
+Given("me encuentro visualizando la lista de conversaciones", async () => {
+  // Already navigated in Given step
+});
+
+Given("me encuentro visualizando el detalle de una solicitud pendiente", async () => {
+  await setProviderSession();
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations",
+    status: 200,
+    body: mockConversations,
+  });
+
+  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+});
+
 Then("cada conversación muestra el último mensaje intercambiado", async () => {
   const list = page.getByRole("list", { name: "Lista de conversaciones" });
   const items = list.getByRole("listitem");

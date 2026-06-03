@@ -298,6 +298,7 @@ export default function ProviderMessagesClient({ session, contacts = [] }: Provi
     id: msg.id,
     content: msg.content,
     sentAt: msg.sentAt,
+    senderId: msg.senderId,
   }));
 
   return (

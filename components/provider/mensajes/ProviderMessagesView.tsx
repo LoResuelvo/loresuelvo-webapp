@@ -16,6 +16,7 @@ interface Message {
   id: string;
   content: string;
   sentAt: string;
+  senderId?: string;
 }
 
 interface ProviderMessagesViewProps {

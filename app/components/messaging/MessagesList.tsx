@@ -5,6 +5,7 @@ interface Message {
   id: string;
   content: string;
   sentAt: string;
+  senderId?: string;
 }
 
 interface MessagesListProps {
@@ -31,6 +32,7 @@ export default function MessagesList({
   showPendingBanner,
 }: MessagesListProps) {
   const isMessageExpanded = (id: string) => expandedMessages.has(id);
+  const MY_USER_ID = "provider-001";
 
   return (
     <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4">
@@ -48,6 +50,7 @@ export default function MessagesList({
       {messages.map((msg) => {
         const isExpanded = isMessageExpanded(msg.id);
         const showExpandButton = shouldShowExpandButton(msg.content);
+        const isOwnMessage = String(msg.senderId) === MY_USER_ID;
         return (
           <MessageBubble
             key={msg.id}
@@ -57,6 +60,7 @@ export default function MessagesList({
             isExpanded={isExpanded}
             showExpandButton={showExpandButton}
             onToggleExpand={onToggleExpand}
+            isOwnMessage={isOwnMessage}
           />
         );
       })}

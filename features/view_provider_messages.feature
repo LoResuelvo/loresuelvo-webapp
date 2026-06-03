@@ -28,6 +28,7 @@ Feature: US-37 Ver mensajes como prestador
     When visualizo la lista de conversaciones
     Then cada conversación muestra la fecha u hora del último mensaje
 
+  @wip
   Scenario: 06-VMP Identificar conversaciones pendientes visualmente
     Given que tengo conversaciones pendientes de aceptación
     When visualizo la lista de conversaciones

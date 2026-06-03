@@ -7,7 +7,7 @@ import ProviderHeader from "@/components/provider/home/ProviderHeader";
 import ProviderMessagesView from "@/components/provider/mensajes/ProviderMessagesView";
 import { AuthSession } from "@/lib/auth/types";
 import { ROUTES } from "@/lib/routes";
-import { getConversationDetail, sendMessage, createConversation } from "./actions";
+import { getConversationDetail, sendMessage, createConversation, acceptJobRequest } from "./actions";
 
 interface Message {
   id: string;
@@ -51,6 +51,7 @@ interface ConversationContact {
 interface ProviderMessagesClientProps {
   session: AuthSession | null;
   contacts?: ConversationContact[];
+  myUserId: string;
 }
 
 function getLocalStorageKey(conversationId: string): string {
@@ -82,7 +83,7 @@ function clearPendingMessages(conversationId: string): void {
   }
 }
 
-export default function ProviderMessagesClient({ session, contacts = [] }: ProviderMessagesClientProps) {
+export default function ProviderMessagesClient({ session, contacts = [], myUserId }: ProviderMessagesClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedConsumerId = searchParams.get("consumer_id");
@@ -92,11 +93,13 @@ export default function ProviderMessagesClient({ session, contacts = [] }: Provi
   const [isSending, setIsSending] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
+  const [acceptedConversations, setAcceptedConversations] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isSendingRef = useRef(false);
   const justCreatedRef = useRef(false);
 
   const selectedContact = contacts.find(c => c.consumerId === selectedConsumerId);
+  const isPending = selectedContact?.pending && !acceptedConversations.has(selectedContact.id);
 
   const effectiveConversationId = activeConversationId || selectedContact?.id?.replace("conv-", "");
 
@@ -145,7 +148,7 @@ export default function ProviderMessagesClient({ session, contacts = [] }: Provi
         const messages: Message[] = data.messages.map(msg => ({
           id: String(msg.id),
           content: msg.content,
-          senderId: msg.sender_role === "provider" ? "provider-001" : String(data.counterpart.id),
+          senderId: msg.sender_role === "provider" ? myUserId : String(data.counterpart.id),
           sentAt: new Date(msg.created_on).toLocaleString("es-AR", {
             day: "2-digit",
             month: "2-digit",
@@ -182,7 +185,7 @@ export default function ProviderMessagesClient({ session, contacts = [] }: Provi
     const optimisticMessage: Message = {
       id: tempId,
       content: messageContent,
-      senderId: session?.user?.id ?? "provider-001",
+      senderId: session?.user?.id ?? myUserId,
       sentAt: "Ahora",
     };
 
@@ -220,7 +223,7 @@ export default function ProviderMessagesClient({ session, contacts = [] }: Provi
       const successfulMessage: Message = {
         id: tempId,
         content: messageContent,
-        senderId: session?.user?.id ?? "provider-001",
+        senderId: session?.user?.id ?? myUserId,
         sentAt,
       };
       setLocalMessages(prev => prev.filter(msg => msg.id !== tempId));
@@ -241,7 +244,7 @@ export default function ProviderMessagesClient({ session, contacts = [] }: Provi
       const successfulMessage: Message = {
         id: tempId,
         content: messageContent,
-        senderId: session?.user?.id ?? "provider-001",
+        senderId: session?.user?.id ?? myUserId,
         sentAt,
       };
 
@@ -255,7 +258,7 @@ export default function ProviderMessagesClient({ session, contacts = [] }: Provi
         const updatedMessage: Message = {
           id: String(response.id),
           content: response.content || messageContent,
-          senderId: session?.user?.id ?? "provider-001",
+          senderId: session?.user?.id ?? myUserId,
           sentAt: serverSentAt,
         };
         setLocalMessages(prev => prev.filter(msg => msg.id !== tempId));
@@ -273,7 +276,7 @@ export default function ProviderMessagesClient({ session, contacts = [] }: Provi
       const pendingMsg: Message = {
         id: `pending-${tempId}`,
         content: messageContent,
-        senderId: session?.user?.id ?? "provider-001",
+        senderId: session?.user?.id ?? myUserId,
         sentAt: new Date().toLocaleString("es-AR", {
           day: "2-digit",
           month: "2-digit",
@@ -294,6 +297,17 @@ export default function ProviderMessagesClient({ session, contacts = [] }: Provi
     router.push(`${ROUTES.provider.messages}?consumer_id=${consumerId}`);
   };
 
+  const handleAccept = async () => {
+    if (!effectiveConversationId || !/^\d+$/.test(effectiveConversationId)) return;
+    try {
+      await acceptJobRequest(parseInt(effectiveConversationId));
+      setAcceptedConversations(prev => new Set([...prev, selectedContact!.id]));
+      router.push(`${ROUTES.provider.messages}?consumer_id=${selectedConsumerId}`);
+    } catch (error) {
+      console.error("Error accepting job request:", error);
+    }
+  };
+
   const viewMessages = allMessages.map(msg => ({
     id: msg.id,
     content: msg.content,
@@ -307,8 +321,14 @@ export default function ProviderMessagesClient({ session, contacts = [] }: Provi
       <div className="flex-1 flex flex-col min-w-0">
         <ProviderHeader session={session} />
         <ProviderMessagesView
-          contacts={contacts}
-          selectedContact={selectedContact ?? null}
+          contacts={contacts.map(c => ({
+            ...c,
+            pending: c.pending && !acceptedConversations.has(c.id),
+          }))}
+          selectedContact={selectedContact ? {
+            ...selectedContact,
+            pending: selectedContact.pending && !acceptedConversations.has(selectedContact.id),
+          } : null}
           selectedConsumerId={selectedConsumerId}
           messages={viewMessages}
           expandedMessages={expandedMessages}
@@ -319,6 +339,8 @@ export default function ProviderMessagesClient({ session, contacts = [] }: Provi
           onMessageInputChange={setMessageInput}
           onSendMessage={handleSendMessage}
           isSending={isSending}
+          onAccept={handleAccept}
+          myUserId={myUserId}
         />
       </div>
     </div>

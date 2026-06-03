@@ -43,5 +43,5 @@ export default async function ProviderMessagesPage() {
     console.log("Could not fetch conversations:", error);
   }
 
-  return <ProviderMessagesClient session={session} contacts={contacts} />;
+  return <ProviderMessagesClient session={session} contacts={contacts} myUserId={session?.user?.id ?? "provider-001"} />;
 }

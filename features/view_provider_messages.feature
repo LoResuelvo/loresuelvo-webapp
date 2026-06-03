@@ -34,13 +34,11 @@ Feature: US-37 Ver mensajes como prestador
     When visualizo la lista de conversaciones
     Then las conversaciones pendientes se identifican visualmente de manera distintiva
 
-  @wip
   Scenario: 07-VMP Seleccionar conversación para visualizar contenido
     Given que visualizo la lista de conversaciones
     When hago clic en una conversación
     Then se muestra el contenido completo de la conversación
 
-  @wip
   Scenario: 08-VMP RST-06 - Aceptar solicitud abre el chat con el consumidor
     Given que me encuentro visualizando el detalle de una solicitud pendiente
     When hago clic en "Aceptar Solicitud"

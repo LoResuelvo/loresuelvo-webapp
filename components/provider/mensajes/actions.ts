@@ -1,6 +1,7 @@
 "use server";
 
 import { conversationsClient, type ApiConversation } from "@/lib/conversations-client";
+import { jobRequestsClient } from "@/lib/job-requests-client";
 
 interface ConversationDetail {
   id: number;
@@ -31,4 +32,8 @@ export async function createConversation(consumerId: number, content: string): P
 
 export async function sendMessage(conversationId: string, content: string): Promise<unknown> {
   return conversationsClient.sendMessage(conversationId, { content });
+}
+
+export async function acceptJobRequest(jobRequestId: number): Promise<void> {
+  return jobRequestsClient.acceptJobRequest(jobRequestId);
 }

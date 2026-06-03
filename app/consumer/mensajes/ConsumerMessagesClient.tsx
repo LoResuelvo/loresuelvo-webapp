@@ -51,6 +51,7 @@ interface ConversationContact {
 interface ConsumerMessagesClientProps {
   session: AuthSession | null;
   contacts?: ConversationContact[];
+  myUserId: string;
 }
 
 function getLocalStorageKey(conversationId: string): string {
@@ -82,7 +83,7 @@ function clearPendingMessages(conversationId: string): void {
   }
 }
 
-export default function ConsumerMessagesClient({ session, contacts = [] }: ConsumerMessagesClientProps) {
+export default function ConsumerMessagesClient({ session, contacts = [], myUserId }: ConsumerMessagesClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedProviderId = searchParams.get("provider_id");
@@ -145,7 +146,7 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
         const messages: Message[] = data.messages.map(msg => ({
           id: String(msg.id),
           content: msg.content,
-          senderId: msg.sender_role === "consumer" ? "consumer-001" : String(data.counterpart.id),
+          senderId: msg.sender_role === "consumer" ? myUserId : String(data.counterpart.id),
           sentAt: new Date(msg.created_on).toLocaleString("es-AR", {
             day: "2-digit",
             month: "2-digit",
@@ -182,7 +183,7 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
     const optimisticMessage: Message = {
       id: tempId,
       content: messageContent,
-      senderId: session?.user?.id ?? "consumer-001",
+      senderId: session?.user?.id ?? myUserId,
       sentAt: "Ahora",
     };
 
@@ -220,7 +221,7 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
       const successfulMessage: Message = {
         id: tempId,
         content: messageContent,
-        senderId: session?.user?.id ?? "consumer-001",
+        senderId: session?.user?.id ?? myUserId,
         sentAt,
       };
       setLocalMessages(prev => prev.filter(msg => msg.id !== tempId));
@@ -241,7 +242,7 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
       const successfulMessage: Message = {
         id: tempId,
         content: messageContent,
-        senderId: session?.user?.id ?? "consumer-001",
+        senderId: session?.user?.id ?? myUserId,
         sentAt,
       };
 
@@ -255,7 +256,7 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
         const updatedMessage: Message = {
           id: String(response.id),
           content: response.content || messageContent,
-          senderId: session?.user?.id ?? "consumer-001",
+          senderId: session?.user?.id ?? myUserId,
           sentAt: serverSentAt,
         };
         setLocalMessages(prev => prev.filter(msg => msg.id !== tempId));
@@ -273,7 +274,7 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
       const pendingMsg: Message = {
         id: `pending-${tempId}`,
         content: messageContent,
-        senderId: session?.user?.id ?? "consumer-001",
+        senderId: session?.user?.id ?? myUserId,
         sentAt: new Date().toLocaleString("es-AR", {
           day: "2-digit",
           month: "2-digit",
@@ -298,6 +299,7 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
     id: msg.id,
     content: msg.content,
     sentAt: msg.sentAt,
+    senderId: msg.senderId,
   }));
 
   return (
@@ -318,6 +320,7 @@ export default function ConsumerMessagesClient({ session, contacts = [] }: Consu
           onMessageInputChange={setMessageInput}
           onSendMessage={handleSendMessage}
           isSending={isSending}
+          myUserId={myUserId}
         />
       </div>
     </div>

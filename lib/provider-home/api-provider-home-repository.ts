@@ -26,6 +26,7 @@ interface ApiWorkRequest {
 function transformApiWorkRequest(apiRequest: ApiWorkRequest): WorkRequest {
   return {
     id: String(apiRequest.id),
+    conversationId: String(apiRequest.conversation_id),
     clientName: `${apiRequest.requester.name} ${apiRequest.requester.surname}`,
     problemTitle: apiRequest.title,
     category: "",

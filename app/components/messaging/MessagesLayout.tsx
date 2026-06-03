@@ -71,6 +71,8 @@ export function ChatPanel({
   onMessageInputChange,
   onSendMessage,
   isSending,
+  onAccept,
+  myUserId,
 }: {
   selectedContact: ConversationContact | null;
   messages: Message[];
@@ -81,6 +83,8 @@ export function ChatPanel({
   onMessageInputChange: (value: string) => void;
   onSendMessage: () => void;
   isSending: boolean;
+  onAccept?: () => void;
+  myUserId: string;
 }) {
   if (!selectedContact) {
     return (
@@ -94,11 +98,12 @@ export function ChatPanel({
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-brand-neutral/30 min-h-0">
+    <div data-testid="chat-panel" role="region" aria-label="Detalle de conversación" className="flex-1 flex flex-col bg-brand-neutral/30 min-h-0">
       <ChatHeader
         providerName={selectedContact.providerName}
         providerSurname={selectedContact.providerSurname}
         pending={selectedContact.pending}
+        onAccept={onAccept}
       />
       <div className="flex-1 flex flex-col min-h-0">
         <MessagesList
@@ -107,6 +112,7 @@ export function ChatPanel({
           onToggleExpand={onToggleExpand}
           messagesEndRef={messagesEndRef}
           showPendingBanner={selectedContact.pending}
+          myUserId={myUserId}
         />
         <MessageInput
           value={messageInput}

@@ -103,6 +103,10 @@ When("visualizo la lista de mensajes", async () => {
   await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
 
+Given("visualizo la lista de conversaciones", async () => {
+  // Already navigated in Given step
+});
+
 When("visualizo la lista de conversaciones", async () => {
   // Already navigated in Given step
 });
@@ -230,7 +234,7 @@ Then("cada conversación muestra la fecha u hora del último mensaje", async () 
   }
 });
 
-Then("las conversaciones pendientes se identifican visualicamente de manera distintiva", async () => {
+Then("las conversaciones pendientes se identifican visualmente de manera distintiva", async () => {
   const pendingItems = page.locator("[data-status='pending']");
   const count = await pendingItems.count();
   assert.ok(count > 0, "No se visualizan conversaciones pendientes");
@@ -242,8 +246,21 @@ When("hago clic en una conversación", async () => {
   await page.waitForLoadState("networkidle");
 });
 
+When('hago clic en "Aceptar Solicitud"', async () => {
+  const acceptButton = page.getByRole("button", { name: "Aceptar Solicitud" });
+  await acceptButton.waitFor({ state: "visible" });
+  await acceptButton.click();
+  await page.waitForLoadState("networkidle");
+});
+
 Then("se muestra el contenido completo de la conversación", async () => {
   const messagesSection = page.getByRole("region", { name: "Detalle de conversación" });
   await messagesSection.waitFor({ state: "visible" });
   assert.ok(await messagesSection.isVisible(), "No se muestra el contenido de la conversación");
+});
+
+Then("se abre el chat con el consumidor para iniciar la comunicación", async () => {
+  const chatPanel = page.locator("[data-testid='chat-panel']");
+  await chatPanel.waitFor({ state: "visible" });
+  assert.ok(await chatPanel.isVisible(), "No se muestra el chat con el consumidor");
 });

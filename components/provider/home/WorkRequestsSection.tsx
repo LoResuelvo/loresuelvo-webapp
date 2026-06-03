@@ -1,24 +1,29 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ProviderWorkRequest } from "@/lib/provider-home/types";
 import RequestDetailModal from "./RequestDetailModal";
 import { acceptJobRequest } from "./actions";
+import { getConversationDetail } from "@/components/provider/mensajes/actions";
+import { ROUTES } from "@/lib/routes";
 
 interface WorkRequestsSectionProps {
   requests: ProviderWorkRequest[];
 }
 
 export default function WorkRequestsSection({ requests: initialRequests }: WorkRequestsSectionProps) {
+  const router = useRouter();
   const [requests, setRequests] = useState(initialRequests);
   const [selectedRequest, setSelectedRequest] = useState<ProviderWorkRequest | null>(null);
   const [, startTransition] = useTransition();
 
-  const handleAccept = (requestId: string) => {
+  const handleAccept = (requestId: string, conversationId: string) => {
     startTransition(async () => {
       await acceptJobRequest(requestId);
-      setRequests(prev => prev.filter(r => r.id !== requestId));
-      setSelectedRequest(null);
+      const conversation = await getConversationDetail(conversationId);
+      const consumerId = conversation.counterpart.id;
+      router.push(`${ROUTES.provider.messages}?consumer_id=${consumerId}`);
     });
   };
 
@@ -121,7 +126,7 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
         <RequestDetailModal
           request={selectedRequest}
           onClose={() => setSelectedRequest(null)}
-          onAccept={handleAccept}
+          onAccept={(requestId) => handleAccept(requestId, selectedRequest.conversationId)}
           onReject={handleReject}
         />
       )}

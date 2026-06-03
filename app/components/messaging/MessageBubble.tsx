@@ -19,11 +19,14 @@ export default function MessageBubble({
 }: MessageBubbleProps) {
   return (
     <div className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}>
-      <div className={`rounded-2xl p-4 max-w-md ${
-        isOwnMessage
-          ? "bg-brand-primary text-white rounded-tr-sm"
-          : "bg-white text-brand-primary border border-slate-200 rounded-tl-sm"
-      }`}>
+      <div
+        data-testid={`message-bubble-${id}`}
+        className={`rounded-2xl p-4 max-w-md ${
+          isOwnMessage
+            ? "bg-brand-primary text-white rounded-tr-sm"
+            : "bg-white text-brand-primary border border-slate-200 rounded-tl-sm"
+        }`}
+      >
         <p className={`text-[14px] whitespace-pre-wrap break-words ${!isExpanded && showExpandButton ? "line-clamp-5" : ""}`}>
           {content}
         </p>

@@ -1,5 +1,6 @@
 export interface ProviderWorkRequest {
   id: string;
+  conversationId: string;
   clientName: string;
   problemTitle: string;
   category: string;

@@ -32,6 +32,8 @@ interface ProviderMessagesViewProps {
   onMessageInputChange: (value: string) => void;
   onSendMessage: () => void;
   isSending: boolean;
+  onAccept?: () => void;
+  myUserId: string;
 }
 
 export default function ProviderMessagesView({
@@ -47,6 +49,8 @@ export default function ProviderMessagesView({
   onMessageInputChange,
   onSendMessage,
   isSending,
+  onAccept,
+  myUserId,
 }: ProviderMessagesViewProps) {
   return (
     <main className="flex-1 flex min-h-0">
@@ -84,6 +88,8 @@ export default function ProviderMessagesView({
         onMessageInputChange={onMessageInputChange}
         onSendMessage={onSendMessage}
         isSending={isSending}
+        onAccept={onAccept}
+        myUserId={myUserId}
       />
     </main>
   );

@@ -63,5 +63,5 @@ export default async function ConsumerMessagesPage({ searchParams }: PageProps) 
     }
   }
 
-  return <ConsumerMessagesClient session={session} contacts={contacts} />;
+  return <ConsumerMessagesClient session={session} contacts={contacts} myUserId={session?.user?.id ?? "consumer-001"} />;
 }

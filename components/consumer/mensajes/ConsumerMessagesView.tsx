@@ -16,6 +16,7 @@ interface Message {
   id: string;
   content: string;
   sentAt: string;
+  senderId?: string;
 }
 
 interface ConsumerMessagesViewProps {
@@ -31,6 +32,7 @@ interface ConsumerMessagesViewProps {
   onMessageInputChange: (value: string) => void;
   onSendMessage: () => void;
   isSending: boolean;
+  myUserId: string;
 }
 
 export default function ConsumerMessagesView({
@@ -46,6 +48,7 @@ export default function ConsumerMessagesView({
   onMessageInputChange,
   onSendMessage,
   isSending,
+  myUserId,
 }: ConsumerMessagesViewProps) {
   return (
     <main className="flex-1 flex min-h-0">
@@ -67,6 +70,7 @@ export default function ConsumerMessagesView({
         onMessageInputChange={onMessageInputChange}
         onSendMessage={onSendMessage}
         isSending={isSending}
+        myUserId={myUserId}
       />
     </main>
   );

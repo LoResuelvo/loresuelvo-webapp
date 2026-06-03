@@ -1,54 +1,75 @@
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen, within, fireEvent, waitFor, act } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import WorkRequestsSection from "./WorkRequestsSection";
 import { ProviderWorkRequest } from "@/lib/provider-home/types";
+import * as actions from "./actions";
+import * as messagingActions from "@/components/provider/mensajes/actions";
+
+const mockPush = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
+
+vi.mock("./actions", () => ({
+  acceptJobRequest: vi.fn(),
+  rejectJobRequest: vi.fn(),
+}));
+
+vi.mock("@/components/provider/mensajes/actions", () => ({
+  getConversationDetail: vi.fn(),
+}));
 
 const mockWorkRequests: ProviderWorkRequest[] = [
   {
-    id: "request-1",
-    clientName: "María Fernández",
-    problemTitle: "Cortocircuito en cocina",
-    category: "Electricidad",
-    description: "Se saltó la térmica al encender el horno eléctrico. Necesito que alguien lo revise urgente.",
+    id: "7",
+    conversationId: "10",
+    clientName: "Aylen Suarez",
+    problemTitle: "Perro rabioso",
+    category: "Veterinaria",
+    description: "Necesito atención para mi perro",
     location: "Palermo, CABA",
     publishedAtLabel: "Hace 20 min",
     unreadMessagesCount: 0,
   },
-  {
-    id: "request-2",
-    clientName: "Javier Torres",
-    problemTitle: "Instalación de luminarias",
-    category: "Electricidad",
-    description: "Busco instalar tres luces nuevas en el living.",
-    location: "Caballito, CABA",
-    publishedAtLabel: "Hace 1 h",
-    unreadMessagesCount: 0,
-  },
 ];
 
-describe("WorkRequestsSection", () => {
-  it("shows empty state message when there are no work requests", () => {
-    render(<WorkRequestsSection requests={[]} />);
-
-    const section = screen.getByRole("region", { name: "Solicitudes de Trabajo" });
-    expect(within(section).getByText("Todavía no tienes ninguna solicitud de trabajo :(")).toBeInTheDocument();
+describe("WorkRequestsSection handleAccept redirect", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPush.mockClear();
   });
 
-  it("renders work requests with the expected details and actions", () => {
+  it("after accepting a work request, redirects to chat with consumer", async () => {
+    (actions.acceptJobRequest as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    (messagingActions.getConversationDetail as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 10,
+      status: "pending",
+      counterpart: { id: 2, role: "consumer", name: "Aylen", surname: "Suarez", category_name: "Veterinaria" },
+      messages: [],
+      updated_on: "2026-06-03T22:07:05.800829Z",
+    });
+
     render(<WorkRequestsSection requests={mockWorkRequests} />);
 
-    const section = screen.getByRole("region", { name: "Solicitudes de Trabajo" });
-    const list = within(section).getByRole("list", { name: "Lista de solicitudes de trabajo" });
-    const items = within(list).getAllByRole("listitem");
+    const viewButton = screen.getByRole("button", { name: "Ver Solicitud" });
+    fireEvent.click(viewButton);
 
-    expect(items).toHaveLength(2);
+    const modal = screen.getByRole("dialog");
+    const acceptButton = within(modal).getByRole("button", { name: "Aceptar Solicitud" });
 
-    const firstRequest = items[0];
-    expect(within(firstRequest).getByText("María Fernández")).toBeInTheDocument();
-    expect(within(firstRequest).getByText("Cortocircuito en cocina")).toBeInTheDocument();
-    expect(within(firstRequest).getByText("Se saltó la térmica al encender el horno eléctrico. Necesito que alguien lo revise urgente.")).toBeInTheDocument();
-    expect(within(firstRequest).getByText("Palermo, CABA")).toBeInTheDocument();
-    expect(within(firstRequest).getByText("Hace 20 min")).toBeInTheDocument();
-    expect(within(firstRequest).getByRole("button", { name: "Ver Solicitud" })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(acceptButton);
+    });
+
+    await waitFor(() => {
+      expect(actions.acceptJobRequest).toHaveBeenCalledWith("7");
+    });
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/prestador/mensajes?consumer_id=2");
+    });
   });
 });

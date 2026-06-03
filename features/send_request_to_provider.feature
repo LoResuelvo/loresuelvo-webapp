@@ -1,4 +1,3 @@
-@wip
 Feature: Enviar solicitud de contacto a un prestador
     Como consumidor
     Quiero enviar un mensaje de solicitud de contacto a un prestador con el que nunca interactué
@@ -24,11 +23,13 @@ Feature: Enviar solicitud de contacto a un prestador
         When ingreso un titulo, una descripcion y toco el boton "Enviar solicitud"
         Then soy redirigido a la pantalla de mensajes con "Juan Pérez"
 
+    @wip
     Scenario: 03-SRP Verificar que el prestador aparece como contacto después del primer mensaje
         Given que ya envié la solicitud de trabajo a "Juan Pérez"
         When accedo a la sección de mensajes
         Then visualizo al prestador "Juan Pérez" como contacto en mi lista
 
+    @wip
     Scenario: 04-SRP Permitir enviar más mensajes mientras la conversación no sea aceptada
         Given que inicié la conversación con "Juan Pérez"
         And el prestador aún no aceptó la conversación

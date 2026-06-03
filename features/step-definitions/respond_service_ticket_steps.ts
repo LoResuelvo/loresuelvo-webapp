@@ -139,6 +139,34 @@ Given("que me encuentro visualizando el detalle de una solicitud pendiente", asy
     body: {},
   });
 
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations/1",
+    status: 200,
+    body: {
+      id: 1,
+      status: "pending",
+      counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández", category_name: "Plomería" },
+      messages: [],
+      updated_on: "2026-06-03T12:00:00Z",
+    },
+  });
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations",
+    status: 200,
+    body: [
+      {
+        id: 1,
+        status: "pending",
+        counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández", category_name: "Plomería" },
+        last_message: null,
+        updated_on: "2026-06-03T12:00:00Z",
+      },
+    ],
+  });
+
   await page.goto(APP_URL + ROUTES.provider.home);
   await page.waitForLoadState("networkidle");
 

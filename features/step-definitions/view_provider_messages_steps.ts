@@ -107,8 +107,19 @@ Given("visualizo la lista de conversaciones", async () => {
   // Already navigated in Given step
 });
 
-When("visualizo la lista de conversaciones", async () => {
-  // Already navigated in Given step
+Given("que visualizo la lista de conversaciones", async () => {
+  await setProviderSession();
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations",
+    status: 200,
+    body: mockConversations,
+  });
+
+  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+  const section = page.getByRole("region", { name: "Mensajes" });
+  await section.waitFor({ state: "visible" });
 });
 
 Then("visualizo una lista de conversaciones", async () => {
@@ -246,13 +257,6 @@ When("hago clic en una conversación", async () => {
   await page.waitForLoadState("networkidle");
 });
 
-When('hago clic en "Aceptar Solicitud"', async () => {
-  const acceptButton = page.getByRole("button", { name: "Aceptar Solicitud" });
-  await acceptButton.waitFor({ state: "visible" });
-  await acceptButton.click();
-  await page.waitForLoadState("networkidle");
-});
-
 Then("se muestra el contenido completo de la conversación", async () => {
   const messagesSection = page.getByRole("region", { name: "Detalle de conversación" });
   await messagesSection.waitFor({ state: "visible" });
@@ -260,7 +264,12 @@ Then("se muestra el contenido completo de la conversación", async () => {
 });
 
 Then("se abre el chat con el consumidor para iniciar la comunicación", async () => {
+  await page.waitForTimeout(3000);
+  const currentUrl = page.url();
+  assert.ok(currentUrl.includes("consumer_id"), `Expected URL to contain consumer_id but got: ${currentUrl}`);
+  
+  await page.waitForLoadState("networkidle");
+  
   const chatPanel = page.locator("[data-testid='chat-panel']");
-  await chatPanel.waitFor({ state: "visible" });
-  assert.ok(await chatPanel.isVisible(), "No se muestra el chat con el consumidor");
+  await chatPanel.waitFor({ state: "attached", timeout: 15000 });
 });

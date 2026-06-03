@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import ProviderSidebar from "@/components/provider/home/ProviderSidebar";
 import ProviderHeader from "@/components/provider/home/ProviderHeader";
 import ProviderMessagesView from "@/components/provider/mensajes/ProviderMessagesView";
+import type { MessageInputHandle } from "@/app/components/messaging/MessageInput";
 import { AuthSession } from "@/lib/auth/types";
 import { ROUTES } from "@/lib/routes";
 import { getConversationDetail, sendMessage, createConversation, acceptJobRequest } from "./actions";
@@ -95,6 +96,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const [acceptedConversations, setAcceptedConversations] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<MessageInputHandle>(null);
   const isSendingRef = useRef(false);
   const justCreatedRef = useRef(false);
 
@@ -191,6 +193,14 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
 
     setLocalMessages(prev => [...prev, optimisticMessage]);
     setMessageInput("");
+    const interval = setInterval(() => {
+      if (typeof document === 'undefined') return;
+      const inputEl = document.querySelector<HTMLInputElement>('[placeholder="Escribe un mensaje..."]');
+      if (inputEl && !inputEl.disabled) {
+        clearInterval(interval);
+        inputEl.focus();
+      }
+    }, 1);
 
     const currentConversationId = activeConversationId || selectedContact?.id?.replace("conv-", "");
 
@@ -321,6 +331,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
       <div className="flex-1 flex flex-col min-w-0">
         <ProviderHeader session={session} />
         <ProviderMessagesView
+          ref={inputRef}
           contacts={contacts.map(c => ({
             ...c,
             pending: c.pending && !acceptedConversations.has(c.id),

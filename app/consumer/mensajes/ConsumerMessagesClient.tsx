@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Sidebar from "@/components/consumer/Sidebar";
 import ConsumerHeader from "@/components/consumer/home/ConsumerHeader";
 import ConsumerMessagesView from "@/components/consumer/mensajes/ConsumerMessagesView";
+import type { MessageInputHandle } from "@/app/components/messaging/MessageInput";
 import { AuthSession } from "@/lib/auth/types";
 import { ROUTES } from "@/lib/routes";
 import { getConversationDetail, sendMessage, createConversation } from "./actions";
@@ -94,6 +95,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<MessageInputHandle>(null);
   const isSendingRef = useRef(false);
   const justCreatedRef = useRef(false);
 
@@ -189,6 +191,14 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
 
     setLocalMessages(prev => [...prev, optimisticMessage]);
     setMessageInput("");
+    const interval = setInterval(() => {
+      if (typeof document === 'undefined') return;
+      const inputEl = document.querySelector<HTMLInputElement>('[placeholder="Escribe un mensaje..."]');
+      if (inputEl && !inputEl.disabled) {
+        clearInterval(interval);
+        inputEl.focus();
+      }
+    }, 1);
 
     const currentConversationId = activeConversationId || selectedContact?.id?.replace("conv-", "");
 
@@ -308,6 +318,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
       <div className="flex-1 flex flex-col min-w-0">
         <ConsumerHeader session={session} />
         <ConsumerMessagesView
+          ref={inputRef}
           contacts={contacts}
           selectedContact={selectedContact ?? null}
           selectedProviderId={selectedProviderId}

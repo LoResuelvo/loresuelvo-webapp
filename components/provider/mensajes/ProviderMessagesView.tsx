@@ -1,5 +1,6 @@
-import { RefObject } from "react";
+import { RefObject, forwardRef } from "react";
 import { ChatPanel } from "@/app/components/messaging/MessagesLayout";
+import type { MessageInputHandle } from "@/app/components/messaging/MessageInput";
 import ContactList from "@/app/components/messaging/ContactList";
 
 interface ConversationContact {
@@ -36,7 +37,7 @@ interface ProviderMessagesViewProps {
   myUserId: string;
 }
 
-export default function ProviderMessagesView({
+const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesViewProps>(({
   contacts,
   selectedContact,
   selectedConsumerId,
@@ -51,7 +52,7 @@ export default function ProviderMessagesView({
   isSending,
   onAccept,
   myUserId,
-}: ProviderMessagesViewProps) {
+}, ref) => {
   return (
     <main className="flex-1 flex min-h-0">
       <div className="w-[360px] border-r border-slate-200 bg-white flex flex-col h-full">
@@ -71,6 +72,7 @@ export default function ProviderMessagesView({
       </div>
 
       <ChatPanel
+        ref={ref}
         selectedContact={selectedContact ? {
           id: selectedContact.id,
           providerId: selectedContact.consumerId,
@@ -93,4 +95,8 @@ export default function ProviderMessagesView({
       />
     </main>
   );
-}
+});
+
+ProviderMessagesView.displayName = "ProviderMessagesView";
+
+export default ProviderMessagesView;

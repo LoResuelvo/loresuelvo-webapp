@@ -1,8 +1,9 @@
 import { MessageSquare, User } from "lucide-react";
+import { forwardRef } from "react";
 import ContactList from "./ContactList";
 import ChatHeader from "./ChatHeader";
 import MessagesList from "./MessagesList";
-import MessageInput from "./MessageInput";
+import MessageInput, { MessageInputHandle } from "./MessageInput";
 import PendingConversationBanner from "./PendingConversationBanner";
 
 interface ConversationContact {
@@ -61,19 +62,7 @@ export default function MessagesLayout({
   );
 }
 
-export function ChatPanel({
-  selectedContact,
-  messages,
-  expandedMessages,
-  onToggleExpand,
-  messagesEndRef,
-  messageInput,
-  onMessageInputChange,
-  onSendMessage,
-  isSending,
-  onAccept,
-  myUserId,
-}: {
+export const ChatPanel = forwardRef<MessageInputHandle, {
   selectedContact: ConversationContact | null;
   messages: Message[];
   expandedMessages: Set<string>;
@@ -85,7 +74,19 @@ export function ChatPanel({
   isSending: boolean;
   onAccept?: () => void;
   myUserId: string;
-}) {
+}>(({
+  selectedContact,
+  messages,
+  expandedMessages,
+  onToggleExpand,
+  messagesEndRef,
+  messageInput,
+  onMessageInputChange,
+  onSendMessage,
+  isSending,
+  onAccept,
+  myUserId,
+}, ref) => {
   if (!selectedContact) {
     return (
       <div className="flex-1 flex items-center justify-center bg-brand-neutral/30">
@@ -115,6 +116,7 @@ export function ChatPanel({
           myUserId={myUserId}
         />
         <MessageInput
+          ref={ref}
           value={messageInput}
           onChange={onMessageInputChange}
           onSend={onSendMessage}
@@ -123,4 +125,4 @@ export function ChatPanel({
       </div>
     </div>
   );
-}
+});

@@ -1,13 +1,12 @@
 import { MessageCircle, Star, User, ArrowRight } from "lucide-react";
-import Link from "next/link";
 import { Provider } from "@/lib/api/types";
-import { ROUTES } from "@/lib/routes";
 
 interface ProviderCardProps {
   provider: Provider;
+  onContact?: (provider: Provider) => void;
 }
 
-export default function ProviderCard({ provider }: ProviderCardProps) {
+export default function ProviderCard({ provider, onContact }: ProviderCardProps) {
   return (
     <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 flex gap-5 items-center relative group">
       <div className="w-[80px] h-[80px] rounded-2xl bg-slate-100 flex items-center justify-center border border-slate-200/50 flex-shrink-0 select-none overflow-hidden">
@@ -19,8 +18,8 @@ export default function ProviderCard({ provider }: ProviderCardProps) {
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div className="flex justify-between items-start gap-4">
           <div className="flex-1 min-w-0">
-            <h4 className="text-[18px] font-bold text-brand-primary truncate leading-tight group-hover:text-brand-secondary transition-colors">
-              {provider.name} {provider.surname}
+            <h4 className="text-[18px] font-bold text-brand-primary truncate leading-tight group-hover:text-brand-secondary transition-colors flex items-center gap-2">
+              <span>{provider.name} {provider.surname}</span>
             </h4>
 
             <div className="flex items-center gap-2 mt-1">
@@ -52,13 +51,14 @@ export default function ProviderCard({ provider }: ProviderCardProps) {
           </div>
 
           <div className="flex flex-col items-end gap-2 flex-shrink-0">
-            <Link
-              href={`${ROUTES.consumer.messages}?provider_id=${provider.id}&name=${encodeURIComponent(provider.name)}&surname=${encodeURIComponent(provider.surname)}`}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-lg font-semibold text-[13px] transition-colors shadow-sm"
+            <button
+              type="button"
+              onClick={() => onContact?.(provider)}
+              className="flex items-center gap-2 px-4 py-2 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-lg font-semibold text-[13px] transition-colors shadow-sm cursor-pointer"
             >
               <MessageCircle className="w-4 h-4" aria-hidden="true" />
               Contactar
-            </Link>
+            </button>
 
             <button
               type="button"

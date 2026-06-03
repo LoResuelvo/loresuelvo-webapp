@@ -1,7 +1,14 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import SearchClient from "@/components/consumer/search/SearchClient";
 import { Category, Provider } from "@/lib/api/types";
+
+vi.mock("next/navigation", () => ({
+  useRouter: vi.fn(() => ({
+    push: vi.fn(),
+  })),
+  usePathname: vi.fn(() => "/consumer/buscar"),
+}));
 
 const mockUser = {
   id: "1",
@@ -66,5 +73,23 @@ describe('SearchClient', () => {
             />
         );
         expect(screen.getByText("No se encontraron profesionales especializados en esta categoría", { exact: false })).toBeInTheDocument();
+    });
+
+    it("opens the contact modal when the contact button is clicked", () => {
+        render(
+            <SearchClient 
+                session={mockSession} 
+                providers={mockProviders} 
+                selectedCategory={mockCategories[0]} 
+            />
+        );
+        
+        const contactButtons = screen.getAllByRole("button", { name: /contactar/i });
+        expect(contactButtons.length).toBe(2);
+        
+        fireEvent.click(contactButtons[0]);
+        
+        expect(screen.getByRole("heading", { name: "Crear Solicitud de Trabajo" })).toBeInTheDocument();
+        expect(screen.getAllByText("Carlos Mendoza").length).toBe(2);
     });
 });

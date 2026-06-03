@@ -33,7 +33,7 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
       router.push(
         `${ROUTES.consumer.messages}?provider_id=${provider.id}&name=${encodeURIComponent(provider.name)}&surname=${encodeURIComponent(provider.surname)}`
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error creating work request:", err);
       setError("Hubo un problema al enviar la solicitud. Por favor intenta de nuevo.");
       setIsSubmitting(false);

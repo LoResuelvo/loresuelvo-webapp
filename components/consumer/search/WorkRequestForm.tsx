@@ -29,13 +29,32 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
     setError(null);
 
     try {
-      await createJobRequest(provider.id, title.trim(), description.trim());
+      const result = await createJobRequest(provider.id, title.trim(), description.trim());
+      
+      if (!result.success) {
+        let displayError = "Hubo un problema al enviar la solicitud. Por favor intenta de nuevo.";
+        
+        if (result.error.includes("Job request already exists") || result.error.includes("Conversation already exists")) {
+          displayError = "Ya tienes una solicitud de trabajo o conversación pendiente con este profesional.";
+        } else if (result.error.includes("Only consumers can create job requests")) {
+          displayError = "Solo los clientes pueden crear solicitudes de trabajo.";
+        } else if (result.error.includes("Provider does not exist")) {
+          displayError = "El profesional seleccionado ya no está disponible.";
+        } else if (result.error.includes("Title is required") || result.error.includes("Provider id is required")) {
+          displayError = "Faltan datos obligatorios para enviar la solicitud.";
+        }
+
+        setError(displayError);
+        setIsSubmitting(false);
+        return;
+      }
+
       router.push(
         `${ROUTES.consumer.messages}?provider_id=${provider.id}&name=${encodeURIComponent(provider.name)}&surname=${encodeURIComponent(provider.surname)}`
       );
     } catch (err: unknown) {
-      console.error("Error creating work request:", err);
-      setError("Hubo un problema al enviar la solicitud. Por favor intenta de nuevo.");
+      console.error("Unexpected error creating work request:", err);
+      setError("Ocurrió un error inesperado. Por favor revisa tu conexión.");
       setIsSubmitting(false);
     }
   };

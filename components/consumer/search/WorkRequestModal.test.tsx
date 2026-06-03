@@ -61,10 +61,13 @@ describe("WorkRequestModal", () => {
 
   it("submits the form successfully and redirects", async () => {
     (actions.createJobRequest as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 123,
-      conversation_id: 456,
-      title: "Gotera en cocina",
-      description: "Tengo una filtración debajo de la bacha.",
+      success: true,
+      data: {
+        id: 123,
+        conversation_id: 456,
+        title: "Gotera en cocina",
+        description: "Tengo una filtración debajo de la bacha.",
+      }
     });
 
     render(<WorkRequestModal provider={mockProvider} onClose={mockOnClose} />);
@@ -86,6 +89,28 @@ describe("WorkRequestModal", () => {
       expect(mockPush).toHaveBeenCalledWith(
         expect.stringContaining(`/consumer/mensajes?provider_id=1&name=Juan&surname=P%C3%A9rez`)
       );
+    });
+  });
+
+  it("displays specific backend error when job request already exists", async () => {
+    (actions.createJobRequest as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: false,
+      error: "Job request already exists",
+    });
+
+    render(<WorkRequestModal provider={mockProvider} onClose={mockOnClose} />);
+
+    const titleInput = screen.getByLabelText(/título del problema/i);
+    const descInput = screen.getByLabelText(/descripción del problema/i);
+    const submitButton = screen.getByRole("button", { name: "Enviar solicitud" });
+
+    fireEvent.change(titleInput, { target: { value: "Gotera en cocina" } });
+    fireEvent.change(descInput, { target: { value: "Tengo una filtración debajo de la bacha." } });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Ya tienes una solicitud de trabajo o conversación pendiente con este profesional.")).toBeInTheDocument();
+      expect(mockPush).not.toHaveBeenCalled();
     });
   });
 });

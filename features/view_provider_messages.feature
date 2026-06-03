@@ -3,19 +3,16 @@ Feature: US-37 Ver mensajes como prestador
   Quiero visualizar mis mensajes y solicitudes de contacto recibidas
   Para poder gestionar conversaciones iniciadas por consumidores.
 
-  @wip
   Scenario: 01-VMP Visualizar sección de mensajes
     Given que estoy en el dashboard de prestador
-    When accedo a la sección de mensajes
+    When navego a la sección de mensajes del dashboard
     Then visualizo una lista de conversaciones
 
-  @wip
   Scenario: 02-VMP Listar conversaciones del prestador
     Given que tengo conversaciones asociadas a mi cuenta de prestador
     When visualizo la lista de mensajes
     Then veo todas las conversaciones asociadas a mi cuenta
 
-  @wip
   Scenario: 03-VMP Ver nombre del consumidor en conversación
     Given que tengo conversaciones pendientes y aceptadas
     When visualizo la lista de conversaciones

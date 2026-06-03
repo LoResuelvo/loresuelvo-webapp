@@ -1,4 +1,4 @@
-import { MockProviderHomeRepository } from "./mock-provider-home-repository";
+import { ApiProviderHomeRepository } from "./api-provider-home-repository";
 import { ProviderHomeDashboard, ProviderHomeRepository } from "./types";
 
 export async function getProviderHomeDashboard(
@@ -8,5 +8,5 @@ export async function getProviderHomeDashboard(
   if (repository) {
     return repository.getDashboard(providerId);
   }
-  return new MockProviderHomeRepository().getDashboard(providerId);
+  return new ApiProviderHomeRepository().getDashboard(providerId);
 }

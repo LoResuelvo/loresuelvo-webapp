@@ -5,6 +5,7 @@ import { Category } from "@/lib/api/types";
 
 export default async function ConsumerHomePage() {
   const session = await getAuthService().getSession();
+  console.debug("[DEBUG] Token:", session?.accessToken);
 
   let categories: Category[] = [];
   try {

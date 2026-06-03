@@ -25,10 +25,10 @@ export async function getConversationDetail(id: string): Promise<ConversationDet
   return conversationsClient.getConversation(id) as Promise<ConversationDetail>;
 }
 
-export async function sendMessage(conversationId: string, content: string): Promise<unknown> {
-  return conversationsClient.sendMessage(conversationId, { content });
-}
-
 export async function createConversation(providerId: number, content: string): Promise<{ id: number }> {
   return conversationsClient.createConversation({ counterpart_id: providerId, content }) as Promise<{ id: number }>;
+}
+
+export async function sendMessage(conversationId: string, content: string): Promise<unknown> {
+  return conversationsClient.sendMessage(conversationId, { content });
 }

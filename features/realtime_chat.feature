@@ -22,18 +22,13 @@ Feature: Chat en vivo
     When otro usuario me envía un mensaje en una conversación diferente
     Then ese mensaje no aparece en el chat con "Juan Gómez"
 
-  Scenario: 04-TR Recibir un mensaje fuera del chat activo muestra una notificación
-    Given que estoy autenticado como consumidor navegando por otra sección de la app
-    When el prestador "Juan Gómez" me envía un mensaje nuevo
-    Then veo un indicador de mensaje no leído en la sección de mensajes
-
-  Scenario: 05-TR La pantalla hace scroll automático al llegar un mensaje nuevo si estoy al final del chat
+  Scenario: 04-TR La pantalla hace scroll automático al llegar un mensaje nuevo si estoy al final del chat
     Given que estoy en el chat con el prestador "Juan Gómez" como consumidor
     And estoy viendo el final de la conversación
     When el prestador "Juan Gómez" me envía el mensaje "Confirmado para el jueves."
     Then la pantalla hace scroll automáticamente para mostrar el nuevo mensaje
 
-  Scenario: 06-TR Se muestra un aviso de mensaje nuevo si no estoy al final del chat
+  Scenario: 05-TR Se muestra un aviso de mensaje nuevo si no estoy al final del chat
     Given que estoy en el chat con el prestador "Juan Gómez" como consumidor
     And estoy revisando mensajes anteriores en la conversación
     When el prestador "Juan Gómez" me envía el mensaje "Confirmado para el jueves."

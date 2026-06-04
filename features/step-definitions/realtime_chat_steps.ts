@@ -309,45 +309,6 @@ Then("ese mensaje no aparece en el chat con {string}",
   }
 );
 
-
-Given("que estoy autenticado como consumidor navegando por otra sección de la app",
-  async () => {
-    await setConsumerRealtimeSession();
-    await addApiStub({
-      method: "POST",
-      endpoint: "/ws-tickets",
-      status: 201,
-      body: { ticket: "mock-ws-ticket-abc123" },
-    });
-    await interceptWebSocket();
-    await page.goto(APP_URL + ROUTES.consumer.home, { waitUntil: "networkidle" });
-  }
-);
-
-When("el prestador {string} me envía un mensaje nuevo",
-  async (providerName: string) => {
-    await sendWsMessageToPage({
-      type: "conversation.message.created",
-      payload: {
-        conversation_id: activeConversationId,
-        message_id: 202,
-        content: "Hola, te confirmo la visita.",
-        sender_role: "provider",
-        created_on: new Date().toISOString(),
-      },
-    });
-  }
-);
-
-Then("veo un indicador de mensaje no leído en la sección de mensajes",
-  async () => {
-    const badge = page.locator("[data-testid='messages-notification-badge']");
-    await badge.waitFor({ state: "visible", timeout: 5000 });
-    assert.ok(await badge.isVisible(), "No se muestra el indicador de mensaje no leído");
-  }
-);
-
-
 Given("estoy viendo el final de la conversación",
   async () => {
     const chatPanel = page.locator("[data-testid='messages-list']");

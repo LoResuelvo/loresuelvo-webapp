@@ -4,6 +4,7 @@ const mockDashboard: ProviderHomeDashboard = {
   workRequests: [
     {
       id: "request-1",
+      conversationId: "1",
       clientName: "María Fernández",
       problemTitle: "Cortocircuito en cocina",
       category: "Electricidad",
@@ -14,6 +15,7 @@ const mockDashboard: ProviderHomeDashboard = {
     },
     {
       id: "request-2",
+      conversationId: "2",
       clientName: "Javier Torres",
       problemTitle: "Instalación de luminarias",
       category: "Electricidad",

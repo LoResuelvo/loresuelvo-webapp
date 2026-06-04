@@ -1,16 +1,5 @@
 import { api } from "@/lib/api/base-client";
-import { ProviderHomeDashboard } from "./types";
-
-export interface WorkRequest {
-  id: string;
-  clientName: string;
-  problemTitle: string;
-  category: string;
-  description: string;
-  location: string;
-  publishedAtLabel: string;
-  unreadMessagesCount: number;
-}
+import { ProviderHomeDashboard, ProviderWorkRequest } from "./types";
 
 interface ApiWorkRequest {
   id: number;
@@ -23,7 +12,7 @@ interface ApiWorkRequest {
   };
 }
 
-function transformApiWorkRequest(apiRequest: ApiWorkRequest): WorkRequest {
+function transformApiWorkRequest(apiRequest: ApiWorkRequest): ProviderWorkRequest {
   return {
     id: String(apiRequest.id),
     conversationId: String(apiRequest.conversation_id),

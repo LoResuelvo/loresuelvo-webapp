@@ -95,7 +95,7 @@ export default function RequestDetailModal({
           <button
             type="button"
             className="w-full bg-brand-accept hover:bg-brand-accept/90 text-white rounded-lg py-3 text-[15px] font-semibold transition-colors"
-            onClick={() => onAccept(request.id, request.conversationId)}
+            onClick={() => onAccept(request.id)}
           >
             Aceptar Solicitud
           </button>

@@ -1,6 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { ProviderMessagesView } from "@/components/provider/mensajes/ProviderMessagesView";
+import { describe, expect, it, vi } from "vitest";
 import ContactList from "@/app/components/messaging/ContactList";
 import ContactItem from "@/app/components/messaging/ContactItem";
 

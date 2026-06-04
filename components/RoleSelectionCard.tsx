@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, Briefcase, Wrench } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 interface RoleColumnProps {
-  type: "cliente" | "tecnico";
-  badgeText: string;
+  type: "cliente" | "prestador";
   description: string;
   buttonText: string;
   href: string;
@@ -11,7 +10,6 @@ interface RoleColumnProps {
 
 export function RoleColumn({
   type,
-  badgeText,
   description,
   buttonText,
   href,
@@ -27,7 +25,7 @@ export function RoleColumn({
             : "bg-brand-secondary/10 text-brand-secondary"
         }`}
       >
-        Soy {isCliente ? "Cliente" : "Técnico"}
+        Soy {isCliente ? "Cliente" : "Prestador"}
       </div>
       <p className="text-sm sm:text-[15px] text-gray-500 leading-relaxed mt-6 mb-8 min-h-[3.5rem]">
         {description}
@@ -71,14 +69,12 @@ export default function RoleSelectionCard({
     <div className="w-full max-w-4xl bg-white rounded-[2.25rem] border border-gray-100 shadow-[0_12px_40px_-12px_rgba(26,43,72,0.06)] p-2 sm:p-4 md:p-8 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-100 gap-6 md:gap-0 mt-2 relative z-10 transition-transform duration-300 hover:shadow-[0_20px_50px_-15px_rgba(26,43,72,0.09)]">
       <RoleColumn
         type="cliente"
-        badgeText="Soy Cliente"
         description={clienteDesc}
         buttonText={clienteBtn}
         href={clienteHref}
       />
       <RoleColumn
-        type="tecnico"
-        badgeText="Soy Técnico"
+        type="prestador"
         description={tecnicoDesc}
         buttonText={tecnicoBtn}
         href={tecnicoHref}

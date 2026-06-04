@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ChatHeader from "@/app/components/messaging/ChatHeader";
 import MessageBubble from "@/app/components/messaging/MessageBubble";
@@ -115,6 +115,7 @@ describe("MessagesList - integración de mensajes", () => {
     const bubbles = screen.getAllByTestId(/^message-bubble|consumer-name|last-message/).filter(
       el => el.className.includes("rounded-2xl")
     );
+    expect(bubbles.length).toBeGreaterThan(0);
   });
 
   it("muestra banner pendiente cuando showPendingBanner es true", () => {

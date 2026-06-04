@@ -42,7 +42,7 @@ export async function acceptWorkRequest(workRequestId: string): Promise<void> {
 }
 
 export class ApiProviderHomeRepository {
-  async getDashboard(providerId: string): Promise<ProviderHomeDashboard> {
+  async getDashboard(_providerId: string): Promise<ProviderHomeDashboard> {
     const response = await api.get<ApiWorkRequest[]>("/job-requests");
 
     const workRequests = Array.isArray(response) 

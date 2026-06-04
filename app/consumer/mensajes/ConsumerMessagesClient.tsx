@@ -17,27 +17,6 @@ interface Message {
   sentAt: string;
 }
 
-interface ConversationMessage {
-  id: number;
-  sender_role: string;
-  content: string;
-  created_on: string;
-}
-
-interface ConversationDetail {
-  id: number;
-  status: string;
-  counterpart: {
-    id: number;
-    role: string;
-    name: string;
-    surname: string;
-    category_name: string;
-  };
-  messages: ConversationMessage[];
-  updated_on: string;
-}
-
 interface ConversationContact {
   id: string;
   providerId: string;
@@ -115,16 +94,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
     });
   };
 
-  const isMessageExpanded = (messageId: string) => expandedMessages.has(messageId);
 
-  const shouldShowExpandButton = (content: string) => {
-    const lines = content.split("\n").length;
-    const approxLineHeight = 20;
-    const maxCharsPerLine = 40;
-    const totalChars = content.length;
-    const estimatedLines = Math.ceil(totalChars / maxCharsPerLine) + lines;
-    return estimatedLines > 5;
-  };
 
   const allMessages = [
     ...loadedMessages,
@@ -169,7 +139,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
         setLoadedMessages(allMessages);
       })
       .catch(console.error);
-  }, [selectedProviderId, effectiveConversationId]);
+  }, [selectedProviderId, effectiveConversationId, myUserId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

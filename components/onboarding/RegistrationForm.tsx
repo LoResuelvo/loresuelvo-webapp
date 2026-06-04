@@ -9,7 +9,7 @@ import { ProfileFormStep } from "./ProfileFormStep";
 import { Category } from "@/lib/api/types";
 
 export default function RegistrationForm({
-  session,
+  session: _session,
   categories = [],
 }: {
   session: AuthSession | null;

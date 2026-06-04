@@ -40,7 +40,7 @@ export function RoleSelectionStep({
           id="role-provider-btn"
           selected={role === "provider"}
           onClick={() => onSelectRole("provider")}
-          title="Soy Técnico"
+          title="Soy Prestador"
           description="Quiero ofrecer mis servicios y hacer crecer mi negocio"
           icon={Wrench}
         />

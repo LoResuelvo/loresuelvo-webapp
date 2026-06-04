@@ -1,6 +1,6 @@
 "use server";
 
-import { conversationsClient, type ApiConversation } from "@/lib/conversations-client";
+import { conversationsClient } from "@/lib/conversations-client";
 import { jobRequestsClient } from "@/lib/job-requests-client";
 
 interface ConversationDetail {

@@ -1,4 +1,3 @@
-@wip
 Feature: Chat en vivo
   Como usuario
   Quiero ver los mensajes entrantes en vivo
@@ -28,6 +27,7 @@ Feature: Chat en vivo
     When el prestador "Juan Gómez" me envía el mensaje "Confirmado para el jueves."
     Then la pantalla hace scroll automáticamente para mostrar el nuevo mensaje
 
+  @wip
   Scenario: 05-TR Se muestra un aviso de mensaje nuevo si no estoy al final del chat
     Given que estoy en el chat con el prestador "Juan Gómez" como consumidor
     And estoy revisando mensajes anteriores en la conversación

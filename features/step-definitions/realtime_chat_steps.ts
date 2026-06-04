@@ -9,11 +9,11 @@ import { addApiStub } from "./stubs-helper";
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
 
-interface WsMessagePayload {
+interface WsEvent {
   type: string;
-  payload: {
-    conversation_id: number;
-    message_id: number;
+  conversation_id: number;
+  message: {
+    id: number;
     content: string;
     sender_role: string;
     created_on: string;
@@ -154,7 +154,7 @@ async function interceptWebSocket() {
   });
 }
 
-async function sendWsMessageToPage(event: WsMessagePayload) {
+async function sendWsMessageToPage(event: WsEvent) {
   if (!wsServer) throw new Error("No hay WebSocket interceptado. ¿Se ejecutó interceptWebSocket() antes de navegar?");
   wsServer.send(JSON.stringify(event));
 }
@@ -250,9 +250,9 @@ When("el prestador {string} me envía el mensaje {string}",
   async (providerName: string, messageContent: string) => {
     await sendWsMessageToPage({
       type: "conversation.message.created",
-      payload: {
-        conversation_id: activeConversationId,
-        message_id: 200,
+      conversation_id: activeConversationId,
+      message: {
+        id: 200,
         content: messageContent,
         sender_role: "provider",
         created_on: new Date().toISOString(),
@@ -265,9 +265,9 @@ When("el consumidor {string} me envía el mensaje {string}",
   async (consumerName: string, messageContent: string) => {
     await sendWsMessageToPage({
       type: "conversation.message.created",
-      payload: {
-        conversation_id: activeConversationId,
-        message_id: 201,
+      conversation_id: activeConversationId,
+      message: {
+        id: 201,
         content: messageContent,
         sender_role: "consumer",
         created_on: new Date().toISOString(),
@@ -289,9 +289,9 @@ When("otro usuario me envía un mensaje en una conversación diferente",
   async () => {
     await sendWsMessageToPage({
       type: "conversation.message.created",
-      payload: {
-        conversation_id: 99,
-        message_id: 300,
+      conversation_id: 99,
+      message: {
+        id: 300,
         content: "Mensaje de otra conversación que no debería aparecer",
         sender_role: "provider",
         created_on: new Date().toISOString(),

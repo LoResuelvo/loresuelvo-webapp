@@ -1,6 +1,8 @@
 import { Manrope } from "next/font/google";
 import type { Metadata } from "next";
 import { Auth0Provider } from "@auth0/nextjs-auth0/client";
+import { getAuthService } from "@/lib/auth";
+import { WebSocketProvider } from "@/lib/websocket";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -13,15 +15,26 @@ export const metadata: Metadata = {
   description: "Next.js app with Auth0 authentication",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getAuthService().getSession();
+  const rawRole = session?.user?.role;
+  const role = typeof rawRole === "string" ? rawRole : undefined;
+
+  const apiUrl = process.env.API_URL || "http://localhost:8080";
+  const wsUrl = apiUrl.replace(/^http/, "ws") + "/ws";
+
   return (
     <html lang="en">
       <body className={manrope.className}>
-        <Auth0Provider>{children}</Auth0Provider>
+        <Auth0Provider>
+          <WebSocketProvider wsUrl={wsUrl} role={role} enabled={!!role}>
+            {children}
+          </WebSocketProvider>
+        </Auth0Provider>
       </body>
     </html>
   );

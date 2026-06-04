@@ -3,6 +3,14 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import ProviderMessagesClient from "@/components/provider/mensajes/ProviderMessagesClient";
 import * as actions from "@/components/provider/mensajes/actions";
 
+vi.mock("@/lib/websocket", () => ({
+  useWebSocket: vi.fn(() => ({
+    subscribe: vi.fn(() => vi.fn()),
+    unreadCount: 0,
+    resetUnread: vi.fn(),
+  })),
+}));
+
 const mockPush = vi.fn();
 const mockRefresh = vi.fn();
 

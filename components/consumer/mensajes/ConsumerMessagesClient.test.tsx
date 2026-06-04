@@ -3,6 +3,14 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import ConsumerMessagesClient from "@/app/consumer/mensajes/ConsumerMessagesClient";
 import * as actions from "@/app/consumer/mensajes/actions";
 
+vi.mock("@/lib/websocket", () => ({
+  useWebSocket: vi.fn(() => ({
+    subscribe: vi.fn(() => vi.fn()),
+    unreadCount: 0,
+    resetUnread: vi.fn(),
+  })),
+}));
+
 vi.mock("next/navigation", () => ({
   useSearchParams: vi.fn(() => ({
     get: vi.fn((key: string) => {

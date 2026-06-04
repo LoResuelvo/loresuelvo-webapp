@@ -1,4 +1,4 @@
-import { RefObject } from "react";
+import { RefObject, useEffect, useRef, useState } from "react";
 import MessageBubble from "./MessageBubble";
 
 interface Message {
@@ -33,10 +33,39 @@ export default function MessagesList({
   showPendingBanner,
   myUserId,
 }: MessagesListProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [hasNewMessage, setHasNewMessage] = useState(false);
+  const prevCountRef = useRef(messages.length);
+
   const isMessageExpanded = (id: string) => expandedMessages.has(id);
 
+  const handleScroll = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+    setIsAtBottom(atBottom);
+    if (atBottom) setHasNewMessage(false);
+  };
+
+  useEffect(() => {
+    if (messages.length > prevCountRef.current) {
+      if (isAtBottom) {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      } else {
+        setHasNewMessage(true);
+      }
+    }
+    prevCountRef.current = messages.length;
+  }, [messages.length, isAtBottom, messagesEndRef]);
+
   return (
-    <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4">
+    <div
+      ref={containerRef}
+      onScroll={handleScroll}
+      data-testid="messages-list"
+      className="flex-1 p-6 overflow-y-auto flex flex-col gap-4 relative"
+    >
       {showPendingBanner && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
           <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,6 +95,19 @@ export default function MessagesList({
         );
       })}
       <div ref={messagesEndRef} />
+
+      {hasNewMessage && (
+        <button
+          data-testid="new-message-alert"
+          onClick={() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            setHasNewMessage(false);
+          }}
+          className="sticky bottom-2 mx-auto bg-brand-primary text-white px-4 py-2 rounded-full shadow-[0_4px_12px_rgba(26,43,72,0.12)] text-sm font-semibold z-10 animate-bounce"
+        >
+          ↓ Mensaje nuevo
+        </button>
+      )}
     </div>
   );
 }

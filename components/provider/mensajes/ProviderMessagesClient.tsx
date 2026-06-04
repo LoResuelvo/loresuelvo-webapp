@@ -9,6 +9,7 @@ import type { MessageInputHandle } from "@/app/components/messaging/MessageInput
 import { AuthSession } from "@/lib/auth/types";
 import { ROUTES } from "@/lib/routes";
 import { getConversationDetail, sendMessage, createConversation, acceptJobRequest } from "./actions";
+import { useWebSocket } from "@/lib/websocket";
 
 interface Message {
   id: string;
@@ -83,6 +84,15 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
 
   const effectiveConversationId = activeConversationId || selectedContact?.id?.replace("conv-", "");
 
+  // Ref para que el subscribe siempre lea el valor actual sin necesitar re-suscribirse
+  const effectiveConvIdRef = useRef(effectiveConversationId);
+  effectiveConvIdRef.current = effectiveConversationId;
+
+  // El ID numérico real del counterpart (del backend)
+  const counterpartIdRef = useRef<string | null>(null);
+
+  const { subscribe, resetUnread } = useWebSocket();
+
   const toggleMessageExpanded = (messageId: string) => {
     setExpandedMessages(prev => {
       const next = new Set(prev);
@@ -94,8 +104,6 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
       return next;
     });
   };
-
-
 
   const allMessages = [
     ...loadedMessages,
@@ -138,9 +146,43 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
           clearPendingMessages(effectiveConversationId);
         }
         setLoadedMessages(allMessages);
+        // Guardar el ID real del counterpart para mensajes WS
+        counterpartIdRef.current = String(data.counterpart.id);
       })
       .catch(console.error);
   }, [selectedConsumerId, effectiveConversationId, myUserId]);
+
+  useEffect(() => {
+    const unsubscribe = subscribe((event) => {
+      if (event.type !== "conversation.message.created") return;
+
+      const currentConvId = effectiveConvIdRef.current;
+      if (!currentConvId) return;
+
+      if (String(event.conversation_id) === currentConvId) {
+        if (event.message.sender_role === "provider") return;
+
+        const newMessage: Message = {
+          id: String(event.message.id),
+          content: event.message.content,
+          senderId: counterpartIdRef.current ?? String(event.conversation_id),
+          sentAt: new Date(event.message.created_on).toLocaleString("es-AR", {
+            day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+          }),
+        };
+
+        setLoadedMessages((prev) => {
+          if (prev.some((m) => m.id === newMessage.id)) return prev;
+          return [...prev, newMessage];
+        });
+
+        resetUnread();
+      }
+    });
+
+    // Solo se suscribe una vez — lee el ID actual via ref en cada evento
+    return unsubscribe;
+  }, [subscribe, resetUnread]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -39,7 +39,7 @@ describe("HomePage - RoleSelectionCard", () => {
             />
         );
         expect(screen.getByText("Soy Cliente")).toBeInTheDocument();
-        expect(screen.getByText("Soy Técnico")).toBeInTheDocument();
+        expect(screen.getByText("Soy Prestador")).toBeInTheDocument();
         expect(screen.getByText("Busco ayuda profesional en mi hogar.")).toBeInTheDocument();
         expect(screen.getByText("Quiero ofrecer mis servicios especializados.")).toBeInTheDocument();
         expect(screen.getByRole("link", { name: /Encontrar un profesional/i })).toBeInTheDocument();

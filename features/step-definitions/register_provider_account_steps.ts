@@ -25,7 +25,7 @@ Given('elegí la opción de prestador en la pagina de registro', async () => {
   });
 
   await page.goto(APP_URL + ROUTES.onboarding);
-  const providerButton = page.getByText("Soy Técnico").first();
+  const providerButton = page.getByText("Soy Prestador").first();
   await providerButton.click();
   const continueButton = page.getByText("Continuar").first();
   await continueButton.click();

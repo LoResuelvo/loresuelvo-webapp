@@ -14,10 +14,10 @@ describe("RegistrationForm", () => {
   });
 
   describe("step 1", () => {
-    it("renders 'Soy Cliente' and 'Soy Técnico' cards on step 1", () => {
+    it("renders 'Soy Cliente' and 'Soy Prestador' cards on step 1", () => {
       render(<RegistrationForm session={null} />);
       expect(screen.getByText("Soy Cliente")).toBeInTheDocument();
-      expect(screen.getByText("Soy Técnico")).toBeInTheDocument();
+      expect(screen.getByText("Soy Prestador")).toBeInTheDocument();
     });
 
     it("keeps the 'Continuar' button disabled by default", () => {
@@ -91,7 +91,7 @@ describe("RegistrationForm", () => {
       const mockCategories = [{ id: 4, name: "Plomería" }];
       render(<RegistrationForm session={null} categories={mockCategories} />);
 
-      const techButton = screen.getByText("Soy Técnico").closest("button");
+      const techButton = screen.getByText("Soy Prestador").closest("button");
       fireEvent.click(techButton!);
       const continueButton = screen.getByRole("button", { name: /Continuar/i });
       fireEvent.click(continueButton);
@@ -123,7 +123,7 @@ describe("RegistrationForm", () => {
       const mockCategories = [{ id: 4, name: "Plomería" }];
       render(<RegistrationForm session={null} categories={mockCategories} />);
 
-      const techButton = screen.getByText("Soy Técnico").closest("button");
+      const techButton = screen.getByText("Soy Prestador").closest("button");
       fireEvent.click(techButton!);
       const continueButton = screen.getByRole("button", { name: /Continuar/i });
       fireEvent.click(continueButton);

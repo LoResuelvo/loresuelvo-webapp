@@ -11,8 +11,8 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Auth0 Next.js App",
-  description: "Next.js app with Auth0 authentication",
+  title: "LoResuelvo",
+  description: "Una aplicacion para contactar prestadores de servicios",
 };
 
 export default async function RootLayout({

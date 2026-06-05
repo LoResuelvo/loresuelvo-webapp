@@ -71,14 +71,6 @@ export default function RequestDetailModal({
               {request.problemTitle}
             </h3>
 
-            <div className="space-y-1">
-              <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wide">
-                Categoría
-              </span>
-              <p className="text-[15px] text-slate-700">
-                {request.category}
-              </p>
-            </div>
 
             <div className="pt-2 space-y-1">
               <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wide">

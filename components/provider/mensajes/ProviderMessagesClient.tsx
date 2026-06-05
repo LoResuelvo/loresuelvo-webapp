@@ -8,8 +8,10 @@ import ProviderMessagesView from "@/components/provider/mensajes/ProviderMessage
 import type { MessageInputHandle } from "@/app/components/messaging/MessageInput";
 import { AuthSession } from "@/lib/auth/types";
 import { ROUTES } from "@/lib/routes";
-import { getConversationDetail, sendMessage, createConversation, acceptJobRequest } from "./actions";
+import { getConversationDetail, sendMessage, createConversation, acceptJobRequest, getJobRequestForConversation } from "./actions";
 import { useWebSocket } from "@/lib/websocket";
+import RequestDetailModal from "@/components/provider/home/RequestDetailModal";
+import type { ProviderWorkRequest } from "@/lib/provider-home/types";
 
 interface Message {
   id: string;
@@ -75,6 +77,8 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const [acceptedConversations, setAcceptedConversations] = useState<Set<string>>(new Set());
+  const [activeJobRequest, setActiveJobRequest] = useState<{ id: number; title: string; description: string; consumerName: string } | null>(null);
+  const [showRequestModal, setShowRequestModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<MessageInputHandle>(null);
   const isSendingRef = useRef(false);
@@ -146,8 +150,17 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
           clearPendingMessages(effectiveConversationId);
         }
         setLoadedMessages(allMessages);
-        // Guardar el ID real del counterpart para mensajes WS
         counterpartIdRef.current = String(data.counterpart.id);
+
+        // Fetch the linked job request to get its real ID
+        getJobRequestForConversation(effectiveConversationId)
+          .then(jr => setActiveJobRequest(jr ? {
+            id: jr.id,
+            title: jr.title,
+            description: jr.description,
+            consumerName: `${data.counterpart.name} ${data.counterpart.surname}`,
+          } : null))
+          .catch(() => setActiveJobRequest(null));
       })
       .catch(console.error);
   }, [selectedConsumerId, effectiveConversationId, myUserId]);
@@ -319,14 +332,20 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
   };
 
   const handleAccept = async () => {
-    if (!effectiveConversationId || !/^\d+$/.test(effectiveConversationId)) return;
+    if (!activeJobRequest) return;
     try {
-      await acceptJobRequest(parseInt(effectiveConversationId));
+      await acceptJobRequest(activeJobRequest.id);
       setAcceptedConversations(prev => new Set([...prev, selectedContact!.id]));
-      router.push(`${ROUTES.provider.messages}?consumer_id=${selectedConsumerId}`);
+      setActiveJobRequest(null);
+      setShowRequestModal(false);
     } catch (error) {
       console.error("Error accepting job request:", error);
     }
+  };
+
+  const handleReject = async () => {
+    // TODO: implementar rechazo cuando el endpoint esté disponible
+    setShowRequestModal(false);
   };
 
   const viewMessages = allMessages.map(msg => ({
@@ -336,6 +355,21 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
     senderId: msg.senderId,
   }));
 
+  // Build the ProviderWorkRequest shape expected by RequestDetailModal
+  const modalRequest: ProviderWorkRequest | null = activeJobRequest ? {
+    id: String(activeJobRequest.id),
+    conversationId: effectiveConversationId ?? "",
+    clientName: activeJobRequest.consumerName,
+    problemTitle: activeJobRequest.title,
+    category: "",
+    description: activeJobRequest.description,
+    location: "",
+    publishedAtLabel: "",
+    unreadMessagesCount: 0,
+  } : null;
+
+  const isPending = (c: ConversationContact) => c.pending && !acceptedConversations.has(c.id);
+
   return (
     <div className="h-screen flex overflow-hidden bg-brand-neutral/30 font-sans text-brand-primary">
       <ProviderSidebar />
@@ -343,14 +377,8 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
         <ProviderHeader session={session} />
         <ProviderMessagesView
           ref={inputRef}
-          contacts={contacts.map(c => ({
-            ...c,
-            pending: c.pending && !acceptedConversations.has(c.id),
-          }))}
-          selectedContact={selectedContact ? {
-            ...selectedContact,
-            pending: selectedContact.pending && !acceptedConversations.has(selectedContact.id),
-          } : null}
+          contacts={contacts.map(c => ({ ...c, pending: isPending(c) }))}
+          selectedContact={selectedContact ? { ...selectedContact, pending: isPending(selectedContact) } : null}
           selectedConsumerId={selectedConsumerId}
           messages={viewMessages}
           expandedMessages={expandedMessages}
@@ -361,10 +389,20 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
           onMessageInputChange={setMessageInput}
           onSendMessage={handleSendMessage}
           isSending={isSending}
-          onAccept={handleAccept}
+          onAccept={activeJobRequest ? () => setShowRequestModal(true) : undefined}
           myUserId={myUserId}
+          pendingBannerText="Solicitud de trabajo aún no aceptada. Para comunicarte con el consumidor primero tenés que aceptarla."
         />
       </div>
+
+      {showRequestModal && modalRequest && (
+        <RequestDetailModal
+          request={modalRequest}
+          onClose={() => setShowRequestModal(false)}
+          onAccept={handleAccept}
+          onReject={handleReject}
+        />
+      )}
     </div>
   );
 }

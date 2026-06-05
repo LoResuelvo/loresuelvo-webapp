@@ -56,6 +56,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   onAccept?: () => void;
   myUserId: string;
   jobRequest?: JobRequestInfo | null;
+  pendingBannerText?: string;
 }>(({
   selectedContact,
   messages,
@@ -69,6 +70,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   onAccept,
   myUserId,
   jobRequest,
+  pendingBannerText,
 }, ref) => {
   if (!selectedContact) {
     return (
@@ -98,6 +100,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
           messagesEndRef={messagesEndRef}
           showPendingBanner={selectedContact.pending}
           myUserId={myUserId}
+          pendingBannerText={pendingBannerText}
         />
         <MessageInput
           ref={ref}

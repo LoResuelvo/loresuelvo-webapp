@@ -15,6 +15,7 @@ interface MessagesListProps {
   messagesEndRef: RefObject<HTMLDivElement | null>;
   showPendingBanner: boolean;
   myUserId: string;
+  pendingBannerText?: string;
 }
 
 function shouldShowExpandButton(content: string): boolean {
@@ -32,6 +33,7 @@ export default function MessagesList({
   messagesEndRef,
   showPendingBanner,
   myUserId,
+  pendingBannerText = "Solicitud de contacto enviada. El prestador aún no aceptó la conversación.",
 }: MessagesListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -72,7 +74,7 @@ export default function MessagesList({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <p className="text-blue-700 text-[14px]">
-            Solicitud de contacto enviada. El prestador aún no aceptó la conversación.
+            {pendingBannerText}
           </p>
         </div>
       )}

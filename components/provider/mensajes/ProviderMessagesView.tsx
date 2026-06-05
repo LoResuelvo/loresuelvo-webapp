@@ -35,6 +35,7 @@ interface ProviderMessagesViewProps {
   isSending: boolean;
   onAccept?: () => void;
   myUserId: string;
+  pendingBannerText?: string;
 }
 
 const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesViewProps>(({
@@ -52,6 +53,7 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
   isSending,
   onAccept,
   myUserId,
+  pendingBannerText,
 }, ref) => {
   return (
     <main className="flex-1 flex min-h-0">
@@ -92,6 +94,7 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
         isSending={isSending}
         onAccept={onAccept}
         myUserId={myUserId}
+        pendingBannerText={pendingBannerText}
       />
     </main>
   );

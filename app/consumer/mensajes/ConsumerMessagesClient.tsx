@@ -21,6 +21,8 @@ interface Message {
 interface JobRequestInfo {
   title: string;
   description: string;
+  providerName?: string;
+  providerSurname?: string;
 }
 
 interface ConversationContact {
@@ -84,6 +86,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
   const isSendingRef = useRef(false);
   const justCreatedRef = useRef(false);
   const [activeJobRequest, setActiveJobRequest] = useState<JobRequestInfo | null>(null);
+  const [isConversationPending, setIsConversationPending] = useState<boolean>(false);
 
   const selectedContact = contacts.find(c => c.providerId === selectedProviderId);
 
@@ -95,6 +98,11 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
   const counterpartIdRef = useRef<string | null>(null);
 
   const { subscribe, resetUnread } = useWebSocket();
+
+  // Sync local pending state whenever the selected contact changes
+  useEffect(() => {
+    setIsConversationPending(selectedContact?.pending ?? false);
+  }, [selectedContact?.id]);
 
   const toggleMessageExpanded = (messageId: string) => {
     setExpandedMessages(prev => {
@@ -152,7 +160,12 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
         counterpartIdRef.current = String(data.counterpart.id);
 
         getJobRequestForConversation(effectiveConversationId)
-          .then(jr => setActiveJobRequest(jr ? { title: jr.title, description: jr.description } : null))
+          .then(jr => setActiveJobRequest(jr ? {
+            title: jr.title,
+            description: jr.description,
+            providerName: data.counterpart.name,
+            providerSurname: data.counterpart.surname,
+          } : null))
           .catch(() => setActiveJobRequest(null));
       })
       .catch(console.error);
@@ -167,6 +180,9 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
 
       if (String(event.conversation_id) === currentConvId) {
         if (event.message.sender_role === "consumer") return;
+
+        // Provider sent a message → conversation was accepted
+        setIsConversationPending(false);
 
         const newMessage: Message = {
           id: String(event.message.id),
@@ -338,8 +354,12 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
         <ConsumerHeader session={session} />
         <ConsumerMessagesView
           ref={inputRef}
-          contacts={contacts}
-          selectedContact={selectedContact ?? null}
+          contacts={contacts.map(c =>
+            c.providerId === selectedProviderId
+              ? { ...c, pending: isConversationPending }
+              : c
+          )}
+          selectedContact={selectedContact ? { ...selectedContact, pending: isConversationPending } : null}
           selectedProviderId={selectedProviderId}
           messages={viewMessages}
           expandedMessages={expandedMessages}

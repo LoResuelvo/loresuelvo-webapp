@@ -30,7 +30,6 @@ export default function ContactList({ contacts, selectedProviderId, onContactCli
         {contacts.length === 0 ? (
           <div className="p-8 text-center">
             <p className="text-slate-500">No tienes conversaciones aún</p>
-            <p className="text-slate-400 text-sm mt-2">Inicia un chat con un prestador desde la búsqueda</p>
           </div>
         ) : (
           <>

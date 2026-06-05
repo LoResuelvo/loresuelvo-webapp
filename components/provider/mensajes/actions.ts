@@ -37,3 +37,12 @@ export async function sendMessage(conversationId: string, content: string): Prom
 export async function acceptJobRequest(jobRequestId: number): Promise<void> {
   return jobRequestsClient.acceptJobRequest(jobRequestId);
 }
+
+export async function getJobRequestForConversation(conversationId: string) {
+  try {
+    const jobRequests = await jobRequestsClient.listJobRequests();
+    return jobRequests.find(jobRequest => String(jobRequest.conversation_id) === conversationId) ?? null;
+  } catch {
+    return null;
+  }
+}

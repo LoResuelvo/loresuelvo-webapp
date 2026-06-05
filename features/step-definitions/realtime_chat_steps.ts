@@ -313,7 +313,10 @@ Given("estoy viendo el final de la conversación",
   async () => {
     const chatPanel = page.locator("[data-testid='messages-list']");
     await chatPanel.waitFor({ state: "visible" });
-    await chatPanel.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+    await chatPanel.evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+      el.dispatchEvent(new Event("scroll"));
+    });
   }
 );
 
@@ -334,9 +337,32 @@ Then("la pantalla hace scroll automáticamente para mostrar el nuevo mensaje",
 
 Given("estoy revisando mensajes anteriores en la conversación",
   async () => {
+    await addApiStub({
+      method: "GET",
+      endpoint: `/conversations/${activeConversationId}`,
+      status: 200,
+      body: {
+        id: activeConversationId,
+        status: "accepted",
+        counterpart: { id: "provider-001", role: "provider", name: "Juan", surname: "Gómez", category_name: "Plomería" },
+        messages: Array.from({ length: 15 }, (_, i) => ({
+          id: i + 1,
+          sender_role: i % 2 === 0 ? "consumer" : "provider",
+          content: `Msg ${i + 1}`,
+          created_on: new Date(Date.now() - (15 - i) * 60000).toISOString(),
+        })),
+        updated_on: new Date().toISOString(),
+      },
+    });
+
+    await page.reload({ waitUntil: "networkidle" });
+
     const chatPanel = page.locator("[data-testid='messages-list']");
     await chatPanel.waitFor({ state: "visible" });
-    await chatPanel.evaluate((el) => { el.scrollTop = 0; });
+    await chatPanel.evaluate((el) => {
+      el.scrollTop = 0;
+      el.dispatchEvent(new Event("scroll"));
+    });
   }
 );
 

@@ -1,7 +1,7 @@
 import { MessageSquare } from "lucide-react";
 import { forwardRef } from "react";
 import ContactList from "./ContactList";
-import ChatHeader from "./ChatHeader";
+import ChatHeader, { type JobRequestInfo } from "./ChatHeader";
 import MessagesList from "./MessagesList";
 import MessageInput, { MessageInputHandle } from "./MessageInput";
 
@@ -55,6 +55,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   isSending: boolean;
   onAccept?: () => void;
   myUserId: string;
+  jobRequest?: JobRequestInfo | null;
 }>(({
   selectedContact,
   messages,
@@ -67,6 +68,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   isSending,
   onAccept,
   myUserId,
+  jobRequest,
 }, ref) => {
   if (!selectedContact) {
     return (
@@ -85,6 +87,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
         providerName={selectedContact.providerName}
         providerSurname={selectedContact.providerSurname}
         pending={selectedContact.pending}
+        jobRequest={jobRequest}
         onAccept={onAccept}
       />
       <div className="flex-1 flex flex-col min-h-0">

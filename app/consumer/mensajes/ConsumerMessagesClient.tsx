@@ -8,7 +8,7 @@ import ConsumerMessagesView from "@/components/consumer/mensajes/ConsumerMessage
 import type { MessageInputHandle } from "@/app/components/messaging/MessageInput";
 import { AuthSession } from "@/lib/auth/types";
 import { ROUTES } from "@/lib/routes";
-import { getConversationDetail, sendMessage, createConversation } from "./actions";
+import { getConversationDetail, sendMessage, createConversation, getJobRequestForConversation } from "./actions";
 import { useWebSocket } from "@/lib/websocket";
 
 interface Message {
@@ -16,6 +16,11 @@ interface Message {
   content: string;
   senderId: string;
   sentAt: string;
+}
+
+interface JobRequestInfo {
+  title: string;
+  description: string;
 }
 
 interface ConversationContact {
@@ -78,6 +83,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
   const inputRef = useRef<MessageInputHandle>(null);
   const isSendingRef = useRef(false);
   const justCreatedRef = useRef(false);
+  const [activeJobRequest, setActiveJobRequest] = useState<JobRequestInfo | null>(null);
 
   const selectedContact = contacts.find(c => c.providerId === selectedProviderId);
 
@@ -144,6 +150,10 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
         }
         setLoadedMessages(allMessages);
         counterpartIdRef.current = String(data.counterpart.id);
+
+        getJobRequestForConversation(effectiveConversationId)
+          .then(jr => setActiveJobRequest(jr ? { title: jr.title, description: jr.description } : null))
+          .catch(() => setActiveJobRequest(null));
       })
       .catch(console.error);
   }, [selectedProviderId, effectiveConversationId, myUserId]);
@@ -341,6 +351,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
           onSendMessage={handleSendMessage}
           isSending={isSending}
           myUserId={myUserId}
+          jobRequest={activeJobRequest}
         />
       </div>
     </div>

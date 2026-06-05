@@ -2,6 +2,7 @@ import { RefObject, forwardRef } from "react";
 import { ChatPanel } from "@/app/components/messaging/MessagesLayout";
 import type { MessageInputHandle } from "@/app/components/messaging/MessageInput";
 import ContactList from "@/app/components/messaging/ContactList";
+import type { JobRequestInfo } from "@/app/components/messaging/ChatHeader";
 
 interface ConversationContact {
   id: string;
@@ -34,6 +35,7 @@ interface ConsumerMessagesViewProps {
   onSendMessage: () => void;
   isSending: boolean;
   myUserId: string;
+  jobRequest?: JobRequestInfo | null;
 }
 
 const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesViewProps>(({
@@ -50,6 +52,7 @@ const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesView
   onSendMessage,
   isSending,
   myUserId,
+  jobRequest,
 }, ref) => {
   return (
     <main className="flex-1 flex min-h-0">
@@ -73,6 +76,7 @@ const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesView
         onSendMessage={onSendMessage}
         isSending={isSending}
         myUserId={myUserId}
+        jobRequest={jobRequest}
       />
     </main>
   );

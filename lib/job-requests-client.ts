@@ -13,6 +13,17 @@ export interface JobRequestResponse {
   description: string;
 }
 
+export interface JobRequestSummary {
+  id: number;
+  conversation_id: number;
+  title: string;
+  description: string;
+  requester: {
+    name: string;
+    surname: string;
+  };
+}
+
 class JobRequestsClient {
   async createJobRequest(data: CreateJobRequestPayload): Promise<JobRequestResponse> {
     return api.post<JobRequestResponse>("/job-requests", data);
@@ -20,6 +31,10 @@ class JobRequestsClient {
 
   async acceptJobRequest(id: number): Promise<void> {
     return api.post<void>(`/job-requests/${id}/accept`, null);
+  }
+
+  async listJobRequests(): Promise<JobRequestSummary[]> {
+    return api.get<JobRequestSummary[]>("/job-requests");
   }
 }
 

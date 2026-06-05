@@ -1,6 +1,7 @@
 "use server";
 
 import { conversationsClient } from "@/lib/conversations-client";
+import { jobRequestsClient, type JobRequestSummary } from "@/lib/job-requests-client";
 
 interface ConversationDetail {
   id: number;
@@ -31,4 +32,13 @@ export async function createConversation(providerId: number, content: string): P
 
 export async function sendMessage(conversationId: string, content: string): Promise<unknown> {
   return conversationsClient.sendMessage(conversationId, { content });
+}
+
+export async function getJobRequestForConversation(conversationId: string): Promise<JobRequestSummary | null> {
+  try {
+    const jobRequests = await jobRequestsClient.listJobRequests();
+    return jobRequests.find(jr => String(jr.conversation_id) === conversationId) ?? null;
+  } catch {
+    return null;
+  }
 }

@@ -1,13 +1,13 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import SearchClient from "@/components/consumer/search/SearchClient";
+import SearchClient from "@/components/consumidor/search/SearchClient";
 import { Category, Provider } from "@/lib/api/types";
 
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(() => ({
     push: vi.fn(),
   })),
-  usePathname: vi.fn(() => "/consumer/buscar"),
+  usePathname: vi.fn(() => "/consumidor/buscar"),
 }));
 
 const mockUser = {

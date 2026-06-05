@@ -1,6 +1,6 @@
 "use client";
 
-import Sidebar from "@/components/consumer/Sidebar";
+import Sidebar from "@/components/consumidor/Sidebar";
 import { AuthSession } from "@/lib/auth/types";
 import { Category } from "@/lib/api/types";
 import ConsumerHeader from "./ConsumerHeader";

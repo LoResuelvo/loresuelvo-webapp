@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Provider } from "@/lib/api/types";
-import { createJobRequest } from "@/app/consumer/buscar/actions";
+import { createJobRequest } from "@/app/consumidor/buscar/actions";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
 import { ProviderMiniProfile } from "./ProviderMiniProfile";

@@ -7,7 +7,7 @@ import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
-const CONSUMER_URL = APP_URL + "/consumer/home";
+const CONSUMER_URL = APP_URL + "/consumidor/home";
 const AUTH0_SIGNUP_URL = "/auth/login?screen_hint=signup";
 
 let selectedRole: "consumer" | "provider" | null = null;

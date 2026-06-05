@@ -7,5 +7,5 @@ afterEach(() => {
 });
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/consumer",
+  usePathname: () => "/consumidor",
 }));

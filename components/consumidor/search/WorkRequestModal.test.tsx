@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import WorkRequestModal from "@/components/consumer/search/WorkRequestModal";
-import * as actions from "@/app/consumer/buscar/actions";
+import WorkRequestModal from "@/components/consumidor/search/WorkRequestModal";
+import * as actions from "@/app/consumidor/buscar/actions";
 import { Provider } from "@/lib/api/types";
 
 const mockPush = vi.fn();
@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-vi.mock("@/app/consumer/buscar/actions", () => ({
+vi.mock("@/app/consumidor/buscar/actions", () => ({
   createJobRequest: vi.fn(),
 }));
 
@@ -87,7 +87,7 @@ describe("WorkRequestModal", () => {
         "Tengo una filtración debajo de la bacha."
       );
       expect(mockPush).toHaveBeenCalledWith(
-        expect.stringContaining(`/consumer/mensajes?provider_id=1&name=Juan&surname=P%C3%A9rez`)
+        expect.stringContaining(`/consumidor/mensajes?provider_id=1&name=Juan&surname=P%C3%A9rez`)
       );
     });
   });

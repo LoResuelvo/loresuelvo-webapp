@@ -87,7 +87,7 @@ When('hago clic en la tarjeta del rubro {string}', async (categoryName: string) 
 });
 
 Then('soy redirigido al listado de técnicos del rubro {string}', async (categoryName: string) => {
-  await page.waitForURL(url => !url.toString().endsWith('/consumer/home'), { timeout: 5000 }).catch(() => {
+  await page.waitForURL(url => !url.toString().endsWith('/consumidor/home'), { timeout: 5000 }).catch(() => {
   });
 });
 

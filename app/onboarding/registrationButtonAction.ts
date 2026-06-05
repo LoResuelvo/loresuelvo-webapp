@@ -74,6 +74,6 @@ export async function submitRegistration(formData: FormData) {
   if (role === "provider") {
     redirect("/prestador/home");
   } else {
-    redirect("/consumer/home");
+    redirect("/consumidor/home");
   }
 }

@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import Sidebar from "@/components/consumer/Sidebar";
-import ConsumerHeader from "@/components/consumer/home/ConsumerHeader";
-import ConsumerMessagesView from "@/components/consumer/mensajes/ConsumerMessagesView";
+import Sidebar from "@/components/consumidor/Sidebar";
+import ConsumerHeader from "@/components/consumidor/home/ConsumerHeader";
+import ConsumerMessagesView from "@/components/consumidor/mensajes/ConsumerMessagesView";
 import type { MessageInputHandle } from "@/app/components/messaging/MessageInput";
 import { AuthSession } from "@/lib/auth/types";
 import { ROUTES } from "@/lib/routes";

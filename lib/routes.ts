@@ -7,9 +7,9 @@ export const ROUTES = {
   },
   onboarding: "/onboarding",
   consumer: {
-    home: "/consumer/home",
-    buscar: "/consumer/buscar",
-    messages: "/consumer/mensajes",
+    home: "/consumidor/home",
+    buscar: "/consumidor/buscar",
+    messages: "/consumidor/mensajes",
   },
   provider: {
     home: "/prestador/home",

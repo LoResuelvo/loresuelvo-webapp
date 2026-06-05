@@ -1,5 +1,5 @@
 import { getAuthService } from "@/lib/auth";
-import ConsumerHome from "@/components/consumer/home/ConsumerHome";
+import ConsumerHome from "@/components/consumidor/home/ConsumerHome";
 import { api } from "@/lib/api/base-client";
 import { Category } from "@/lib/api/types";
 

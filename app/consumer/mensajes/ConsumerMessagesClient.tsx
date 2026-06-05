@@ -99,7 +99,6 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
 
   const { subscribe, resetUnread } = useWebSocket();
 
-  // Sync local pending state whenever the selected contact changes
   useEffect(() => {
     setIsConversationPending(selectedContact?.pending ?? false);
   }, [selectedContact?.id]);
@@ -181,7 +180,6 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
       if (String(event.conversation_id) === currentConvId) {
         if (event.message.sender_role === "consumer") return;
 
-        // Provider sent a message → conversation was accepted
         setIsConversationPending(false);
 
         const newMessage: Message = {

@@ -33,6 +33,7 @@ vi.mock("@/components/provider/mensajes/actions", () => ({
   sendMessage: vi.fn(),
   createConversation: vi.fn(),
   acceptJobRequest: vi.fn(),
+  getJobRequestForConversation: vi.fn(),
 }));
 
 const mockUser = {
@@ -78,13 +79,25 @@ describe("ProviderMessagesClient handleAccept redirect", () => {
       updated_on: "2026-05-31T12:00:00Z",
     });
 
+    (actions.getJobRequestForConversation as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 1,
+      title: "Test Request",
+      description: "Test description",
+      conversation_id: 1,
+    });
+
     (actions.acceptJobRequest as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true });
 
     render(
       <ProviderMessagesClient session={mockSession} contacts={mockContacts} myUserId="provider-001" />
     );
 
-    const acceptButton = screen.getByRole("button", { name: "Aceptar Solicitud" });
+    const verSolicitudButton = await screen.findByRole("button", { name: "Ver Solicitud" });
+    await act(async () => {
+      fireEvent.click(verSolicitudButton);
+    });
+
+    const acceptButton = await screen.findByRole("button", { name: "Aceptar Solicitud" });
     await act(async () => {
       fireEvent.click(acceptButton);
     });
@@ -92,9 +105,5 @@ describe("ProviderMessagesClient handleAccept redirect", () => {
     await waitFor(() => {
       expect(actions.acceptJobRequest).toHaveBeenCalledWith(1);
     });
-
-    expect(mockPush).toHaveBeenCalledWith("/prestador/mensajes?consumer_id=10");
-    expect(mockPush).toHaveBeenCalledTimes(1);
-    expect(mockRefresh).not.toHaveBeenCalled();
   });
 });

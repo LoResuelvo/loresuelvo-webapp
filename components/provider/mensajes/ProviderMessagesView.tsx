@@ -95,6 +95,7 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
         onAccept={onAccept}
         myUserId={myUserId}
         pendingBannerText={pendingBannerText}
+        blockInputWhenPending={true}
       />
     </main>
   );

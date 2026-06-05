@@ -57,6 +57,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   myUserId: string;
   jobRequest?: JobRequestInfo | null;
   pendingBannerText?: string;
+  blockInputWhenPending?: boolean;
 }>(({
   selectedContact,
   messages,
@@ -71,6 +72,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   myUserId,
   jobRequest,
   pendingBannerText,
+  blockInputWhenPending = false,
 }, ref) => {
   if (!selectedContact) {
     return (
@@ -102,13 +104,21 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
           myUserId={myUserId}
           pendingBannerText={pendingBannerText}
         />
-        <MessageInput
-          ref={ref}
-          value={messageInput}
-          onChange={onMessageInputChange}
-          onSend={onSendMessage}
-          disabled={isSending}
-        />
+        {blockInputWhenPending && selectedContact.pending ? (
+          <div className="p-4 bg-white border-t border-slate-200 flex-shrink-0">
+            <p className="text-center text-[13px] text-slate-400 py-2">
+              Tenés que aceptar la solicitud antes de poder enviar mensajes.
+            </p>
+          </div>
+        ) : (
+          <MessageInput
+            ref={ref}
+            value={messageInput}
+            onChange={onMessageInputChange}
+            onSend={onSendMessage}
+            disabled={isSending}
+          />
+        )}
       </div>
     </div>
   );

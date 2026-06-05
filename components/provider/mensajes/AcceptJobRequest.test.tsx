@@ -19,7 +19,7 @@ describe("08-VMP: Aceptar solicitud - ChatHeader con botón aceptar", () => {
       />
     );
 
-    expect(screen.queryByRole("button", { name: "Aceptar Solicitud" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ver Solicitud" })).not.toBeInTheDocument();
   });
 
   it("muestra botón aceptar cuando la conversación está pendiente", () => {
@@ -33,7 +33,7 @@ describe("08-VMP: Aceptar solicitud - ChatHeader con botón aceptar", () => {
       />
     );
 
-    const button = screen.getByRole("button", { name: "Aceptar Solicitud" });
+    const button = screen.getByRole("button", { name: "Ver Solicitud" });
     expect(button).toBeInTheDocument();
   });
 
@@ -48,7 +48,7 @@ describe("08-VMP: Aceptar solicitud - ChatHeader con botón aceptar", () => {
       />
     );
 
-    const button = screen.getByRole("button", { name: "Aceptar Solicitud" });
+    const button = screen.getByRole("button", { name: "Ver Solicitud" });
     fireEvent.click(button);
 
     expect(onAccept).toHaveBeenCalledTimes(1);

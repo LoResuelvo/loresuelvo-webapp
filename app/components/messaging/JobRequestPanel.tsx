@@ -1,6 +1,6 @@
 "use client";
 
-import { X, FileText } from "lucide-react";
+import { X } from "lucide-react";
 
 export interface JobRequestPanelInfo {
   title: string;

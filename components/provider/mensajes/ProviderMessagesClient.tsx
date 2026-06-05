@@ -83,10 +83,8 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
   const inputRef = useRef<MessageInputHandle>(null);
   const isSendingRef = useRef(false);
   const justCreatedRef = useRef(false);
-  const [unreadCounts, setUnreadCounts] = useState<Map<string, number>>(new Map());
   const [localContacts, setLocalContacts] = useState<ConversationContact[]>(contacts);
 
-  // Keep localContacts in sync when server-side contacts prop changes
   useEffect(() => {
     setLocalContacts(contacts);
   }, [contacts]);
@@ -95,11 +93,9 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
 
   const effectiveConversationId = activeConversationId || selectedContact?.id?.replace("conv-", "");
 
-  // Ref para que el subscribe siempre lea el valor actual sin necesitar re-suscribirse
   const effectiveConvIdRef = useRef(effectiveConversationId);
   effectiveConvIdRef.current = effectiveConversationId;
 
-  // El ID numérico real del counterpart (del backend)
   const counterpartIdRef = useRef<string | null>(null);
 
   const { subscribe, resetUnread } = useWebSocket();
@@ -159,7 +155,6 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
         setLoadedMessages(allMessages);
         counterpartIdRef.current = String(data.counterpart.id);
 
-        // Fetch the linked job request to get its real ID
         getJobRequestForConversation(effectiveConversationId)
           .then(jr => setActiveJobRequest(jr ? {
             id: jr.id,
@@ -180,7 +175,6 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
       const currentConvId = effectiveConvIdRef.current;
 
       if (incomingConvId === currentConvId) {
-        // Active conversation: render the message in real time
         if (event.message.sender_role === "provider") return;
 
         const newMessage: Message = {
@@ -197,15 +191,21 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
           return [...prev, newMessage];
         });
 
+        const previewText = event.message.content.length > 40
+          ? event.message.content.slice(0, 40) + "…"
+          : event.message.content;
+
+        setLocalContacts((prev) =>
+          prev.map((c) => {
+            const cId = c.id.replace("conv-", "");
+            return cId === incomingConvId
+              ? { ...c, lastMessage: previewText, lastMessageAt: new Date(event.message.created_on).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) }
+              : c;
+          })
+        );
+
         resetUnread();
       } else {
-        // Non-active conversation: increment unread count and update preview
-        setUnreadCounts((prev) => {
-          const next = new Map(prev);
-          next.set(incomingConvId, (next.get(incomingConvId) ?? 0) + 1);
-          return next;
-        });
-
         const previewText = event.message.content.length > 40
           ? event.message.content.slice(0, 40) + "…"
           : event.message.content;
@@ -240,6 +240,14 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
     };
 
     setLocalMessages(prev => [...prev, optimisticMessage]);
+    
+    const previewText = messageContent.length > 40 ? messageContent.slice(0, 40) + "…" : messageContent;
+    setLocalContacts(prev => prev.map(c => 
+      c.consumerId === selectedConsumerId 
+        ? { ...c, lastMessage: previewText, lastMessageAt: "Ahora" } 
+        : c
+    ));
+
     setMessageInput("");
     const interval = setInterval(() => {
       if (typeof document === 'undefined') return;
@@ -352,16 +360,6 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
   };
 
   const handleContactClick = (consumerId: string) => {
-    // Find the conversation ID for this consumer and clear its unread count
-    const contact = localContacts.find((c) => c.consumerId === consumerId);
-    if (contact) {
-      const convId = contact.id.replace("conv-", "");
-      setUnreadCounts((prev) => {
-        const next = new Map(prev);
-        next.delete(convId);
-        return next;
-      });
-    }
     router.push(`${ROUTES.provider.messages}?consumer_id=${consumerId}`);
   };
 
@@ -389,7 +387,6 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
     senderId: msg.senderId,
   }));
 
-  // Build the ProviderWorkRequest shape expected by RequestDetailModal
   const modalRequest: ProviderWorkRequest | null = activeJobRequest ? {
     id: String(activeJobRequest.id),
     conversationId: effectiveConversationId ?? "",
@@ -407,7 +404,6 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
   const contactsWithUnread = localContacts.map((c) => ({
     ...c,
     pending: isPending(c),
-    unreadCount: unreadCounts.get(c.id.replace("conv-", "")) ?? 0,
   }));
 
   return (

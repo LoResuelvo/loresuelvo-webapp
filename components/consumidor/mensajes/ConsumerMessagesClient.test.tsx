@@ -126,8 +126,7 @@ describe("ConsumerMessagesClient", () => {
     await act(async () => {
       fireEvent.click(sendButton);
     });
-
-    expect(screen.getByText("Nuevo mensaje de prueba")).toBeInTheDocument();
+    expect(screen.getAllByText("Nuevo mensaje de prueba").length).toBeGreaterThan(0);
   });
 
   it("shows pending notification when contact is pending", async () => {

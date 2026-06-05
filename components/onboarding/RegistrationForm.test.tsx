@@ -8,6 +8,10 @@ vi.mock("@/app/onboarding/registrationButtonAction", () => ({
   submitRegistration: vi.fn(),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 describe("RegistrationForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();

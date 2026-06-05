@@ -2,6 +2,7 @@
 
 import { AuthSession } from "@/lib/auth/types";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { submitRegistration } from "@/app/onboarding/registrationButtonAction";
 import { RoleSelectionStep } from "./RoleSelectionStep";
@@ -19,6 +20,7 @@ export default function RegistrationForm({
   const [role, setRole] = useState<"consumer" | "provider" | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   async function handleFinalSubmit(formData: FormData) {
     setIsLoading(true);
@@ -28,7 +30,10 @@ export default function RegistrationForm({
       if (role) {
         formData.append("role", role);
       }
-      await submitRegistration(formData);
+      const result = await submitRegistration(formData);
+      if (result?.redirectTo) {
+        router.push(result.redirectTo);
+      }
     } catch (err) {
       console.error(err);
       setError("Hubo un problema al guardar tu perfil. Inténtalo nuevamente.");

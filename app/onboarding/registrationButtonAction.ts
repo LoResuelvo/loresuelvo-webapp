@@ -1,8 +1,9 @@
 "use server";
 
 import { getAuthService } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import { api } from "@/lib/api/base-client";
+import {ROUTES} from "@/lib/routes";
+
 
 type UserRole = "consumer" | "provider";
 
@@ -72,8 +73,8 @@ export async function submitRegistration(formData: FormData) {
   }
 
   if (role === "provider") {
-    redirect("/prestador/home");
+    return { redirectTo: ROUTES.provider.home };
   } else {
-    redirect("/consumidor/home");
+    return { redirectTo: ROUTES.consumer.home };
   }
 }

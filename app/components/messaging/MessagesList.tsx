@@ -105,7 +105,7 @@ export default function MessagesList({
             messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
             setHasNewMessage(false);
           }}
-          className="sticky bottom-2 mx-auto bg-brand-primary text-white px-4 py-2 rounded-full shadow-[0_4px_12px_rgba(26,43,72,0.12)] text-sm font-semibold z-10 animate-bounce"
+          className="sticky bottom-2 mx-auto bg-brand-primary text-white px-4 py-2 rounded-full shadow-[0_4px_12px_rgba(26,43,72,0.12)] text-sm font-semibold z-10"
         >
           ↓ Mensaje nuevo
         </button>

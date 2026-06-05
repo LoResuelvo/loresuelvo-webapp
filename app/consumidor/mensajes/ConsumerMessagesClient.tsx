@@ -231,9 +231,6 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
     return unsubscribe;
   }, [subscribe, resetUnread]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [localMessages, loadedMessages]);
 
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedProviderId || isSending || isSendingRef.current) return;

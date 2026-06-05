@@ -221,13 +221,9 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
       }
     });
 
-    // Solo se suscribe una vez — lee el ID actual via ref en cada evento
     return unsubscribe;
   }, [subscribe, resetUnread]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [localMessages, loadedMessages]);
 
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedConsumerId || isSending || isSendingRef.current) return;

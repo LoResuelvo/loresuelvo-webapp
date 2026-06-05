@@ -7,10 +7,10 @@ import { ROUTES } from "@/lib/routes";
 
 const providerNavigationItems = [
   { label: "Inicio", href: ROUTES.provider.home, icon: Home },
-  { label: "Calendario", href: ROUTES.provider.calendar, icon: CalendarDays },
+  { label: "Calendario", href: "", icon: CalendarDays },
   { label: "Mensajes", href: ROUTES.provider.messages, icon: MessageSquare },
-  { label: "Trabajos", href: ROUTES.provider.jobs, icon: BriefcaseBusiness },
-  { label: "Perfil", href: ROUTES.provider.profile, icon: User },
+  { label: "Trabajos", href: "", icon: BriefcaseBusiness },
+  { label: "Perfil", href: "", icon: User },
 ];
 
 export default function ProviderSidebar() {
@@ -35,12 +35,12 @@ export default function ProviderSidebar() {
       >
         {providerNavigationItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href && item.href !== "";
 
           return (
             <Link
-              key={item.href}
-              href={item.href}
+              key={item.label}
+              href={item.href || "#"}
               aria-current={isActive ? "page" : undefined}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-colors ${
                 isActive

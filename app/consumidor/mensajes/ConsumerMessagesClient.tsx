@@ -107,7 +107,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
 
   useEffect(() => {
     setIsConversationPending(selectedContact?.pending ?? false);
-  }, [selectedContact?.id]);
+  }, [selectedContact?.id, selectedContact?.pending]);
 
   const toggleMessageExpanded = (messageId: string) => {
     setExpandedMessages(prev => {

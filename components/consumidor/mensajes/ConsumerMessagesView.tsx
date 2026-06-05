@@ -12,7 +12,6 @@ interface ConversationContact {
   lastMessage: string;
   lastMessageAt: string;
   pending: boolean;
-  unreadCount?: number;
 }
 
 interface Message {

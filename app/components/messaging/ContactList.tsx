@@ -8,6 +8,7 @@ interface ConversationContact {
   lastMessage: string;
   lastMessageAt: string;
   pending: boolean;
+  unreadCount?: number;
 }
 
 interface ContactListProps {
@@ -43,6 +44,7 @@ export default function ContactList({ contacts, selectedProviderId, onContactCli
                 lastMessage={contact.lastMessage}
                 lastMessageAt={contact.lastMessageAt}
                 pending={contact.pending}
+                unreadCount={contact.unreadCount}
                 isSelected={selectedProviderId === contact.providerId}
                 onClick={onContactClick}
               />

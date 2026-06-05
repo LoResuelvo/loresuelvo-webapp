@@ -11,6 +11,7 @@ interface ConversationContact {
   lastMessage: string;
   lastMessageAt: string;
   pending: boolean;
+  unreadCount?: number;
 }
 
 interface Message {
@@ -67,6 +68,7 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
             lastMessage: c.lastMessage,
             lastMessageAt: c.lastMessageAt,
             pending: c.pending,
+            unreadCount: c.unreadCount,
           }))}
           selectedProviderId={selectedConsumerId}
           onContactClick={onContactClick}

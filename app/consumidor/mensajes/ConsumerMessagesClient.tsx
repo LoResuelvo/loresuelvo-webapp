@@ -87,6 +87,13 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
   const justCreatedRef = useRef(false);
   const [activeJobRequest, setActiveJobRequest] = useState<JobRequestInfo | null>(null);
   const [isConversationPending, setIsConversationPending] = useState<boolean>(false);
+  const [unreadCounts, setUnreadCounts] = useState<Map<string, number>>(new Map());
+  const [localContacts, setLocalContacts] = useState<ConversationContact[]>(contacts);
+
+  // Keep localContacts in sync when server-side contacts prop changes
+  useEffect(() => {
+    setLocalContacts(contacts);
+  }, [contacts]);
 
   const selectedContact = contacts.find(c => c.providerId === selectedProviderId);
 
@@ -174,10 +181,11 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
     const unsubscribe = subscribe((event) => {
       if (event.type !== "conversation.message.created") return;
 
+      const incomingConvId = String(event.conversation_id);
       const currentConvId = effectiveConvIdRef.current;
-      if (!currentConvId) return;
 
-      if (String(event.conversation_id) === currentConvId) {
+      if (incomingConvId === currentConvId) {
+        // Active conversation: render the message in real time
         if (event.message.sender_role === "consumer") return;
 
         setIsConversationPending(false);
@@ -185,8 +193,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
         const newMessage: Message = {
           id: String(event.message.id),
           content: event.message.content,
-
-          senderId: counterpartIdRef.current ?? String(event.conversation_id),
+          senderId: counterpartIdRef.current ?? incomingConvId,
           sentAt: new Date(event.message.created_on).toLocaleString("es-AR", {
             day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
           }),
@@ -198,6 +205,26 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
         });
 
         resetUnread();
+      } else {
+        // Non-active conversation: increment unread count and update preview
+        setUnreadCounts((prev) => {
+          const next = new Map(prev);
+          next.set(incomingConvId, (next.get(incomingConvId) ?? 0) + 1);
+          return next;
+        });
+
+        const previewText = event.message.content.length > 40
+          ? event.message.content.slice(0, 40) + "…"
+          : event.message.content;
+
+        setLocalContacts((prev) =>
+          prev.map((c) => {
+            const cId = c.id.replace("conv-", "");
+            return cId === incomingConvId
+              ? { ...c, lastMessage: previewText, lastMessageAt: new Date(event.message.created_on).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) }
+              : c;
+          })
+        );
       }
     });
 
@@ -335,6 +362,16 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
   };
 
   const handleContactClick = (providerId: string) => {
+    // Find the conversation ID for this provider and clear its unread count
+    const contact = localContacts.find((c) => c.providerId === providerId);
+    if (contact) {
+      const convId = contact.id.replace("conv-", "");
+      setUnreadCounts((prev) => {
+        const next = new Map(prev);
+        next.delete(convId);
+        return next;
+      });
+    }
     router.push(`${ROUTES.consumer.messages}?provider_id=${providerId}`);
   };
 
@@ -345,6 +382,12 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
     senderId: msg.senderId,
   }));
 
+  const contactsWithUnread = localContacts.map((c) => ({
+    ...c,
+    pending: c.providerId === selectedProviderId ? isConversationPending : c.pending,
+    unreadCount: unreadCounts.get(c.id.replace("conv-", "")) ?? 0,
+  }));
+
   return (
     <div className="h-screen flex overflow-hidden bg-brand-neutral/30 font-sans text-brand-primary">
       <Sidebar />
@@ -352,11 +395,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
         <ConsumerHeader session={session} />
         <ConsumerMessagesView
           ref={inputRef}
-          contacts={contacts.map(c =>
-            c.providerId === selectedProviderId
-              ? { ...c, pending: isConversationPending }
-              : c
-          )}
+          contacts={contactsWithUnread}
           selectedContact={selectedContact ? { ...selectedContact, pending: isConversationPending } : null}
           selectedProviderId={selectedProviderId}
           messages={viewMessages}

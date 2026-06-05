@@ -9,6 +9,7 @@ interface ContactItemProps {
   lastMessageAt: string;
   pending: boolean;
   isSelected: boolean;
+  unreadCount?: number;
   onClick: (providerId: string) => void;
 }
 
@@ -20,8 +21,10 @@ export default function ContactItem({
   lastMessageAt,
   pending,
   isSelected,
+  unreadCount = 0,
   onClick,
 }: ContactItemProps) {
+  const hasUnread = unreadCount > 0;
   return (
     <div
       role="listitem"
@@ -40,15 +43,33 @@ export default function ContactItem({
           <p
             data-field="consumer-name"
             data-testid="consumer-name"
-            className="font-semibold text-[14px] text-brand-primary truncate"
+            className={`text-[14px] text-brand-primary truncate ${
+              hasUnread ? "font-bold" : "font-semibold"
+            }`}
           >
             {providerName + " " + providerSurname}
           </p>
           <p data-field="last-message-at" data-testid="last-message-at" className="text-[11px] text-slate-400">{lastMessageAt}</p>
         </div>
-        <p data-field="last-message" data-testid="last-message" className="text-[12px] text-slate-500 truncate">{lastMessage}</p>
+        <p
+          data-field="last-message"
+          data-testid="last-message"
+          className={`text-[12px] truncate ${
+            hasUnread ? "text-brand-primary font-medium" : "text-slate-500"
+          }`}
+        >
+          {lastMessage}
+        </p>
       </div>
-      {pending && (
+      {hasUnread && (
+        <span
+          data-testid="unread-badge"
+          className="min-w-[20px] h-5 px-1.5 flex items-center justify-center text-[11px] font-bold bg-red-500 text-white rounded-full"
+        >
+          {unreadCount > 99 ? "99+" : unreadCount}
+        </span>
+      )}
+      {!hasUnread && pending && (
         <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 rounded-full">
           Pendiente
         </span>

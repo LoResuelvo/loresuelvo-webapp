@@ -14,3 +14,5 @@ reports/
 .cucumber-dist/
 
 *.tsbuildinfo
+
+pnpm-lock.yaml

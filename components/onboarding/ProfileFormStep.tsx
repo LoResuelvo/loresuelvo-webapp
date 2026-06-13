@@ -7,6 +7,9 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { ChangeEvent, useState } from "react";
 import { Category } from "@/lib/api/types";
 import { CategorySelect } from "./CategorySelect";
+import { ProfilePhotoUpload } from "./ProfilePhotoUpload";
+
+const MAX_PROFILE_PHOTO_SIZE = 5 * 1024 * 1024;
 
 interface ProfileFormStepProps {
   onBack: () => void;
@@ -28,6 +31,7 @@ export function ProfileFormStep({
   const [firstNameError, setFirstNameError] = useState<string | null>(null);
   const [lastNameError, setLastNameError] = useState<string | null>(null);
   const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [profilePhotoError, setProfilePhotoError] = useState<string | null>(null);
 
   async function handleFormSubmit(e: ChangeEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -54,6 +58,21 @@ export function ProfileFormStep({
       if (!categoryId || categoryId === "") {
         setCategoryError("Debe seleccionar un rubro");
         hasErrors = true;
+      }
+
+      const profilePhoto = formData.get("profilePhoto") as File;
+      if (!profilePhoto || (profilePhoto.size === 0 && profilePhoto.name === "")) {
+        setProfilePhotoError("La foto de perfil es obligatoria");
+        hasErrors = true;
+      } else {
+        const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+        if (!validTypes.includes(profilePhoto.type)) {
+          setProfilePhotoError("Formato de imagen no permitido. Los formatos permitidos son: PNG, JPG, JPEG y WEBP");
+          hasErrors = true;
+        } else if (profilePhoto.size > MAX_PROFILE_PHOTO_SIZE) {
+          setProfilePhotoError("La imagen no debe superar los 5MB");
+          hasErrors = true;
+        }
       }
     }
 
@@ -90,6 +109,13 @@ export function ProfileFormStep({
       )}
 
       <form onSubmit={handleFormSubmit} className="space-y-5" noValidate>
+        {role === "provider" && (
+          <ProfilePhotoUpload
+            onPhotoSelected={() => setProfilePhotoError(null)}
+            error={profilePhotoError}
+          />
+        )}
+        
         <div className="space-y-2">
           <Label htmlFor="firstName" className="text-[14px] font-semibold text-brand-primary">
             Nombre

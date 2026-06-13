@@ -14,7 +14,9 @@ vi.mock("next/navigation", () => ({
 
 describe("RegistrationForm", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
+    window.URL.createObjectURL = vi.fn().mockReturnValue("mock-url");
   });
 
   describe("step 1", () => {
@@ -108,6 +110,13 @@ describe("RegistrationForm", () => {
       fireEvent.change(lastNameInput, { target: { value: "Colina" } });
       fireEvent.change(categorySelect, { target: { value: "4" } });
 
+      const file = new File(["dummy content"], "avatar.png", { type: "image/png" });
+      const originalGet = window.FormData.prototype.get;
+      vi.spyOn(window.FormData.prototype, 'get').mockImplementation(function(this: FormData, key: string) {
+        if (key === "profilePhoto") return file;
+        return originalGet.call(this, key);
+      });
+
       const submitButton = screen.getByRole("button", { name: /Finalizar Registro/i });
       fireEvent.click(submitButton);
 
@@ -120,6 +129,7 @@ describe("RegistrationForm", () => {
       expect(submittedFormData.get("lastName")).toBe("Colina");
       expect(submittedFormData.get("role")).toBe("provider");
       expect(submittedFormData.get("categoryId")).toBe("4");
+      expect((submittedFormData.get("profilePhoto") as File).name).toBe("avatar.png");
     });
 
     it("shows validation error if provider does not select a category", async () => {
@@ -138,10 +148,109 @@ describe("RegistrationForm", () => {
       fireEvent.change(firstNameInput, { target: { value: "Andres" } });
       fireEvent.change(lastNameInput, { target: { value: "Colina" } });
 
+      const file = new File(["dummy content"], "avatar.png", { type: "image/png" });
+      const originalGet = window.FormData.prototype.get;
+      vi.spyOn(window.FormData.prototype, 'get').mockImplementation(function(this: FormData, key: string) {
+        if (key === "profilePhoto") return file;
+        return originalGet.call(this, key);
+      });
+
       const submitButton = screen.getByRole("button", { name: /Finalizar Registro/i });
       fireEvent.click(submitButton);
 
       expect(await screen.findByText("Debe seleccionar un rubro")).toBeInTheDocument();
+      expect(mockSubmit).not.toHaveBeenCalled();
+    });
+
+    it("shows validation error if provider does not upload a profile photo", async () => {
+      const mockSubmit = vi.mocked(submitRegistration);
+      const mockCategories = [{ id: 4, name: "Plomería" }];
+      render(<RegistrationForm session={null} categories={mockCategories} />);
+
+      const techButton = screen.getByText("Soy Prestador").closest("button");
+      fireEvent.click(techButton!);
+      const continueButton = screen.getByRole("button", { name: /Continuar/i });
+      fireEvent.click(continueButton);
+
+      const firstNameInput = screen.getByLabelText(/Nombre/i) as HTMLInputElement;
+      const lastNameInput = screen.getByLabelText(/Apellido/i) as HTMLInputElement;
+      const categorySelect = screen.getByLabelText(/Rubro/i) as HTMLSelectElement;
+
+      fireEvent.change(firstNameInput, { target: { value: "Andres" } });
+      fireEvent.change(lastNameInput, { target: { value: "Colina" } });
+      fireEvent.change(categorySelect, { target: { value: "4" } });
+
+      const submitButton = screen.getByRole("button", { name: /Finalizar Registro/i });
+      fireEvent.click(submitButton);
+
+      expect(await screen.findByText("La foto de perfil es obligatoria")).toBeInTheDocument();
+      expect(mockSubmit).not.toHaveBeenCalled();
+    });
+
+    it("shows validation error if provider uploads invalid photo format", async () => {
+      const mockSubmit = vi.mocked(submitRegistration);
+      const mockCategories = [{ id: 4, name: "Plomería" }];
+      render(<RegistrationForm session={null} categories={mockCategories} />);
+
+      const techButton = screen.getByText("Soy Prestador").closest("button");
+      fireEvent.click(techButton!);
+      const continueButton = screen.getByRole("button", { name: /Continuar/i });
+      fireEvent.click(continueButton);
+
+      const firstNameInput = screen.getByLabelText(/Nombre/i) as HTMLInputElement;
+      const lastNameInput = screen.getByLabelText(/Apellido/i) as HTMLInputElement;
+      const categorySelect = screen.getByLabelText(/Rubro/i) as HTMLSelectElement;
+
+      fireEvent.change(firstNameInput, { target: { value: "Andres" } });
+      fireEvent.change(lastNameInput, { target: { value: "Colina" } });
+      fireEvent.change(categorySelect, { target: { value: "4" } });
+
+      const file = new File(["dummy content"], "doc.pdf", { type: "application/pdf" });
+      const originalGet = window.FormData.prototype.get;
+      vi.spyOn(window.FormData.prototype, 'get').mockImplementation(function(this: FormData, key: string) {
+        if (key === "profilePhoto") return file;
+        return originalGet.call(this, key);
+      });
+
+      const submitButton = screen.getByRole("button", { name: /Finalizar Registro/i });
+      fireEvent.click(submitButton);
+
+      expect(await screen.findByText("Formato de imagen no permitido. Los formatos permitidos son: PNG, JPG, JPEG y WEBP")).toBeInTheDocument();
+      expect(mockSubmit).not.toHaveBeenCalled();
+    });
+
+    it("shows validation error if provider uploads oversized photo", async () => {
+      const mockSubmit = vi.mocked(submitRegistration);
+      const mockCategories = [{ id: 4, name: "Plomería" }];
+      render(<RegistrationForm session={null} categories={mockCategories} />);
+
+      const techButton = screen.getByText("Soy Prestador").closest("button");
+      fireEvent.click(techButton!);
+      const continueButton = screen.getByRole("button", { name: /Continuar/i });
+      fireEvent.click(continueButton);
+
+      const firstNameInput = screen.getByLabelText(/Nombre/i) as HTMLInputElement;
+      const lastNameInput = screen.getByLabelText(/Apellido/i) as HTMLInputElement;
+      const categorySelect = screen.getByLabelText(/Rubro/i) as HTMLSelectElement;
+
+      fireEvent.change(firstNameInput, { target: { value: "Andres" } });
+      fireEvent.change(lastNameInput, { target: { value: "Colina" } });
+      fireEvent.change(categorySelect, { target: { value: "4" } });
+
+      const hugeContent = new ArrayBuffer(6 * 1024 * 1024);
+      const file = new File([hugeContent], "large.jpg", { type: "image/jpeg" });
+      Object.defineProperty(file, 'size', { value: 6 * 1024 * 1024 });
+      
+      const originalGet = window.FormData.prototype.get;
+      vi.spyOn(window.FormData.prototype, 'get').mockImplementation(function(this: FormData, key: string) {
+        if (key === "profilePhoto") return file;
+        return originalGet.call(this, key);
+      });
+
+      const submitButton = screen.getByRole("button", { name: /Finalizar Registro/i });
+      fireEvent.click(submitButton);
+
+      expect(await screen.findByText("La imagen no debe superar los 5MB")).toBeInTheDocument();
       expect(mockSubmit).not.toHaveBeenCalled();
     });
   })

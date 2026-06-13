@@ -5,8 +5,7 @@ Feature: Completar registro de prestador con foto de perfil
     para que la gente que me contrate pueda verme
 
     Background:
-        Given que existe el rubro "Plomería"
-        And que no existe un usuario con correo "prestador@example.com"
+        Given existe el rubro Plomería
         And que me registré exitosamente en Auth0 con email "prestador@example.com"
         And elegí la opción de prestador en la pagina de registro
         And ingreso mi nombre "Juan" y apellido "Pérez" en el formulario

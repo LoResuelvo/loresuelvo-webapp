@@ -1,0 +1,18 @@
+import { getAssistantReply } from "./assistant";
+
+export const DEFAULT_ASSISTANT_DELAY_MS = 800;
+
+export interface AssistantClient {
+  requestReply(userMessage: string): Promise<string>;
+}
+
+export function createMockAssistantClient(
+  delayMs: number = DEFAULT_ASSISTANT_DELAY_MS,
+): AssistantClient {
+  return {
+    async requestReply(userMessage: string) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      return getAssistantReply(userMessage);
+    },
+  };
+}

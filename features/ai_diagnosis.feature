@@ -13,7 +13,6 @@ Feature: Diagnóstico asistido por IA
     Then se inicia una conversación con el asistente
     And veo mi mensaje en el chat
 
-  @wip
   Scenario: 02-DIA Recibir respuesta del asistente
     Given inicié una conversación con el asistente
     When el asistente procesa mi mensaje

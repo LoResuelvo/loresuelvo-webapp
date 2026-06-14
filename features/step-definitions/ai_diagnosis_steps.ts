@@ -59,3 +59,29 @@ Then("veo mi mensaje en el chat", async () => {
     "No se ve el mensaje del usuario en el chat",
   );
 });
+
+Given("inicié una conversación con el asistente", async () => {
+  await setConsumerSession();
+  const mensaje = encodeURIComponent("Se está filtrando agua debajo de la bacha");
+  await page.goto(`${APP_URL}${ROUTES.consumer.diagnostico}?mensaje=${mensaje}`);
+  await page.waitForLoadState("networkidle");
+});
+
+When("el asistente procesa mi mensaje", async () => {
+  // El procesamiento está modelado con un delay client-side (mock de IA).
+  // Esperamos a que la respuesta del asistente aparezca en el chat.
+  await page.getByText(
+    "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
+  ).first().waitFor({ state: "visible", timeout: 5000 });
+});
+
+Then("veo una respuesta del asistente en el chat", async () => {
+  const reply = page.getByText(
+    "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
+  ).first();
+  await reply.waitFor({ state: "visible" });
+  assert.ok(
+    await reply.isVisible(),
+    "No se ve la respuesta del asistente en el chat",
+  );
+});

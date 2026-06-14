@@ -1,7 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import MessageBubble from "@/app/components/messaging/MessageBubble";
+import {
+  AssistantClient,
+  createMockAssistantClient,
+  DEFAULT_ASSISTANT_DELAY_MS,
+} from "@/lib/diagnosis/assistant-client";
 
 interface ChatMessage {
   id: string;
@@ -13,12 +19,32 @@ interface ChatMessage {
 const USER_ID = "consumer-ai-diagnosis";
 const ASSISTANT_ID = "assistant-ai-diagnosis";
 
-const MOCK_ASSISTANT_REPLY =
-  "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?";
+interface AiDiagnosisChatProps {
+  client?: AssistantClient;
+}
 
-export default function AiDiagnosisChat() {
+export default function AiDiagnosisChat({ client }: AiDiagnosisChatProps = {}) {
   const searchParams = useSearchParams();
   const initialMessage = searchParams.get("mensaje")?.trim() ?? "";
+
+  const [assistantReply, setAssistantReply] = useState<string | null>(null);
+
+  const assistantClient = client ?? createMockAssistantClient(DEFAULT_ASSISTANT_DELAY_MS);
+
+  useEffect(() => {
+    if (!initialMessage) {
+      setAssistantReply(null);
+      return;
+    }
+    setAssistantReply(null);
+    let cancelled = false;
+    assistantClient.requestReply(initialMessage).then((reply) => {
+      if (!cancelled) setAssistantReply(reply);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [initialMessage, assistantClient]);
 
   if (!initialMessage) {
     return null;
@@ -31,13 +57,16 @@ export default function AiDiagnosisChat() {
       sentAt: "Recién",
       senderId: USER_ID,
     },
-    {
+  ];
+
+  if (assistantReply) {
+    messages.push({
       id: "msg-assistant-1",
-      content: MOCK_ASSISTANT_REPLY,
+      content: assistantReply,
       sentAt: "Recién",
       senderId: ASSISTANT_ID,
-    },
-  ];
+    });
+  }
 
   return (
     <section

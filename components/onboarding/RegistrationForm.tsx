@@ -80,7 +80,7 @@ export default function RegistrationForm({
         profilePhoto.name,
         profilePhoto.type,
         profilePhoto.size,
-        "profile_photo"
+        "provider_profile_photo"
       );
 
       await storageClient.uploadFile(profilePhoto, presigned.upload_url, presigned.headers);
@@ -94,6 +94,7 @@ export default function RegistrationForm({
 
       formData.delete("profilePhoto");
       formData.append("profilePhotoId", confirmed.id);
+      formData.append("profilePhotoUrl", confirmed.url);
     }
   }
 }

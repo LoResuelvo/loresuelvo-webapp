@@ -59,9 +59,12 @@ export async function submitRegistration(formData: FormData) {
     const rawCategoryId = formData.get("categoryId") as string;
     const categoryId = rawCategoryId ? parseInt(rawCategoryId, 10) : 0;
     const profilePhotoId = formData.get("profilePhotoId") as string;
-    const res = await registerProvider(userData, categoryId, profilePhotoId);
-    if (res && res.profile_photo_url) {
-      profilePhotoUrl = res.profile_photo_url;
+    const confirmedUrl = formData.get("profilePhotoUrl") as string;
+    
+    await registerProvider(userData, categoryId, profilePhotoId);
+    
+    if (confirmedUrl) {
+      profilePhotoUrl = confirmedUrl;
     }
   } else {
     await registerConsumer(userData);

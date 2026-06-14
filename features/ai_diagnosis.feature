@@ -40,10 +40,3 @@ Feature: Diagnóstico asistido por IA
     When envío un nuevo mensaje
     Then veo el historial completo de la conversación
     And veo los mensajes ordenados cronológicamente
-
-  @wip
-  Scenario: 07-DIA Realizar preguntas de seguimiento
-    Given describí un problema de manera incompleta
-    When el asistente necesita más información
-    Then recibo una pregunta de seguimiento
-    And puedo responder desde el mismo chat

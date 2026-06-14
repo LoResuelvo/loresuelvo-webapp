@@ -5,6 +5,7 @@ export interface AppUser {
   lastName: string;
   isOnboarded?: boolean;
   role?: "consumer" | "provider";
+  profilePhotoUrl?: string;
 }
 
 export interface AuthSession {

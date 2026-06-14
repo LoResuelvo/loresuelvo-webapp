@@ -111,7 +111,20 @@ export function ProfileFormStep({
       <form onSubmit={handleFormSubmit} className="space-y-5" noValidate>
         {role === "provider" && (
           <ProfilePhotoUpload
-            onPhotoSelected={() => setProfilePhotoError(null)}
+            onPhotoSelected={(file) => {
+              if (file) {
+                const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+                if (!validTypes.includes(file.type)) {
+                  setProfilePhotoError("Formato de imagen no permitido. Los formatos permitidos son: PNG, JPG, JPEG y WEBP");
+                } else if (file.size > MAX_PROFILE_PHOTO_SIZE) {
+                  setProfilePhotoError("La imagen no debe superar los 5MB");
+                } else {
+                  setProfilePhotoError(null);
+                }
+              } else {
+                setProfilePhotoError(null);
+              }
+            }}
             error={profilePhotoError}
           />
         )}

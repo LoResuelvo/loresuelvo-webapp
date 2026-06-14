@@ -37,7 +37,10 @@ export default function ProviderHeader({ session }: ProviderHeaderProps) {
           aria-expanded={isOpen}
           aria-haspopup="true"
         >
-          {userInitials ? (
+          {session?.user?.profilePhotoUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={session.user.profilePhotoUrl} alt="Foto de perfil" data-testid="header-profile-photo" className="w-full h-full object-cover" />
+          ) : userInitials ? (
             <span className="text-[14px] font-bold text-slate-600">
               {userInitials}
             </span>

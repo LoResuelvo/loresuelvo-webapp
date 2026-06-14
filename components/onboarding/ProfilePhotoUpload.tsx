@@ -14,7 +14,6 @@ export function ProfilePhotoUpload({ onPhotoSelected, error }: ProfilePhotoUploa
     const file = e.target.files?.[0] || null;
     
     if (file) {
-      // Crear una URL local para la vista previa
       const objectUrl = URL.createObjectURL(file);
       setPreviewUrl(objectUrl);
       onPhotoSelected(file);
@@ -46,6 +45,7 @@ export function ProfilePhotoUpload({ onPhotoSelected, error }: ProfilePhotoUploa
         }}
       >
         {previewUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img 
             src={previewUrl} 
             alt="Vista previa" 

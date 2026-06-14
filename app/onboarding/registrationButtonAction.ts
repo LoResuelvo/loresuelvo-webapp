@@ -14,7 +14,7 @@ interface RegisterUserData {
 }
 
 async function registerProvider(data: RegisterUserData, categoryId: number, profilePhotoId?: string) {
-  return api.post("/providers", {
+  return api.post<{ profile_photo_url?: string }>("/providers", {
     email: data.email,
     name: data.name,
     surname: data.surname,
@@ -53,11 +53,16 @@ export async function submitRegistration(formData: FormData) {
     surname: lastName,
   };
 
+  let profilePhotoUrl: string | undefined = undefined;
+
   if (role === "provider") {
     const rawCategoryId = formData.get("categoryId") as string;
     const categoryId = rawCategoryId ? parseInt(rawCategoryId, 10) : 0;
     const profilePhotoId = formData.get("profilePhotoId") as string;
-    await registerProvider(userData, categoryId, profilePhotoId);
+    const res = await registerProvider(userData, categoryId, profilePhotoId);
+    if (res && res.profile_photo_url) {
+      profilePhotoUrl = res.profile_photo_url;
+    }
   } else {
     await registerConsumer(userData);
   }
@@ -68,6 +73,7 @@ export async function submitRegistration(formData: FormData) {
       lastName,
       isOnboarded: true,
       role,
+      profilePhotoUrl,
     });
     console.log("-> submitRegistration: session updated successfully");
   } catch (error) {

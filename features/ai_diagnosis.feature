@@ -24,11 +24,10 @@ Feature: Diagnóstico asistido por IA
     Then veo un indicador de carga
     And no puedo enviar un nuevo mensaje hasta recibir una respuesta
 
-  @wip
   Scenario: 04-DIA Mostrar error de servicio
-    Given envié un mensaje al asistente
+    Given envié un mensaje al asistente con un error simulado
     When el servicio de IA no se encuentra disponible
-    Then veo el mensaje "No pudimos obtener una respuesta en este momento"
+    Then veo el mensaje del asistente "No pudimos obtener una respuesta en este momento"
     And puedo volver a intentarlo
 
   @wip

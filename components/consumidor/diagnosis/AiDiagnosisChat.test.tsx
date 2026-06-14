@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import AiDiagnosisChat from "@/components/consumidor/diagnosis/AiDiagnosisChat";
 import { AssistantClient } from "@/lib/diagnosis/assistant-client";
@@ -28,18 +28,28 @@ function delayedClient(delayMs: number): AssistantClient {
 
 interface ManualHandle {
   resolve: (reply: string) => void;
+  reject: (error: Error) => void;
 }
 
 function manualClient(): { client: AssistantClient; handle: ManualHandle } {
-  const handle: ManualHandle = { resolve: () => undefined };
+  const handle: ManualHandle = { resolve: () => undefined, reject: () => undefined };
   const client: AssistantClient = {
     async requestReply() {
-      return new Promise<string>((resolve) => {
+      return new Promise<string>((resolve, reject) => {
         handle.resolve = resolve;
+        handle.reject = reject;
       });
     },
   };
   return { client, handle };
+}
+
+function failingClient(error: Error = new Error("Servicio no disponible")): AssistantClient {
+  return {
+    async requestReply() {
+      throw error;
+    },
+  };
 }
 
 describe("AiDiagnosisChat", () => {
@@ -138,6 +148,59 @@ describe("AiDiagnosisChat", () => {
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/escribe un mensaje/i)).not.toBeDisabled();
+    });
+  });
+
+  it("muestra un mensaje de error cuando el servicio falla", async () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams({ mensaje: USER_MESSAGE }),
+    );
+
+    render(<AiDiagnosisChat client={failingClient()} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("No pudimos obtener una respuesta en este momento"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("muestra un botón para reintentar cuando el servicio falla", async () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams({ mensaje: USER_MESSAGE }),
+    );
+
+    render(<AiDiagnosisChat client={failingClient()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /reintentar/i })).toBeInTheDocument();
+    });
+  });
+
+  it("vuelve a invocar al cliente al reintentar tras un error", async () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams({ mensaje: USER_MESSAGE }),
+    );
+
+    const requestReply = vi.fn()
+      .mockRejectedValueOnce(new Error("Servicio no disponible"))
+      .mockResolvedValueOnce(ASSISTANT_REPLY);
+
+    const client: AssistantClient = { requestReply };
+
+    render(<AiDiagnosisChat client={client} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /reintentar/i })).toBeInTheDocument();
+    });
+
+    expect(requestReply).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /reintentar/i }));
+
+    await waitFor(() => {
+      expect(requestReply).toHaveBeenCalledTimes(2);
+      expect(screen.getByText(ASSISTANT_REPLY)).toBeInTheDocument();
     });
   });
 });

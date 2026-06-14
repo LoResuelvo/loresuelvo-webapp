@@ -93,6 +93,15 @@ Given("envié un mensaje al asistente", async () => {
   await page.waitForLoadState("networkidle");
 });
 
+Given("envié un mensaje al asistente con un error simulado", async () => {
+  await setConsumerSession();
+  const mensaje = encodeURIComponent("Se está filtrando agua debajo de la bacha");
+  await page.goto(
+    `${APP_URL}${ROUTES.consumer.diagnostico}?mensaje=${mensaje}&simulate=error`,
+  );
+  await page.waitForLoadState("networkidle");
+});
+
 When("la respuesta aún se encuentra en procesamiento", async () => {
   // El cliente mock tiene un delay por defecto (800ms). Verificamos el indicador
   // antes de que la respuesta del asistente aparezca.
@@ -112,4 +121,24 @@ Then("no puedo enviar un nuevo mensaje hasta recibir una respuesta", async () =>
   await input.waitFor({ state: "visible" });
   assert.ok(await input.isDisabled(), "El input debería estar deshabilitado durante el procesamiento");
   assert.ok(await sendButton.isDisabled(), "El botón enviar debería estar deshabilitado durante el procesamiento");
+});
+
+When("el servicio de IA no se encuentra disponible", async () => {
+  // Ya navegamos con ?simulate=error en el Given. Sólo esperamos a que el
+  // mensaje de error esté visible (controlado por el cliente mockeado).
+  await page.getByText("No pudimos obtener una respuesta en este momento")
+    .first()
+    .waitFor({ state: "visible", timeout: 5000 });
+});
+
+Then("veo el mensaje del asistente {string}", async (expected: string) => {
+  const element = page.getByText(expected).first();
+  await element.waitFor({ state: "visible", timeout: 5000 });
+  assert.ok(await element.isVisible(), `No se ve el mensaje "${expected}"`);
+});
+
+Then("puedo volver a intentarlo", async () => {
+  const retry = page.getByRole("button", { name: /reintentar/i });
+  await retry.waitFor({ state: "visible" });
+  assert.ok(await retry.isVisible(), "No se ve el botón Reintentar");
 });

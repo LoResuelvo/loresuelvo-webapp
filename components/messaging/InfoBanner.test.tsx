@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import InfoBanner from "@/app/components/messaging/InfoBanner";
+import InfoBanner from "@/components/messaging/InfoBanner";
 
 describe("InfoBanner", () => {
   it("renderiza el mensaje recibido como children", () => {

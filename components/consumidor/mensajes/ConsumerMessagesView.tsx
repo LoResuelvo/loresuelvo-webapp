@@ -1,8 +1,8 @@
 import { RefObject, forwardRef } from "react";
-import { ChatPanel } from "@/app/components/messaging/MessagesLayout";
-import type { MessageInputHandle } from "@/app/components/messaging/MessageInput";
-import ContactList from "@/app/components/messaging/ContactList";
-import type { JobRequestInfo } from "@/app/components/messaging/ChatHeader";
+import { ChatPanel } from "@/components/messaging/MessagesLayout";
+import type { MessageInputHandle } from "@/components/messaging/MessageInput";
+import ContactList from "@/components/messaging/ContactList";
+import type { JobRequestInfo } from "@/components/messaging/ChatHeader";
 
 interface ConversationContact {
   id: string;

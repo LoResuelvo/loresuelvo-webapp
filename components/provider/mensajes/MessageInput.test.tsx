@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import MessageInput, { MessageInputHandle } from "@/app/components/messaging/MessageInput";
+import MessageInput, { MessageInputHandle } from "@/components/messaging/MessageInput";
 
 describe("MessageInput", () => {
   it("calls onSend when Enter is pressed", () => {

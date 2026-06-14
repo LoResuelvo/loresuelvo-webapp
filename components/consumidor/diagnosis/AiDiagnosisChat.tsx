@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertCircle, Loader2 } from "lucide-react";
-import MessageBubble from "@/app/components/messaging/MessageBubble";
-import MessageInput from "@/app/components/messaging/MessageInput";
-import InfoBanner from "@/app/components/messaging/InfoBanner";
+import MessageBubble from "@/components/messaging/MessageBubble";
+import MessageInput from "@/components/messaging/MessageInput";
+import InfoBanner from "@/components/messaging/InfoBanner";
 import {
   AssistantClient,
   createMockAssistantClient,

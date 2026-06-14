@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Sidebar from "@/components/consumidor/Sidebar";
 import ConsumerHeader from "@/components/consumidor/home/ConsumerHeader";
 import ConsumerMessagesView from "@/components/consumidor/mensajes/ConsumerMessagesView";
-import type { MessageInputHandle } from "@/app/components/messaging/MessageInput";
+import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import { AuthSession } from "@/lib/auth/types";
 import { ROUTES } from "@/lib/routes";
 import { getConversationDetail, sendMessage, createConversation, getJobRequestForConversation } from "./actions";

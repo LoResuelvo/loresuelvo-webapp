@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import MessagesList from "@/app/components/messaging/MessagesList";
+import MessagesList from "@/components/messaging/MessagesList";
 
-vi.mock("@/app/components/messaging/MessageBubble", () => ({
+vi.mock("@/components/messaging/MessageBubble", () => ({
   default: vi.fn(({ isOwnMessage, content }) => (
     <div data-testid="message-bubble" data-own={isOwnMessage}>
       {content}

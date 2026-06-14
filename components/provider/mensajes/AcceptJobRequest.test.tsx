@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import ChatHeader from "@/app/components/messaging/ChatHeader";
-import MessageBubble from "@/app/components/messaging/MessageBubble";
-import MessagesList from "@/app/components/messaging/MessagesList";
+import ChatHeader from "@/components/messaging/ChatHeader";
+import MessageBubble from "@/components/messaging/MessageBubble";
+import MessagesList from "@/components/messaging/MessagesList";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),

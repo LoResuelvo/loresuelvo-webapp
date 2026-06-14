@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import ConsumerMessagesView from "@/components/consumidor/mensajes/ConsumerMessagesView";
 
-vi.mock("@/app/components/messaging/MessageBubble", () => ({
+vi.mock("@/components/messaging/MessageBubble", () => ({
   default: vi.fn(({ isOwnMessage, content }) => (
     <div data-testid="message-bubble" data-own={isOwnMessage}>
       {content}
@@ -10,7 +10,7 @@ vi.mock("@/app/components/messaging/MessageBubble", () => ({
   )),
 }));
 
-vi.mock("@/app/components/messaging/ContactList", () => ({
+vi.mock("@/components/messaging/ContactList", () => ({
   default: vi.fn(() => <div data-testid="contact-list">ContactList</div>),
 }));
 

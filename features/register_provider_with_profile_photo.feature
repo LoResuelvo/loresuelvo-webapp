@@ -1,4 +1,3 @@
-@wip
 Feature: Completar registro de prestador con foto de perfil
     Como prestador
     quiero cargar mi foto de perfil al registrarme

@@ -26,6 +26,22 @@ function delayedClient(delayMs: number): AssistantClient {
   };
 }
 
+interface ManualHandle {
+  resolve: (reply: string) => void;
+}
+
+function manualClient(): { client: AssistantClient; handle: ManualHandle } {
+  const handle: ManualHandle = { resolve: () => undefined };
+  const client: AssistantClient = {
+    async requestReply() {
+      return new Promise<string>((resolve) => {
+        handle.resolve = resolve;
+      });
+    },
+  };
+  return { client, handle };
+}
+
 describe("AiDiagnosisChat", () => {
   it("muestra el mensaje inicial del usuario recibido por query param", () => {
     mockUseSearchParams.mockReturnValue(
@@ -81,5 +97,47 @@ describe("AiDiagnosisChat", () => {
 
     expect(screen.queryByText(USER_MESSAGE)).not.toBeInTheDocument();
     expect(screen.queryByText(ASSISTANT_REPLY)).not.toBeInTheDocument();
+  });
+
+  it("muestra un indicador de carga mientras la respuesta está en procesamiento", () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams({ mensaje: USER_MESSAGE }),
+    );
+
+    const { client } = manualClient();
+    render(<AiDiagnosisChat client={client} />);
+
+    expect(screen.getByRole("status", { name: /asistente escribiendo/i })).toBeInTheDocument();
+  });
+
+  it("deshabilita el input y el botón de enviar mientras hay respuesta en procesamiento", () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams({ mensaje: USER_MESSAGE }),
+    );
+
+    const { client } = manualClient();
+    render(<AiDiagnosisChat client={client} />);
+
+    const input = screen.getByPlaceholderText(/escribe un mensaje/i);
+    const sendButton = screen.getByRole("button", { name: /enviar mensaje/i });
+    expect(input).toBeDisabled();
+    expect(sendButton).toBeDisabled();
+  });
+
+  it("rehabilita el input cuando la respuesta llega", async () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams({ mensaje: USER_MESSAGE }),
+    );
+
+    const { client, handle } = manualClient();
+    render(<AiDiagnosisChat client={client} />);
+
+    expect(screen.getByPlaceholderText(/escribe un mensaje/i)).toBeDisabled();
+
+    handle.resolve(ASSISTANT_REPLY);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/escribe un mensaje/i)).not.toBeDisabled();
+    });
   });
 });

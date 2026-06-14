@@ -85,3 +85,31 @@ Then("veo una respuesta del asistente en el chat", async () => {
     "No se ve la respuesta del asistente en el chat",
   );
 });
+
+Given("envié un mensaje al asistente", async () => {
+  await setConsumerSession();
+  const mensaje = encodeURIComponent("Se está filtrando agua debajo de la bacha");
+  await page.goto(`${APP_URL}${ROUTES.consumer.diagnostico}?mensaje=${mensaje}`);
+  await page.waitForLoadState("networkidle");
+});
+
+When("la respuesta aún se encuentra en procesamiento", async () => {
+  // El cliente mock tiene un delay por defecto (800ms). Verificamos el indicador
+  // antes de que la respuesta del asistente aparezca.
+  await page.getByRole("status", { name: /asistente escribiendo/i })
+    .waitFor({ state: "visible", timeout: 2000 });
+});
+
+Then("veo un indicador de carga", async () => {
+  const indicator = page.getByRole("status", { name: /asistente escribiendo/i });
+  await indicator.waitFor({ state: "visible" });
+  assert.ok(await indicator.isVisible(), "No se ve el indicador de carga");
+});
+
+Then("no puedo enviar un nuevo mensaje hasta recibir una respuesta", async () => {
+  const input = page.getByPlaceholder(/escribe un mensaje/i);
+  const sendButton = page.getByRole("button", { name: /enviar mensaje/i });
+  await input.waitFor({ state: "visible" });
+  assert.ok(await input.isDisabled(), "El input debería estar deshabilitado durante el procesamiento");
+  assert.ok(await sendButton.isDisabled(), "El botón enviar debería estar deshabilitado durante el procesamiento");
+});

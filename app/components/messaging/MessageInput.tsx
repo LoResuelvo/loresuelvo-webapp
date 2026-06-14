@@ -43,6 +43,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           type="button"
           onClick={onSend}
           disabled={disabled || !value.trim()}
+          aria-label="Enviar mensaje"
           className="px-5 py-3 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Send className="w-5 h-5" aria-hidden="true" />

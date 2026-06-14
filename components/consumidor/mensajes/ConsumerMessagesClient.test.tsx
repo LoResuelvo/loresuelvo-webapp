@@ -122,7 +122,7 @@ describe("ConsumerMessagesClient", () => {
     const input = screen.getByPlaceholderText("Escribe un mensaje...");
     fireEvent.change(input, { target: { value: "Nuevo mensaje de prueba" } });
 
-    const sendButton = screen.getByRole("button", { name: "" });
+    const sendButton = screen.getByRole("button", { name: /enviar mensaje/i });
     await act(async () => {
       fireEvent.click(sendButton);
     });

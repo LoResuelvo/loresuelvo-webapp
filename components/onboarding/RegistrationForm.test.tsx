@@ -12,6 +12,26 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
+vi.mock("@/app/onboarding/fileActions", () => ({
+  getPresignedUrlAction: vi.fn().mockResolvedValue({
+    file_id: "mock-file-id",
+    key: "mock-key",
+    upload_url: "http://mock-url",
+    headers: {},
+  }),
+  confirmUploadAction: vi.fn().mockResolvedValue({
+    id: "mock-file-id",
+    url: "http://mock-url",
+    original_name: "mock.png",
+  }),
+}));
+
+vi.mock("@/lib/storage/storage-client", () => ({
+  storageClient: {
+    uploadFile: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 describe("RegistrationForm", () => {
   beforeEach(() => {
     vi.restoreAllMocks();

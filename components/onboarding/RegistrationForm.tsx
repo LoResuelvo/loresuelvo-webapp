@@ -8,6 +8,9 @@ import { submitRegistration } from "@/app/onboarding/registrationButtonAction";
 import { RoleSelectionStep } from "./RoleSelectionStep";
 import { ProfileFormStep } from "./ProfileFormStep";
 import { Category } from "@/lib/api/types";
+import { getPresignedUrlAction, confirmUploadAction } from "@/app/onboarding/fileActions";
+import { storageClient } from "@/lib/storage/storage-client";
+
 
 export default function RegistrationForm({
   session: _session,
@@ -30,6 +33,11 @@ export default function RegistrationForm({
       if (role) {
         formData.append("role", role);
       }
+
+      if (role === "provider") {
+        await handleProfilePhotoUpload(formData);
+      }
+
       const result = await submitRegistration(formData);
       if (result?.redirectTo) {
         router.push(result.redirectTo);
@@ -64,4 +72,28 @@ export default function RegistrationForm({
       </div>
     </div>
   );
+
+  async function handleProfilePhotoUpload(formData: FormData) {
+    const profilePhoto = formData.get("profilePhoto") as File | null;
+    if (profilePhoto && profilePhoto.size > 0 && profilePhoto.name !== "") {
+      const presigned = await getPresignedUrlAction(
+        profilePhoto.name,
+        profilePhoto.type,
+        profilePhoto.size,
+        "profile_photo"
+      );
+
+      await storageClient.uploadFile(profilePhoto, presigned.upload_url, presigned.headers);
+
+      const confirmed = await confirmUploadAction(
+        presigned.file_id,
+        presigned.key,
+        profilePhoto.type,
+        profilePhoto.size
+      );
+
+      formData.delete("profilePhoto");
+      formData.append("profilePhotoId", confirmed.id);
+    }
+  }
 }

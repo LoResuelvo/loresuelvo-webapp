@@ -13,12 +13,13 @@ interface RegisterUserData {
   surname: string;
 }
 
-async function registerProvider(data: RegisterUserData, categoryId: number) {
+async function registerProvider(data: RegisterUserData, categoryId: number, profilePhotoId?: string) {
   return api.post("/providers", {
     email: data.email,
     name: data.name,
     surname: data.surname,
     category_id: categoryId,
+    profile_photo_file_id: profilePhotoId,
   });
 }
 
@@ -55,7 +56,8 @@ export async function submitRegistration(formData: FormData) {
   if (role === "provider") {
     const rawCategoryId = formData.get("categoryId") as string;
     const categoryId = rawCategoryId ? parseInt(rawCategoryId, 10) : 0;
-    await registerProvider(userData, categoryId);
+    const profilePhotoId = formData.get("profilePhotoId") as string;
+    await registerProvider(userData, categoryId, profilePhotoId);
   } else {
     await registerConsumer(userData);
   }

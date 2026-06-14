@@ -30,10 +30,9 @@ Feature: Diagnóstico asistido por IA
     Then veo el mensaje del asistente "No pudimos obtener una respuesta en este momento"
     And puedo volver a intentarlo
 
-  @wip
   Scenario: 05-DIA Mostrar advertencia de orientación preliminar
     When visualizo la conversación con el asistente
-    Then veo el mensaje "Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo"
+    Then veo el mensaje del asistente "Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo"
 
   @wip
   Scenario: 06-DIA Mantener historial de conversación

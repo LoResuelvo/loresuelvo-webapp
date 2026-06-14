@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { AlertCircle, Loader2 } from "lucide-react";
 import MessageBubble from "@/app/components/messaging/MessageBubble";
 import MessageInput from "@/app/components/messaging/MessageInput";
+import InfoBanner from "@/app/components/messaging/InfoBanner";
 import {
   AssistantClient,
   createMockAssistantClient,
@@ -106,6 +107,11 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
       aria-label="Chat con el asistente de diagnóstico"
       className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col"
     >
+      <div className="px-6 pt-6">
+        <InfoBanner tone="info">
+          Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo
+        </InfoBanner>
+      </div>
       <div className="flex flex-col gap-4 p-6">
         {messages.map((msg) => (
           <MessageBubble

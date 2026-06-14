@@ -142,3 +142,12 @@ Then("puedo volver a intentarlo", async () => {
   await retry.waitFor({ state: "visible" });
   assert.ok(await retry.isVisible(), "No se ve el botón Reintentar");
 });
+
+When("visualizo la conversación con el asistente", async () => {
+  await setConsumerSession();
+  const mensaje = encodeURIComponent("Se está filtrando agua debajo de la bacha");
+  await page.goto(`${APP_URL}${ROUTES.consumer.diagnostico}?mensaje=${mensaje}`);
+  await page.waitForLoadState("networkidle");
+  await page.getByText("Se está filtrando agua debajo de la bacha").first()
+    .waitFor({ state: "visible" });
+});

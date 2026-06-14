@@ -12,6 +12,8 @@ vi.mock("next/navigation", () => ({
 const ASSISTANT_REPLY =
   "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?";
 const USER_MESSAGE = "Se está filtrando agua debajo de la bacha";
+const DISCLAIMER_TEXT =
+  "Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo";
 
 function instantClient(): AssistantClient {
   return { async requestReply() { return ASSISTANT_REPLY; } };
@@ -107,6 +109,16 @@ describe("AiDiagnosisChat", () => {
 
     expect(screen.queryByText(USER_MESSAGE)).not.toBeInTheDocument();
     expect(screen.queryByText(ASSISTANT_REPLY)).not.toBeInTheDocument();
+  });
+
+  it("muestra el aviso de orientación preliminar cuando se visualiza la conversación", () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams({ mensaje: USER_MESSAGE }),
+    );
+
+    render(<AiDiagnosisChat client={instantClient()} />);
+
+    expect(screen.getByText(DISCLAIMER_TEXT)).toBeInTheDocument();
   });
 
   it("muestra un indicador de carga mientras la respuesta está en procesamiento", () => {

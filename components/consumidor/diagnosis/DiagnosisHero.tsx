@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Sparkles, Info } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 
-const HERO_IMAGE = "/illustrations/hero-home-ai-diagnosis.svg";
+const HERO_IMAGE = "/illustrations/hero-home-ai-diagnosis.png";
 
 export default function DiagnosisHero() {
   const router = useRouter();
@@ -23,45 +24,56 @@ export default function DiagnosisHero() {
   return (
     <section
       aria-label="Asistente de diagnóstico"
-      className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+      className="relative rounded-2xl border border-white/30 shadow-sm overflow-hidden min-h-[340px] md:min-h-[380px]"
     >
-      <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-6 md:gap-8 items-center p-6 md:p-8">
-        <div className="flex flex-col gap-4">
-          <h1 className="text-[26px] md:text-[28px] font-bold tracking-tight text-brand-primary">
-            ¿Qué está pasando en tu hogar?
-          </h1>
-          <p className="text-slate-500 font-medium">
-            Contanos qué te pasa y un asistente te ayuda a describir el problema antes de contactar a un profesional.
-          </p>
-          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 mt-2">
-            <label htmlFor="diagnosis-message" className="sr-only">
-              Describí el problema
-            </label>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={HERO_IMAGE}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-slate-900/20"
+      />
+
+      <div className="relative h-full p-6 md:p-10 flex flex-col justify-center max-w-3xl gap-6">
+        <div className="flex items-center gap-2.5 text-white">
+          <Sparkles className="w-6 h-6" aria-hidden="true" />
+          <span className="text-[16px] font-semibold tracking-wide uppercase">
+            Diagnóstico con IA
+          </span>
+        </div>
+        <h1 className="text-[30px] md:text-[36px] font-bold tracking-tight text-white drop-shadow">
+          ¿Qué está pasando en tu hogar?
+        </h1>
+
+        <form onSubmit={handleSubmit}>
+          <label htmlFor="diagnosis-message" className="sr-only">
+            Describí el problema
+          </label>
+          <div className="flex items-center gap-2 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 p-2">
             <input
               id="diagnosis-message"
               type="text"
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               placeholder="Describe el problema de tu hogar…"
-              className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[15px] text-brand-primary placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+              className="flex-1 min-w-0 rounded-lg bg-white/20 backdrop-blur px-4 py-3 text-[16px] text-white placeholder:text-white/70 focus:outline-none focus:ring-2 focus:ring-white/70"
             />
             <button
               type="submit"
-              className="rounded-xl bg-brand-primary text-white font-semibold px-5 py-3 hover:opacity-95 transition-opacity whitespace-nowrap"
+              className="rounded-lg bg-brand-primary text-white font-semibold px-6 py-3 text-[15px] hover:opacity-95 transition-opacity whitespace-nowrap shadow-sm"
             >
               Diagnosticar
             </button>
-          </form>
-        </div>
-
-        <div className="relative w-full aspect-[5/4] md:aspect-auto md:h-full flex items-center justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={HERO_IMAGE}
-            alt="Persona inspeccionando una pérdida debajo de la bacha"
-            className="w-full h-full object-contain"
-          />
-        </div>
+          </div>
+          <div className="flex items-center gap-2 text-white/80 text-[14px] mt-3">
+            <Info className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+            <span>Nuestra IA permite identificar el problema y contactar con un profesional</span>
+          </div>
+        </form>
       </div>
     </section>
   );

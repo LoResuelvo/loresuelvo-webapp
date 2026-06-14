@@ -8,4 +8,13 @@ afterEach(() => {
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/consumidor",
+  useRouter: () => ({
+    push: () => undefined,
+    replace: () => undefined,
+    back: () => undefined,
+    forward: () => undefined,
+    refresh: () => undefined,
+    prefetch: () => undefined,
+  }),
+  useSearchParams: () => new URLSearchParams(),
 }));

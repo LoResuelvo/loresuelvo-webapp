@@ -5,6 +5,7 @@ import { AuthSession } from "@/lib/auth/types";
 import { Category } from "@/lib/api/types";
 import ConsumerHeader from "./ConsumerHeader";
 import CategoryGrid from "./CategoryGrid";
+import DiagnosisHero from "@/components/consumidor/diagnosis/DiagnosisHero";
 
 interface ConsumerHomeProps {
   session: AuthSession | null;
@@ -18,7 +19,8 @@ export default function ConsumerHome({ session, categories = [] }: ConsumerHomeP
       <div className="flex-1 flex flex-col min-w-0">
         <ConsumerHeader session={session} />
         <main className="flex-1 p-8 lg:p-10 flex justify-center">
-          <div className="max-w-6xl w-full">
+          <div className="max-w-6xl w-full flex flex-col gap-10">
+            <DiagnosisHero />
             <CategoryGrid categories={categories} />
           </div>
         </main>

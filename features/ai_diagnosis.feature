@@ -7,7 +7,6 @@ Feature: Diagnóstico asistido por IA
     Given estoy autenticado como consumidor
     And me encuentro en la pantalla Home
 
-  @wip
   Scenario: 01-DIA Iniciar conversación con el asistente
     When ingreso un mensaje en el campo de diagnóstico
     And presiono "Diagnosticar"

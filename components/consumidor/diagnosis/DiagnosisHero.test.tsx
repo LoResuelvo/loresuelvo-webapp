@@ -35,7 +35,7 @@ describe("DiagnosisHero", () => {
 
     expect(mockPush).toHaveBeenCalledTimes(1);
     expect(mockPush).toHaveBeenCalledWith(
-      "/consumidor/diagnostico?mensaje=Se+est%C3%A1+filtrando+agua+debajo+de+la+bacha",
+      "/consumidor/mensajes-ia?mensaje=Se+est%C3%A1+filtrando+agua+debajo+de+la+bacha",
     );
   });
 

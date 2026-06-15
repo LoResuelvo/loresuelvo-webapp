@@ -50,7 +50,7 @@ export default function DiagnosisHero() {
     const trimmed = message.trim();
     if (!trimmed) return;
 
-    const url = new URL(ROUTES.consumer.diagnostico, window.location.origin);
+    const url = new URL(ROUTES.consumer.aiMessages, window.location.origin);
     url.searchParams.set("mensaje", trimmed);
     router.push(url.pathname + url.search);
   };

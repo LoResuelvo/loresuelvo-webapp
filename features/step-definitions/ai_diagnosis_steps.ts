@@ -44,10 +44,10 @@ When("presiono {string}", async (buttonName: string) => {
 });
 
 Then("se inicia una conversación con el asistente", async () => {
-  await page.waitForURL(`**${ROUTES.consumer.diagnostico}**`);
+  await page.waitForURL(`**${ROUTES.consumer.aiMessages}**`);
   assert.ok(
-    page.url().includes(ROUTES.consumer.diagnostico),
-    `Se esperaba estar en ${ROUTES.consumer.diagnostico} pero la URL es ${page.url()}`,
+    page.url().includes(ROUTES.consumer.aiMessages),
+    `Se esperaba estar en ${ROUTES.consumer.aiMessages} pero la URL es ${page.url()}`,
   );
 });
 
@@ -63,7 +63,7 @@ Then("veo mi mensaje en el chat", async () => {
 Given("inicié una conversación con el asistente", async () => {
   await setConsumerSession();
   const mensaje = encodeURIComponent("Se está filtrando agua debajo de la bacha");
-  await page.goto(`${APP_URL}${ROUTES.consumer.diagnostico}?mensaje=${mensaje}`);
+  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?mensaje=${mensaje}`);
   await page.waitForLoadState("networkidle");
 });
 
@@ -89,7 +89,7 @@ Then("veo una respuesta del asistente en el chat", async () => {
 Given("envié un mensaje al asistente", async () => {
   await setConsumerSession();
   const mensaje = encodeURIComponent("Se está filtrando agua debajo de la bacha");
-  await page.goto(`${APP_URL}${ROUTES.consumer.diagnostico}?mensaje=${mensaje}`);
+  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?mensaje=${mensaje}`);
   await page.waitForLoadState("networkidle");
 });
 
@@ -97,7 +97,7 @@ Given("envié un mensaje al asistente con un error simulado", async () => {
   await setConsumerSession();
   const mensaje = encodeURIComponent("Se está filtrando agua debajo de la bacha");
   await page.goto(
-    `${APP_URL}${ROUTES.consumer.diagnostico}?mensaje=${mensaje}&simulate=error`,
+    `${APP_URL}${ROUTES.consumer.aiMessages}?mensaje=${mensaje}&simulate=error`,
   );
   await page.waitForLoadState("networkidle");
 });
@@ -146,7 +146,7 @@ Then("puedo volver a intentarlo", async () => {
 When("visualizo la conversación con el asistente", async () => {
   await setConsumerSession();
   const mensaje = encodeURIComponent("Se está filtrando agua debajo de la bacha");
-  await page.goto(`${APP_URL}${ROUTES.consumer.diagnostico}?mensaje=${mensaje}`);
+  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?mensaje=${mensaje}`);
   await page.waitForLoadState("networkidle");
   await page.getByText("Se está filtrando agua debajo de la bacha").first()
     .waitFor({ state: "visible" });

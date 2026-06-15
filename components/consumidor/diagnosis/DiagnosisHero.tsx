@@ -35,8 +35,10 @@ export default function DiagnosisHero() {
     const effectiveLines = Math.min(Math.max(lineCount, 1), MAX_LINES);
     textarea.rows = effectiveLines;
     const maxHeight = LINE_HEIGHT_CSS * MAX_LINES;
+    textarea.style.height = "auto";
+    const hasOverflow = textarea.scrollHeight > maxHeight;
+    textarea.style.overflowY = hasOverflow ? "auto" : "hidden";
     textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
-    textarea.style.overflowY = lineCount > MAX_LINES ? "auto" : "hidden";
   };
 
   const textareaRefCallback = useCallback((node: HTMLTextAreaElement | null) => {

@@ -35,8 +35,21 @@ Feature: Diagnóstico asistido por IA
     Then veo el mensaje del asistente "Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo"
 
   @wip
-  Scenario: 06-DIA Mantener historial de conversación
-    Given existe una conversación activa con el asistente
-    When envío un nuevo mensaje
-    Then veo el historial completo de la conversación
-    And veo los mensajes ordenados cronológicamente
+  Scenario: 06-DIA Navegar al chat de IA
+      When selecciono la opción "Chat con IA"
+      Then veo la pantalla de conversación con el asistente
+
+  @wip
+  Scenario: 07-DIA Expandir campo de texto automáticamente
+    Given me encuentro escribiendo un mensaje para el asistente
+    When el contenido supera una línea
+    Then el campo de texto aumenta su altura automáticamente
+    And permite visualizar hasta 6 líneas de contenido sin scroll
+
+  @wip
+  Scenario: 08-DIA Utilizar scroll en mensajes extensos
+    Given me encuentro escribiendo un mensaje para el asistente
+    When el contenido supera las 6 líneas visibles
+    Then el campo de texto mantiene una altura máxima de 6 líneas
+    And puedo desplazarme mediante scroll dentro del campo
+    And el contenido completo permanece accesible

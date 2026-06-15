@@ -4,12 +4,15 @@ import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, Info } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
+import { saveAiMessages, loadAiMessages, type AiMessage } from "@/lib/diagnosis/ai-chat-storage";
 
 const HERO_IMAGE = "/illustrations/hero-home-ai-diagnosis.png";
 
 const MAX_LINES = 6;
 const INITIAL_HEIGHT = 50;
 const LINE_HEIGHT_CSS = 24;
+
+const USER_ID = "consumer-ai-diagnosis";
 
 export default function DiagnosisHero() {
   const router = useRouter();
@@ -50,9 +53,30 @@ export default function DiagnosisHero() {
     const trimmed = message.trim();
     if (!trimmed) return;
 
-    const url = new URL(ROUTES.consumer.aiMessages, window.location.origin);
-    url.searchParams.set("mensaje", trimmed);
-    router.push(url.pathname + url.search);
+    const newMessage: AiMessage = {
+      id: `msg-user-${Date.now()}`,
+      content: trimmed,
+      senderId: USER_ID,
+      sentAt: new Date().toLocaleString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+
+    const existingMessages = loadAiMessages();
+    saveAiMessages([...existingMessages, newMessage]);
+
+    setMessage("");
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.rows = 2;
+      textarea.style.height = `${INITIAL_HEIGHT}px`;
+      textarea.style.overflowY = "hidden";
+    }
+
+    router.push(ROUTES.consumer.aiMessages);
   };
 
   return (

@@ -10,13 +10,11 @@ import {
   createMockAssistantClient,
   DEFAULT_ASSISTANT_DELAY_MS,
 } from "@/lib/diagnosis/assistant-client";
-
-interface ChatMessage {
-  id: string;
-  content: string;
-  sentAt: string;
-  senderId: string;
-}
+import {
+  saveAiMessages,
+  loadAiMessages,
+  type AiMessage,
+} from "@/lib/diagnosis/ai-chat-storage";
 
 const USER_ID = "consumer-ai-diagnosis";
 const ASSISTANT_ID = "assistant-ai-diagnosis";
@@ -34,15 +32,17 @@ interface AiDiagnosisChatProps {
 
 export default function AiDiagnosisChat({ client, simulateError = false }: AiDiagnosisChatProps = {}) {
   const searchParams = useSearchParams();
-  const initialMessage = searchParams.get("mensaje")?.trim() ?? "";
   const urlSimulateError = searchParams.get("simulate") === "error";
   const shouldSimulateError = simulateError || urlSimulateError;
 
+  const [messages, setMessages] = useState<AiMessage[]>([]);
   const [assistantReply, setAssistantReply] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
-  const [retryToken, setRetryToken] = useState(0);
   const [messageInput, setMessageInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isWaitingForReply, setIsWaitingForReply] = useState(false);
+  const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const assistantClient = useMemo(
@@ -55,40 +55,101 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
   );
 
   useEffect(() => {
-    if (!initialMessage) {
-      setAssistantReply(null);
-      setHasError(false);
-      return;
-    }
+    const stored = loadAiMessages();
+    setMessages(stored);
+    setIsInitialized(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isInitialized) return;
+    if (messages.length === 0) return;
+
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage.senderId !== USER_ID) return;
+
+    setLastUserMessage(lastMessage.content);
+    setIsWaitingForReply(true);
     setAssistantReply(null);
     setHasError(false);
+
     let cancelled = false;
     assistantClient
-      .requestReply(initialMessage)
+      .requestReply(lastMessage.content)
       .then((reply) => {
         if (cancelled) return;
-        setAssistantReply(reply);
+        const assistantMessage: AiMessage = {
+          id: `msg-assistant-${Date.now()}`,
+          content: reply,
+          senderId: ASSISTANT_ID,
+          sentAt: new Date().toLocaleString("es-AR", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+        setMessages((prev) => {
+          const updated = [...prev, assistantMessage];
+          saveAiMessages(updated);
+          return updated;
+        });
+        setIsWaitingForReply(false);
+        setAssistantReply(null);
         setHasError(false);
+        setLastUserMessage(null);
       })
       .catch(() => {
         if (cancelled) return;
+        setIsWaitingForReply(false);
         setAssistantReply(null);
         setHasError(true);
       });
+
     return () => {
       cancelled = true;
     };
-  }, [initialMessage, assistantClient, retryToken]);
+  }, [messages, assistantClient, isInitialized]);
 
   const handleRetry = useCallback(() => {
-    setRetryToken((token) => token + 1);
-  }, []);
+    if (!lastUserMessage) return;
+    setHasError(false);
+    setIsWaitingForReply(true);
+  }, [lastUserMessage]);
 
   const handleSendMessage = useCallback(() => {
-    if (!messageInput.trim() || isSending) return;
+    const trimmed = messageInput.trim();
+    if (!trimmed || isSending) return;
+
     setIsSending(true);
     setMessageInput("");
+
+    const newMessage: AiMessage = {
+      id: `msg-user-${Date.now()}`,
+      content: trimmed,
+      senderId: USER_ID,
+      sentAt: new Date().toLocaleString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+
+    setMessages((prev) => {
+      const updated = [...prev, newMessage];
+      saveAiMessages(updated);
+      return updated;
+    });
+
     setIsSending(false);
+
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.rows = 2;
+      textarea.style.height = `${INITIAL_HEIGHT}px`;
+      textarea.style.overflowY = "hidden";
+      textarea.focus();
+    }
   }, [messageInput, isSending]);
 
   const adjustHeight = useCallback(() => {
@@ -117,6 +178,14 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
     adjustHeight();
   }, [adjustHeight]);
 
+  useEffect(() => {
+    if (!messageInput && textareaRef.current) {
+      textareaRef.current.rows = 2;
+      textareaRef.current.style.height = `${INITIAL_HEIGHT}px`;
+      textareaRef.current.style.overflowY = "hidden";
+    }
+  }, [messageInput]);
+
   const setTextareaRef = useCallback((node: HTMLTextAreaElement | null) => {
     textareaRef.current = node;
     if (node) {
@@ -126,27 +195,7 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
     }
   }, []);
 
-  const isProcessing = Boolean(initialMessage) && assistantReply === null && !hasError;
-
-  const messages: ChatMessage[] = initialMessage
-    ? [
-        {
-          id: "msg-user-1",
-          content: initialMessage,
-          sentAt: "Recién",
-          senderId: USER_ID,
-        },
-      ]
-    : [];
-
-  if (assistantReply) {
-    messages.push({
-      id: "msg-assistant-1",
-      content: assistantReply,
-      sentAt: "Recién",
-      senderId: ASSISTANT_ID,
-    });
-  }
+  const isProcessing = isWaitingForReply && assistantReply === null && !hasError;
 
   return (
     <section
@@ -159,7 +208,7 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
         </InfoBanner>
       </div>
       <div className="flex flex-col gap-4 p-6 min-h-[280px]">
-        {messages.length === 0 ? (
+        {!isInitialized ? null : messages.length === 0 ? (
           <div className="flex flex-1 items-center justify-center text-center">
             <div>
               <MessageSquare className="w-14 h-14 text-slate-300 mx-auto mb-4" aria-hidden="true" />

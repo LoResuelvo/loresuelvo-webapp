@@ -4,6 +4,16 @@ import DiagnosisHero from "@/components/consumidor/diagnosis/DiagnosisHero";
 
 const mockPush = vi.fn();
 
+const mockLocalStorage = {
+  getItem: vi.fn().mockReturnValue(null),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+};
+
+Object.defineProperty(global, "localStorage", {
+  value: mockLocalStorage,
+});
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
 }));
@@ -11,11 +21,14 @@ vi.mock("next/navigation", () => ({
 afterEach(() => {
   cleanup();
   mockPush.mockReset();
+  mockLocalStorage.getItem.mockReturnValue(null);
+  mockLocalStorage.setItem.mockClear();
 });
 
 describe("DiagnosisHero", () => {
   beforeEach(() => {
     mockPush.mockReset();
+    mockLocalStorage.getItem.mockReturnValue(null);
   });
 
   it("muestra el título y el input para describir el problema", () => {
@@ -25,7 +38,7 @@ describe("DiagnosisHero", () => {
     expect(screen.getByRole("button", { name: /diagnosticar/i })).toBeInTheDocument();
   });
 
-  it("navega a la pantalla de chat con el mensaje al presionar Diagnosticar", () => {
+  it("navega a la pantalla de chat al presionar Diagnosticar guardando en localStorage", () => {
     render(<DiagnosisHero />);
 
     fireEvent.change(screen.getByPlaceholderText(/describe el problema/i), {
@@ -34,9 +47,11 @@ describe("DiagnosisHero", () => {
     fireEvent.click(screen.getByRole("button", { name: /diagnosticar/i }));
 
     expect(mockPush).toHaveBeenCalledTimes(1);
-    expect(mockPush).toHaveBeenCalledWith(
-      "/consumidor/mensajes-ia?mensaje=Se+est%C3%A1+filtrando+agua+debajo+de+la+bacha",
-    );
+    expect(mockPush).toHaveBeenCalledWith("/consumidor/mensajes-ia");
+    expect(mockLocalStorage.setItem).toHaveBeenCalled();
+    const storedData = JSON.parse(mockLocalStorage.setItem.mock.calls[0][1]);
+    expect(storedData.length).toBe(1);
+    expect(storedData[0].content).toBe("Se está filtrando agua debajo de la bacha");
   });
 
   it("no navega si el mensaje está vacío", () => {

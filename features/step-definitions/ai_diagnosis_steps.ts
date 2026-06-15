@@ -62,8 +62,19 @@ Then("veo mi mensaje en el chat", async () => {
 
 Given("inicié una conversación con el asistente", async () => {
   await setConsumerSession();
-  const mensaje = encodeURIComponent("Se está filtrando agua debajo de la bacha");
-  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?mensaje=${mensaje}`);
+  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}`);
+  await page.waitForLoadState("networkidle");
+  const mensaje = "Se está filtrando agua debajo de la bacha";
+  await page.evaluate((msg) => {
+    const messages = [{
+      id: `msg-user-${Date.now()}`,
+      content: msg,
+      senderId: "consumer-ai-diagnosis",
+      sentAt: "Recién",
+    }];
+    localStorage.setItem("ai_chat_messages", JSON.stringify(messages));
+  }, mensaje);
+  await page.reload();
   await page.waitForLoadState("networkidle");
 });
 
@@ -88,17 +99,37 @@ Then("veo una respuesta del asistente en el chat", async () => {
 
 Given("envié un mensaje al asistente", async () => {
   await setConsumerSession();
-  const mensaje = encodeURIComponent("Se está filtrando agua debajo de la bacha");
-  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?mensaje=${mensaje}`);
+  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}`);
+  await page.waitForLoadState("networkidle");
+  const mensaje = "Se está filtrando agua debajo de la bacha";
+  await page.evaluate((msg) => {
+    const messages = [{
+      id: `msg-user-${Date.now()}`,
+      content: msg,
+      senderId: "consumer-ai-diagnosis",
+      sentAt: "Recién",
+    }];
+    localStorage.setItem("ai_chat_messages", JSON.stringify(messages));
+  }, mensaje);
+  await page.reload();
   await page.waitForLoadState("networkidle");
 });
 
 Given("envié un mensaje al asistente con un error simulado", async () => {
   await setConsumerSession();
-  const mensaje = encodeURIComponent("Se está filtrando agua debajo de la bacha");
-  await page.goto(
-    `${APP_URL}${ROUTES.consumer.aiMessages}?mensaje=${mensaje}&simulate=error`,
-  );
+  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?simulate=error`);
+  await page.waitForLoadState("networkidle");
+  const mensaje = "Se está filtrando agua debajo de la bacha";
+  await page.evaluate((msg) => {
+    const messages = [{
+      id: `msg-user-${Date.now()}`,
+      content: msg,
+      senderId: "consumer-ai-diagnosis",
+      sentAt: "Recién",
+    }];
+    localStorage.setItem("ai_chat_messages", JSON.stringify(messages));
+  }, mensaje);
+  await page.reload();
   await page.waitForLoadState("networkidle");
 });
 
@@ -145,8 +176,19 @@ Then("puedo volver a intentarlo", async () => {
 
 When("visualizo la conversación con el asistente", async () => {
   await setConsumerSession();
-  const mensaje = encodeURIComponent("Se está filtrando agua debajo de la bacha");
-  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?mensaje=${mensaje}`);
+  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}`);
+  await page.waitForLoadState("networkidle");
+  const mensaje = "Se está filtrando agua debajo de la bacha";
+  await page.evaluate((msg) => {
+    const messages = [{
+      id: `msg-user-${Date.now()}`,
+      content: msg,
+      senderId: "consumer-ai-diagnosis",
+      sentAt: "Recién",
+    }];
+    localStorage.setItem("ai_chat_messages", JSON.stringify(messages));
+  }, mensaje);
+  await page.reload();
   await page.waitForLoadState("networkidle");
   await page.getByText("Se está filtrando agua debajo de la bacha").first()
     .waitFor({ state: "visible" });

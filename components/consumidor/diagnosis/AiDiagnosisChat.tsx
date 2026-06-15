@@ -1,10 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertCircle, Loader2, MessageSquare } from "lucide-react";
+import { AlertCircle, Loader2, MessageSquare, Send } from "lucide-react";
 import MessageBubble from "@/components/messaging/MessageBubble";
-import MessageInput from "@/components/messaging/MessageInput";
 import InfoBanner from "@/components/messaging/InfoBanner";
 import {
   AssistantClient,
@@ -24,6 +23,10 @@ const ASSISTANT_ID = "assistant-ai-diagnosis";
 
 const ERROR_MESSAGE = "No pudimos obtener una respuesta en este momento";
 
+const MAX_LINES = 6;
+const INITIAL_HEIGHT = 50;
+const LINE_HEIGHT_CSS = 24;
+
 interface AiDiagnosisChatProps {
   client?: AssistantClient;
   simulateError?: boolean;
@@ -40,6 +43,7 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
   const [retryToken, setRetryToken] = useState(0);
   const [messageInput, setMessageInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const assistantClient = useMemo(
     () =>
@@ -87,8 +91,39 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
     setIsSending(false);
   }, [messageInput, isSending]);
 
+  const adjustHeight = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    if (!messageInput || !messageInput.trim()) {
+      textarea.rows = 2;
+      textarea.style.height = `${INITIAL_HEIGHT}px`;
+      textarea.style.overflowY = "hidden";
+      return;
+    }
+    const lineCount = messageInput.split("\n").length;
+    const effectiveLines = Math.min(Math.max(lineCount, 1), MAX_LINES);
+    textarea.rows = effectiveLines;
+    const maxHeight = LINE_HEIGHT_CSS * MAX_LINES;
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+    textarea.style.overflowY = lineCount > MAX_LINES ? "auto" : "hidden";
+  }, [messageInput]);
+
   const handleInputChange = useCallback((value: string) => {
     setMessageInput(value);
+    adjustHeight();
+  }, [adjustHeight]);
+
+  useEffect(() => {
+    adjustHeight();
+  }, [adjustHeight]);
+
+  const setTextareaRef = useCallback((node: HTMLTextAreaElement | null) => {
+    textareaRef.current = node;
+    if (node) {
+      node.rows = 2;
+      node.style.height = `${INITIAL_HEIGHT}px`;
+      node.style.overflowY = "hidden";
+    }
   }, []);
 
   const isProcessing = Boolean(initialMessage) && assistantReply === null && !hasError;
@@ -186,13 +221,30 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
         )}
       </div>
 
-      <div className="border-t border-slate-200">
-        <MessageInput
+      <div className="border-t border-slate-200 p-4 flex gap-3 bg-white">
+        <textarea
+          ref={setTextareaRef}
           value={messageInput}
-          onChange={handleInputChange}
-          onSend={handleSendMessage}
+          onChange={(e) => handleInputChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSendMessage();
+            }
+          }}
+          placeholder="Escribe un mensaje..."
+          className="flex-1 resize-none px-4 py-3 rounded-xl border border-slate-200 bg-white text-[14px] leading-6 focus:outline-none focus:ring-2 focus:ring-brand-secondary/40"
           disabled={isProcessing || isSending}
         />
+        <button
+          type="button"
+          onClick={handleSendMessage}
+          disabled={isProcessing || isSending || !messageInput.trim()}
+          aria-label="Enviar mensaje"
+          className="px-5 py-3 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Send className="w-5 h-5" aria-hidden="true" />
+        </button>
       </div>
     </section>
   );

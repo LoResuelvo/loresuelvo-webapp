@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useCallback, useEffect } from "react";
+import { forwardRef, useImperativeHandle, useRef } from "react";
 import { Send } from "lucide-react";
 
 interface MessageInputProps {
@@ -12,48 +12,9 @@ export interface MessageInputHandle {
   focus: () => void;
 }
 
-const LINE_HEIGHT = 24;
-const MAX_LINES = 6;
-
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
   ({ value, onChange, onSend, disabled }, ref) => {
-    const inputRef = useRef<HTMLTextAreaElement>(null);
-
-    const adjustHeight = useCallback(() => {
-      const textarea = inputRef.current;
-      if (!textarea) return;
-      if (!value || !value.trim()) {
-        textarea.rows = 1;
-        textarea.style.height = `${LINE_HEIGHT}px`;
-        textarea.style.overflowY = "hidden";
-        return;
-      }
-      const lineCount = value.split("\n").length;
-      const effectiveLines = Math.min(Math.max(lineCount, 1), MAX_LINES);
-      textarea.rows = effectiveLines;
-      textarea.style.height = "auto";
-      const maxHeight = LINE_HEIGHT * MAX_LINES;
-      textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
-      textarea.style.overflowY = lineCount > MAX_LINES ? "auto" : "hidden";
-    }, [value]);
-
-    useEffect(() => {
-      adjustHeight();
-    }, [adjustHeight]);
-
-    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      onChange(e.target.value);
-      adjustHeight();
-    };
-
-    const setRef = useCallback((node: HTMLTextAreaElement | null) => {
-      inputRef.current = node;
-      if (node) {
-        node.rows = 1;
-        node.style.height = `${LINE_HEIGHT}px`;
-        node.style.overflowY = "hidden";
-      }
-    }, []);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -63,10 +24,11 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     return (
       <div className="p-4 flex gap-3 bg-white border-t border-slate-200 flex-shrink-0">
-        <textarea
-          ref={setRef}
+        <input
+          ref={inputRef}
+          type="text"
           value={value}
-          onChange={handleChange}
+          onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -74,7 +36,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             }
           }}
           placeholder="Escribe un mensaje..."
-          className="flex-1 resize-none px-4 py-3 rounded-xl border border-slate-200 bg-white text-[14px] leading-6 focus:outline-none focus:ring-2 focus:ring-brand-secondary/40"
+          className="flex-1 px-4 py-3 rounded-xl border border-slate-200 bg-white text-[14px] focus:outline-none focus:ring-2 focus:ring-brand-secondary/40"
           disabled={disabled}
         />
         <button

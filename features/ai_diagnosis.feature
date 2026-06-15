@@ -34,7 +34,6 @@ Feature: Diagnóstico asistido por IA
     When visualizo la conversación con el asistente
     Then veo el mensaje del asistente "Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo"
 
-  @wip
   Scenario: 06-DIA Navegar al chat de IA
       When selecciono la opción "Chat con IA"
       Then veo la pantalla de conversación con el asistente

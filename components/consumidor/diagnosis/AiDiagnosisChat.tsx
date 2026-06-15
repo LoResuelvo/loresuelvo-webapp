@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, MessageSquare } from "lucide-react";
 import MessageBubble from "@/components/messaging/MessageBubble";
 import MessageInput from "@/components/messaging/MessageInput";
 import InfoBanner from "@/components/messaging/InfoBanner";
@@ -78,20 +78,18 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
     setRetryToken((token) => token + 1);
   }, []);
 
-  if (!initialMessage) {
-    return null;
-  }
+  const isProcessing = Boolean(initialMessage) && assistantReply === null && !hasError;
 
-  const isProcessing = assistantReply === null && !hasError;
-
-  const messages: ChatMessage[] = [
-    {
-      id: "msg-user-1",
-      content: initialMessage,
-      sentAt: "Recién",
-      senderId: USER_ID,
-    },
-  ];
+  const messages: ChatMessage[] = initialMessage
+    ? [
+        {
+          id: "msg-user-1",
+          content: initialMessage,
+          sentAt: "Recién",
+          senderId: USER_ID,
+        },
+      ]
+    : [];
 
   if (assistantReply) {
     messages.push({
@@ -112,19 +110,33 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
           Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo
         </InfoBanner>
       </div>
-      <div className="flex flex-col gap-4 p-6">
-        {messages.map((msg) => (
-          <MessageBubble
-            key={msg.id}
-            id={msg.id}
-            content={msg.content}
-            sentAt={msg.sentAt}
-            isExpanded={false}
-            showExpandButton={false}
-            onToggleExpand={() => undefined}
-            isOwnMessage={msg.senderId === USER_ID}
-          />
-        ))}
+      <div className="flex flex-col gap-4 p-6 min-h-[280px]">
+        {messages.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center text-center">
+            <div>
+              <MessageSquare className="w-14 h-14 text-slate-300 mx-auto mb-4" aria-hidden="true" />
+              <h1 className="text-[22px] font-bold text-brand-primary">
+                Chat con IA
+              </h1>
+              <p className="mt-2 text-[14px] text-slate-500">
+                Describe el problema de tu hogar para iniciar una conversación con el asistente.
+              </p>
+            </div>
+          </div>
+        ) : (
+          messages.map((msg) => (
+            <MessageBubble
+              key={msg.id}
+              id={msg.id}
+              content={msg.content}
+              sentAt={msg.sentAt}
+              isExpanded={false}
+              showExpandButton={false}
+              onToggleExpand={() => undefined}
+              isOwnMessage={msg.senderId === USER_ID}
+            />
+          ))
+        )}
 
         {isProcessing && (
           <div

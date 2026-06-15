@@ -10,6 +10,7 @@ export const ROUTES = {
     home: "/consumidor/home",
     buscar: "/consumidor/buscar",
     messages: "/consumidor/mensajes",
+    aiMessages: "/consumidor/mensajes-ia",
     diagnostico: "/consumidor/diagnostico",
   },
   provider: {

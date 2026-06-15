@@ -151,3 +151,22 @@ When("visualizo la conversación con el asistente", async () => {
   await page.getByText("Se está filtrando agua debajo de la bacha").first()
     .waitFor({ state: "visible" });
 });
+
+When("selecciono la opción {string}", async (optionName: string) => {
+  const option = page.getByRole("link", { name: new RegExp(optionName, "i") });
+  await option.waitFor({ state: "visible" });
+  await option.click();
+  await page.waitForLoadState("networkidle");
+});
+
+Then("veo la pantalla de conversación con el asistente", async () => {
+  await page.waitForURL(`**${ROUTES.consumer.aiMessages}**`);
+  assert.ok(
+    page.url().includes(ROUTES.consumer.aiMessages),
+    `Se esperaba estar en ${ROUTES.consumer.aiMessages} pero la URL es ${page.url()}`,
+  );
+
+  const heading = page.getByRole("heading", { name: /chat con ia/i });
+  await heading.waitFor({ state: "visible" });
+  assert.ok(await heading.isVisible(), "No se ve la pantalla de conversación con el asistente");
+});

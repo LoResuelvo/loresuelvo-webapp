@@ -38,14 +38,12 @@ Feature: Diagnóstico asistido por IA
       When selecciono la opción "Chat con IA"
       Then veo la pantalla de conversación con el asistente
 
-  @wip
   Scenario: 07-DIA Expandir campo de texto automáticamente
     Given me encuentro escribiendo un mensaje para el asistente
     When el contenido supera una línea
     Then el campo de texto aumenta su altura automáticamente
     And permite visualizar hasta 6 líneas de contenido sin scroll
 
-  @wip
   Scenario: 08-DIA Utilizar scroll en mensajes extensos
     Given me encuentro escribiendo un mensaje para el asistente
     When el contenido supera las 6 líneas visibles

@@ -1,15 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, Info } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 
 const HERO_IMAGE = "/illustrations/hero-home-ai-diagnosis.png";
 
+const MAX_LINES = 6;
+const INITIAL_HEIGHT = 50;
+const LINE_HEIGHT_CSS = 24;
+
 export default function DiagnosisHero() {
   const router = useRouter();
   const [message, setMessage] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = event.target.value;
+    setMessage(newValue);
+    const isEmpty = !newValue || !newValue.trim();
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    if (isEmpty) {
+      textarea.rows = 2;
+      textarea.style.height = `${INITIAL_HEIGHT}px`;
+      textarea.style.overflowY = "hidden";
+      return;
+    }
+    const lineCount = newValue.split("\n").length;
+    const effectiveLines = Math.min(Math.max(lineCount, 1), MAX_LINES);
+    textarea.rows = effectiveLines;
+    const maxHeight = LINE_HEIGHT_CSS * MAX_LINES;
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+    textarea.style.overflowY = lineCount > MAX_LINES ? "auto" : "hidden";
+  };
+
+  const textareaRefCallback = useCallback((node: HTMLTextAreaElement | null) => {
+    if (node) {
+      textareaRef.current = node;
+      node.rows = 2;
+      node.style.height = `${INITIAL_HEIGHT}px`;
+      node.style.overflowY = "hidden";
+    }
+  }, []);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -54,13 +88,13 @@ export default function DiagnosisHero() {
             Describí el problema
           </label>
           <div className="flex items-center gap-2 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 p-2">
-            <input
+            <textarea
+              ref={textareaRefCallback}
               id="diagnosis-message"
-              type="text"
               value={message}
-              onChange={(event) => setMessage(event.target.value)}
+              onChange={handleChange}
               placeholder="Describe el problema de tu hogar…"
-              className="flex-1 min-w-0 rounded-lg bg-white/20 backdrop-blur px-4 py-3 text-[16px] text-white placeholder:text-white/70 focus:outline-none focus:ring-2 focus:ring-white/70"
+              className="flex-1 min-w-0 rounded-lg bg-white/20 backdrop-blur px-4 py-3 text-[16px] text-white placeholder:text-white/70 focus:outline-none focus:ring-2 focus:ring-white/70 resize-none leading-6"
             />
             <button
               type="submit"

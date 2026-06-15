@@ -48,4 +48,29 @@ describe("MessageInput", () => {
     ref.current?.focus();
     expect(document.activeElement).toBe(getByRole("textbox"));
   });
+
+  it("expands up to 6 visible lines without internal scroll", () => {
+    const sixLines = [
+      "Linea 1",
+      "Linea 2",
+      "Linea 3",
+      "Linea 4",
+      "Linea 5",
+      "Linea 6",
+    ].join("\n");
+
+    render(
+      <MessageInput
+        value={sixLines}
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        disabled={false}
+      />
+    );
+
+    const input = screen.getByRole("textbox");
+    expect(input.tagName).toBe("TEXTAREA");
+    expect(input).toHaveAttribute("rows", "6");
+    expect(input).toHaveStyle({ overflowY: "hidden" });
+  });
 });

@@ -170,3 +170,113 @@ Then("veo la pantalla de conversación con el asistente", async () => {
   await heading.waitFor({ state: "visible" });
   assert.ok(await heading.isVisible(), "No se ve la pantalla de conversación con el asistente");
 });
+
+Given("me encuentro escribiendo un mensaje para el asistente", async () => {
+  await setConsumerSession();
+  await page.goto(APP_URL + ROUTES.consumer.aiMessages);
+  await page.waitForLoadState("networkidle");
+
+  const input = page.getByPlaceholder(/escribe un mensaje/i);
+  await input.waitFor({ state: "visible" });
+});
+
+When("el contenido supera una línea", async () => {
+  const input = page.getByPlaceholder(/escribe un mensaje/i);
+  await input.fill([
+    "La bacha pierde agua",
+    "También hay humedad debajo del mueble",
+  ].join("\n"));
+});
+
+Then("el campo de texto aumenta su altura automáticamente", async () => {
+  const input = page.getByPlaceholder(/escribe un mensaje/i);
+  const rows = await input.evaluate((element) => (
+    element instanceof HTMLTextAreaElement ? element.rows : 0
+  ));
+
+  assert.ok(rows > 1, `Se esperaba que el campo tenga más de una línea visible, pero tiene ${rows}`);
+});
+
+Then("permite visualizar hasta 6 líneas de contenido sin scroll", async () => {
+  const input = page.getByPlaceholder(/escribe un mensaje/i);
+  await input.fill([
+    "Linea 1",
+    "Linea 2",
+    "Linea 3",
+    "Linea 4",
+    "Linea 5",
+    "Linea 6",
+  ].join("\n"));
+
+  const state = await input.evaluate((element) => {
+    if (!(element instanceof HTMLTextAreaElement)) {
+      return { rows: 0, overflowY: "" };
+    }
+
+    return {
+      rows: element.rows,
+      overflowY: window.getComputedStyle(element).overflowY,
+    };
+  });
+
+  assert.equal(state.rows, 6, `Se esperaban 6 líneas visibles, pero hay ${state.rows}`);
+  assert.equal(state.overflowY, "hidden", "No debería haber scroll interno hasta 6 líneas");
+});
+
+When("el contenido supera las 6 líneas visibles", async () => {
+  const input = page.getByPlaceholder(/escribe un mensaje/i);
+  await input.fill([
+    "Linea 1",
+    "Linea 2",
+    "Linea 3",
+    "Linea 4",
+    "Linea 5",
+    "Linea 6",
+    "Linea 7 que supera el límite",
+  ].join("\n"));
+});
+
+Then("el campo de texto mantiene una altura máxima de 6 líneas", async () => {
+  const input = page.getByPlaceholder(/escribe un mensaje/i);
+  const state = await input.evaluate((element) => {
+    if (!(element instanceof HTMLTextAreaElement)) {
+      return { rows: 0, clientHeight: 0, scrollHeight: 0 };
+    }
+    return {
+      rows: element.rows,
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+    };
+  });
+
+  const maxExpectedHeight = 50 * 6;
+  assert.equal(state.rows, 6, `Se esperaban 6 filas, pero hay ${state.rows}`);
+  assert.ok(
+    state.clientHeight <= maxExpectedHeight,
+    `La altura visible debería ser máximo ${maxExpectedHeight}px, pero es ${state.clientHeight}px`,
+  );
+});
+
+Then("puedo desplazarme mediante scroll dentro del campo", async () => {
+  const input = page.getByPlaceholder(/escribe un mensaje/i);
+  const overflowY = await input.evaluate((element) =>
+    element instanceof HTMLTextAreaElement
+      ? window.getComputedStyle(element).overflowY
+      : "",
+  );
+  assert.equal(overflowY, "auto", `Se esperaba overflow-y: auto, pero es ${overflowY}`);
+});
+
+Then("el contenido completo permanece accesible", async () => {
+  const input = page.getByPlaceholder(/escribe un mensaje/i);
+  const scrollHeight = await input.evaluate((element) =>
+    element instanceof HTMLTextAreaElement ? element.scrollHeight : 0,
+  );
+  const clientHeight = await input.evaluate((element) =>
+    element instanceof HTMLTextAreaElement ? element.clientHeight : 0,
+  );
+  assert.ok(
+    scrollHeight > clientHeight,
+    `El contenido debería exceder la altura visible (scrollHeight: ${scrollHeight}, clientHeight: ${clientHeight})`,
+  );
+});

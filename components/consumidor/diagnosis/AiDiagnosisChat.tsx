@@ -38,6 +38,8 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
   const [assistantReply, setAssistantReply] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
   const [retryToken, setRetryToken] = useState(0);
+  const [messageInput, setMessageInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
 
   const assistantClient = useMemo(
     () =>
@@ -76,6 +78,17 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
 
   const handleRetry = useCallback(() => {
     setRetryToken((token) => token + 1);
+  }, []);
+
+  const handleSendMessage = useCallback(() => {
+    if (!messageInput.trim() || isSending) return;
+    setIsSending(true);
+    setMessageInput("");
+    setIsSending(false);
+  }, [messageInput, isSending]);
+
+  const handleInputChange = useCallback((value: string) => {
+    setMessageInput(value);
   }, []);
 
   const isProcessing = Boolean(initialMessage) && assistantReply === null && !hasError;
@@ -175,10 +188,10 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
 
       <div className="border-t border-slate-200">
         <MessageInput
-          value=""
-          onChange={() => undefined}
-          onSend={() => undefined}
-          disabled={isProcessing}
+          value={messageInput}
+          onChange={handleInputChange}
+          onSend={handleSendMessage}
+          disabled={isProcessing || isSending}
         />
       </div>
     </section>

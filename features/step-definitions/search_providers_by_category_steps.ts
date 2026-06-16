@@ -41,7 +41,8 @@ Given('existen los siguientes prestadores registrados:', async (dataTable) => {
       id: parseInt(provider.id.replace("prov-", "")),
       name: provider.name,
       surname: provider.surname,
-      category_name: provider.category_name
+      category_name: provider.category_name,
+      profile_photo_url: provider.profile_photo_url
     });
   }
 

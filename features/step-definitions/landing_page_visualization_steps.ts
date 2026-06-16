@@ -12,6 +12,14 @@ export let page: Page;
 Before(async () => {
   browser = await chromium.launch({ headless: true });
   page = await browser.newPage();
+
+  await page.route('**/api/ws-tickets', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ticket: "global-mocked-ws-ticket" })
+    });
+  });
 });
 
 After(async () => {

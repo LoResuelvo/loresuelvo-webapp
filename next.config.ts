@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  webpack: (config) => {
+    config.module.exprContextCritical = false;
+    return config;
+  },
 };
 
 export default nextConfig;

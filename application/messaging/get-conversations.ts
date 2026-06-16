@@ -5,7 +5,7 @@ export async function getConsumerConversations(
   conversationRepository: ConversationRepository
 ): Promise<ConsumerConversationContact[]> {
   try {
-    return conversationRepository.getConsumerConversations();
+    return await conversationRepository.getConsumerConversations();
   } catch (error) {
     console.error("Error fetching consumer conversations in use case:", error);
     return [];
@@ -16,7 +16,7 @@ export async function getProviderConversations(
   conversationRepository: ConversationRepository
 ): Promise<ProviderConversationContact[]> {
   try {
-    return conversationRepository.getProviderConversations();
+    return await conversationRepository.getProviderConversations();
   } catch (error) {
     console.error("Error fetching provider conversations in use case:", error);
     return [];

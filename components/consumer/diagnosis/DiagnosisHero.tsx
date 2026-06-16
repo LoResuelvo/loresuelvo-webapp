@@ -4,11 +4,11 @@ import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, Info } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
-import { saveAiMessages, loadAiMessages, type AiMessage } from "@/lib/diagnosis/ai-chat-storage";
+import { saveAiMessages, loadAiMessages, type AiMessage } from "@/infrastructure/storage/ai-chat-storage";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { t } from "@/lib/i18n/translations";
+import { t } from "@/infrastructure/i18n/translations";
 
 const HERO_IMAGE = "/illustrations/hero-home-ai-diagnosis.png";
 

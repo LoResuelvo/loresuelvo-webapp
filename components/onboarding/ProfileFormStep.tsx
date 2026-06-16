@@ -5,12 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { ChangeEvent, useState } from "react";
-import { Category } from "@/lib/api/types";
+import { Category } from "@/infrastructure/api/types";
 import { CategorySelect } from "./CategorySelect";
 import { ProfilePhotoUpload } from "./ProfilePhotoUpload";
-import { t } from "@/lib/i18n/translations";
-
-const MAX_PROFILE_PHOTO_SIZE = 5 * 1024 * 1024;
+import { t } from "@/infrastructure/i18n/translations";
+import { validateProfileForm, validateProfilePhoto } from "@/domain/onboarding/validation";
 
 interface ProfileFormStepProps {
   onBack: () => void;
@@ -39,45 +38,42 @@ export function ProfileFormStep({
     setFirstNameError(null);
     setLastNameError(null);
     setCategoryError(null);
+    setProfilePhotoError(null);
 
     const formData = new FormData(e.currentTarget);
     const firstName = formData.get("firstName") as string;
     const lastName = formData.get("lastName") as string;
     const categoryId = formData.get("categoryId") as string;
 
-    let hasErrors = false;
-    if (!firstName || firstName.trim() === "") {
-      setFirstNameError(t.onboarding.profileForm.requiredField);
-      hasErrors = true;
-    }
-    if (!lastName || lastName.trim() === "") {
-      setLastNameError(t.onboarding.profileForm.requiredField);
-      hasErrors = true;
-    }
+    let photoSize = 0;
+    let photoName = "";
+    let photoType = "";
 
     if (role === "provider") {
-      if (!categoryId || categoryId === "") {
-        setCategoryError(t.onboarding.profileForm.requiredCategory);
-        hasErrors = true;
-      }
-
       const profilePhoto = formData.get("profilePhoto") as File;
-      if (!profilePhoto || (profilePhoto.size === 0 && profilePhoto.name === "")) {
-        setProfilePhotoError(t.onboarding.profileForm.photoRequired);
-        hasErrors = true;
-      } else {
-        const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-        if (!validTypes.includes(profilePhoto.type)) {
-          setProfilePhotoError(t.onboarding.profileForm.photoInvalidFormat);
-          hasErrors = true;
-        } else if (profilePhoto.size > MAX_PROFILE_PHOTO_SIZE) {
-          setProfilePhotoError(t.onboarding.profileForm.photoTooLarge);
-          hasErrors = true;
-        }
+      if (profilePhoto) {
+        photoSize = profilePhoto.size;
+        photoName = profilePhoto.name;
+        photoType = profilePhoto.type;
       }
     }
 
-    if (hasErrors) {
+    const { isValid, errors } = validateProfileForm(
+      firstName,
+      lastName,
+      role,
+      categoryId,
+      photoSize,
+      photoName,
+      photoType
+    );
+
+    if (errors.firstName) setFirstNameError(errors.firstName);
+    if (errors.lastName) setLastNameError(errors.lastName);
+    if (errors.categoryId) setCategoryError(errors.categoryId);
+    if (errors.profilePhoto) setProfilePhotoError(errors.profilePhoto);
+
+    if (!isValid) {
       return;
     }
 
@@ -115,14 +111,8 @@ export function ProfileFormStep({
           <ProfilePhotoUpload
             onPhotoSelected={(file) => {
               if (file) {
-                const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-                if (!validTypes.includes(file.type)) {
-                  setProfilePhotoError(t.onboarding.profileForm.photoInvalidFormat);
-                } else if (file.size > MAX_PROFILE_PHOTO_SIZE) {
-                  setProfilePhotoError(t.onboarding.profileForm.photoTooLarge);
-                } else {
-                  setProfilePhotoError(null);
-                }
+                const photoError = validateProfilePhoto(file);
+                setProfilePhotoError(photoError);
               } else {
                 setProfilePhotoError(null);
               }

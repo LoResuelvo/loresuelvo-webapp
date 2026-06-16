@@ -1,6 +1,7 @@
-import { getAuthService } from "@/lib/auth";
-import { api } from "@/lib/api/base-client";
-import { Category, Provider } from "@/lib/api/types";
+import { getAuthService } from "@/infrastructure/auth";
+import { searchProviders } from "@/application/consumer/search-providers";
+import { ApiCategoryRepository } from "@/infrastructure/repositories/api-category-repository";
+import { ApiProviderRepository } from "@/infrastructure/repositories/api-provider-repository";
 import SearchClient from "@/components/consumer/search/SearchClient";
 
 interface PageProps {
@@ -10,21 +11,16 @@ interface PageProps {
 export default async function BuscarPage({ searchParams }: PageProps) {
   const session = await getAuthService().getSession();
   const params = await searchParams;
-  const categoryId = params.category_id;
+  const categoryId = params.category_id ? parseInt(params.category_id, 10) : undefined;
 
-  let categories: Category[] = [];
-  let providers: Provider[] = [];
-  let selectedCategory: Category | null = null;
+  const categoryRepo = new ApiCategoryRepository();
+  const providerRepo = new ApiProviderRepository();
 
-  try {
-    categories = await api.get<Category[]>("/categories");
-    if (categoryId) {
-      selectedCategory = categories.find(c => c.id === parseInt(categoryId)) || null;
-      providers = await api.get<Provider[]>(`/providers?category_id=${categoryId}`);
-    }
-  } catch (error) {
-    console.error("Error fetching search data:", error);
-  }
+  const { providers, selectedCategory } = await searchProviders(
+    categoryRepo,
+    providerRepo,
+    categoryId
+  );
 
   return (
     <SearchClient
@@ -34,3 +30,4 @@ export default async function BuscarPage({ searchParams }: PageProps) {
     />
   );
 }
+

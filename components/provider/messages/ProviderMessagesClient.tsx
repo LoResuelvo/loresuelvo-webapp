@@ -6,14 +6,14 @@ import ProviderSidebar from "@/components/provider/home/ProviderSidebar";
 import ProviderHeader from "@/components/provider/home/ProviderHeader";
 import ProviderMessagesView from "@/components/provider/messages/ProviderMessagesView";
 import type { MessageInputHandle } from "@/components/messaging/MessageInput";
-import { AuthSession } from "@/lib/auth/types";
+import { AuthSession } from "@/infrastructure/auth/types";
 import { ROUTES } from "@/lib/routes";
-import { getConversationDetail, sendMessage, createConversation, acceptJobRequest, getJobRequestForConversation } from "./actions";
-import { useWebSocket } from "@/lib/websocket";
+import { getConversationDetail, sendMessage, createConversation, acceptJobRequest, getJobRequestForConversation } from "@/app/prestador/mensajes/actions";
+import { useWebSocket } from "@/infrastructure/websocket";
 import RequestDetailModal from "@/components/provider/home/RequestDetailModal";
-import type { ProviderWorkRequest } from "@/lib/provider-home/types";
+import type { ProviderWorkRequest } from "@/domain/provider/types";
 
-import { Message, ProviderConversationContact as ConversationContact } from "@/lib/messaging/types";
+import { Message, ProviderConversationContact as ConversationContact } from "@/domain/messaging/types";
 
 interface ProviderMessagesClientProps {
   session: AuthSession | null;

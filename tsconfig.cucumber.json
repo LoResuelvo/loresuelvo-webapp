@@ -4,7 +4,8 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "noEmit": false,
-    "outDir": ".cucumber-dist"
+    "outDir": ".cucumber-dist",
+    "types": ["node", "vitest/globals", "@testing-library/jest-dom"]
   },
   "include": ["features/**/*.ts"]
 }

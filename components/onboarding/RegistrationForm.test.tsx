@@ -1,18 +1,12 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import RegistrationForm from "@/components/onboarding/RegistrationForm";
-import { submitRegistration } from "@/app/onboarding/registrationButtonAction";
+import { submitRegistration } from "@/app/onboarding/actions";
+
 
 // Mock of the Server Action to avoid Auth0 alerts and verify submission in isolation
-vi.mock("@/app/onboarding/registrationButtonAction", () => ({
+vi.mock("@/app/onboarding/actions", () => ({
   submitRegistration: vi.fn(),
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
-}));
-
-vi.mock("@/app/onboarding/fileActions", () => ({
   getPresignedUrlAction: vi.fn().mockResolvedValue({
     file_id: "mock-file-id",
     key: "mock-key",
@@ -26,7 +20,11 @@ vi.mock("@/app/onboarding/fileActions", () => ({
   }),
 }));
 
-vi.mock("@/lib/storage/storage-client", () => ({
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
+vi.mock("@/infrastructure/storage/storage-client", () => ({
   storageClient: {
     uploadFile: vi.fn().mockResolvedValue(undefined),
   },

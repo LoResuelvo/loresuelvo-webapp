@@ -1,7 +1,8 @@
 "use server";
 
-import { jobRequestsClient, type JobRequestResponse } from "@/lib/job-requests-client";
-import { ApiClientError } from "@/lib/api/base-client";
+import { ApiJobRequestRepository } from "@/infrastructure/repositories/api-job-request-repository";
+import { createWorkRequest } from "@/application/consumer/create-work-request";
+import { JobRequestResponse } from "@/ports/job-request-repository";
 
 export type CreateJobRequestResult =
   | { success: true; data: JobRequestResponse }
@@ -12,17 +13,12 @@ export async function createJobRequest(
   title: string,
   description: string
 ): Promise<CreateJobRequestResult> {
-  try {
-    const data = await jobRequestsClient.createJobRequest({
-      provider_id: providerId,
-      title,
-      description,
-    });
-    return { success: true, data };
-  } catch (error: unknown) {
-    if (error instanceof ApiClientError) {
-      return { success: false, error: error.message };
-    }
-    return { success: false, error: "Error de conexión o inesperado." };
+  const repository = new ApiJobRequestRepository();
+  const result = await createWorkRequest(repository, providerId, title, description);
+  
+  if (result.success) {
+    return { success: true, data: result.data };
+  } else {
+    return { success: false, error: result.message };
   }
 }

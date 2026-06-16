@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Bot, Home, MessageSquare } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
-import { t } from "@/lib/i18n/translations";
+import { t } from "@/infrastructure/i18n/translations";
 
 export default function Sidebar() {
   const pathname = usePathname();

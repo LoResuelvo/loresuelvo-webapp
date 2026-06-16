@@ -1,6 +1,6 @@
 import ContactItem from "./ContactItem";
 
-import { ConversationContact } from "@/lib/messaging/types";
+import { ConversationContact } from "@/domain/messaging/types";
 
 interface ContactListProps {
   contacts: ConversationContact[];

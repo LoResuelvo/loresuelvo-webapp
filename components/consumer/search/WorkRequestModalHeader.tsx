@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { t } from "@/lib/i18n/translations";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface WorkRequestModalHeaderProps {
   onClose: () => void;

@@ -2,7 +2,7 @@ import { RefObject, useEffect, useRef, useState } from "react";
 import MessageBubble from "./MessageBubble";
 import { Button } from "@/components/ui/button";
 
-import { Message } from "@/lib/messaging/types";
+import { Message } from "@/domain/messaging/types";
 
 interface MessagesListProps {
   messages: Message[];

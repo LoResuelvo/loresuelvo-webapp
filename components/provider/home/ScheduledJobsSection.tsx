@@ -1,6 +1,6 @@
 import { Calendar, MapPin, User } from "lucide-react";
-import { ProviderScheduledJob } from "@/lib/provider-home/types";
-import { t } from "@/lib/i18n/translations";
+import { ProviderScheduledJob } from "@/domain/provider/types";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface ScheduledJobsSectionProps {
   jobs: ProviderScheduledJob[];

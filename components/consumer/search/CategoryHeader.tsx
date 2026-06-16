@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Wrench } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
-import { t } from "@/lib/i18n/translations";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface CategoryHeaderProps {
   categoryName: string;

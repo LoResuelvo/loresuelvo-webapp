@@ -2,8 +2,8 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { page } from "./landing_page_visualization_steps";
 import { ROUTES } from "../../lib/routes";
-import { AuthSession } from "../../lib/auth/types";
-import { MOCK_SESSION_COOKIE } from "../../lib/auth/mock-adapter";
+import { AuthSession } from "../../infrastructure/auth/types";
+import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
 import { addApiStub } from "./stubs-helper";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";

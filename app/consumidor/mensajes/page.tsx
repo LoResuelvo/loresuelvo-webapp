@@ -1,52 +1,19 @@
-import { getAuthService } from "@/lib/auth";
-import { conversationsClient, type ApiConversation } from "@/lib/conversations-client";
+import { getAuthService } from "@/infrastructure/auth";
 import ConsumerMessagesClient from "@/components/consumer/messages/ConsumerMessagesClient";
-
-interface ConversationContact {
-  id: string;
-  providerId: string;
-  providerName: string;
-  providerSurname: string;
-  lastMessage: string;
-  lastMessageAt: string;
-  pending: boolean;
-}
+import { getConsumerConversations } from "@/application/messaging/get-conversations";
+import { ApiConversationRepository } from "@/infrastructure/repositories/api-conversation-repository";
 
 interface PageProps {
   searchParams: Promise<{ provider_id?: string; name?: string; surname?: string }>;
-}
-
-function transformApiConversation(apiConv: ApiConversation): ConversationContact {
-  return {
-    id: `conv-${apiConv.id}`,
-    providerId: String(apiConv.counterpart.id),
-    providerName: apiConv.counterpart.name,
-    providerSurname: apiConv.counterpart.surname,
-    lastMessage: apiConv.last_message?.content || "",
-    lastMessageAt: apiConv.last_message?.created_on
-      ? new Date(apiConv.last_message.created_on).toLocaleString("es-AR", {
-          day: "2-digit",
-          month: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : "",
-    pending: apiConv.status === "pending",
-  };
 }
 
 export default async function ConsumerMessagesPage({ searchParams }: PageProps) {
   const session = await getAuthService().getSession();
   const params = await searchParams;
 
-  let contacts: ConversationContact[] = [];
+  const conversationRepo = new ApiConversationRepository();
+  const contacts = await getConsumerConversations(conversationRepo);
 
-  try {
-    const apiContacts = await conversationsClient.getConversations();
-    contacts = apiContacts.map(transformApiConversation);
-  } catch (error) {
-    console.log("Could not fetch conversations:", error);
-  }
 
   if (params.provider_id) {
     const existingContact = contacts.find(c => c.providerId === params.provider_id);

@@ -1,6 +1,6 @@
 import { DollarSign, Star, Wrench } from "lucide-react";
-import { ProviderMetrics } from "@/lib/provider-home/types";
-import { t } from "@/lib/i18n/translations";
+import { ProviderMetrics } from "@/domain/provider/types";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface MetricsSectionProps {
   metrics: ProviderMetrics;

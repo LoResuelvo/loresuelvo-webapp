@@ -1,5 +1,5 @@
 import { User } from "lucide-react";
-import { Provider } from "@/lib/api/types";
+import { Provider } from "@/infrastructure/api/types";
 
 interface ProviderMiniProfileProps {
   provider: Provider;

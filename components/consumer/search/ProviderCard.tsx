@@ -1,8 +1,8 @@
 import { MessageCircle, User, ArrowRight } from "lucide-react";
-import { Provider } from "@/lib/api/types";
+import { Provider } from "@/infrastructure/api/types";
 import { Button } from "@/components/ui/button";
 import { RatingStars } from "@/components/ui/rating-stars";
-import { t } from "@/lib/i18n/translations";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface ProviderCardProps {
   provider: Provider;

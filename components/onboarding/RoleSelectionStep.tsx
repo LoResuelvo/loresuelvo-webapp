@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Home, Wrench } from "lucide-react";
 import { RoleSelectionCard } from "./RoleSelectionCard";
-import { t } from "@/lib/i18n/translations";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface RoleSelectionStepProps {
   role: "consumer" | "provider" | null;

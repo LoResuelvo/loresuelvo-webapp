@@ -3,7 +3,7 @@ import { ChatPanel } from "@/components/messaging/MessagesLayout";
 import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import ContactList from "@/components/messaging/ContactList";
 
-import { Message, ProviderConversationContact as ConversationContact } from "@/lib/messaging/types";
+import { Message, ProviderConversationContact as ConversationContact } from "@/domain/messaging/types";
 
 interface ProviderMessagesViewProps {
   contacts: ConversationContact[];

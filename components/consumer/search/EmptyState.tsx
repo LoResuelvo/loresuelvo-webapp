@@ -1,5 +1,5 @@
 import { Info } from "lucide-react";
-import { t } from "@/lib/i18n/translations";
+import { t } from "@/infrastructure/i18n/translations";
 
 export default function EmptyState() {
   return (

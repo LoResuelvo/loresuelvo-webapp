@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Provider } from "@/lib/api/types";
+import { Provider } from "@/infrastructure/api/types";
 import { createJobRequest } from "@/app/consumidor/buscar/actions";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { t } from "@/lib/i18n/translations";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface WorkRequestFormProps {
   provider: Provider;

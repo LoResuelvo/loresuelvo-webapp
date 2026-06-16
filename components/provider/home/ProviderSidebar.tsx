@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BriefcaseBusiness, CalendarDays, Home, MessageSquare, User } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
-import { t } from "@/lib/i18n/translations";
+import { t } from "@/infrastructure/i18n/translations";
 
 const providerNavigationItems = [
   { label: t.sidebar.home, href: ROUTES.provider.home, icon: Home },

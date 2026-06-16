@@ -2,14 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ProviderWorkRequest } from "@/lib/provider-home/types";
+import { ProviderWorkRequest } from "@/domain/provider/types";
 import RequestDetailModal from "./RequestDetailModal";
-import { acceptJobRequest } from "./actions";
-import { getConversationDetail } from "@/components/provider/messages/actions";
+import { acceptJobRequest } from "@/app/prestador/home/actions";
+import { getConversationDetail } from "@/app/prestador/mensajes/actions";
 import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { MapPin, Timer, User } from "lucide-react";
-import { t } from "@/lib/i18n/translations";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface WorkRequestsSectionProps {
   requests: ProviderWorkRequest[];

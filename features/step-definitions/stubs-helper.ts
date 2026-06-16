@@ -1,4 +1,4 @@
-import type { ApiStub, HttpMethod } from "../../lib/api/types";
+import type { ApiStub, HttpMethod } from "../../infrastructure/api/types";
 import { page } from "./landing_page_visualization_steps";
 
 export { ApiStub, HttpMethod };

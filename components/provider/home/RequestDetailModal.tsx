@@ -1,9 +1,9 @@
 "use client";
 
 import { X, MapPin, Calendar } from "lucide-react";
-import { ProviderWorkRequest } from "@/lib/provider-home/types";
+import { ProviderWorkRequest } from "@/domain/provider/types";
 import { Button } from "@/components/ui/button";
-import { t } from "@/lib/i18n/translations";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface RequestDetailModalProps {
   request: ProviderWorkRequest;

@@ -7,16 +7,16 @@ import MessageBubble from "@/components/messaging/MessageBubble";
 import InfoBanner from "@/components/messaging/InfoBanner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { AssistantClient } from "@/ports/assistant-client";
 import {
-  AssistantClient,
   createMockAssistantClient,
   DEFAULT_ASSISTANT_DELAY_MS,
-} from "@/lib/diagnosis/assistant-client";
+} from "@/infrastructure/repositories/mock-assistant-client";
 import {
   saveAiMessages,
   loadAiMessages,
   type AiMessage,
-} from "@/lib/diagnosis/ai-chat-storage";
+} from "@/infrastructure/storage/ai-chat-storage";
 
 const USER_ID = "consumer-ai-diagnosis";
 const ASSISTANT_ID = "assistant-ai-diagnosis";

@@ -1,15 +1,14 @@
 "use client";
 
-import { AuthSession } from "@/lib/auth/types";
+import { AuthSession } from "@/infrastructure/auth/types";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { submitRegistration } from "@/app/onboarding/registrationButtonAction";
+import { submitRegistration, getPresignedUrlAction, confirmUploadAction } from "@/app/onboarding/actions";
 import { RoleSelectionStep } from "./RoleSelectionStep";
 import { ProfileFormStep } from "./ProfileFormStep";
-import { Category } from "@/lib/api/types";
-import { getPresignedUrlAction, confirmUploadAction } from "@/app/onboarding/fileActions";
-import { storageClient } from "@/lib/storage/storage-client";
+import { Category } from "@/infrastructure/api/types";
+import { storageClient } from "@/infrastructure/storage/storage-client";
 
 
 export default function RegistrationForm({

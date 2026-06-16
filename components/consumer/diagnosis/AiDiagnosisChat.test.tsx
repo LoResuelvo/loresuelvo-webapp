@@ -1,7 +1,7 @@
 import { render, screen, waitFor, fireEvent, cleanup, act } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import AiDiagnosisChat from "@/components/consumer/diagnosis/AiDiagnosisChat";
-import { AssistantClient } from "@/lib/diagnosis/assistant-client";
+import { AssistantClient } from "@/ports/assistant-client";
 
 const ASSISTANT_REPLY =
   "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?";

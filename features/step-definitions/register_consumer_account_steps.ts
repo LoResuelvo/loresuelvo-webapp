@@ -1,8 +1,8 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import { page } from "./landing_page_visualization_steps";
 import { addApiStub, hasApiStub } from "./stubs-helper";
-import { AuthSession } from "../../lib/auth/types";
-import { MOCK_SESSION_COOKIE } from "../../lib/auth/mock-adapter";
+import { AuthSession } from "../../infrastructure/auth/types";
+import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 

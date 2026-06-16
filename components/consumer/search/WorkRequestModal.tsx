@@ -1,6 +1,6 @@
 "use client";
 
-import { Provider } from "@/lib/api/types";
+import { Provider } from "@/infrastructure/api/types";
 import { WorkRequestModalHeader } from "./WorkRequestModalHeader";
 import { WorkRequestForm } from "./WorkRequestForm";
 

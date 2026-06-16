@@ -1,8 +1,8 @@
 import { Manrope } from "next/font/google";
 import type { Metadata } from "next";
 import { Auth0Provider } from "@auth0/nextjs-auth0/client";
-import { getAuthService } from "@/lib/auth";
-import { WebSocketProvider } from "@/lib/websocket";
+import { getAuthService } from "@/infrastructure/auth";
+import { WebSocketProvider } from "@/infrastructure/websocket";
 import "./globals.css";
 
 const manrope = Manrope({

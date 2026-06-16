@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import MetricsSection from "./MetricsSection";
-import { ProviderMetrics } from "@/lib/provider-home/types";
+import { ProviderMetrics } from "@/domain/provider/types";
 
 const mockMetrics: ProviderMetrics = {
   incomeLabel: "$125.000",

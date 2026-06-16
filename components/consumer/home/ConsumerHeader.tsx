@@ -1,11 +1,11 @@
 "use client";
 
-import { AuthSession } from "@/lib/auth/types";
+import { AuthSession } from "@/infrastructure/auth/types";
 import { User, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { ROUTES } from "@/lib/routes";
-import { t } from "@/lib/i18n/translations";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface ConsumerHeaderProps {
   session: AuthSession | null;

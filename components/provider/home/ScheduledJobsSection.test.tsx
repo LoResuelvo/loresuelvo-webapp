@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import ScheduledJobsSection from "./ScheduledJobsSection";
-import { ProviderScheduledJob } from "@/lib/provider-home/types";
+import { ProviderScheduledJob } from "@/domain/provider/types";
 
 const mockScheduledJobs: ProviderScheduledJob[] = [
   {

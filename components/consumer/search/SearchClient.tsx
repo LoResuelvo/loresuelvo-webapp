@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Sidebar from "@/components/consumer/Sidebar";
 import ConsumerHeader from "@/components/consumer/home/ConsumerHeader";
-import { AuthSession } from "@/lib/auth/types";
-import { Category, Provider } from "@/lib/api/types";
+import { AuthSession } from "@/infrastructure/auth/types";
+import { Category, Provider } from "@/infrastructure/api/types";
 import CategoryHeader from "./CategoryHeader";
 import EmptyState from "./EmptyState";
 import ProviderCard from "./ProviderCard";

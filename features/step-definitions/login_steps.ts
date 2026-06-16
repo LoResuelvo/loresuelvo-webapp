@@ -1,7 +1,7 @@
 import { Given, Then, When } from "@cucumber/cucumber";
 import { page } from "./landing_page_visualization_steps";
-import { AuthSession } from "../../lib/auth/types";
-import { MOCK_SESSION_COOKIE } from "../../lib/auth/mock-adapter";
+import { AuthSession } from "../../infrastructure/auth/types";
+import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 

@@ -2,7 +2,7 @@ import { RefObject, forwardRef } from "react";
 import { ChatPanel } from "@/components/messaging/MessagesLayout";
 import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import ContactList from "@/components/messaging/ContactList";
-import { Message, JobRequestInfo, ConsumerConversationContact as ConversationContact } from "@/lib/messaging/types";
+import { Message, JobRequestInfo, ConsumerConversationContact as ConversationContact } from "@/domain/messaging/types";
 
 interface ConsumerMessagesViewProps {
   contacts: ConversationContact[];

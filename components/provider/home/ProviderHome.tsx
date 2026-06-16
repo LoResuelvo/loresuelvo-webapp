@@ -1,5 +1,5 @@
-import { AuthSession } from "@/lib/auth/types";
-import { ProviderMetrics, ProviderScheduledJob, ProviderWorkRequest } from "@/lib/provider-home/types";
+import { AuthSession } from "@/infrastructure/auth/types";
+import { ProviderMetrics, ProviderScheduledJob, ProviderWorkRequest } from "@/domain/provider/types";
 import IncomePanel from "./IncomePanel";
 import ProviderHeader from "./ProviderHeader";
 import ProviderSidebar from "./ProviderSidebar";

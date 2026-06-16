@@ -1,10 +1,10 @@
 "use client";
 
-import { Category } from "@/lib/api/types";
+import { Category } from "@/infrastructure/api/types";
 import { Bath, Flame, Zap, Snowflake, PaintRoller, Hammer, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
-import { t } from "@/lib/i18n/translations";
+import { t } from "@/infrastructure/i18n/translations";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   "Plomería": Bath,

@@ -6,12 +6,12 @@ import Sidebar from "@/components/consumer/Sidebar";
 import ConsumerHeader from "@/components/consumer/home/ConsumerHeader";
 import ConsumerMessagesView from "@/components/consumer/messages/ConsumerMessagesView";
 import type { MessageInputHandle } from "@/components/messaging/MessageInput";
-import { AuthSession } from "@/lib/auth/types";
+import { AuthSession } from "@/infrastructure/auth/types";
 import { ROUTES } from "@/lib/routes";
-import { getConversationDetail, sendMessage, createConversation, getJobRequestForConversation } from "./actions";
-import { useWebSocket } from "@/lib/websocket";
+import { getConversationDetail, sendMessage, createConversation, getJobRequestForConversation } from "@/app/consumidor/mensajes/actions";
+import { useWebSocket } from "@/infrastructure/websocket";
 
-import { Message, JobRequestInfo, ConsumerConversationContact as ConversationContact } from "@/lib/messaging/types";
+import { Message, JobRequestInfo, ConsumerConversationContact as ConversationContact } from "@/domain/messaging/types";
 
 interface ConsumerMessagesClientProps {
   session: AuthSession | null;

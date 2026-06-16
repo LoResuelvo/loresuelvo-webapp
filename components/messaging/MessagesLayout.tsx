@@ -5,7 +5,7 @@ import ChatHeader from "./ChatHeader";
 import MessagesList from "./MessagesList";
 import MessageInput, { MessageInputHandle } from "./MessageInput";
 
-import { ConversationContact, Message, JobRequestInfo } from "@/lib/messaging/types";
+import { ConversationContact, Message, JobRequestInfo } from "@/domain/messaging/types";
 
 interface MessagesLayoutProps {
   contacts: ConversationContact[];

@@ -1,9 +1,9 @@
 import { render, screen, within, fireEvent, waitFor, act } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import WorkRequestsSection from "./WorkRequestsSection";
-import { ProviderWorkRequest } from "@/lib/provider-home/types";
-import * as actions from "./actions";
-import * as messagingActions from "@/components/provider/messages/actions";
+import { ProviderWorkRequest } from "@/domain/provider/types";
+import * as actions from "@/app/prestador/home/actions";
+import * as messagingActions from "@/app/prestador/mensajes/actions";
 
 const mockPush = vi.fn();
 
@@ -13,12 +13,12 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-vi.mock("./actions", () => ({
+vi.mock("@/app/prestador/home/actions", () => ({
   acceptJobRequest: vi.fn(),
   rejectJobRequest: vi.fn(),
 }));
 
-vi.mock("@/components/provider/messages/actions", () => ({
+vi.mock("@/app/prestador/mensajes/actions", () => ({
   getConversationDetail: vi.fn(),
 }));
 

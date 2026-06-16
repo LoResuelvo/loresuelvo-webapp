@@ -1,18 +1,15 @@
-import { getAuthService } from "@/lib/auth";
+import { getAuthService } from "@/infrastructure/auth";
 import ConsumerHome from "@/components/consumer/home/ConsumerHome";
-import { api } from "@/lib/api/base-client";
-import { Category } from "@/lib/api/types";
+import { getConsumerHome } from "@/application/consumer/get-consumer-home";
+import { ApiCategoryRepository } from "@/infrastructure/repositories/api-category-repository";
 
 export default async function ConsumerHomePage() {
   const session = await getAuthService().getSession();
   console.debug("[DEBUG] Token:", session?.accessToken);
 
-  let categories: Category[] = [];
-  try {
-    categories = await api.get<Category[]>("/categories");
-  } catch (error) {
-    console.error("Error fetching categories:", error);
-  }
+  const categoryRepo = new ApiCategoryRepository();
+  const categories = await getConsumerHome(categoryRepo);
 
   return <ConsumerHome session={session} categories={categories} />;
 }
+

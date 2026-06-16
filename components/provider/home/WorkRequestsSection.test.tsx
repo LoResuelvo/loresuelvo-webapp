@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import WorkRequestsSection from "./WorkRequestsSection";
 import { ProviderWorkRequest } from "@/lib/provider-home/types";
 import * as actions from "./actions";
-import * as messagingActions from "@/components/provider/mensajes/actions";
+import * as messagingActions from "@/components/provider/messages/actions";
 
 const mockPush = vi.fn();
 
@@ -18,7 +18,7 @@ vi.mock("./actions", () => ({
   rejectJobRequest: vi.fn(),
 }));
 
-vi.mock("@/components/provider/mensajes/actions", () => ({
+vi.mock("@/components/provider/messages/actions", () => ({
   getConversationDetail: vi.fn(),
 }));
 

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import DiagnosisHero from "@/components/consumidor/diagnosis/DiagnosisHero";
+import DiagnosisHero from "@/components/consumer/diagnosis/DiagnosisHero";
 
 const mockPush = vi.fn();
 

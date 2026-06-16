@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import Sidebar from "@/components/consumidor/Sidebar";
+import Sidebar from "@/components/consumer/Sidebar";
 
 const mockUsePathname = vi.fn(() => "/consumidor/home");
 

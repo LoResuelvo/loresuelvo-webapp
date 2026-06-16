@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import ConsumerHome from "@/components/consumidor/home/ConsumerHome";
+import ConsumerHome from "@/components/consumer/home/ConsumerHome";
 
 const mockUser = {
   id: "1",

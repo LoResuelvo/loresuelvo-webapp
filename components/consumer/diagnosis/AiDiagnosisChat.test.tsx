@@ -1,6 +1,6 @@
 import { render, screen, waitFor, fireEvent, cleanup, act } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import AiDiagnosisChat from "@/components/consumidor/diagnosis/AiDiagnosisChat";
+import AiDiagnosisChat from "@/components/consumer/diagnosis/AiDiagnosisChat";
 import { AssistantClient } from "@/lib/diagnosis/assistant-client";
 
 const ASSISTANT_REPLY =

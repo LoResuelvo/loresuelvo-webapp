@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import WorkRequestModal from "@/components/consumidor/search/WorkRequestModal";
+import WorkRequestModal from "@/components/consumer/search/WorkRequestModal";
 import * as actions from "@/app/consumidor/buscar/actions";
 import { Provider } from "@/lib/api/types";
 

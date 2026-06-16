@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import Sidebar from "@/components/consumidor/Sidebar";
-import ConsumerHeader from "@/components/consumidor/home/ConsumerHeader";
-import AiDiagnosisChat from "@/components/consumidor/diagnosis/AiDiagnosisChat";
+import Sidebar from "@/components/consumer/Sidebar";
+import ConsumerHeader from "@/components/consumer/home/ConsumerHeader";
+import AiDiagnosisChat from "@/components/consumer/diagnosis/AiDiagnosisChat";
 import { getAuthService } from "@/lib/auth";
 
 export default async function ConsumerAiMessagesPage() {

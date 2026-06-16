@@ -1,6 +1,6 @@
 import { getAuthService } from "@/lib/auth";
 import { conversationsClient, type ApiConversation } from "@/lib/conversations-client";
-import ProviderMessagesClient from "@/components/provider/mensajes/ProviderMessagesClient";
+import ProviderMessagesClient from "@/components/provider/messages/ProviderMessagesClient";
 
 interface ConversationContact {
   id: string;

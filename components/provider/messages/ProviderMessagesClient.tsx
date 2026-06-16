@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import ProviderSidebar from "@/components/provider/home/ProviderSidebar";
 import ProviderHeader from "@/components/provider/home/ProviderHeader";
-import ProviderMessagesView from "@/components/provider/mensajes/ProviderMessagesView";
+import ProviderMessagesView from "@/components/provider/messages/ProviderMessagesView";
 import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import { AuthSession } from "@/lib/auth/types";
 import { ROUTES } from "@/lib/routes";

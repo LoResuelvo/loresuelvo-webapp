@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import AiDiagnosisChat from "@/components/consumidor/diagnosis/AiDiagnosisChat";
+import AiDiagnosisChat from "@/components/consumer/diagnosis/AiDiagnosisChat";
 
 export default function ConsumerDiagnosisPage() {
   return (

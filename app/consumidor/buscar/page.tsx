@@ -1,7 +1,7 @@
 import { getAuthService } from "@/lib/auth";
 import { api } from "@/lib/api/base-client";
 import { Category, Provider } from "@/lib/api/types";
-import SearchClient from "@/components/consumidor/search/SearchClient";
+import SearchClient from "@/components/consumer/search/SearchClient";
 
 interface PageProps {
   searchParams: Promise<{ category_id?: string }>;

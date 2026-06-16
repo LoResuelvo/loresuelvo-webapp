@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import ProviderCard from "@/components/consumidor/search/ProviderCard";
+import ProviderCard from "@/components/consumer/search/ProviderCard";
 
 describe('ProviderCard', () => {
     it("displays the provider's profile photo when profile_photo_url is present", () => {

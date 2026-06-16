@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ProviderWorkRequest } from "@/lib/provider-home/types";
 import RequestDetailModal from "./RequestDetailModal";
 import { acceptJobRequest } from "./actions";
-import { getConversationDetail } from "@/components/provider/mensajes/actions";
+import { getConversationDetail } from "@/components/provider/messages/actions";
 import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 

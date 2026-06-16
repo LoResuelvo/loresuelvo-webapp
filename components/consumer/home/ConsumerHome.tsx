@@ -1,11 +1,11 @@
 "use client";
 
-import Sidebar from "@/components/consumidor/Sidebar";
+import Sidebar from "@/components/consumer/Sidebar";
 import { AuthSession } from "@/lib/auth/types";
 import { Category } from "@/lib/api/types";
 import ConsumerHeader from "./ConsumerHeader";
 import CategoryGrid from "./CategoryGrid";
-import DiagnosisHero from "@/components/consumidor/diagnosis/DiagnosisHero";
+import DiagnosisHero from "@/components/consumer/diagnosis/DiagnosisHero";
 
 interface ConsumerHomeProps {
   session: AuthSession | null;

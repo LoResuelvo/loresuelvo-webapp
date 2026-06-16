@@ -1,5 +1,5 @@
 import { ApiConversation } from "@/infrastructure/api/types";
-import { ConsumerConversationContact, ProviderConversationContact } from "./types";
+import { ConsumerConversationContact, ProviderConversationContact } from "@/domain/messaging/types";
 
 export function transformApiToConsumerContact(apiConv: ApiConversation): ConsumerConversationContact {
   return {

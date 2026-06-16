@@ -1,7 +1,7 @@
 import { getAuthService } from "@/infrastructure/auth";
 import RegistrationForm from "@/components/onboarding/RegistrationForm";
 import { api } from "@/infrastructure/api/base-client";
-import { Category } from "@/infrastructure/api/types";
+import { Category } from "@/domain/shared/types";
 
 export default async function OnboardingPage() {
   const session = await getAuthService().getSession();

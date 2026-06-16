@@ -1,7 +1,7 @@
 "use client";
 
 import { Label } from "@/components/ui/label";
-import { Category } from "@/infrastructure/api/types";
+import { Category } from "@/domain/shared/types";
 
 interface CategorySelectProps {
   categories: Category[];

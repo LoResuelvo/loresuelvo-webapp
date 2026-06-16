@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { submitRegistration, getPresignedUrlAction, confirmUploadAction } from "@/app/onboarding/actions";
 import { RoleSelectionStep } from "./RoleSelectionStep";
 import { ProfileFormStep } from "./ProfileFormStep";
-import { Category } from "@/infrastructure/api/types";
+import { Category } from "@/domain/shared/types";
 import { storageClient } from "@/infrastructure/storage/storage-client";
 
 

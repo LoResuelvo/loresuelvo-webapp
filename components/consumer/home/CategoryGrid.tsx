@@ -1,6 +1,6 @@
 "use client";
 
-import { Category } from "@/infrastructure/api/types";
+import { Category } from "@/domain/shared/types";
 import { Bath, Flame, Zap, Snowflake, PaintRoller, Hammer, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";

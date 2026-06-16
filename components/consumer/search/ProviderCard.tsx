@@ -1,5 +1,5 @@
 import { MessageCircle, User, ArrowRight } from "lucide-react";
-import { Provider } from "@/infrastructure/api/types";
+import { Provider } from "@/domain/provider/types";
 import { Button } from "@/components/ui/button";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { t } from "@/infrastructure/i18n/translations";

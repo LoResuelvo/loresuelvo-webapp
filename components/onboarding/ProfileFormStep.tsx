@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { ChangeEvent, useState } from "react";
-import { Category } from "@/infrastructure/api/types";
+import { Category } from "@/domain/shared/types";
 import { CategorySelect } from "./CategorySelect";
 import { ProfilePhotoUpload } from "./ProfilePhotoUpload";
 import { t } from "@/infrastructure/i18n/translations";
@@ -65,7 +65,8 @@ export function ProfileFormStep({
       categoryId,
       photoSize,
       photoName,
-      photoType
+      photoType,
+      t.onboarding.profileForm
     );
 
     if (errors.firstName) setFirstNameError(errors.firstName);
@@ -111,7 +112,7 @@ export function ProfileFormStep({
           <ProfilePhotoUpload
             onPhotoSelected={(file) => {
               if (file) {
-                const photoError = validateProfilePhoto(file);
+                const photoError = validateProfilePhoto(file, t.onboarding.profileForm);
                 setProfilePhotoError(photoError);
               } else {
                 setProfilePhotoError(null);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Provider } from "@/infrastructure/api/types";
+import { Provider } from "@/domain/provider/types";
 import { createJobRequest } from "@/app/consumidor/buscar/actions";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/lib/routes";

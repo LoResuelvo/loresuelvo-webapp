@@ -2,7 +2,7 @@
 
 import Sidebar from "@/components/consumer/Sidebar";
 import { AuthSession } from "@/infrastructure/auth/types";
-import { Category } from "@/infrastructure/api/types";
+import { Category } from "@/domain/shared/types";
 import ConsumerHeader from "./ConsumerHeader";
 import CategoryGrid from "./CategoryGrid";
 import DiagnosisHero from "@/components/consumer/diagnosis/DiagnosisHero";

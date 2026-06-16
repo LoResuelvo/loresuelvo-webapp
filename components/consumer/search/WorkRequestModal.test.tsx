@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import WorkRequestModal from "@/components/consumer/search/WorkRequestModal";
 import * as actions from "@/app/consumidor/buscar/actions";
-import { Provider } from "@/infrastructure/api/types";
+import { Provider } from "@/domain/provider/types";
 
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({

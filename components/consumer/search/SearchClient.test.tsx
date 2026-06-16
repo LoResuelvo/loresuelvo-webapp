@@ -1,7 +1,8 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import SearchClient from "@/components/consumer/search/SearchClient";
-import { Category, Provider } from "@/infrastructure/api/types";
+import { Category } from "@/domain/shared/types";
+import { Provider } from "@/domain/provider/types";
 
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(() => ({

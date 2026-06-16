@@ -1,6 +1,6 @@
 import { UserRepository } from "@/ports/user-repository";
 import { RegisterUserData, UserRole } from "@/domain/onboarding/types";
-import { AuthService } from "@/infrastructure/auth/types";
+import { AuthService } from "@/ports/auth-service";
 import { ROUTES } from "@/lib/routes";
 
 interface RegisterUserCommand {

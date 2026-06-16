@@ -22,6 +22,7 @@ export interface Provider {
   rating?: number;
   reviews?: number;
   jobs?: number;
+  profile_photo_url?: string;
 }
 
 export interface ApiConversation {

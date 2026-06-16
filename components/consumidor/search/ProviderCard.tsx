@@ -9,10 +9,19 @@ interface ProviderCardProps {
 export default function ProviderCard({ provider, onContact }: ProviderCardProps) {
   return (
     <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 flex gap-5 items-center relative group">
-      <div className="w-[80px] h-[80px] rounded-2xl bg-slate-100 flex items-center justify-center border border-slate-200/50 flex-shrink-0 select-none overflow-hidden">
-        <div className="w-14 h-14 rounded-full bg-slate-400/25 flex items-center justify-center border-4 border-white shadow-inner">
-          <User className="w-7 h-7 text-slate-500/70" />
-        </div>
+      <div className="w-[80px] h-[80px] rounded-2xl bg-slate-100 flex items-center justify-center border border-slate-200/50 flex-shrink-0 select-none overflow-hidden relative">
+        {provider.profile_photo_url ? (
+          <img
+            src={provider.profile_photo_url}
+            alt={`Foto de ${provider.name}`}
+            className="w-full h-full object-cover"
+            data-testid="provider-profile-photo"
+          />
+        ) : (
+          <div className="w-14 h-14 rounded-full bg-slate-400/25 flex items-center justify-center border-4 border-white shadow-inner">
+            <User className="w-7 h-7 text-slate-500/70" />
+          </div>
+        )}
       </div>
 
       <div className="flex-1 min-w-0 flex flex-col justify-between">

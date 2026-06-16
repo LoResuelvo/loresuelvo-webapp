@@ -1,5 +1,7 @@
-import { MessageCircle, Star, User, ArrowRight } from "lucide-react";
+import { MessageCircle, User, ArrowRight } from "lucide-react";
 import { Provider } from "@/lib/api/types";
+import { Button } from "@/components/ui/button";
+import { RatingStars } from "@/components/ui/rating-stars";
 
 interface ProviderCardProps {
   provider: Provider;
@@ -32,18 +34,7 @@ export default function ProviderCard({ provider, onContact }: ProviderCardProps)
             </h4>
 
             <div className="flex items-center gap-2 mt-1">
-              <div className="flex items-center gap-0.5">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    className={`w-3.5 h-3.5 fill-current ${
-                      provider.rating && i < Math.floor(provider.rating)
-                        ? "text-amber-400"
-                        : "text-slate-200"
-                    }`}
-                  />
-                ))}
-              </div>
+              <RatingStars rating={provider.rating} />
               <span className="text-[12px] font-bold text-slate-700 leading-none">
                 {provider.rating !== undefined ? provider.rating : ""}
               </span>
@@ -60,22 +51,23 @@ export default function ProviderCard({ provider, onContact }: ProviderCardProps)
           </div>
 
           <div className="flex flex-col items-end gap-2 flex-shrink-0">
-            <button
+            <Button
               type="button"
               onClick={() => onContact?.(provider)}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-lg font-semibold text-[13px] transition-colors shadow-sm cursor-pointer"
+              className="bg-brand-primary hover:bg-brand-primary/90 text-white shadow-sm font-semibold text-[13px]"
             >
-              <MessageCircle className="w-4 h-4" aria-hidden="true" />
+              <MessageCircle className="w-4 h-4 mr-2" aria-hidden="true" />
               Contactar
-            </button>
+            </Button>
 
-            <button
+            <Button
+              variant="link"
               type="button"
-              className="text-brand-secondary font-bold text-[13px] hover:underline flex items-center gap-0.5"
+              className="text-brand-secondary font-bold text-[13px] p-0 h-auto flex items-center gap-0.5 group/link"
             >
               Ver perfil
-              <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-            </button>
+              <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/link:translate-x-0.5" />
+            </Button>
           </div>
         </div>
       </div>

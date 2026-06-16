@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button";
+
 interface MessageBubbleProps {
   id: string;
   content: string;
@@ -31,14 +33,15 @@ export default function MessageBubble({
           {content}
         </p>
         {showExpandButton && (
-          <button
+          <Button
+            variant="ghost"
             onClick={() => onToggleExpand(id)}
-            className={`text-[11px] mt-1 hover:underline ${
+            className={`text-[11px] mt-1 hover:underline p-0 h-auto hover:bg-transparent ${
               isOwnMessage ? "text-white/70 hover:text-white" : "text-slate-500 hover:text-slate-700"
             }`}
           >
             {isExpanded ? "Ver menos" : "Ver más"}
-          </button>
+          </Button>
         )}
         <p className={`text-[11px] mt-2 ${isOwnMessage ? "text-white/70" : "text-slate-400"}`}>{sentAt}</p>
       </div>

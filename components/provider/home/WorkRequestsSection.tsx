@@ -7,6 +7,7 @@ import RequestDetailModal from "./RequestDetailModal";
 import { acceptJobRequest } from "./actions";
 import { getConversationDetail } from "@/components/provider/mensajes/actions";
 import { ROUTES } from "@/lib/routes";
+import { Button } from "@/components/ui/button";
 
 interface WorkRequestsSectionProps {
   requests: ProviderWorkRequest[];
@@ -69,7 +70,7 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <p
-                          data-field="client-name"
+                           data-field="client-name"
                           className="text-[14px] font-semibold text-brand-secondary"
                         >
                           {request.clientName}
@@ -107,13 +108,13 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
                   </div>
 
                   <div className="flex items-center justify-center min-w-[120px]">
-                    <button
+                    <Button
                       type="button"
-                      className="bg-brand-secondary hover:bg-brand-secondary/80 text-white rounded-lg px-4 py-2 text-[14px] font-medium transition-colors"
+                      className="bg-brand-secondary hover:bg-brand-secondary/80 text-white rounded-lg px-4 h-auto py-2 text-[14px] font-medium transition-colors"
                       onClick={() => setSelectedRequest(request)}
                     >
                       Ver Solicitud
-                    </button>
+                    </Button>
                   </div>
                 </article>
               </li>

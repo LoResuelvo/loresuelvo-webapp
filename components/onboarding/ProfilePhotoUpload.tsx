@@ -1,5 +1,6 @@
 import { useState, useRef, ChangeEvent } from "react";
 import { Camera, Image as ImageIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface ProfilePhotoUploadProps {
   onPhotoSelected: (file: File | null) => void;
@@ -66,7 +67,7 @@ export function ProfilePhotoUpload({ onPhotoSelected, error }: ProfilePhotoUploa
         )}
       </div>
 
-      <input
+      <Input
         type="file"
         name="profilePhoto"
         ref={fileInputRef}

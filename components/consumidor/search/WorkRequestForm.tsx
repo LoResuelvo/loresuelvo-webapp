@@ -6,7 +6,10 @@ import { createJobRequest } from "@/app/consumidor/buscar/actions";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
 import { ProviderMiniProfile } from "./ProviderMiniProfile";
-
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 interface WorkRequestFormProps {
   provider: Provider;
 }
@@ -69,31 +72,31 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="title-input" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+        <Label htmlFor="title-input" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
           Título del problema
-        </label>
-        <input
+        </Label>
+        <Input
           id="title-input"
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Ej: Pérdida de agua en termotanque"
-          className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-200 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary rounded-xl text-brand-primary placeholder-slate-400 font-medium text-[13px] transition-all outline-none"
+          className="px-4 py-2.5 h-auto bg-slate-50 hover:bg-slate-100 focus:bg-white border-slate-200 focus-visible:border-brand-primary focus-visible:ring-1 focus-visible:ring-brand-primary text-brand-primary placeholder:text-slate-400 font-medium text-[13px] rounded-xl"
           required
         />
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="desc-input" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+        <Label htmlFor="desc-input" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
           Descripción del problema
-        </label>
-        <textarea
+        </Label>
+        <Textarea
           id="desc-input"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Ej: El termotanque pierde agua por la base. El agua se acumula y el piloto se apaga. Es de la marca X, modelo Y..."
           rows={4}
-          className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-200 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary rounded-xl text-brand-primary placeholder-slate-400 font-medium text-[13px] transition-all outline-none resize-none"
+          className="px-4 py-2.5 min-h-[100px] bg-slate-50 hover:bg-slate-100 focus:bg-white border-slate-200 focus-visible:border-brand-primary focus-visible:ring-1 focus-visible:ring-brand-primary text-brand-primary placeholder:text-slate-400 font-medium text-[13px] rounded-xl resize-none"
           required
         />
       </div>
@@ -104,13 +107,13 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
         </div>
       )}
 
-      <button
+      <Button
         type="submit"
         disabled={isSubmitting}
-        className="w-full py-3 bg-brand-primary hover:bg-brand-primary/95 text-white font-bold text-[14px] rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer"
+        className="w-full h-auto py-3 bg-brand-primary hover:bg-brand-primary/95 text-white font-bold text-[14px] rounded-xl shadow-sm"
       >
         {isSubmitting ? "Enviando solicitud..." : "Enviar solicitud"}
-      </button>
+      </Button>
     </form>
   );
 }

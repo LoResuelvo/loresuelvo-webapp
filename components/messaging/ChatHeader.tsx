@@ -3,6 +3,7 @@
 import { User } from "lucide-react";
 import { useState } from "react";
 import JobRequestPanel from "./JobRequestPanel";
+import { Button } from "@/components/ui/button";
 
 export interface JobRequestInfo {
   title: string;
@@ -39,22 +40,22 @@ export default function ChatHeader({ providerName, providerSurname, pending, job
           </div>
 
           {jobRequest && (
-            <button
+            <Button
               onClick={() => setShowPanel(true)}
-              className="px-4 py-2 bg-brand-secondary text-white text-[14px] font-semibold rounded-lg hover:bg-brand-secondary/80 transition-colors"
+              className="px-4 py-2 bg-brand-secondary text-white text-[14px] font-semibold rounded-lg hover:bg-brand-secondary/80 transition-colors h-auto"
               aria-label="Ver solicitud de trabajo"
             >
               Ver Solicitud
-            </button>
+            </Button>
           )}
 
           {pending && onAccept && (
-            <button
+            <Button
               onClick={onAccept}
-              className="px-4 py-2 bg-brand-secondary text-white text-[14px] font-semibold rounded-lg hover:bg-brand-secondary/80 transition-colors"
+              className="px-4 py-2 bg-brand-secondary text-white text-[14px] font-semibold rounded-lg hover:bg-brand-secondary/80 transition-colors h-auto"
             >
               Ver Solicitud
-            </button>
+            </Button>
           )}
         </div>
       </div>

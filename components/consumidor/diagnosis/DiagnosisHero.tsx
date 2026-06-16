@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { Sparkles, Info } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { saveAiMessages, loadAiMessages, type AiMessage } from "@/lib/diagnosis/ai-chat-storage";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 const HERO_IMAGE = "/illustrations/hero-home-ai-diagnosis.png";
 
@@ -110,24 +113,24 @@ export default function DiagnosisHero() {
         </h1>
 
         <form onSubmit={handleSubmit}>
-          <label htmlFor="diagnosis-message" className="sr-only">
+          <Label htmlFor="diagnosis-message" className="sr-only">
             Describí el problema
-          </label>
+          </Label>
           <div className="flex items-center gap-2 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 p-2">
-            <textarea
+            <Textarea
               ref={textareaRefCallback}
               id="diagnosis-message"
               value={message}
               onChange={handleChange}
               placeholder="Describe el problema de tu hogar…"
-              className="flex-1 min-w-0 rounded-lg bg-white/20 backdrop-blur px-4 py-3 text-[16px] text-white placeholder:text-white/70 focus:outline-none focus:ring-2 focus:ring-white/70 resize-none leading-6"
+              className="flex-1 min-w-0 rounded-lg bg-white/20 backdrop-blur px-4 py-3 text-[16px] text-white placeholder:text-white/70 focus-visible:ring-2 focus-visible:ring-white/70 resize-none leading-6 min-h-0"
             />
-            <button
+            <Button
               type="submit"
-              className="rounded-lg bg-brand-primary text-white font-semibold px-6 py-3 text-[15px] hover:opacity-95 transition-opacity whitespace-nowrap shadow-sm"
+              className="rounded-lg bg-brand-primary text-white font-semibold px-6 py-3 h-auto hover:opacity-95 transition-opacity whitespace-nowrap shadow-sm"
             >
               Diagnosticar
-            </button>
+            </Button>
           </div>
           <div className="flex items-center gap-2 text-white/80 text-[14px] mt-3">
             <Info className="w-4 h-4 flex-shrink-0" aria-hidden="true" />

@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { AlertCircle, Loader2, MessageSquare, Send } from "lucide-react";
 import MessageBubble from "@/components/messaging/MessageBubble";
 import InfoBanner from "@/components/messaging/InfoBanner";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AssistantClient,
   createMockAssistantClient,
@@ -258,20 +260,21 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
                 <AlertCircle className="w-4 h-4" aria-hidden="true" />
                 <span className="text-[14px] font-medium">{ERROR_MESSAGE}</span>
               </div>
-              <button
+              <Button
+                variant="link"
                 type="button"
                 onClick={handleRetry}
-                className="self-start text-[13px] font-semibold text-red-700 hover:text-red-900 underline underline-offset-2"
+                className="self-start text-[13px] font-semibold text-red-700 hover:text-red-900 underline underline-offset-2 p-0 h-auto"
               >
                 Reintentar
-              </button>
+              </Button>
             </div>
           </div>
         )}
       </div>
 
       <div className="border-t border-slate-200 p-4 flex gap-3 bg-white">
-        <textarea
+        <Textarea
           ref={setTextareaRef}
           value={messageInput}
           onChange={(e) => handleInputChange(e.target.value)}
@@ -282,18 +285,18 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
             }
           }}
           placeholder="Escribe un mensaje..."
-          className="flex-1 resize-none px-4 py-3 rounded-xl border border-slate-200 bg-white text-[14px] leading-6 focus:outline-none focus:ring-2 focus:ring-brand-secondary/40"
+          className="flex-1 resize-none px-4 py-3 min-h-0 rounded-xl border-slate-200 bg-white text-[14px] leading-6 focus-visible:ring-brand-secondary/40"
           disabled={isProcessing || isSending}
         />
-        <button
+        <Button
           type="button"
           onClick={handleSendMessage}
           disabled={isProcessing || isSending || !messageInput.trim()}
           aria-label="Enviar mensaje"
-          className="px-5 py-3 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-5 h-[auto] py-3 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-xl font-semibold"
         >
           <Send className="w-5 h-5" aria-hidden="true" />
-        </button>
+        </Button>
       </div>
     </section>
   );

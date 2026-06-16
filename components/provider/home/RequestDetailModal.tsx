@@ -1,8 +1,8 @@
 "use client";
 
-import { X } from "lucide-react";
+import { X, MapPin, Calendar } from "lucide-react";
 import { ProviderWorkRequest } from "@/lib/provider-home/types";
-import { MapPin, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface RequestDetailModalProps {
   request: ProviderWorkRequest;
@@ -33,13 +33,15 @@ export default function RequestDetailModal({
           <h2 id="modal-title" className="text-lg font-semibold text-brand-primary">
             Detalle de Solicitud
           </h2>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-lg hover:bg-slate-100 transition-colors h-8 w-8"
             aria-label="Cerrar"
           >
             <X className="h-5 w-5 text-slate-500" />
-          </button>
+          </Button>
         </div>
 
         <div className="p-6 space-y-5">
@@ -71,7 +73,6 @@ export default function RequestDetailModal({
               {request.problemTitle}
             </h3>
 
-
             <div className="pt-2 space-y-1">
               <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wide">
                 Descripción
@@ -84,20 +85,20 @@ export default function RequestDetailModal({
         </div>
 
         <div className="p-6 pt-4 border-t border-slate-200 bg-slate-50 space-y-3">
-          <button
+          <Button
             type="button"
-            className="w-full bg-brand-accept hover:bg-brand-accept/90 text-white rounded-lg py-3 text-[15px] font-semibold transition-colors"
+            className="w-full bg-brand-accept hover:bg-brand-accept/90 text-white rounded-lg h-auto py-3 text-[15px] font-semibold transition-colors"
             onClick={() => onAccept(request.id)}
           >
             Aceptar Solicitud
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="w-full bg-brand-danger hover:bg-brand-danger/90 text-white rounded-lg py-3 text-[15px] font-semibold transition-colors"
+            className="w-full bg-brand-danger hover:bg-brand-danger/90 text-white rounded-lg h-auto py-3 text-[15px] font-semibold transition-colors"
             onClick={() => onReject(request.id)}
           >
             Rechazar Solicitud
-          </button>
+          </Button>
         </div>
       </div>
     </div>

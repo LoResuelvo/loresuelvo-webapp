@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export interface JobRequestPanelInfo {
   title: string;
@@ -38,13 +39,15 @@ export default function JobRequestPanel({ jobRequest, onClose }: JobRequestPanel
           >
             Detalle de Solicitud
           </h2>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-lg hover:bg-slate-100 transition-colors h-8 w-8"
             aria-label="Cerrar"
           >
             <X className="h-5 w-5 text-slate-500" />
-          </button>
+          </Button>
         </div>
 
         <div className="p-6 space-y-5">

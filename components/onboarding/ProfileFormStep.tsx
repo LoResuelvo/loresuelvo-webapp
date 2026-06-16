@@ -85,13 +85,14 @@ export function ProfileFormStep({
 
   return (
     <div>
-      <button
+      <Button
+        variant="ghost"
         type="button"
         onClick={onBack}
-        className="mb-6 flex items-center text-sm font-semibold text-muted-foreground hover:text-brand-primary transition-colors"
+        className="mb-6 h-auto p-0 flex items-center text-sm font-semibold text-muted-foreground hover:text-brand-primary hover:bg-transparent transition-colors"
       >
         <ArrowLeft className="mr-2 h-4 w-4" /> Volver
-      </button>
+      </Button>
 
       <div className="mb-8 text-center">
         <h1 className="mb-2 text-[26px] font-bold leading-tight tracking-tight text-brand-primary">

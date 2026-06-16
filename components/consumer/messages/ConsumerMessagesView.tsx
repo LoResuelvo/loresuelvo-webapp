@@ -2,24 +2,7 @@ import { RefObject, forwardRef } from "react";
 import { ChatPanel } from "@/components/messaging/MessagesLayout";
 import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import ContactList from "@/components/messaging/ContactList";
-import type { JobRequestInfo } from "@/components/messaging/ChatHeader";
-
-interface ConversationContact {
-  id: string;
-  providerId: string;
-  providerName: string;
-  providerSurname: string;
-  lastMessage: string;
-  lastMessageAt: string;
-  pending: boolean;
-}
-
-interface Message {
-  id: string;
-  content: string;
-  sentAt: string;
-  senderId?: string;
-}
+import { Message, JobRequestInfo, ConsumerConversationContact as ConversationContact } from "@/lib/messaging/types";
 
 interface ConsumerMessagesViewProps {
   contacts: ConversationContact[];

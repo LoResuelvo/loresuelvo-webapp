@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import ConsumerMessagesClient from "@/app/consumidor/mensajes/ConsumerMessagesClient";
-import * as actions from "@/app/consumidor/mensajes/actions";
+import ConsumerMessagesClient from "@/components/consumer/messages/ConsumerMessagesClient";
+import * as actions from "@/components/consumer/messages/actions";
 
 vi.mock("@/lib/websocket", () => ({
   useWebSocket: vi.fn(() => ({
@@ -24,10 +24,11 @@ vi.mock("next/navigation", () => ({
   })),
 }));
 
-vi.mock("@/app/consumidor/mensajes/actions", () => ({
+vi.mock("@/components/consumer/messages/actions", () => ({
   getConversationDetail: vi.fn(),
   sendMessage: vi.fn(),
   createConversation: vi.fn(),
+  getJobRequestForConversation: vi.fn(),
 }));
 
 const mockUser = {

@@ -5,12 +5,7 @@ import { useState } from "react";
 import JobRequestPanel from "./JobRequestPanel";
 import { Button } from "@/components/ui/button";
 
-export interface JobRequestInfo {
-  title: string;
-  description: string;
-  providerName?: string;
-  providerSurname?: string;
-}
+import { JobRequestInfo } from "@/lib/messaging/types";
 
 interface ChatHeaderProps {
   providerName: string;

@@ -1,14 +1,6 @@
 import ContactItem from "./ContactItem";
 
-interface ConversationContact {
-  id: string;
-  providerId: string;
-  providerName: string;
-  providerSurname: string;
-  lastMessage: string;
-  lastMessageAt: string;
-  pending: boolean;
-}
+import { ConversationContact } from "@/lib/messaging/types";
 
 interface ContactListProps {
   contacts: ConversationContact[];

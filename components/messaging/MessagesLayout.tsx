@@ -1,25 +1,11 @@
 import { MessageSquare } from "lucide-react";
 import { forwardRef } from "react";
 import ContactList from "./ContactList";
-import ChatHeader, { type JobRequestInfo } from "./ChatHeader";
+import ChatHeader from "./ChatHeader";
 import MessagesList from "./MessagesList";
 import MessageInput, { MessageInputHandle } from "./MessageInput";
 
-interface ConversationContact {
-  id: string;
-  providerId: string;
-  providerName: string;
-  providerSurname: string;
-  lastMessage: string;
-  lastMessageAt: string;
-  pending: boolean;
-}
-
-interface Message {
-  id: string;
-  content: string;
-  sentAt: string;
-}
+import { ConversationContact, Message, JobRequestInfo } from "@/lib/messaging/types";
 
 interface MessagesLayoutProps {
   contacts: ConversationContact[];

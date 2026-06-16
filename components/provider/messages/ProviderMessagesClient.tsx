@@ -13,23 +13,7 @@ import { useWebSocket } from "@/lib/websocket";
 import RequestDetailModal from "@/components/provider/home/RequestDetailModal";
 import type { ProviderWorkRequest } from "@/lib/provider-home/types";
 
-interface Message {
-  id: string;
-  content: string;
-  senderId: string;
-  sentAt: string;
-}
-
-interface ConversationContact {
-  id: string;
-  consumerId: string;
-  consumerName: string;
-  consumerSurname: string;
-  lastMessage: string;
-  lastMessageAt: string;
-  pending: boolean;
-  messages?: Message[];
-}
+import { Message, ProviderConversationContact as ConversationContact } from "@/lib/messaging/types";
 
 interface ProviderMessagesClientProps {
   session: AuthSession | null;

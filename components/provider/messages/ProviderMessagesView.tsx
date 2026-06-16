@@ -3,22 +3,7 @@ import { ChatPanel } from "@/components/messaging/MessagesLayout";
 import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import ContactList from "@/components/messaging/ContactList";
 
-interface ConversationContact {
-  id: string;
-  consumerId: string;
-  consumerName: string;
-  consumerSurname: string;
-  lastMessage: string;
-  lastMessageAt: string;
-  pending: boolean;
-}
-
-interface Message {
-  id: string;
-  content: string;
-  sentAt: string;
-  senderId?: string;
-}
+import { Message, ProviderConversationContact as ConversationContact } from "@/lib/messaging/types";
 
 interface ProviderMessagesViewProps {
   contacts: ConversationContact[];

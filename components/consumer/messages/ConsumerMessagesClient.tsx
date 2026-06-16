@@ -11,30 +11,7 @@ import { ROUTES } from "@/lib/routes";
 import { getConversationDetail, sendMessage, createConversation, getJobRequestForConversation } from "./actions";
 import { useWebSocket } from "@/lib/websocket";
 
-interface Message {
-  id: string;
-  content: string;
-  senderId: string;
-  sentAt: string;
-}
-
-interface JobRequestInfo {
-  title: string;
-  description: string;
-  providerName?: string;
-  providerSurname?: string;
-}
-
-interface ConversationContact {
-  id: string;
-  providerId: string;
-  providerName: string;
-  providerSurname: string;
-  lastMessage: string;
-  lastMessageAt: string;
-  pending: boolean;
-  messages?: Message[];
-}
+import { Message, JobRequestInfo, ConsumerConversationContact as ConversationContact } from "@/lib/messaging/types";
 
 interface ConsumerMessagesClientProps {
   session: AuthSession | null;

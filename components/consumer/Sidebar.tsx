@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Bot, Home, MessageSquare } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
+import { t } from "@/lib/i18n/translations";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -16,12 +17,12 @@ export default function Sidebar() {
       <div className="p-6 h-20 flex items-center">
         <Link href={ROUTES.home} className="flex items-center gap-3">
           <span className="text-[20px] font-extrabold tracking-tight text-brand-primary">
-            LoResuelvo
+            {t.sidebar.logo}
           </span>
         </Link>
       </div>
 
-      <nav aria-label="Navegación del consumidor" className="flex-1 px-4 flex flex-col gap-2 mt-2">
+      <nav aria-label={t.sidebar.navConsumer} className="flex-1 px-4 flex flex-col gap-2 mt-2">
         <Link 
           href={ROUTES.consumer.home}
           className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-colors ${
@@ -31,7 +32,7 @@ export default function Sidebar() {
           }`}
         >
           <Home className="w-5 h-5" />
-          <span>Inicio</span>
+          <span>{t.sidebar.home}</span>
         </Link>
 
         <Link 
@@ -43,7 +44,7 @@ export default function Sidebar() {
           }`}
         >
           <MessageSquare className="w-5 h-5" />
-          <span>Mensajes</span>
+          <span>{t.sidebar.messages}</span>
         </Link>
 
         <Link
@@ -55,7 +56,7 @@ export default function Sidebar() {
           }`}
         >
           <Bot className="w-5 h-5" />
-          <span>Chat con IA</span>
+          <span>{t.sidebar.aiChat}</span>
         </Link>
       </nav>
     </aside>

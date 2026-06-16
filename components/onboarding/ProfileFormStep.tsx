@@ -8,6 +8,7 @@ import { ChangeEvent, useState } from "react";
 import { Category } from "@/lib/api/types";
 import { CategorySelect } from "./CategorySelect";
 import { ProfilePhotoUpload } from "./ProfilePhotoUpload";
+import { t } from "@/lib/i18n/translations";
 
 const MAX_PROFILE_PHOTO_SIZE = 5 * 1024 * 1024;
 
@@ -46,31 +47,31 @@ export function ProfileFormStep({
 
     let hasErrors = false;
     if (!firstName || firstName.trim() === "") {
-      setFirstNameError("Campo obligatorio");
+      setFirstNameError(t.onboarding.profileForm.requiredField);
       hasErrors = true;
     }
     if (!lastName || lastName.trim() === "") {
-      setLastNameError("Campo obligatorio");
+      setLastNameError(t.onboarding.profileForm.requiredField);
       hasErrors = true;
     }
 
     if (role === "provider") {
       if (!categoryId || categoryId === "") {
-        setCategoryError("Debe seleccionar un rubro");
+        setCategoryError(t.onboarding.profileForm.requiredCategory);
         hasErrors = true;
       }
 
       const profilePhoto = formData.get("profilePhoto") as File;
       if (!profilePhoto || (profilePhoto.size === 0 && profilePhoto.name === "")) {
-        setProfilePhotoError("La foto de perfil es obligatoria");
+        setProfilePhotoError(t.onboarding.profileForm.photoRequired);
         hasErrors = true;
       } else {
         const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
         if (!validTypes.includes(profilePhoto.type)) {
-          setProfilePhotoError("Formato de imagen no permitido. Los formatos permitidos son: PNG, JPG, JPEG y WEBP");
+          setProfilePhotoError(t.onboarding.profileForm.photoInvalidFormat);
           hasErrors = true;
         } else if (profilePhoto.size > MAX_PROFILE_PHOTO_SIZE) {
-          setProfilePhotoError("La imagen no debe superar los 5MB");
+          setProfilePhotoError(t.onboarding.profileForm.photoTooLarge);
           hasErrors = true;
         }
       }
@@ -91,15 +92,15 @@ export function ProfileFormStep({
         onClick={onBack}
         className="mb-6 h-auto p-0 flex items-center text-sm font-semibold text-muted-foreground hover:text-brand-primary hover:bg-transparent transition-colors"
       >
-        <ArrowLeft className="mr-2 h-4 w-4" /> Volver
+        <ArrowLeft className="mr-2 h-4 w-4" /> {t.onboarding.profileForm.back}
       </Button>
 
       <div className="mb-8 text-center">
         <h1 className="mb-2 text-[26px] font-bold leading-tight tracking-tight text-brand-primary">
-          Completar Perfil
+          {t.onboarding.profileForm.title}
         </h1>
         <p className="text-[15px] text-muted-foreground">
-          Por favor completa tus datos para finalizar el registro
+          {t.onboarding.profileForm.subtitle}
         </p>
       </div>
 
@@ -116,9 +117,9 @@ export function ProfileFormStep({
               if (file) {
                 const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
                 if (!validTypes.includes(file.type)) {
-                  setProfilePhotoError("Formato de imagen no permitido. Los formatos permitidos son: PNG, JPG, JPEG y WEBP");
+                  setProfilePhotoError(t.onboarding.profileForm.photoInvalidFormat);
                 } else if (file.size > MAX_PROFILE_PHOTO_SIZE) {
-                  setProfilePhotoError("La imagen no debe superar los 5MB");
+                  setProfilePhotoError(t.onboarding.profileForm.photoTooLarge);
                 } else {
                   setProfilePhotoError(null);
                 }
@@ -132,7 +133,7 @@ export function ProfileFormStep({
         
         <div className="space-y-2">
           <Label htmlFor="firstName" className="text-[14px] font-semibold text-brand-primary">
-            Nombre
+            {t.onboarding.profileForm.name}
           </Label>
           <Input
             id="firstName"
@@ -153,7 +154,7 @@ export function ProfileFormStep({
 
         <div className="space-y-2">
           <Label htmlFor="lastName" className="text-[14px] font-semibold text-brand-primary">
-            Apellido
+            {t.onboarding.profileForm.surname}
           </Label>
           <Input
             id="lastName"
@@ -185,7 +186,7 @@ export function ProfileFormStep({
             disabled={isLoading}
             className="h-[46px] w-full rounded-lg bg-brand-primary text-[15px] font-medium text-white transition-colors hover:bg-brand-primary/90"
           >
-            {isLoading ? "Guardando..." : "Finalizar Registro"}
+            {isLoading ? t.onboarding.profileForm.saving : t.onboarding.profileForm.finishRegister}
             {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
           </Button>
         </div>

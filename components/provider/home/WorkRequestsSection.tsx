@@ -8,6 +8,8 @@ import { acceptJobRequest } from "./actions";
 import { getConversationDetail } from "@/components/provider/messages/actions";
 import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
+import { MapPin, Timer, User } from "lucide-react";
+import { t } from "@/lib/i18n/translations";
 
 interface WorkRequestsSectionProps {
   requests: ProviderWorkRequest[];
@@ -38,7 +40,7 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
       <section
         role="region"
         aria-labelledby="work-requests-title"
-        aria-label="Solicitudes de Trabajo"
+        aria-label={t.providerHome.workRequestsSection.ariaLabel}
         className="max-w-4xl"
       >
         <div className="mb-5">
@@ -46,15 +48,15 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
             id="work-requests-title"
             className="text-[26px] font-bold text-brand-primary"
           >
-            Solicitudes de Trabajo
+            {t.providerHome.workRequestsSection.title}
           </h1>
         </div>
 
         {requests.length === 0 ? (
-          <p className="text-[16px] text-slate-500 text-center py-8">Todavía no tienes ninguna solicitud de trabajo :(</p>
+          <p className="text-[16px] text-slate-500 text-center py-8">{t.providerHome.workRequestsSection.emptyState}</p>
         ) : (
           <ul
-            aria-label="Lista de solicitudes de trabajo"
+            aria-label={t.providerHome.workRequestsSection.listLabel}
             className="flex flex-col gap-4"
           >
             {requests.map((request) => (
@@ -76,7 +78,7 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
                           {request.clientName}
                         </p>
                         <h2
-                          data-field="problem-title"
+                           data-field="problem-title"
                           className="mt-1 text-[18px] font-bold text-brand-primary"
                         >
                           {request.problemTitle}
@@ -113,7 +115,7 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
                       className="bg-brand-secondary hover:bg-brand-secondary/80 text-white rounded-lg px-4 h-auto py-2 text-[14px] font-medium transition-colors"
                       onClick={() => setSelectedRequest(request)}
                     >
-                      Ver Solicitud
+                      {t.providerHome.workRequestsSection.viewDetails}
                     </Button>
                   </div>
                 </article>
@@ -134,5 +136,3 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
     </>
   );
 }
-
-import { MapPin, Timer, User } from "lucide-react";

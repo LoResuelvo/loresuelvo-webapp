@@ -3,6 +3,7 @@
 import { X, MapPin, Calendar } from "lucide-react";
 import { ProviderWorkRequest } from "@/lib/provider-home/types";
 import { Button } from "@/components/ui/button";
+import { t } from "@/lib/i18n/translations";
 
 interface RequestDetailModalProps {
   request: ProviderWorkRequest;
@@ -31,14 +32,14 @@ export default function RequestDetailModal({
       >
         <div className="flex items-center justify-between p-4 border-b border-slate-200">
           <h2 id="modal-title" className="text-lg font-semibold text-brand-primary">
-            Detalle de Solicitud
+            {t.providerHome.workRequestsSection.modal.title}
           </h2>
           <Button
             variant="ghost"
             size="icon"
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-slate-100 transition-colors h-8 w-8"
-            aria-label="Cerrar"
+            aria-label={t.providerHome.workRequestsSection.modal.closeLabel}
           >
             <X className="h-5 w-5 text-slate-500" />
           </Button>
@@ -75,7 +76,7 @@ export default function RequestDetailModal({
 
             <div className="pt-2 space-y-1">
               <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wide">
-                Descripción
+                {t.providerHome.workRequestsSection.modal.descriptionLabel}
               </span>
               <p className="text-[15px] leading-relaxed text-slate-600 whitespace-pre-wrap">
                 {request.description}
@@ -90,14 +91,14 @@ export default function RequestDetailModal({
             className="w-full bg-brand-accept hover:bg-brand-accept/90 text-white rounded-lg h-auto py-3 text-[15px] font-semibold transition-colors"
             onClick={() => onAccept(request.id)}
           >
-            Aceptar Solicitud
+            {t.providerHome.workRequestsSection.modal.acceptBtn}
           </Button>
           <Button
             type="button"
             className="w-full bg-brand-danger hover:bg-brand-danger/90 text-white rounded-lg h-auto py-3 text-[15px] font-semibold transition-colors"
             onClick={() => onReject(request.id)}
           >
-            Rechazar Solicitud
+            {t.providerHome.workRequestsSection.modal.rejectBtn}
           </Button>
         </div>
       </div>

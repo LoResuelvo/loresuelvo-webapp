@@ -2,6 +2,7 @@ import { MessageCircle, User, ArrowRight } from "lucide-react";
 import { Provider } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { RatingStars } from "@/components/ui/rating-stars";
+import { t } from "@/lib/i18n/translations";
 
 interface ProviderCardProps {
   provider: Provider;
@@ -15,7 +16,7 @@ export default function ProviderCard({ provider, onContact }: ProviderCardProps)
         {provider.profile_photo_url ? (
           <img
             src={provider.profile_photo_url}
-            alt={`Foto de ${provider.name}`}
+            alt={`${t.consumerSearch.providerCard.photoAlt} ${provider.name}`}
             className="w-full h-full object-cover"
             data-testid="provider-profile-photo"
           />
@@ -39,7 +40,7 @@ export default function ProviderCard({ provider, onContact }: ProviderCardProps)
                 {provider.rating !== undefined ? provider.rating : ""}
               </span>
               <span className="text-[12px] text-slate-400 leading-none">
-                ({provider.reviews ?? 0} reseñas) | {provider.jobs ?? 0} trabajos
+                ({provider.reviews ?? 0} {t.consumerSearch.providerCard.reviews}) | {provider.jobs ?? 0} {t.consumerSearch.providerCard.jobs}
               </span>
             </div>
 
@@ -57,7 +58,7 @@ export default function ProviderCard({ provider, onContact }: ProviderCardProps)
               className="bg-brand-primary hover:bg-brand-primary/90 text-white shadow-sm font-semibold text-[13px]"
             >
               <MessageCircle className="w-4 h-4 mr-2" aria-hidden="true" />
-              Contactar
+              {t.consumerSearch.contactBtn}
             </Button>
 
             <Button
@@ -65,7 +66,7 @@ export default function ProviderCard({ provider, onContact }: ProviderCardProps)
               type="button"
               className="text-brand-secondary font-bold text-[13px] p-0 h-auto flex items-center gap-0.5 group/link"
             >
-              Ver perfil
+              {t.consumerSearch.profileBtn}
               <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/link:translate-x-0.5" />
             </Button>
           </div>

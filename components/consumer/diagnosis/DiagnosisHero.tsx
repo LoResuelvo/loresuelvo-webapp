@@ -8,6 +8,7 @@ import { saveAiMessages, loadAiMessages, type AiMessage } from "@/lib/diagnosis/
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { t } from "@/lib/i18n/translations";
 
 const HERO_IMAGE = "/illustrations/hero-home-ai-diagnosis.png";
 
@@ -86,7 +87,7 @@ export default function DiagnosisHero() {
 
   return (
     <section
-      aria-label="Asistente de diagnóstico"
+      aria-label={t.consumerDiagnosis.hero.ariaLabel}
       className="relative rounded-2xl border border-white/30 shadow-sm overflow-hidden min-h-[340px] md:min-h-[380px]"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -105,16 +106,16 @@ export default function DiagnosisHero() {
         <div className="flex items-center gap-2.5 text-white">
           <Sparkles className="w-6 h-6" aria-hidden="true" />
           <span className="text-[16px] font-semibold tracking-wide uppercase">
-            Diagnóstico con IA
+            {t.consumerDiagnosis.hero.badge}
           </span>
         </div>
         <h1 className="text-[30px] md:text-[36px] font-bold tracking-tight text-white drop-shadow">
-          ¿Qué está pasando en tu hogar?
+          {t.consumerDiagnosis.hero.title}
         </h1>
 
         <form onSubmit={handleSubmit}>
           <Label htmlFor="diagnosis-message" className="sr-only">
-            Describí el problema
+            {t.consumerDiagnosis.hero.label}
           </Label>
           <div className="flex items-center gap-2 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 p-2">
             <Textarea
@@ -122,19 +123,19 @@ export default function DiagnosisHero() {
               id="diagnosis-message"
               value={message}
               onChange={handleChange}
-              placeholder="Describe el problema de tu hogar…"
+              placeholder={t.consumerDiagnosis.hero.placeholder}
               className="flex-1 min-w-0 rounded-lg bg-white/20 backdrop-blur px-4 py-3 text-[16px] text-white placeholder:text-white/70 focus-visible:ring-2 focus-visible:ring-white/70 resize-none leading-6 min-h-0"
             />
             <Button
               type="submit"
               className="rounded-lg bg-brand-primary text-white font-semibold px-6 py-3 h-auto hover:opacity-95 transition-opacity whitespace-nowrap shadow-sm"
             >
-              Diagnosticar
+              {t.consumerDiagnosis.hero.buttonText}
             </Button>
           </div>
           <div className="flex items-center gap-2 text-white/80 text-[14px] mt-3">
             <Info className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
-            <span>Nuestra IA permite identificar el problema y contactar con un profesional</span>
+            <span>{t.consumerDiagnosis.hero.infoText}</span>
           </div>
         </form>
       </div>

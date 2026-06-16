@@ -4,6 +4,7 @@ import { Category } from "@/lib/api/types";
 import { Bath, Flame, Zap, Snowflake, PaintRoller, Hammer, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
+import { t } from "@/lib/i18n/translations";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   "Plomería": Bath,
@@ -24,10 +25,10 @@ export default function CategoryGrid({ categories }: CategoryGridProps) {
       <div className="flex justify-between items-end mb-8">
         <div>
           <h2 className="text-[28px] font-bold tracking-tight text-brand-primary mb-1">
-            Explorar por Categoría
+            {t.consumerHome.exploreCategories}
           </h2>
           <p className="text-slate-500 font-medium">
-            Encuentra profesionales especializados para cada necesidad del hogar.
+            {t.consumerHome.exploreCategoriesSubtitle}
           </p>
         </div>
       </div>

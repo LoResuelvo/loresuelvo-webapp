@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Home, Wrench } from "lucide-react";
 import { RoleSelectionCard } from "./RoleSelectionCard";
+import { t } from "@/lib/i18n/translations";
 
 interface RoleSelectionStepProps {
   role: "consumer" | "provider" | null;
@@ -22,7 +23,7 @@ export function RoleSelectionStep({
           LoResuelvo
         </h1>
         <p className="text-[15px] text-muted-foreground max-w-[320px] mx-auto">
-          Selecciona cómo quieres usar LoResuelvo para personalizar tu experiencia
+          {t.onboarding.roleSelection.subtitle}
         </p>
       </div>
 
@@ -31,8 +32,8 @@ export function RoleSelectionStep({
           id="role-consumer-btn"
           selected={role === "consumer"}
           onClick={() => onSelectRole("consumer")}
-          title="Soy Cliente"
-          description="Busco ayuda profesional para mi hogar"
+          title={t.onboarding.roleSelection.consumer}
+          description={t.onboarding.roleSelection.consumerDesc}
           icon={Home}
         />
 
@@ -40,8 +41,8 @@ export function RoleSelectionStep({
           id="role-provider-btn"
           selected={role === "provider"}
           onClick={() => onSelectRole("provider")}
-          title="Soy Prestador"
-          description="Quiero ofrecer mis servicios y hacer crecer mi negocio"
+          title={t.onboarding.roleSelection.provider}
+          description={t.onboarding.roleSelection.providerDesc}
           icon={Wrench}
         />
       </div>
@@ -57,7 +58,7 @@ export function RoleSelectionStep({
               : "bg-gray-300 cursor-not-allowed opacity-60"
           }`}
         >
-          Continuar
+          {t.onboarding.roleSelection.continue}
         </Button>
       </div>
     </div>

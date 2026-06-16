@@ -1,4 +1,5 @@
 import { Info } from "lucide-react";
+import { t } from "@/lib/i18n/translations";
 
 export default function EmptyState() {
   return (
@@ -7,10 +8,10 @@ export default function EmptyState() {
         <Info className="w-6 h-6" />
       </div>
       <h3 className="text-[18px] font-bold text-brand-primary mb-2">
-        Sin profesionales disponibles
+        {t.consumerSearch.emptyState.title}
       </h3>
       <p className="text-slate-500 font-medium max-w-md">
-        No se encontraron profesionales especializados en esta categoría actualmente.
+        {t.consumerSearch.emptyState.subtitle}
       </p>
     </div>
   );

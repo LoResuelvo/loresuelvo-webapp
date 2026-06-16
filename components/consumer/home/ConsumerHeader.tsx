@@ -5,6 +5,7 @@ import { User, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { ROUTES } from "@/lib/routes";
+import { t } from "@/lib/i18n/translations";
 
 interface ConsumerHeaderProps {
   session: AuthSession | null;
@@ -64,7 +65,7 @@ export default function ConsumerHeader({ session }: ConsumerHeaderProps) {
                 className="flex items-center gap-2.5 px-4 py-2 text-[14px] text-rose-600 hover:bg-rose-50 font-medium transition-colors w-full text-left"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Cerrar sesión</span>
+                <span>{t.header.logout}</span>
               </Link>
             </div>
           </div>

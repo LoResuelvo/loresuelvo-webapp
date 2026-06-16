@@ -1,5 +1,6 @@
 import { DollarSign, Star, Wrench } from "lucide-react";
 import { ProviderMetrics } from "@/lib/provider-home/types";
+import { t } from "@/lib/i18n/translations";
 
 interface MetricsSectionProps {
   metrics: ProviderMetrics;
@@ -16,7 +17,7 @@ export default function MetricsSection({ metrics }: MetricsSectionProps) {
           id="metrics-title"
           className="text-[26px] font-bold text-brand-primary"
         >
-          Métricas del Prestador
+          {t.providerHome.metricsSection.title}
         </h2>
       </div>
 
@@ -26,7 +27,7 @@ export default function MetricsSection({ metrics }: MetricsSectionProps) {
           data-metric="income"
         >
           <DollarSign className="h-8 w-8 text-brand-secondary" aria-hidden="true" />
-          <p className="text-[14px] font-medium text-slate-500">Ingresos del período</p>
+          <p className="text-[14px] font-medium text-slate-500">{t.providerHome.metricsSection.incomeLabel}</p>
           <p className="text-[24px] font-bold text-brand-primary">{metrics.incomeLabel}</p>
         </article>
 
@@ -35,7 +36,7 @@ export default function MetricsSection({ metrics }: MetricsSectionProps) {
           data-metric="jobs-completed"
         >
           <Wrench className="h-8 w-8 text-brand-secondary" aria-hidden="true" />
-          <p className="text-[14px] font-medium text-slate-500">Trabajos realizados</p>
+          <p className="text-[14px] font-medium text-slate-500">{t.providerHome.metricsSection.jobsLabel}</p>
           <p className="text-[24px] font-bold text-brand-primary">{metrics.jobsCompletedCount}</p>
         </article>
 
@@ -44,7 +45,7 @@ export default function MetricsSection({ metrics }: MetricsSectionProps) {
           data-metric="rating"
         >
           <Star className="h-8 w-8 text-brand-secondary" aria-hidden="true" />
-          <p className="text-[14px] font-medium text-slate-500">Calificación promedio</p>
+          <p className="text-[14px] font-medium text-slate-500">{t.providerHome.metricsSection.ratingLabel}</p>
           <p className="text-[24px] font-bold text-brand-primary">{metrics.ratingLabel}</p>
         </article>
       </div>

@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { t } from "@/lib/i18n/translations";
+
 interface WorkRequestFormProps {
   provider: Provider;
 }
@@ -24,7 +26,7 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) {
-      setError("Todos los campos son obligatorios");
+      setError(t.consumerSearch.form.validationError);
       return;
     }
 
@@ -35,16 +37,16 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
       const result = await createJobRequest(provider.id, title.trim(), description.trim());
       
       if (!result.success) {
-        let displayError = "Hubo un problema al enviar la solicitud. Por favor intenta de nuevo.";
+        let displayError = t.consumerSearch.form.errorGeneric;
         
         if (result.error.includes("Job request already exists") || result.error.includes("Conversation already exists")) {
-          displayError = "Ya tienes una solicitud de trabajo o conversación pendiente con este profesional.";
+          displayError = t.consumerSearch.form.errorDuplicate;
         } else if (result.error.includes("Only consumers can create job requests")) {
-          displayError = "Solo los clientes pueden crear solicitudes de trabajo.";
+          displayError = t.consumerSearch.form.errorRole;
         } else if (result.error.includes("Provider does not exist")) {
-          displayError = "El profesional seleccionado ya no está disponible.";
+          displayError = t.consumerSearch.form.errorUnavailable;
         } else if (result.error.includes("Title is required") || result.error.includes("Provider id is required")) {
-          displayError = "Faltan datos obligatorios para enviar la solicitud.";
+          displayError = t.consumerSearch.form.errorMissing;
         }
 
         setError(displayError);
@@ -57,7 +59,7 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
       );
     } catch (err: unknown) {
       console.error("Unexpected error creating work request:", err);
-      setError("Ocurrió un error inesperado. Por favor revisa tu conexión.");
+      setError(t.consumerSearch.form.errorUnexpected);
       setIsSubmitting(false);
     }
   };
@@ -68,19 +70,19 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
       <ProviderMiniProfile provider={provider} />
 
       <div className="text-[13px] text-slate-500 leading-relaxed">
-        Describe tu problema. Proporciona detalles para que el profesional pueda aceptar tu solicitud y eventualmente darte un presupuesto.
+        {t.consumerSearch.form.description}
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="title-input" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-          Título del problema
+          {t.consumerSearch.form.titleLabel}
         </Label>
         <Input
           id="title-input"
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Ej: Pérdida de agua en termotanque"
+          placeholder={t.consumerSearch.form.titlePlaceholder}
           className="px-4 py-2.5 h-auto bg-slate-50 hover:bg-slate-100 focus:bg-white border-slate-200 focus-visible:border-brand-primary focus-visible:ring-1 focus-visible:ring-brand-primary text-brand-primary placeholder:text-slate-400 font-medium text-[13px] rounded-xl"
           required
         />
@@ -88,13 +90,13 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="desc-input" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-          Descripción del problema
+          {t.consumerSearch.form.descLabel}
         </Label>
         <Textarea
           id="desc-input"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Ej: El termotanque pierde agua por la base. El agua se acumula y el piloto se apaga. Es de la marca X, modelo Y..."
+          placeholder={t.consumerSearch.form.descPlaceholder}
           rows={4}
           className="px-4 py-2.5 min-h-[100px] bg-slate-50 hover:bg-slate-100 focus:bg-white border-slate-200 focus-visible:border-brand-primary focus-visible:ring-1 focus-visible:ring-brand-primary text-brand-primary placeholder:text-slate-400 font-medium text-[13px] rounded-xl resize-none"
           required
@@ -112,7 +114,7 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
         disabled={isSubmitting}
         className="w-full h-auto py-3 bg-brand-primary hover:bg-brand-primary/95 text-white font-bold text-[14px] rounded-xl shadow-sm"
       >
-        {isSubmitting ? "Enviando solicitud..." : "Enviar solicitud"}
+        {isSubmitting ? t.consumerSearch.form.submitLoading : t.consumerSearch.form.submit}
       </Button>
     </form>
   );

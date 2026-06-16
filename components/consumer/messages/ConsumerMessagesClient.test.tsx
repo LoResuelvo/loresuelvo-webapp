@@ -28,7 +28,7 @@ vi.mock("@/components/consumer/messages/actions", () => ({
   getConversationDetail: vi.fn(),
   sendMessage: vi.fn(),
   createConversation: vi.fn(),
-  getJobRequestForConversation: vi.fn(),
+  getJobRequestForConversation: vi.fn(() => Promise.resolve(null)),
 }));
 
 const mockUser = {

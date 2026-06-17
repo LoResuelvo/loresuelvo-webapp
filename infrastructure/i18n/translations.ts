@@ -43,6 +43,10 @@ export const t = {
   },
   messaging: {
     photoAlt: "Foto de",
+    pending: "Pendiente",
+    waitingAcceptance: "Esperando aceptación",
+    acceptRequired: "Tenés que aceptar la solicitud antes de poder enviar mensajes.",
+    selectContact: "Selecciona un contacto para ver la conversación",
   },
   header: {
     logout: "Cerrar sesión",

@@ -1,11 +1,12 @@
 "use client";
 
 import { AuthSession } from "@/infrastructure/auth/types";
-import { LogOut, User } from "lucide-react";
+import { LogOut } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
+import { Avatar } from "@/components/ui/avatar";
 
 interface ProviderHeaderProps {
   session: AuthSession | null;
@@ -34,20 +35,18 @@ export default function ProviderHeader({ session }: ProviderHeaderProps) {
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 shadow-sm flex-shrink-0 select-none overflow-hidden hover:bg-slate-200/50 hover:border-slate-300 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-secondary/40"
+          className="flex-shrink-0 select-none rounded-full focus:outline-none focus:ring-2 focus:ring-brand-secondary/40"
           aria-expanded={isOpen}
           aria-haspopup="true"
         >
-          {session?.user?.profilePhotoUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={session.user.profilePhotoUrl} alt={t.onboarding.photoUpload.label} data-testid="header-profile-photo" className="w-full h-full object-cover" />
-          ) : userInitials ? (
-            <span className="text-[14px] font-bold text-slate-600">
-              {userInitials}
-            </span>
-          ) : (
-            <User className="w-4 h-4 text-slate-400" />
-          )}
+          <Avatar
+            src={session?.user?.profilePhotoUrl}
+            alt={t.onboarding.photoUpload.label}
+            size="xs"
+            initials={userInitials}
+            imgTestId="header-profile-photo"
+            className="hover:bg-slate-200/50 hover:border-slate-300 transition-all cursor-pointer"
+          />
         </button>
 
         {isOpen && (

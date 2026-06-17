@@ -1,5 +1,6 @@
-import { User } from "lucide-react";
 import { t } from "@/infrastructure/i18n/translations";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 
 interface ContactItemProps {
   id: string;
@@ -35,18 +36,12 @@ export default function ContactItem({
       }`}
       data-status={pending ? "pending" : "accepted"}
     >
-      <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0 overflow-hidden relative">
-        {profilePhotoUrl ? (
-          <img
-            src={profilePhotoUrl}
-            alt={`${t.messaging.photoAlt} ${providerName}`}
-            className="w-full h-full object-cover"
-            data-testid="chat-list-profile-photo"
-          />
-        ) : (
-          <User className="w-6 h-6 text-slate-400" />
-        )}
-      </div>
+      <Avatar
+        src={profilePhotoUrl}
+        alt={`${t.messaging.photoAlt} ${providerName}`}
+        size="md"
+        imgTestId="chat-list-profile-photo"
+      />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
           <p
@@ -67,9 +62,9 @@ export default function ContactItem({
         </p>
       </div>
       {pending && (
-        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 rounded-full">
-          Pendiente
-        </span>
+        <Badge variant="warning">
+          {t.messaging.pending}
+        </Badge>
       )}
     </div>
   );

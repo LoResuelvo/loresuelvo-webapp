@@ -1,10 +1,10 @@
 "use client";
 
-import { User } from "lucide-react";
 import { useState } from "react";
 import JobRequestPanel from "./JobRequestPanel";
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
+import { Avatar } from "@/components/ui/avatar";
 
 import { JobRequestInfo } from "@/domain/messaging/types";
 
@@ -24,24 +24,18 @@ export default function ChatHeader({ providerName, providerSurname, pending, job
     <>
       <div className="border-b border-slate-200 bg-white flex-shrink-0">
         <div className="h-16 flex items-center px-6 gap-4">
-          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden relative">
-            {profilePhotoUrl ? (
-              <img
-                src={profilePhotoUrl}
-                alt={`${t.messaging.photoAlt} ${providerName}`}
-                className="w-full h-full object-cover"
-                data-testid="chat-header-profile-photo"
-              />
-            ) : (
-              <User className="w-5 h-5 text-slate-400" />
-            )}
-          </div>
+          <Avatar
+            src={profilePhotoUrl}
+            alt={`${t.messaging.photoAlt} ${providerName}`}
+            size="sm"
+            imgTestId="chat-header-profile-photo"
+          />
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-brand-primary truncate">
               {providerName} {providerSurname}
             </p>
             {pending && (
-              <p className="text-[11px] text-amber-600">Esperando aceptación</p>
+              <p className="text-[11px] text-amber-600">{t.messaging.waitingAcceptance}</p>
             )}
           </div>
 

@@ -6,6 +6,7 @@ import MessagesList from "./MessagesList";
 import MessageInput, { MessageInputHandle } from "./MessageInput";
 
 import { ConversationContact, Message, JobRequestInfo } from "@/domain/messaging/types";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface MessagesLayoutProps {
   contacts: ConversationContact[];
@@ -65,7 +66,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
       <div className="flex-1 flex items-center justify-center bg-brand-neutral/30">
         <div className="text-center">
           <MessageSquare className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-          <p className="text-slate-400">Selecciona un contacto para ver la conversación</p>
+          <p className="text-slate-400">{t.messaging.selectContact}</p>
         </div>
       </div>
     );
@@ -94,7 +95,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
         {blockInputWhenPending && selectedContact.pending ? (
           <div className="p-4 bg-white border-t border-slate-200 flex-shrink-0">
             <p className="text-center text-[13px] text-slate-400 py-2">
-              Tenés que aceptar la solicitud antes de poder enviar mensajes.
+              {t.messaging.acceptRequired}
             </p>
           </div>
         ) : (

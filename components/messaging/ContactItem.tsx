@@ -30,7 +30,7 @@ export default function ContactItem({
       role="listitem"
       data-testid="contact-item"
       onClick={() => onClick(providerId)}
-      className={`flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors cursor-pointer border-b border-slate-100 ${
+      className={`chat-list-item flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors cursor-pointer border-b border-slate-100 ${
         isSelected ? "bg-brand-secondary/10" : ""
       }`}
       data-status={pending ? "pending" : "accepted"}

@@ -1,4 +1,3 @@
-@wip
 Feature: Visualizar foto de perfil de prestador
     Como consumidor
     Quiero poder ver la foto de perfil de un prestador

@@ -17,6 +17,7 @@ export function transformApiToConsumerContact(apiConv: ApiConversation): Consume
         })
       : "",
     pending: apiConv.status === "pending",
+    profilePhotoUrl: apiConv.counterpart.profile_photo_url,
   };
 }
 
@@ -36,5 +37,6 @@ export function transformApiToProviderContact(apiConv: ApiConversation): Provide
         })
       : "",
     pending: apiConv.status === "pending",
+    profilePhotoUrl: apiConv.counterpart.profile_photo_url,
   };
 }

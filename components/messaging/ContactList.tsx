@@ -37,6 +37,7 @@ export default function ContactList({ contacts, selectedProviderId, onContactCli
                 pending={contact.pending}
                 isSelected={selectedProviderId === contact.providerId}
                 onClick={onContactClick}
+                profilePhotoUrl={contact.profilePhotoUrl}
               />
             ))}
           </>

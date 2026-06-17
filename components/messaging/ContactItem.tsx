@@ -1,4 +1,5 @@
 import { User } from "lucide-react";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface ContactItemProps {
   id: string;
@@ -10,6 +11,7 @@ interface ContactItemProps {
   pending: boolean;
   isSelected: boolean;
   onClick: (providerId: string) => void;
+  profilePhotoUrl?: string;
 }
 
 export default function ContactItem({
@@ -21,6 +23,7 @@ export default function ContactItem({
   pending,
   isSelected,
   onClick,
+  profilePhotoUrl,
 }: ContactItemProps) {
   return (
     <div
@@ -32,8 +35,17 @@ export default function ContactItem({
       }`}
       data-status={pending ? "pending" : "accepted"}
     >
-      <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-        <User className="w-6 h-6 text-slate-400" />
+      <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0 overflow-hidden relative">
+        {profilePhotoUrl ? (
+          <img
+            src={profilePhotoUrl}
+            alt={`${t.messaging.photoAlt} ${providerName}`}
+            className="w-full h-full object-cover"
+            data-testid="chat-list-profile-photo"
+          />
+        ) : (
+          <User className="w-6 h-6 text-slate-400" />
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">

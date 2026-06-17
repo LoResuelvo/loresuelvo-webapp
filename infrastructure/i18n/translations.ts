@@ -41,6 +41,9 @@ export const t = {
     jobs: "Trabajos",
     profile: "Perfil",
   },
+  messaging: {
+    photoAlt: "Foto de",
+  },
   header: {
     logout: "Cerrar sesión",
   },

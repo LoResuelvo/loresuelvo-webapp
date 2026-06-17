@@ -21,6 +21,7 @@ export interface ConversationContact {
   lastMessageAt: string;
   pending: boolean;
   messages?: Message[];
+  profilePhotoUrl?: string;
 }
 
 export interface ConsumerConversationContact {
@@ -32,6 +33,7 @@ export interface ConsumerConversationContact {
   lastMessageAt: string;
   pending: boolean;
   messages?: Message[];
+  profilePhotoUrl?: string;
 }
 
 export interface ProviderConversationContact {
@@ -43,6 +45,7 @@ export interface ProviderConversationContact {
   lastMessageAt: string;
   pending: boolean;
   messages?: Message[];
+  profilePhotoUrl?: string;
 }
 
 export interface ApiConversationMessage {
@@ -61,6 +64,7 @@ export interface ConversationDetail {
     name: string;
     surname: string;
     category_name: string;
+    profile_photo_url?: string;
   };
   messages: ApiConversationMessage[];
   updated_on: string;

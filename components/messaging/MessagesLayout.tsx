@@ -79,6 +79,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
         pending={selectedContact.pending}
         jobRequest={jobRequest}
         onAccept={onAccept}
+        profilePhotoUrl={selectedContact.profilePhotoUrl}
       />
       <div className="flex-1 flex flex-col min-h-0">
         <MessagesList

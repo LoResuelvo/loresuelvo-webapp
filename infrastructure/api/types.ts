@@ -21,6 +21,7 @@ export interface ApiConversation {
     name: string;
     surname: string;
     category_name: string;
+    profile_photo_url?: string;
   };
   last_message?: {
     id: number;

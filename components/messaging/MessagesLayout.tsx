@@ -73,7 +73,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   }
 
   return (
-    <div data-testid="chat-panel" role="region" aria-label="Detalle de conversación" className="flex-1 flex flex-col bg-brand-neutral/30 min-h-0">
+    <div data-testid="chat-panel" role="region" aria-label={t.messaging.chatPanelLabel} className="flex-1 flex flex-col bg-brand-neutral/30 min-h-0">
       <ChatHeader
         providerName={selectedContact.providerName}
         providerSurname={selectedContact.providerSurname}

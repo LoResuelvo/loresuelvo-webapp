@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 import { Container } from "@/components/shared/Container";
 import { AppUser } from "@/infrastructure/auth/types";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface HeaderProps {
   user?: AppUser | null;
@@ -18,13 +19,13 @@ export default function Header({ user }: HeaderProps) {
           {user ? (
             <div className="flex items-center gap-4">
               <span className="text-[14px] font-medium text-brand-primary">
-                Hola, {user.firstName}
+                {t.header.greeting}{user.firstName}
               </span>
               <Link
                 href={ROUTES.auth.logout}
                 className="rounded-full bg-slate-100/80 hover:bg-slate-200/80 px-5 py-2.5 text-[14px] font-semibold text-brand-primary transition-all duration-200"
               >
-                Cerrar sesión
+                {t.header.logout}
               </Link>
             </div>
           ) : (
@@ -33,13 +34,13 @@ export default function Header({ user }: HeaderProps) {
                 href={ROUTES.auth.login}
                 className="rounded-full bg-brand-primary/5 hover:bg-brand-primary/10 px-6 py-2.5 text-[14px] font-semibold text-brand-primary transition-all duration-200"
               >
-                Iniciar Sesión
+                {t.header.login}
               </Link>
               <Link
                 href={ROUTES.auth.signup}
                 className="rounded-full bg-brand-primary text-white hover:bg-brand-primary/90 px-6 py-2.5 text-[14px] font-semibold transition-all duration-200 shadow-[0_4px_12px_rgba(26,43,72,0.12)]"
               >
-                Registrarse
+                {t.header.signup}
               </Link>
             </div>
           )}

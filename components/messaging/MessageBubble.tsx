@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface MessageBubbleProps {
   id: string;
@@ -40,7 +41,7 @@ export default function MessageBubble({
               isOwnMessage ? "text-white/70 hover:text-white" : "text-slate-500 hover:text-slate-700"
             }`}
           >
-            {isExpanded ? "Ver menos" : "Ver más"}
+            {isExpanded ? t.messaging.expandLess : t.messaging.expandMore}
           </Button>
         )}
         <p className={`text-[11px] mt-2 ${isOwnMessage ? "text-white/70" : "text-slate-400"}`}>{sentAt}</p>

@@ -2,6 +2,7 @@ import { forwardRef, useImperativeHandle, useRef } from "react";
 import { Send } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface MessageInputProps {
   value: string;
@@ -37,7 +38,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               onSend();
             }
           }}
-          placeholder="Escribe un mensaje..."
+          placeholder={t.messaging.inputPlaceholder}
           className="flex-1 px-4 h-[48px] rounded-xl border border-slate-200 bg-white text-[14px] focus-visible:ring-brand-secondary/40"
           disabled={disabled}
         />
@@ -45,7 +46,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           type="button"
           onClick={onSend}
           disabled={disabled || !value.trim()}
-          aria-label="Enviar mensaje"
+          aria-label={t.messaging.sendLabel}
           className="h-[48px] px-5 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-xl font-semibold"
         >
           <Send className="w-5 h-5" aria-hidden="true" />

@@ -28,7 +28,7 @@ export default async function RootLayout({
   const wsUrl = apiUrl.replace(/^http/, "ws") + "/ws";
 
   return (
-    <html lang="en">
+    <html lang="es-AR">
       <body className={manrope.className}>
         <Auth0Provider>
           <WebSocketProvider wsUrl={wsUrl} role={role} enabled={!!role}>

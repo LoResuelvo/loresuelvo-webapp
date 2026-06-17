@@ -1,6 +1,7 @@
 import { RefObject, useEffect, useRef, useState } from "react";
 import MessageBubble from "./MessageBubble";
 import { Button } from "@/components/ui/button";
+import { t } from "@/infrastructure/i18n/translations";
 
 import { Message } from "@/domain/messaging/types";
 
@@ -29,7 +30,7 @@ export default function MessagesList({
   messagesEndRef,
   showPendingBanner,
   myUserId,
-  pendingBannerText = "Solicitud de contacto enviada. El prestador aún no aceptó la conversación.",
+  pendingBannerText = t.messaging.pendingBannerDefault,
 }: MessagesListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -103,7 +104,7 @@ export default function MessagesList({
           }}
           className="sticky bottom-2 mx-auto bg-brand-primary text-white px-4 py-2 rounded-full shadow-[0_4px_12px_rgba(26,43,72,0.12)] text-sm font-semibold z-10 h-auto"
         >
-          ↓ Mensaje nuevo
+          {t.messaging.newMessageAlert}
         </Button>
       )}
     </div>

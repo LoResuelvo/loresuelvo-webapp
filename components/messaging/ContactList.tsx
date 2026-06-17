@@ -1,4 +1,5 @@
 import ContactItem from "./ContactItem";
+import { t } from "@/infrastructure/i18n/translations";
 
 import { ConversationContact } from "@/domain/messaging/types";
 
@@ -10,9 +11,9 @@ interface ContactListProps {
 
 export default function ContactList({ contacts, selectedProviderId, onContactClick }: ContactListProps) {
   return (
-    <div className="flex flex-col h-full" role="region" aria-label="Mensajes">
+    <div className="flex flex-col h-full" role="region" aria-label={t.messaging.title}>
       <div className="p-4 border-b border-slate-100 flex-shrink-0">
-        <h2 className="text-[18px] font-bold text-brand-primary">Mensajes</h2>
+        <h2 className="text-[18px] font-bold text-brand-primary">{t.messaging.title}</h2>
       </div>
       <div
         role="list"
@@ -21,7 +22,7 @@ export default function ContactList({ contacts, selectedProviderId, onContactCli
       >
         {contacts.length === 0 ? (
           <div className="p-8 text-center">
-            <p className="text-slate-500">No tienes conversaciones aún</p>
+            <p className="text-slate-500">{t.messaging.emptyConversations}</p>
           </div>
         ) : (
           <>

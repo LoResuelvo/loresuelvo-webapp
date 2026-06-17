@@ -74,7 +74,7 @@ describe("ProviderMessagesClient handleAccept redirect", () => {
     (actions.getConversationDetail as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 1,
       status: "pending",
-      counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández", category_name: "Plomería" },
+      counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández", categoryName: "Plomería" },
       messages: [],
       updated_on: "2026-05-31T12:00:00Z",
     });
@@ -83,7 +83,7 @@ describe("ProviderMessagesClient handleAccept redirect", () => {
       id: 1,
       title: "Test Request",
       description: "Test description",
-      conversation_id: 1,
+      conversationId: 1,
     });
 
     (actions.acceptJobRequest as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true });

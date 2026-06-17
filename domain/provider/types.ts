@@ -2,13 +2,13 @@ export interface Provider {
   id: number;
   name: string;
   surname: string;
-  category_name: string;
-  category_id?: number;
+  categoryName: string;
+  categoryId?: number;
   description?: string;
   rating?: number;
   reviews?: number;
   jobs?: number;
-  profile_photo_url?: string;
+  profilePhotoUrl?: string;
 }
 
 export interface ProviderWorkRequest {

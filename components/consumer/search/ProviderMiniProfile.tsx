@@ -14,7 +14,7 @@ export function ProviderMiniProfile({ provider, className }: ProviderMiniProfile
   return (
     <div className={cn("bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center gap-3", className)}>
       <Avatar
-        src={provider.profile_photo_url}
+        src={provider.profilePhotoUrl}
         alt={`${t.consumerSearch.providerCard.photoAlt} ${provider.name}`}
         size="sm"
         initials={initials}
@@ -24,8 +24,8 @@ export function ProviderMiniProfile({ provider, className }: ProviderMiniProfile
         <h5 className="font-bold text-brand-primary text-[14px]">
           {provider.name} {provider.surname}
         </h5>
-        <p className="text-[12px] text-slate-400">
-          Categoría: {provider.category_name}
+        <p className="text-[13px] text-slate-500 font-medium">
+          Categoría: {provider.categoryName}
         </p>
       </div>
     </div>

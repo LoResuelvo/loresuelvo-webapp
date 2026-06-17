@@ -45,11 +45,11 @@ describe("WorkRequestsSection handleAccept redirect", () => {
   it("after accepting a work request, redirects to chat with consumer", async () => {
     (actions.acceptJobRequest as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
     (messagingActions.getConversationDetail as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 10,
+      id: 1,
       status: "pending",
-      counterpart: { id: 2, role: "consumer", name: "Aylen", surname: "Suarez", category_name: "Veterinaria" },
+      counterpart: { id: 2, role: "consumer", name: "Aylen", surname: "Suarez", categoryName: "Veterinaria" },
       messages: [],
-      updated_on: "2026-06-03T22:07:05.800829Z",
+      updated_on: "2026-05-31T12:00:00Z",
     });
 
     render(<WorkRequestsSection requests={mockWorkRequests} />);

@@ -67,7 +67,7 @@ describe("ConsumerMessagesClient", () => {
     (actions.getConversationDetail as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 1,
       status: "pending",
-      counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", category_name: "Plomería" },
+      counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", categoryName: "Plomería" },
       messages: [],
       updated_on: "2026-05-31T12:00:00Z",
     });
@@ -83,7 +83,7 @@ describe("ConsumerMessagesClient", () => {
     (actions.getConversationDetail as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 1,
       status: "pending",
-      counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", category_name: "Plomería" },
+      counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", categoryName: "Plomería" },
       messages: [
         { id: 1, sender_role: "consumer", content: "Hola, me gustaría contratarte para el trabajo", created_on: "2026-05-31T12:00:00Z" },
       ],
@@ -103,7 +103,7 @@ describe("ConsumerMessagesClient", () => {
     (actions.getConversationDetail as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 1,
       status: "pending",
-      counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", category_name: "Plomería" },
+      counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", categoryName: "Plomería" },
       messages: [],
       updated_on: "2026-05-31T12:00:00Z",
     });
@@ -134,7 +134,7 @@ describe("ConsumerMessagesClient", () => {
     (actions.getConversationDetail as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 1,
       status: "pending",
-      counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", category_name: "Plomería" },
+      counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", categoryName: "Plomería" },
       messages: [],
       updated_on: "2026-05-31T12:00:00Z",
     });

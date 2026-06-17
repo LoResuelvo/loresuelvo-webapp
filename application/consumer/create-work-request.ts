@@ -1,7 +1,7 @@
-import { JobRequestRepository, CreateJobRequestPayload, JobRequestResponse } from "@/ports/job-request-repository";
+import { JobRequestRepository, CreateJobRequestInput, JobRequestResult } from "@/ports/job-request-repository";
 
 export type CreateWorkRequestResult =
-  | { success: true; data: JobRequestResponse }
+  | { success: true; data: JobRequestResult }
   | { success: false; errorCode: "VALIDATION_ERROR" | "DUPLICATE" | "ROLE_ERROR" | "UNAVAILABLE" | "MISSING_FIELDS" | "GENERIC_ERROR"; message: string };
 
 export async function createWorkRequest(
@@ -18,8 +18,8 @@ export async function createWorkRequest(
   }
 
   try {
-    const payload: CreateJobRequestPayload = {
-      provider_id: providerId,
+    const payload: CreateJobRequestInput = {
+      providerId: providerId,
       title: trimmedTitle,
       description: trimmedDescription,
     };

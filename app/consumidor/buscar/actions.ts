@@ -2,10 +2,10 @@
 
 import { ApiJobRequestRepository } from "@/infrastructure/repositories/api-job-request-repository";
 import { createWorkRequest } from "@/application/consumer/create-work-request";
-import { JobRequestResponse } from "@/ports/job-request-repository";
+import { JobRequestResult } from "@/ports/job-request-repository";
 
 export type CreateJobRequestResult =
-  | { success: true; data: JobRequestResponse }
+  | { success: true; data: JobRequestResult }
   | { success: false; error: string };
 
 export async function createJobRequest(

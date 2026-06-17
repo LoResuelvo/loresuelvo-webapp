@@ -31,3 +31,38 @@ export interface ApiConversation {
   };
   updated_on: string;
 }
+
+export interface ApiProvider {
+  id: number;
+  name: string;
+  surname: string;
+  category_name: string;
+  category_id?: number;
+  description?: string;
+  rating?: number;
+  reviews?: number;
+  jobs?: number;
+  profile_photo_url?: string;
+}
+
+export interface ApiConversationMessage {
+  id: number;
+  sender_role: string;
+  content: string;
+  created_on: string;
+}
+
+export interface ApiConversationDetail {
+  id: number;
+  status: string;
+  counterpart: {
+    id: number;
+    role: string;
+    name: string;
+    surname: string;
+    category_name: string;
+    profile_photo_url?: string;
+  };
+  messages: ApiConversationMessage[];
+  updated_on: string;
+}

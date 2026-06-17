@@ -3,13 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import ProviderCard from "@/components/consumer/search/ProviderCard";
 
 describe('ProviderCard', () => {
-    it("displays the provider's profile photo when profile_photo_url is present", () => {
+    it("displays the provider's profile photo when profilePhotoUrl is present", () => {
         const mockProvider = { 
             id: 1, 
             name: "Juan", 
             surname: "Pérez", 
-            category_name: "Plomería",
-            profile_photo_url: "https://example.com/profile.jpg"
+            categoryName: "Plomería",
+            profilePhotoUrl: "https://example.com/profile.jpg"
         };
 
         render(<ProviderCard provider={mockProvider} />);
@@ -19,12 +19,12 @@ describe('ProviderCard', () => {
         expect(image).toHaveAttribute("src", "https://example.com/profile.jpg");
     });
 
-    it("does not display an image and shows default icon when profile_photo_url is missing", () => {
+    it("does not display an image and shows default icon when profilePhotoUrl is missing", () => {
         const mockProvider = { 
             id: 1, 
             name: "Ana", 
             surname: "Gómez", 
-            category_name: "Electricidad",
+            categoryName: "Electricidad",
         };
 
         const { container } = render(<ProviderCard provider={mockProvider} />);
@@ -39,7 +39,7 @@ describe('ProviderCard', () => {
             id: 1, 
             name: "Pedro", 
             surname: "González", 
-            category_name: "Plomería",
+            categoryName: "Plomería",
             description: "Plomero experto con 20 años de experiencia.",
             rating: 4.8,
             reviews: 150,
@@ -61,7 +61,7 @@ describe('ProviderCard', () => {
             id: 1, 
             name: "Laura", 
             surname: "Martínez", 
-            category_name: "Pintura",
+            categoryName: "Pintura",
         };
 
         render(<ProviderCard provider={mockProvider} onContact={mockOnContact} />);

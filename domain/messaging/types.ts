@@ -48,14 +48,7 @@ export interface ProviderConversationContact {
   profilePhotoUrl?: string;
 }
 
-export interface ApiConversationMessage {
-  id: number;
-  sender_role: string;
-  content: string;
-  created_on: string;
-}
-
-export interface ConversationDetail {
+export interface ConversationDetailInfo {
   id: number;
   status: string;
   counterpart: {
@@ -63,9 +56,9 @@ export interface ConversationDetail {
     role: string;
     name: string;
     surname: string;
-    category_name: string;
-    profile_photo_url?: string;
+    categoryName: string;
+    profilePhotoUrl?: string;
   };
-  messages: ApiConversationMessage[];
-  updated_on: string;
+  messages: Message[];
+  updatedOn: string;
 }

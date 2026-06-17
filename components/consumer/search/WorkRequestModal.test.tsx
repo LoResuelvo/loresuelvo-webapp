@@ -19,7 +19,7 @@ const mockProvider: Provider = {
   id: 1,
   name: "Juan",
   surname: "Pérez",
-  category_name: "Plomería",
+  categoryName: "Plomería",
   description: "Plomero matriculado.",
 };
 
@@ -64,7 +64,7 @@ describe("WorkRequestModal", () => {
       success: true,
       data: {
         id: 123,
-        conversation_id: 456,
+        conversationId: 456,
         title: "Gotera en cocina",
         description: "Tengo una filtración debajo de la bacha.",
       }

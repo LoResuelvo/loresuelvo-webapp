@@ -5,7 +5,7 @@ export interface UserRepository {
     data: RegisterUserData,
     categoryId: number,
     profilePhotoId?: string
-  ): Promise<{ profile_photo_url?: string }>;
+  ): Promise<{ profilePhotoUrl?: string }>;
 
   registerConsumer(data: RegisterUserData): Promise<void>;
 }

@@ -2,21 +2,21 @@ import { describe, expect, it, vi } from "vitest";
 import { getConversationDetail, getJobRequestForConversation } from "./get-conversation-detail";
 import { ConversationRepository } from "@/ports/conversation-repository";
 import { JobRequestRepository, JobRequestSummary } from "@/ports/job-request-repository";
-import { ConversationDetail } from "@/domain/messaging/types";
+import { ConversationDetailInfo } from "@/domain/messaging/types";
 
 describe("get-conversation-detail", () => {
-  const mockConversationDetail: ConversationDetail = {
+  const mockConversationDetail: ConversationDetailInfo = {
     id: 123,
     status: "active",
-    counterpart: { id: 1, role: "provider", name: "A", surname: "B", category_name: "X" },
+    counterpart: { id: 1, role: "provider", name: "A", surname: "B", categoryName: "X" },
     messages: [],
-    updated_on: "2026-06-16T12:00:00Z",
+    updatedOn: "2026-06-16T12:00:00Z",
   };
 
   const mockJobRequests: JobRequestSummary[] = [
     {
       id: 1,
-      conversation_id: 123,
+      conversationId: 123,
       title: "Title",
       description: "Desc",
       requester: {

@@ -118,13 +118,8 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
         const messages: Message[] = data.messages.map(msg => ({
           id: String(msg.id),
           content: msg.content,
-          senderId: msg.sender_role === "provider" ? myUserId : String(data.counterpart.id),
-          sentAt: new Date(msg.created_on).toLocaleString("es-AR", {
-            day: "2-digit",
-            month: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
+          senderId: msg.senderId === "provider" ? myUserId : String(data.counterpart.id),
+          sentAt: msg.sentAt,
         }));
         const pendingMessages = loadPendingMessages(effectiveConversationId);
         const allMessages = [...messages];

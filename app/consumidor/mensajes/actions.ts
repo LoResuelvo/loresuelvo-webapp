@@ -10,10 +10,10 @@ import {
   createConversation as createConvUseCase,
   sendMessage as sendMsgUseCase,
 } from "@/application/messaging/send-message";
-import { ConversationDetail } from "@/domain/messaging/types";
+import { ConversationDetailInfo } from "@/domain/messaging/types";
 import { JobRequestSummary } from "@/ports/job-request-repository";
 
-export async function getConversationDetail(id: string): Promise<ConversationDetail> {
+export async function getConversationDetail(id: string): Promise<ConversationDetailInfo> {
   const repository = new ApiConversationRepository();
   return getConvDetailUseCase(repository, id);
 }

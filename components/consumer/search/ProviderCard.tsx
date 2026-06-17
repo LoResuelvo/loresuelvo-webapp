@@ -15,9 +15,9 @@ export default function ProviderCard({ provider, className, onContact }: Provide
   return (
     <div className={cn("provider-card bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 flex gap-5 items-center relative group", className)}>
       <div className="w-[80px] h-[80px] rounded-2xl bg-slate-100 flex items-center justify-center border border-slate-200/50 flex-shrink-0 select-none overflow-hidden relative">
-        {provider.profile_photo_url ? (
+        {provider.profilePhotoUrl ? (
           <img
-            src={provider.profile_photo_url}
+            src={provider.profilePhotoUrl}
             alt={`${t.consumerSearch.providerCard.photoAlt} ${provider.name}`}
             className="w-full h-full object-cover"
             data-testid="provider-profile-photo"

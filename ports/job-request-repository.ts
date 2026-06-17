@@ -1,19 +1,19 @@
-export interface CreateJobRequestPayload {
-  provider_id: number;
+export interface CreateJobRequestInput {
+  providerId: number;
   title: string;
   description: string;
 }
 
-export interface JobRequestResponse {
+export interface JobRequestResult {
   id: number;
-  conversation_id: number;
+  conversationId: number;
   title: string;
   description: string;
 }
 
 export interface JobRequestSummary {
   id: number;
-  conversation_id: number;
+  conversationId: number;
   title: string;
   description: string;
   requester: {
@@ -23,7 +23,7 @@ export interface JobRequestSummary {
 }
 
 export interface JobRequestRepository {
-  create(data: CreateJobRequestPayload): Promise<JobRequestResponse>;
+  create(data: CreateJobRequestInput): Promise<JobRequestResult>;
   accept(id: number): Promise<void>;
   list(): Promise<JobRequestSummary[]>;
 }

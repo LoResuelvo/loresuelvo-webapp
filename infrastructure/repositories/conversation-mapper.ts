@@ -40,3 +40,31 @@ export function transformApiToProviderContact(apiConv: ApiConversation): Provide
     profilePhotoUrl: apiConv.counterpart.profile_photo_url,
   };
 }
+
+import { ApiConversationDetail } from "@/infrastructure/api/types";
+import { ConversationDetailInfo, Message } from "@/domain/messaging/types";
+
+export function transformApiToConversationDetail(api: ApiConversationDetail): ConversationDetailInfo {
+  return {
+    id: api.id,
+    status: api.status,
+    counterpart: {
+      id: api.counterpart.id,
+      role: api.counterpart.role,
+      name: api.counterpart.name,
+      surname: api.counterpart.surname,
+      categoryName: api.counterpart.category_name,
+      profilePhotoUrl: api.counterpart.profile_photo_url,
+    },
+    messages: api.messages.map((m) => ({
+      id: String(m.id),
+      content: m.content,
+      senderId: m.sender_role,
+      sentAt: new Date(m.created_on).toLocaleString("es-AR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    })),
+    updatedOn: api.updated_on,
+  };
+}

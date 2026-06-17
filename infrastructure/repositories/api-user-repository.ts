@@ -7,14 +7,15 @@ export class ApiUserRepository implements UserRepository {
     data: RegisterUserData,
     categoryId: number,
     profilePhotoId?: string
-  ): Promise<{ profile_photo_url?: string }> {
-    return api.post<{ profile_photo_url?: string }>("/providers", {
+  ): Promise<{ profilePhotoUrl?: string }> {
+    const res = await api.post<{ profile_photo_url?: string }>("/providers", {
       email: data.email,
       name: data.name,
       surname: data.surname,
       category_id: categoryId,
       profile_photo_file_id: profilePhotoId,
     });
+    return { profilePhotoUrl: res.profile_photo_url };
   }
 
   async registerConsumer(data: RegisterUserData): Promise<void> {

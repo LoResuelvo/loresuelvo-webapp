@@ -110,9 +110,11 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
       )}
 
       <Button
+        variant="brand"
+        size="action"
         type="submit"
         disabled={isSubmitting}
-        className="w-full h-auto py-3 bg-brand-primary hover:bg-brand-primary/95 text-white font-bold text-[14px] rounded-xl shadow-sm"
+        className="shadow-sm"
       >
         {isSubmitting ? t.consumerSearch.form.submitLoading : t.consumerSearch.form.submit}
       </Button>

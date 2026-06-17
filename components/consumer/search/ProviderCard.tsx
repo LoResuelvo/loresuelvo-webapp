@@ -55,9 +55,10 @@ export default function ProviderCard({ provider, className, onContact }: Provide
 
           <div className="flex flex-col items-end gap-2 flex-shrink-0">
             <Button
+              variant="brand"
               type="button"
               onClick={() => onContact?.(provider)}
-              className="bg-brand-primary hover:bg-brand-primary/90 text-white shadow-sm font-semibold text-[13px]"
+              className="shadow-sm font-semibold text-[13px]"
             >
               <MessageCircle className="w-4 h-4 mr-2" aria-hidden="true" />
               {t.consumerSearch.contactBtn}

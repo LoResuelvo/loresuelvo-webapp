@@ -43,11 +43,12 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           disabled={disabled}
         />
         <Button
+          variant="brand"
           type="button"
           onClick={onSend}
           disabled={disabled || !value.trim()}
           aria-label={t.messaging.sendLabel}
-          className="h-[48px] px-5 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-xl font-semibold"
+          className="h-[48px] px-5 rounded-xl font-semibold"
         >
           <Send className="w-5 h-5" aria-hidden="true" />
         </Button>

@@ -136,8 +136,9 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
               className="flex-1 min-w-0 rounded-lg bg-white/20 backdrop-blur px-4 py-3 text-[16px] text-white placeholder:text-white/70 focus-visible:ring-2 focus-visible:ring-white/70 resize-none leading-6 min-h-0"
             />
             <Button
+              variant="brand"
               type="submit"
-              className="rounded-lg bg-brand-primary text-white font-semibold px-6 py-3 h-auto hover:opacity-95 transition-opacity whitespace-nowrap shadow-sm"
+              className="px-6 py-3 h-auto whitespace-nowrap shadow-sm font-semibold rounded-lg"
             >
               {t.consumerDiagnosis.hero.buttonText}
             </Button>

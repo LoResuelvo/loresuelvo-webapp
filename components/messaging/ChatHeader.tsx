@@ -41,8 +41,8 @@ export default function ChatHeader({ providerName, providerSurname, pending, job
 
           {jobRequest && (
             <Button
+              variant="brandSecondary"
               onClick={() => setShowPanel(true)}
-              className="px-4 py-2 bg-brand-secondary text-white text-[14px] font-semibold rounded-lg hover:bg-brand-secondary/80 transition-colors h-auto"
               aria-label={t.messaging.viewJobRequestLabel}
             >
               {t.messaging.viewJobRequest}
@@ -51,8 +51,8 @@ export default function ChatHeader({ providerName, providerSurname, pending, job
 
           {pending && onAccept && (
             <Button
+              variant="brandSecondary"
               onClick={onAccept}
-              className="px-4 py-2 bg-brand-secondary text-white text-[14px] font-semibold rounded-lg hover:bg-brand-secondary/80 transition-colors h-auto"
             >
               {t.messaging.viewJobRequest}
             </Button>

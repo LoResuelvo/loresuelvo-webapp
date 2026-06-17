@@ -177,9 +177,10 @@ export function ProfileFormStep({
 
         <div className="pt-2">
           <Button
+            variant="brand"
+            size="full"
             type="submit"
             disabled={isLoading}
-            className="h-[46px] w-full rounded-lg bg-brand-primary text-[15px] font-medium text-white transition-colors hover:bg-brand-primary/90"
           >
             {isLoading ? t.onboarding.profileForm.saving : t.onboarding.profileForm.finishRegister}
             {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}

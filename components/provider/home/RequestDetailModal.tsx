@@ -23,15 +23,17 @@ export default function RequestDetailModal({
   const footer = (
     <div className="p-6 pt-4 border-t border-slate-200 bg-slate-50 space-y-3">
       <Button
+        variant="accept"
+        size="action"
         type="button"
-        className="w-full bg-brand-accept hover:bg-brand-accept/90 text-white rounded-lg h-auto py-3 text-[15px] font-semibold transition-colors"
         onClick={() => onAccept(request.id)}
       >
         {t.providerHome.workRequestsSection.modal.acceptBtn}
       </Button>
       <Button
+        variant="danger"
+        size="action"
         type="button"
-        className="w-full bg-brand-danger hover:bg-brand-danger/90 text-white rounded-lg h-auto py-3 text-[15px] font-semibold transition-colors"
         onClick={() => onReject(request.id)}
       >
         {t.providerHome.workRequestsSection.modal.rejectBtn}

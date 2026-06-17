@@ -112,8 +112,8 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
 
                   <div className="flex items-center justify-center min-w-[120px]">
                     <Button
+                      variant="brandSecondary"
                       type="button"
-                      className="bg-brand-secondary hover:bg-brand-secondary/80 text-white rounded-lg px-4 h-auto py-2 text-[14px] font-medium transition-colors"
                       onClick={() => setSelectedRequest(request)}
                     >
                       {t.providerHome.workRequestsSection.viewDetails}

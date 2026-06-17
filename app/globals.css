@@ -53,6 +53,16 @@
     --color-brand-tertiary: #E9C46A;
     --color-brand-neutral: #F4F1EE;
     --color-brand-danger: #DC2626;
+
+    /* Typography Scale */
+    --font-size-caption: 0.6875rem;  /* 11px — timestamps, badges */
+    --font-size-small: 0.75rem;      /* 12px — metadata, secondary text */
+    --font-size-body-sm: 0.8125rem;  /* 13px — compact body text */
+    --font-size-body: 0.875rem;      /* 14px — default body, inputs */
+    --font-size-body-lg: 0.9375rem;  /* 15px — emphasized body */
+    --font-size-subtitle: 1.125rem;  /* 18px — section subtitles */
+    --font-size-title: 1.5rem;       /* 24px — modal titles, headings */
+    --font-size-heading: 1.625rem;   /* 26px — page headings */
 }
 
 :root {

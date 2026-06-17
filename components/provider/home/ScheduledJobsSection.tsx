@@ -38,6 +38,7 @@ export default function ScheduledJobsSection({ jobs }: ScheduledJobsSectionProps
               <article className="flex flex-col gap-3">
                 <div className="flex flex-col gap-2">
                   <h3
+                    // Note: data-field is used exclusively for Cucumber E2E tests
                     data-field="job-title"
                     className="text-[18px] font-bold text-brand-primary"
                   >

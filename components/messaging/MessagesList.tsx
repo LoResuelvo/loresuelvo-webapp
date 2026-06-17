@@ -3,6 +3,7 @@ import MessageBubble from "./MessageBubble";
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
 import { shouldShowExpandButton } from "@/lib/text-utils";
+import InfoBanner from "./InfoBanner";
 
 import { Message } from "@/domain/messaging/types";
 
@@ -59,14 +60,7 @@ export default function MessagesList({
       className="flex-1 p-6 overflow-y-auto flex flex-col gap-4 relative"
     >
       {showPendingBanner && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
-          <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className="text-blue-700 text-[14px]">
-            {pendingBannerText}
-          </p>
-        </div>
+        <InfoBanner tone="info">{pendingBannerText}</InfoBanner>
       )}
 
       {messages.map((msg) => {

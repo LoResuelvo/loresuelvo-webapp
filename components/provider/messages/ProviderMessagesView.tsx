@@ -1,5 +1,5 @@
 import { RefObject, forwardRef } from "react";
-import { ChatPanel } from "@/components/messaging/MessagesLayout";
+import ChatPanel from "@/components/messaging/ChatPanel";
 import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import ContactList from "@/components/messaging/ContactList";
 

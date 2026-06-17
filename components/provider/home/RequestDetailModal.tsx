@@ -5,6 +5,7 @@ import { ProviderWorkRequest } from "@/domain/provider/types";
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
 import { Modal } from "@/components/ui/modal";
+import { DetailPanel } from "@/components/shared/DetailPanel";
 
 interface RequestDetailModalProps {
   request: ProviderWorkRequest;
@@ -47,45 +48,25 @@ export default function RequestDetailModal({
       closeLabel={t.providerHome.workRequestsSection.modal.closeLabel}
       footer={footer}
     >
-      <div className="p-6 space-y-5">
-        <div className="flex items-start gap-4 pb-5 border-b border-slate-100">
-          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-brand-neutral text-brand-secondary shrink-0">
-            <span className="text-lg font-semibold">
-              {request.clientName.charAt(0)}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0 pt-1">
-            <p className="text-[18px] font-semibold text-slate-800">
-              {request.clientName}
+      <DetailPanel
+        initials={request.clientName.charAt(0)}
+        name={request.clientName}
+        nameExtra={
+          <div className="mt-2 space-y-1">
+            <p className="flex items-center gap-2 text-[14px] text-slate-600">
+              <MapPin className="h-4 w-4 text-slate-400" aria-hidden="true" />
+              {request.location}
             </p>
-            <div className="mt-2 space-y-1">
-              <p className="flex items-center gap-2 text-[14px] text-slate-600">
-                <MapPin className="h-4 w-4 text-slate-400" aria-hidden="true" />
-                {request.location}
-              </p>
-              <p className="flex items-center gap-2 text-[14px] text-slate-600">
-                <Calendar className="h-4 w-4 text-slate-400" aria-hidden="true" />
-                {request.publishedAtLabel}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <h3 className="text-[24px] font-bold text-brand-primary leading-tight">
-            {request.problemTitle}
-          </h3>
-
-          <div className="pt-2 space-y-1">
-            <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wide">
-              {t.providerHome.workRequestsSection.modal.descriptionLabel}
-            </span>
-            <p className="text-[15px] leading-relaxed text-slate-600 whitespace-pre-wrap">
-              {request.description}
+            <p className="flex items-center gap-2 text-[14px] text-slate-600">
+              <Calendar className="h-4 w-4 text-slate-400" aria-hidden="true" />
+              {request.publishedAtLabel}
             </p>
           </div>
-        </div>
-      </div>
+        }
+        title={request.problemTitle}
+        descriptionLabel={t.providerHome.workRequestsSection.modal.descriptionLabel}
+        description={request.description}
+      />
     </Modal>
   );
 }

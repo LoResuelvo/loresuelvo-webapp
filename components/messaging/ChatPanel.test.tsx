@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ChatPanel } from "@/components/messaging/MessagesLayout";
+import ChatPanel from "@/components/messaging/ChatPanel";
 
 vi.mock("@/components/messaging/MessageBubble", () => ({
   default: vi.fn(({ isOwnMessage, content }) => (

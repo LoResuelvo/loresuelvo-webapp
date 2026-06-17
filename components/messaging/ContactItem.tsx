@@ -45,6 +45,7 @@ export default function ContactItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
           <p
+            // Note: data-field is used exclusively for Cucumber E2E tests
             data-field="consumer-name"
             data-testid="consumer-name"
             className="font-semibold text-[14px] text-brand-primary truncate"

@@ -72,6 +72,7 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <p
+                          // Note: data-field is used exclusively for Cucumber E2E tests
                            data-field="client-name"
                           className="text-[14px] font-semibold text-brand-secondary"
                         >

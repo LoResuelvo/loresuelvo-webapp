@@ -64,6 +64,20 @@ Given("inicié una conversación con el asistente", async () => {
   await setConsumerSession();
   await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}`);
   await page.waitForLoadState("networkidle");
+
+  if (!await hasApiStub("POST", "/chatbot/conversations")) {
+    await addApiStub({
+      method: "POST",
+      endpoint: "/chatbot/conversations",
+      status: 200,
+      body: {
+        response: {
+          content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
+        },
+      },
+    });
+  }
+
   const mensaje = "Se está filtrando agua debajo de la bacha";
   await page.evaluate((msg) => {
     const messages = [{
@@ -101,6 +115,20 @@ Given("envié un mensaje al asistente", async () => {
   await setConsumerSession();
   await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}`);
   await page.waitForLoadState("networkidle");
+
+  if (!await hasApiStub("POST", "/chatbot/conversations")) {
+    await addApiStub({
+      method: "POST",
+      endpoint: "/chatbot/conversations",
+      status: 200,
+      body: {
+        response: {
+          content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
+        },
+      },
+    });
+  }
+
   const mensaje = "Se está filtrando agua debajo de la bacha";
   await page.evaluate((msg) => {
     const messages = [{
@@ -117,8 +145,16 @@ Given("envié un mensaje al asistente", async () => {
 
 Given("envié un mensaje al asistente con un error simulado", async () => {
   await setConsumerSession();
-  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?simulate=error`);
+  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}`);
   await page.waitForLoadState("networkidle");
+
+  await addApiStub({
+    method: "POST",
+    endpoint: "/chatbot/conversations",
+    status: 500,
+    body: { error: "Internal Server Error" },
+  });
+
   const mensaje = "Se está filtrando agua debajo de la bacha";
   await page.evaluate((msg) => {
     const messages = [{

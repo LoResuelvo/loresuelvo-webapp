@@ -8,9 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run --passWithNoTests",
-    "test:e2e": "TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js",
-    "test:e2e:wip": "TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js --tags @wip",
-    "test:e2e:report": "TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js --format html:reports/cucumber-report.html"
+    "test:e2e": "NEXT_PUBLIC_USE_MOCK_ASSISTANT=true TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js",
+    "test:e2e:wip": "NEXT_PUBLIC_USE_MOCK_ASSISTANT=true TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js --tags @wip",
+    "test:e2e:report": "NEXT_PUBLIC_USE_MOCK_ASSISTANT=true TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js --format html:reports/cucumber-report.html"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.20.0",

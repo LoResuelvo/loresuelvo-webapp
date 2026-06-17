@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { Card } from "@/components/ui/card";
 
 interface RoleColumnProps {
   type: "cliente" | "prestador";
@@ -66,7 +67,11 @@ export default function RoleSelectionCard({
   tecnicoHref,
 }: RoleSelectionCardProps) {
   return (
-    <div className="w-full max-w-4xl bg-white rounded-[2.25rem] border border-gray-100 shadow-[0_12px_40px_-12px_rgba(26,43,72,0.06)] p-2 sm:p-4 md:p-8 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-100 gap-6 md:gap-0 mt-2 relative z-10 transition-transform duration-300 hover:shadow-[0_20px_50px_-15px_rgba(26,43,72,0.09)]">
+    <Card
+      variant="interactive"
+      size="none"
+      className="w-full max-w-4xl rounded-[2.25rem] border border-gray-100 p-2 sm:p-4 md:p-8 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-100 gap-6 md:gap-0 mt-2 relative z-10 transition-transform duration-300 shadow-[0_12px_40px_-12px_rgba(26,43,72,0.06)] hover:shadow-[0_20px_50px_-15px_rgba(26,43,72,0.09)]"
+    >
       <RoleColumn
         type="cliente"
         description={clienteDesc}
@@ -79,6 +84,6 @@ export default function RoleSelectionCard({
         buttonText={tecnicoBtn}
         href={tecnicoHref}
       />
-    </div>
+    </Card>
   );
 }

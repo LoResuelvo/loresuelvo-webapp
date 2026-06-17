@@ -37,7 +37,7 @@ export default function SearchClient({
             <CategoryHeader categoryName={categoryName} />
 
             {providers.length === 0 ? (
-              <EmptyState />
+              <EmptyState className="max-w-2xl mx-auto mt-8 h-[260px]" />
             ) : (
               <div className="flex flex-col gap-6">
                 {providers.map((provider) => {

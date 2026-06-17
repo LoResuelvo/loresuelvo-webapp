@@ -1,16 +1,18 @@
 import { Provider } from "@/domain/provider/types";
 import { Avatar } from "@/components/ui/avatar";
 import { t } from "@/infrastructure/i18n/translations";
+import { cn } from "@/lib/utils";
 
 interface ProviderMiniProfileProps {
   provider: Provider;
+  className?: string;
 }
 
-export function ProviderMiniProfile({ provider }: ProviderMiniProfileProps) {
+export function ProviderMiniProfile({ provider, className }: ProviderMiniProfileProps) {
   const initials = provider.name ? provider.name.charAt(0).toUpperCase() : "";
 
   return (
-    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
+    <div className={cn("bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center gap-3", className)}>
       <Avatar
         src={provider.profile_photo_url}
         alt={`${t.consumerSearch.providerCard.photoAlt} ${provider.name}`}

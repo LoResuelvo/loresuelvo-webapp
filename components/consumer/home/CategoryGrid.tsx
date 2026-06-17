@@ -6,6 +6,8 @@ import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
 
+import { cn } from "@/lib/utils";
+
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   "Plomería": Bath,
   "Gas": Flame,
@@ -17,11 +19,12 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
 
 interface CategoryGridProps {
   categories: Category[];
+  className?: string;
 }
 
-export default function CategoryGrid({ categories }: CategoryGridProps) {
+export default function CategoryGrid({ categories, className }: CategoryGridProps) {
   return (
-    <div className="max-w-6xl">
+    <div className={cn("w-full", className)}>
       <div className="flex justify-between items-end mb-8">
         <div>
           <h2 className="text-[28px] font-bold tracking-tight text-brand-primary mb-1">

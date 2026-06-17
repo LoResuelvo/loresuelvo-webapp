@@ -2,6 +2,8 @@
 
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { t } from "@/infrastructure/i18n/translations";
 
 export interface JobRequestPanelInfo {
   title: string;
@@ -28,7 +30,8 @@ export default function JobRequestPanel({ jobRequest, onClose }: JobRequestPanel
       aria-modal="true"
       aria-labelledby="job-request-panel-title"
     >
-      <div
+      <Card
+        size="none"
         className="bg-white rounded-2xl shadow-xl w-full max-w-[580px] mx-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -37,14 +40,14 @@ export default function JobRequestPanel({ jobRequest, onClose }: JobRequestPanel
             id="job-request-panel-title"
             className="text-lg font-semibold text-brand-primary"
           >
-            Detalle de Solicitud
+            {t.messaging.jobRequestPanel.title}
           </h2>
           <Button
             variant="ghost"
             size="icon"
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-slate-100 transition-colors h-8 w-8"
-            aria-label="Cerrar"
+            aria-label={t.messaging.jobRequestPanel.closeLabel}
           >
             <X className="h-5 w-5 text-slate-500" />
           </Button>
@@ -72,7 +75,7 @@ export default function JobRequestPanel({ jobRequest, onClose }: JobRequestPanel
             {jobRequest.description && (
               <div className="pt-2 space-y-1">
                 <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wide">
-                  Descripción
+                  {t.messaging.jobRequestPanel.descriptionLabel}
                 </span>
                 <p className="text-[15px] leading-relaxed text-slate-600 whitespace-pre-wrap">
                   {jobRequest.description}
@@ -81,7 +84,7 @@ export default function JobRequestPanel({ jobRequest, onClose }: JobRequestPanel
             )}
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

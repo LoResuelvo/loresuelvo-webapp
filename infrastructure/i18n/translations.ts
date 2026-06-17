@@ -47,6 +47,11 @@ export const t = {
     waitingAcceptance: "Esperando aceptación",
     acceptRequired: "Tenés que aceptar la solicitud antes de poder enviar mensajes.",
     selectContact: "Selecciona un contacto para ver la conversación",
+    jobRequestPanel: {
+      title: "Detalle de Solicitud",
+      closeLabel: "Cerrar",
+      descriptionLabel: "Descripción",
+    },
   },
   header: {
     logout: "Cerrar sesión",
@@ -177,6 +182,7 @@ export const t = {
       photoTooLarge: "La imagen no debe superar los 5MB",
       saving: "Guardando...",
       finishRegister: "Finalizar Registro",
+      errorSave: "Hubo un problema al guardar tu perfil. Inténtalo nuevamente.",
     },
     photoUpload: {
       label: "Foto de perfil",

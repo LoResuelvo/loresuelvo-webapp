@@ -2,14 +2,16 @@ import Link from "next/link";
 import { ArrowLeft, Wrench } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
+import { cn } from "@/lib/utils";
 
 interface CategoryHeaderProps {
   categoryName: string;
+  className?: string;
 }
 
-export default function CategoryHeader({ categoryName }: CategoryHeaderProps) {
+export default function CategoryHeader({ categoryName, className }: CategoryHeaderProps) {
   return (
-    <>
+    <div className={cn("mb-8", className)}>
       <div className="flex items-center gap-4 mb-6">
         <Link
           href={ROUTES.consumer.home}
@@ -25,9 +27,9 @@ export default function CategoryHeader({ categoryName }: CategoryHeaderProps) {
         </span>
       </div>
 
-      <h2 className="text-[32px] font-extrabold tracking-tight text-brand-primary mb-8">
+      <h2 className="text-[32px] font-extrabold tracking-tight text-brand-primary">
         {t.consumerSearch.header.title}
       </h2>
-    </>
+    </div>
   );
 }

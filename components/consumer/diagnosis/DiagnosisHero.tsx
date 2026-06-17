@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { t } from "@/infrastructure/i18n/translations";
 
+import { cn } from "@/lib/utils";
+
 const HERO_IMAGE = "/illustrations/hero-home-ai-diagnosis.png";
 
 const MAX_LINES = 6;
@@ -18,7 +20,11 @@ const LINE_HEIGHT_CSS = 24;
 
 const USER_ID = "consumer-ai-diagnosis";
 
-export default function DiagnosisHero() {
+interface DiagnosisHeroProps {
+  className?: string;
+}
+
+export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -88,7 +94,10 @@ export default function DiagnosisHero() {
   return (
     <section
       aria-label={t.consumerDiagnosis.hero.ariaLabel}
-      className="relative rounded-2xl border border-white/30 shadow-sm overflow-hidden min-h-[340px] md:min-h-[380px]"
+      className={cn(
+        "relative rounded-2xl border border-white/30 shadow-sm overflow-hidden min-h-[340px] md:min-h-[380px]",
+        className
+      )}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

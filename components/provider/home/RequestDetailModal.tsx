@@ -4,6 +4,7 @@ import { X, MapPin, Calendar } from "lucide-react";
 import { ProviderWorkRequest } from "@/domain/provider/types";
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
+import { Card } from "@/components/ui/card";
 
 interface RequestDetailModalProps {
   request: ProviderWorkRequest;
@@ -26,7 +27,8 @@ export default function RequestDetailModal({
       aria-modal="true"
       aria-labelledby="modal-title"
     >
-      <div
+      <Card
+        size="none"
         className="bg-white rounded-2xl shadow-xl w-full max-w-[580px] mx-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -101,7 +103,7 @@ export default function RequestDetailModal({
             {t.providerHome.workRequestsSection.modal.rejectBtn}
           </Button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -9,14 +9,17 @@ import { RoleSelectionStep } from "./RoleSelectionStep";
 import { ProfileFormStep } from "./ProfileFormStep";
 import { Category } from "@/domain/shared/types";
 import { storageClient } from "@/infrastructure/storage/storage-client";
-
+import { cn } from "@/lib/utils";
+import { t } from "@/infrastructure/i18n/translations";
 
 export default function RegistrationForm({
   session: _session,
   categories = [],
+  className,
 }: {
   session: AuthSession | null;
   categories?: Category[];
+  className?: string;
 }) {
   const [step, setStep] = useState(1);
   const [role, setRole] = useState<"consumer" | "provider" | null>(null);
@@ -43,32 +46,29 @@ export default function RegistrationForm({
       }
     } catch (err) {
       console.error(err);
-      setError("Hubo un problema al guardar tu perfil. Inténtalo nuevamente.");
+      setError(t.onboarding.profileForm.errorSave);
       setIsLoading(false);
     }
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-brand-neutral p-4 font-sans text-brand-primary">
-      <div className="w-full max-w-[440px] rounded-2xl border border-border bg-white p-8 shadow-sm transition-all duration-300">
-        
-        {step === 1 ? (
-          <RoleSelectionStep
-            role={role}
-            onSelectRole={setRole}
-            onContinue={() => setStep(2)}
-          />
-        ) : (
-          <ProfileFormStep
-            role={role}
-            categories={categories}
-            onBack={() => setStep(1)}
-            onSubmit={handleFinalSubmit}
-            isLoading={isLoading}
-            error={error}
-          />
-        )}
-      </div>
+    <div className={cn("w-full rounded-2xl border border-border bg-white p-8 shadow-sm transition-all duration-300", className)}>
+      {step === 1 ? (
+        <RoleSelectionStep
+          role={role}
+          onSelectRole={setRole}
+          onContinue={() => setStep(2)}
+        />
+      ) : (
+        <ProfileFormStep
+          role={role}
+          categories={categories}
+          onBack={() => setStep(1)}
+          onSubmit={handleFinalSubmit}
+          isLoading={isLoading}
+          error={error}
+        />
+      )}
     </div>
   );
 

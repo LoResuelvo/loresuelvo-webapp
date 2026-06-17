@@ -11,6 +11,8 @@ import { ProfilePhotoUpload } from "./ProfilePhotoUpload";
 import { t } from "@/infrastructure/i18n/translations";
 import { validateProfileForm, validateProfilePhoto } from "@/domain/onboarding/validation";
 
+import { cn } from "@/lib/utils";
+
 interface ProfileFormStepProps {
   onBack: () => void;
   onSubmit: (formData: FormData) => Promise<void>;
@@ -18,6 +20,7 @@ interface ProfileFormStepProps {
   error: string | null;
   role: "consumer" | "provider" | null;
   categories: Category[];
+  className?: string;
 }
 
 export function ProfileFormStep({
@@ -27,6 +30,7 @@ export function ProfileFormStep({
   error,
   role,
   categories,
+  className,
 }: ProfileFormStepProps) {
   const [firstNameError, setFirstNameError] = useState<string | null>(null);
   const [lastNameError, setLastNameError] = useState<string | null>(null);
@@ -82,7 +86,7 @@ export function ProfileFormStep({
   }
 
   return (
-    <div>
+    <div className={cn("w-full", className)}>
       <Button
         variant="ghost"
         type="button"

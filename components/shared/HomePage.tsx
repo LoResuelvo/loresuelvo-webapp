@@ -14,7 +14,7 @@ export default function HomePage() {
         <AmbientGlows />
 
         <Container className="py-12 md:py-16 flex flex-col items-center gap-12 relative z-10">
-          <HeroContent />
+          <HeroContent className="max-w-4xl mx-auto" />
 
           <RoleSelectionCard
             clienteDesc={t.home.roleSelection.clienteDesc}

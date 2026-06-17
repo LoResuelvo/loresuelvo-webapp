@@ -24,6 +24,14 @@ Usar esta skill cuando la tarea principal sea elevar la calidad visual o UX de u
 6. Validar desktop y mobile; combinar con `frontend-mobile-responsive` si hay breakpoints relevantes.
 7. Combinar con `frontend-accessibility-gates` si hay formularios, modales, menus, overlays o flujos por teclado.
 
+## Estandarización de Layout y Componentes (Clean UI)
+
+Al diseñar o refactorizar componentes, es obligatorio seguir estas reglas de estandarización:
+1. **Desacoplar Layout interno**: Los componentes de dominio o UI (como `RegistrationForm`, `ProviderCard`, `EmptyState`) NO deben dictar cómo se posicionan por fuera. No uses márgenes externos (`mt-X`, `mb-X`, `mx-auto`), anchos absolutos/máximos (`w-X`, `max-w-X`), ni forzados de alto (`min-h-screen`) dentro de ellos. Delega esa responsabilidad estructural a la página padre (`page.tsx`) o a un layout wrapper.
+2. **Propagación segura de className**: Todo componente debe aceptar una prop opcional `className?: string` y mezclarla en su contenedor raíz utilizando la utilidad `cn()` (Tailwind Merge + CLSX):
+   `<div className={cn("bg-white rounded-2xl p-4 border...", className)}>`
+3. **Primitivas con cva y i18n**: Utiliza componentes de primitivas (ej. `<Card />`, `<Badge />`, `<Avatar />`) basados en `cva` para estandarizar variantes y evitar reescribir divs genéricos con sombras y bordes una y otra vez. Asimismo, evita textos hardcodeados (magic strings) moviéndolos siempre a `infrastructure/i18n/translations.ts`.
+
 ## Checklist UI/UX
 
 - CTA primario inequívoco y cerca del contexto de decision.

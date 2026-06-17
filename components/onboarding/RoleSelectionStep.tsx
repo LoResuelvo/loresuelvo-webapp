@@ -5,19 +5,23 @@ import { Home, Wrench } from "lucide-react";
 import { RoleSelectionCard } from "./RoleSelectionCard";
 import { t } from "@/infrastructure/i18n/translations";
 
+import { cn } from "@/lib/utils";
+
 interface RoleSelectionStepProps {
   role: "consumer" | "provider" | null;
   onSelectRole: (role: "consumer" | "provider") => void;
   onContinue: () => void;
+  className?: string;
 }
 
 export function RoleSelectionStep({
   role,
   onSelectRole,
   onContinue,
+  className,
 }: RoleSelectionStepProps) {
   return (
-    <div>
+    <div className={cn("w-full", className)}>
       <div className="mb-8 text-center">
         <h1 className="mb-2 text-[26px] font-bold leading-tight tracking-tight text-brand-primary">
           LoResuelvo

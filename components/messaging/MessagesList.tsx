@@ -2,6 +2,7 @@ import { RefObject, useEffect, useRef, useState } from "react";
 import MessageBubble from "./MessageBubble";
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
+import { shouldShowExpandButton } from "@/lib/text-utils";
 
 import { Message } from "@/domain/messaging/types";
 
@@ -13,14 +14,6 @@ interface MessagesListProps {
   showPendingBanner: boolean;
   myUserId: string;
   pendingBannerText?: string;
-}
-
-function shouldShowExpandButton(content: string): boolean {
-  const lines = content.split("\n").length;
-  const maxCharsPerLine = 40;
-  const totalChars = content.length;
-  const estimatedLines = Math.ceil(totalChars / maxCharsPerLine) + lines;
-  return estimatedLines > 5;
 }
 
 export default function MessagesList({

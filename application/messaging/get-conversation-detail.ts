@@ -13,11 +13,6 @@ export async function getJobRequestForConversation(
   jobRequestRepository: JobRequestRepository,
   conversationId: string
 ): Promise<JobRequestSummary | null> {
-  try {
-    const jobRequests = await jobRequestRepository.list();
-    return jobRequests.find(jr => String(jr.conversationId) === conversationId) ?? null;
-  } catch (error) {
-    console.error("Error fetching job request for conversation in use case:", error);
-    return null;
-  }
+  const jobRequests = await jobRequestRepository.list();
+  return jobRequests.find(jr => String(jr.conversationId) === conversationId) ?? null;
 }

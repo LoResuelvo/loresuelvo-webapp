@@ -45,11 +45,10 @@ describe("get-conversations", () => {
       expect(mockConversationRepository.getConsumerConversations).toHaveBeenCalled();
     });
 
-    it("returns an empty array and logs the error when the repository fails", async () => {
+    it("propagates the error when the repository fails", async () => {
       vi.mocked(mockConversationRepository.getConsumerConversations).mockRejectedValue(new Error("Database error"));
 
-      const res = await getConsumerConversations(mockConversationRepository);
-      expect(res).toEqual([]);
+      await expect(getConsumerConversations(mockConversationRepository)).rejects.toThrow("Database error");
     });
   });
 
@@ -62,11 +61,10 @@ describe("get-conversations", () => {
       expect(mockConversationRepository.getProviderConversations).toHaveBeenCalled();
     });
 
-    it("returns an empty array when the repository fails", async () => {
+    it("propagates the error when the repository fails", async () => {
       vi.mocked(mockConversationRepository.getProviderConversations).mockRejectedValue(new Error("Database error"));
 
-      const res = await getProviderConversations(mockConversationRepository);
-      expect(res).toEqual([]);
+      await expect(getProviderConversations(mockConversationRepository)).rejects.toThrow("Database error");
     });
   });
 });

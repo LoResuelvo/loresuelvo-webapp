@@ -59,11 +59,10 @@ describe("get-conversation-detail", () => {
       expect(res).toBeNull();
     });
 
-    it("returns null and logs the error when the repository fails", async () => {
+    it("propagates the error when the repository fails", async () => {
       vi.mocked(mockJobRequestRepository.list).mockRejectedValue(new Error("Network error"));
 
-      const res = await getJobRequestForConversation(mockJobRequestRepository, "123");
-      expect(res).toBeNull();
+      await expect(getJobRequestForConversation(mockJobRequestRepository, "123")).rejects.toThrow("Network error");
     });
   });
 });

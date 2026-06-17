@@ -13,18 +13,13 @@ export async function searchProviders(
   providerRepository: ProviderRepository,
   categoryId?: number
 ): Promise<SearchProvidersResult> {
-  let providers: Provider[] = [];
-  let selectedCategory: Category | null = null;
-
-  try {
-    if (categoryId) {
-      const categories = await categoryRepository.getAll();
-      selectedCategory = categories.find(c => c.id === categoryId) || null;
-      providers = await providerRepository.findByCategory(categoryId);
-    }
-  } catch (error) {
-    console.error("Error searching providers in use case:", error);
+  if (!categoryId) {
+    return { providers: [], selectedCategory: null };
   }
+
+  const categories = await categoryRepository.getAll();
+  const selectedCategory = categories.find(c => c.id === categoryId) || null;
+  const providers = await providerRepository.findByCategory(categoryId);
 
   return { providers, selectedCategory };
 }

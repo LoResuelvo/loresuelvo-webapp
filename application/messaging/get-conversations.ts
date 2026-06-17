@@ -4,21 +4,11 @@ import { ConsumerConversationContact, ProviderConversationContact } from "@/doma
 export async function getConsumerConversations(
   conversationRepository: ConversationRepository
 ): Promise<ConsumerConversationContact[]> {
-  try {
-    return await conversationRepository.getConsumerConversations();
-  } catch (error) {
-    console.error("Error fetching consumer conversations in use case:", error);
-    return [];
-  }
+  return conversationRepository.getConsumerConversations();
 }
 
 export async function getProviderConversations(
   conversationRepository: ConversationRepository
 ): Promise<ProviderConversationContact[]> {
-  try {
-    return await conversationRepository.getProviderConversations();
-  } catch (error) {
-    console.error("Error fetching provider conversations in use case:", error);
-    return [];
-  }
+  return conversationRepository.getProviderConversations();
 }

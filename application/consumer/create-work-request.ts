@@ -25,8 +25,8 @@ export async function createWorkRequest(
     };
     const data = await jobRequestRepository.create(payload);
     return { success: true, data };
-  } catch (error: any) {
-    const errorMessage = error?.message || "";
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     if (errorMessage.includes("Job request already exists") || errorMessage.includes("Conversation already exists")) {
       return { success: false, errorCode: "DUPLICATE", message: errorMessage };
     }

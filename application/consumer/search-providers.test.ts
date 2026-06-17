@@ -38,11 +38,9 @@ describe("searchProviders", () => {
     expect(res.selectedCategory).toBeNull();
   });
 
-  it("handles repository errors and returns default values", async () => {
+  it("propagates the error when the repository fails", async () => {
     vi.mocked(mockCategoryRepository.getAll).mockRejectedValue(new Error("Database offline"));
 
-    const res = await searchProviders(mockCategoryRepository, mockProviderRepository, 1);
-    expect(res.providers).toEqual([]);
-    expect(res.selectedCategory).toBeNull();
+    await expect(searchProviders(mockCategoryRepository, mockProviderRepository, 1)).rejects.toThrow("Database offline");
   });
 });

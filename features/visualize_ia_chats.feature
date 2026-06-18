@@ -13,7 +13,7 @@ Feature: Gestión de chats con IA
   Scenario: 02-CHI Visualizar historial de chats
     Given ingreso a la sección "Chat con IA"
     Then veo mis conversaciones anteriores con la IA
- 
+
   Scenario: 03-CHI Visualizar información resumida de cada chat
     Given ingreso a la sección "Chat con IA"
     Then cada conversación muestra un título

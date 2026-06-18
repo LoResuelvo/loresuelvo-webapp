@@ -24,11 +24,25 @@ description: "Flujo para implementar User Stories o features completas en Lo Res
 ## Reglas de calidad
 
 - Alta cohesion y baja duplicacion.
-- Componentes presentacionales separados de lógica de datos cuando crezcan.
-- User-facing text en español.
+- **Un componente principal por archivo.** Componentes presentacionales separados de lógica de datos cuando crezcan.
+- User-facing text en español, **centralizado en `infrastructure/i18n/translations.ts`** — nunca hardcodeado.
 - Estados loading/error/empty/success diseñados, no improvisados.
 - No degradar Server Components convirtiendo todo a client.
 - Mantener rutas centralizadas en `lib/routes.ts` cuando aplique.
+
+## Reglas de tipos y datos
+
+- Tipos de dominio en `domain/` siempre en **camelCase** — nunca snake_case.
+- DTOs del backend (snake_case) se definen exclusivamente en `infrastructure/api/types.ts`.
+- Mappers en `infrastructure/repositories/` transforman `ApiXxx → DomainXxx`.
+- Los use cases en `application/` **no tragan errores silenciosamente** — propagan excepciones.
+
+## Reglas de componentes UI
+
+- Usar primitivas existentes (`Button`, `Card`, `Avatar`, `Modal`, `DetailPanel`, `InfoBanner`) con sus variantes CVA.
+- Modales **siempre** con `<Modal>` (Radix Dialog) — nunca `div fixed inset-0` casero.
+- No sobreescribir masivamente clases de primitivas — si el patrón se repite, crear una variante CVA.
+- Funciones utilitarias puras (como `shouldShowExpandButton`) van en `lib/` (ej: `lib/text-utils.ts`), no inline en componentes.
 
 ## Validacion por fase
 

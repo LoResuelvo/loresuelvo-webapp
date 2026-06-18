@@ -16,11 +16,24 @@ Aplicar cuando la tarea toque formularios, botones, links, modales, banners, men
 5. Estados `loading`, `error`, `empty`, `disabled`, `success` entendibles sin depender solo del color.
 6. Icon-only actions con `aria-label`.
 
+## Modales y Overlays
+
+- **Usar siempre `<Modal>` de `components/ui/modal.tsx`** (basado en Radix Dialog).
+- El componente `Modal` provee automáticamente:
+  - ✅ Focus trap (el usuario no puede tabear fuera del modal)
+  - ✅ Cierre con tecla Escape
+  - ✅ Bloqueo de scroll del body
+  - ✅ Rendering en portal (evita problemas de z-index)
+  - ✅ `role="dialog"` y `aria-modal="true"` automáticos
+  - ✅ Retorno de foco al cerrar
+- **Nunca crear modales caseros** con `div fixed inset-0` — les falta focus trap, Escape, scroll lock.
+- Props disponibles: `open`, `onClose`, `title`, `titleId`, `closeLabel`, `children`, `footer`, `className`.
+
 ## Formularios
 
 - Todo campo tiene label accesible.
 - Error asociado al campo o visible junto al control.
-- Mensajes en español, concretos y accionables.
+- Mensajes en español, centralizados en `infrastructure/i18n/translations.ts`.
 - Botones deshabilitados explican el motivo cuando el bloqueo no es obvio.
 
 ## Mensajeria y cambios asincronos
@@ -28,6 +41,16 @@ Aplicar cuando la tarea toque formularios, botones, links, modales, banners, men
 - Nuevos errores o confirmaciones importantes usan region anunciable si no son visibles por foco.
 - Inputs de chat conservan foco al enviar salvo navegación intencional.
 - No mover foco inesperadamente durante polling/websocket/refetch.
+
+## Banners informativos
+
+- Usar `InfoBanner` (`components/messaging/InfoBanner.tsx`) para mensajes informativos y warnings.
+- No crear SVGs inline para banners — reutilizar componentes existentes.
+
+## Identificadores de test
+
+- Usar `data-testid` para testing — no `data-field` ni atributos custom sin documentar.
+- Cada elemento interactivo relevante debe tener un `data-testid` o ser consultable por rol/label.
 
 ## Validacion recomendada
 

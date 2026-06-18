@@ -9,11 +9,11 @@ Feature: Gestión de chats con IA
   Scenario: 01-CHI Acceder a los chats de IA desde la navegación
     When visualizo el sidebar
     Then veo el apartado "Chat con IA"
-  @wip
+
   Scenario: 02-CHI Visualizar historial de chats
     Given ingreso a la sección "Chat con IA"
     Then veo mis conversaciones anteriores con la IA
-  @wip
+ 
   Scenario: 03-CHI Visualizar información resumida de cada chat
     Given ingreso a la sección "Chat con IA"
     Then cada conversación muestra un título

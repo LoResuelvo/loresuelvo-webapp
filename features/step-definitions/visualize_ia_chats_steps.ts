@@ -85,3 +85,15 @@ Then("veo mis conversaciones anteriores con la IA", async () => {
   await conversation.waitFor({ state: "visible", timeout: 5000 });
   assert.ok(await conversation.isVisible(), "No se ve la conversación");
 });
+
+Then("cada conversación muestra un título", async () => {
+  const title = page.getByText("Pérdida de agua en la cocina");
+  await title.waitFor({ state: "visible", timeout: 5000 });
+  assert.ok(await title.isVisible(), "No se ve el título de la conversación");
+});
+
+Then("cada conversación muestra una preview del último mensaje intercambiado", async () => {
+  const preview = page.getByText("Revisá si el agua sale desde la rosca del sifón.");
+  await preview.waitFor({ state: "visible", timeout: 5000 });
+  assert.ok(await preview.isVisible(), "No se ve la preview del mensaje");
+});

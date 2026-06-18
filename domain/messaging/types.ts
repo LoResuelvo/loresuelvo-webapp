@@ -62,3 +62,26 @@ export interface ConversationDetailInfo {
   messages: Message[];
   updatedOn: string;
 }
+
+export interface AiConversationContact {
+  id: string;
+  title: string;
+  lastMessage: string;
+  lastMessageAt: string;
+}
+
+export interface AiConversationDetail {
+  id: number;
+  status: string;
+  title: string;
+  responseStatus: string;
+  messages: AiMessage[];
+  updatedOn: string;
+}
+
+export interface AiMessage {
+  id: string;
+  senderRole: "consumer" | "chatbot";
+  content: string;
+  sentAt: string;
+}

@@ -10,5 +10,13 @@
     ],
     "publishQuiet": true,
     "tags": "not @wip"
+  },
+  "wip": {
+    "paths": ["features/**/*.feature"],
+    "require": ["features/step-definitions/**/*.ts"],
+    "requireModule": ["ts-node/register", "tsconfig-paths/register"],
+    "format": ["progress"],
+    "publishQuiet": true,
+    "tags": "@wip"
   }
 }

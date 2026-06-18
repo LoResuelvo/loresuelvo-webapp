@@ -66,3 +66,34 @@ export interface ApiConversationDetail {
   messages: ApiConversationMessage[];
   updated_on: string;
 }
+
+export interface ApiAiConversation {
+  id: number;
+  status: string;
+  title: string;
+  last_message?: {
+    id: number;
+    sender_role: string;
+    content: string;
+    created_on: string;
+  };
+  updated_on: string;
+}
+
+export interface ApiAiConversationMessage {
+  id: number;
+  sender_role: string;
+  content: string;
+  created_on: string;
+}
+
+export interface ApiAiConversationDetail {
+  id: number;
+  conversation_id: number;
+  status: string;
+  title: string;
+  response_status: string;
+  messages: ApiAiConversationMessage[];
+  response?: ApiAiConversationMessage;
+  recommended_providers: unknown[];
+}

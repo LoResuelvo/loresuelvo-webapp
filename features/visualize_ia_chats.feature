@@ -1,4 +1,3 @@
-@wip
 Feature: Gestión de chats con IA
   Como consumidor
   Quiero poder ver mis chats con la IA
@@ -9,28 +8,28 @@ Feature: Gestión de chats con IA
 
   Scenario: 01-CHI Acceder a los chats de IA desde la navegación
     When visualizo el sidebar
-    Then veo la opción "Chat con IA"
-
+    Then veo el apartado "Chat con IA"
+  @wip
   Scenario: 02-CHI Visualizar historial de chats
     Given ingreso a la sección "Chat con IA"
     Then veo mis conversaciones anteriores con la IA
-
+  @wip
   Scenario: 03-CHI Visualizar información resumida de cada chat
     Given ingreso a la sección "Chat con IA"
     Then cada conversación muestra un título
     And cada conversación muestra una preview del último mensaje intercambiado
-
+  @wip
   Scenario: 04-CHI Abrir una conversación existente
     Given ingreso a la sección "Chat con IA"
     When selecciono una conversación existente
     Then veo el historial completo de mensajes de esa conversación
-
+  @wip
   Scenario: 05-CHI Crear una nueva conversación
     Given ingreso a la sección "Chat con IA"
     When selecciono "Nuevo chat"
     Then se crea una nueva conversación
     And puedo comenzar a enviar mensajes
-
+  @wip
   Scenario: 06-CHI Actualizar preview al recibir respuesta
     Given existe una conversación con la IA
     When recibo una nueva respuesta del asistente

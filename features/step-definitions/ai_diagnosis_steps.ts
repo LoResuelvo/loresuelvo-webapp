@@ -113,8 +113,15 @@ Then("veo una respuesta del asistente en el chat", async () => {
 
 Given("envié un mensaje al asistente", async () => {
   await setConsumerSession();
-  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}`);
-  await page.waitForLoadState("networkidle");
+
+  if (!await hasApiStub("GET", "/chatbot/conversations")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/chatbot/conversations",
+      status: 200,
+      body: [],
+    });
+  }
 
   if (!await hasApiStub("POST", "/chatbot/conversations")) {
     await addApiStub({
@@ -128,6 +135,9 @@ Given("envié un mensaje al asistente", async () => {
       },
     });
   }
+
+  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}`);
+  await page.waitForLoadState("networkidle");
 
   const mensaje = "Se está filtrando agua debajo de la bacha";
   await page.evaluate((msg) => {

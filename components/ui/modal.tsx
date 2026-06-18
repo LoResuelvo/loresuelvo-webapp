@@ -34,6 +34,7 @@ export function Modal({
           className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=closed]:animate-out data-[state=closed]:fade-out"
         />
         <DialogPrimitive.Content
+          aria-describedby={undefined}
           className={cn(
             "fixed left-1/2 top-1/2 z-50 w-full max-w-[580px] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white shadow-xl overflow-hidden mx-4",
             "data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95",
@@ -44,7 +45,6 @@ export function Modal({
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-slate-200">
             <DialogPrimitive.Title
-              id={titleId}
               className="text-lg font-semibold text-brand-primary"
             >
               {title}

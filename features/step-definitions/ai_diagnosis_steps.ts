@@ -602,6 +602,7 @@ Given("la IA concluyó el diagnóstico y recomienda prestadores del rubro {strin
       status: "active",
       title: "Pérdida de agua",
       response_status: "answered",
+      diagnosis_completed: true,
       messages: [
         {
           id: 1,

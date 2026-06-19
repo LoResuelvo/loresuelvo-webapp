@@ -83,6 +83,11 @@ export interface AiConversationDetail {
   status: string;
   title: string;
   responseStatus: string;
+  diagnosisCompleted: boolean;
+  recommendedCategory?: {
+    id: number;
+    name: string;
+  };
   messages: AiMessage[];
   recommendedProviders: RecommendedProvider[];
   updatedOn: string;

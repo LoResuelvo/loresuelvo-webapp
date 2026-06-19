@@ -205,6 +205,7 @@ describe("AiDiagnosisChat", () => {
         recommendedProviders: [
           { id: 10, name: "Juan", surname: "Pérez", categoryName: "Plomería" }
         ],
+        diagnosisCompleted: true,
         updatedOn: "2026-01-01T10:01:00Z"
       }),
       sendMessage: vi.fn(),

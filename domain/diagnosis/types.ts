@@ -6,4 +6,5 @@ export interface AiMessage {
   senderId: string;
   sentAt: string;
   recommendedProviders?: RecommendedProvider[];
+  diagnosisCompleted?: boolean;
 }

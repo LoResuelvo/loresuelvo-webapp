@@ -18,10 +18,8 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
-vi.mock("@/infrastructure/repositories/api-assistant-client", () => ({
-  createApiAssistantClient: () => ({
-    requestReply: vi.fn().mockResolvedValue("Revisá el sifón."),
-  }),
+vi.mock("@/app/consumidor/mensajes-ia/actions", () => ({
+  createAiConversationAction: vi.fn().mockResolvedValue({ id: 1 }),
 }));
 
 afterEach(() => {

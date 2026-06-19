@@ -136,6 +136,7 @@ export const t = {
     noMessages: "Sin mensajes",
     assistantName: "Asistente de diagnóstico",
     backToList: "Volver a la lista",
+    noProvidersFound: "No encontramos profesionales disponibles para este rubro por el momento.",
   },
   providerHome: {
     incomePanel: {

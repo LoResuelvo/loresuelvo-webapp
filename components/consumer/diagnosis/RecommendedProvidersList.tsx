@@ -5,22 +5,28 @@ import { t } from "@/infrastructure/i18n/translations";
 import { ROUTES } from "@/lib/routes";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import InfoBanner from "@/components/messaging/InfoBanner";
 
 interface RecommendedProvidersListProps {
-  providers: RecommendedProvider[];
+  providers?: RecommendedProvider[];
+  diagnosisCompleted?: boolean;
 }
 
-export function RecommendedProvidersList({ providers }: RecommendedProvidersListProps) {
+export function RecommendedProvidersList({ providers, diagnosisCompleted }: RecommendedProvidersListProps) {
   const router = useRouter();
 
-  if (!providers || providers.length === 0) {
+  if (!diagnosisCompleted) {
     return null;
   }
 
-  const handleSearchMore = () => {
-    router.push(ROUTES.consumer.buscar);
-  };
+  if (!providers || providers.length === 0) {
+    return (
+      <div className="flex flex-col gap-4 mt-6">
+        <h3 className="text-lg font-semibold">{t.aiDiagnosis.recommendedProviders}</h3>
+        <InfoBanner tone="info">{t.aiDiagnosis.noProvidersFound}</InfoBanner>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4 mt-6">

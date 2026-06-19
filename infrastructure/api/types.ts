@@ -100,10 +100,14 @@ export interface ApiRecommendedProvider {
 
 export interface ApiAiConversationDetail {
   id: number;
-  conversation_id?: number;
   status: string;
   title?: string;
   response_status?: string;
+  diagnosis_completed?: boolean;
+  recommended_category?: {
+    id: number;
+    name: string;
+  };
   messages: ApiAiConversationMessage[];
   response?: ApiAiConversationMessage;
   recommended_providers?: ApiRecommendedProvider[];

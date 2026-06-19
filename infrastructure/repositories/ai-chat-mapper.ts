@@ -41,12 +41,16 @@ export function mapApiToAiConversationDetail(api: ApiAiConversationDetail): AiCo
   const providers = api.recommended_providers ?? api.chatbot?.recommended_providers ?? [];
   const title = api.title ?? api.chatbot?.title ?? "";
   const responseStatus = api.response_status ?? api.chatbot?.response_status ?? "";
+  const diagnosisCompleted = api.diagnosis_completed ?? api.chatbot?.diagnosis_completed ?? false;
+  const recommendedCategory = api.recommended_category ?? api.chatbot?.recommended_category;
 
   return {
     id: api.id,
     status: api.status,
     title: title,
     responseStatus: responseStatus,
+    diagnosisCompleted: diagnosisCompleted,
+    recommendedCategory: recommendedCategory,
     messages: api.messages.map(mapApiToAiMessage),
     recommendedProviders: providers.map(mapApiToRecommendedProvider),
     updatedOn: api.messages.length > 0

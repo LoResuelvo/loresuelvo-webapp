@@ -88,9 +88,8 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
             sentAt: new Date(msg.sentAt).toLocaleString("es-AR", {
               day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
             }),
-            recommendedProviders: index === lastAssistantIndex && data.recommendedProviders && data.recommendedProviders.length > 0 
-              ? data.recommendedProviders 
-              : undefined,
+            recommendedProviders: index === lastAssistantIndex ? data.recommendedProviders : undefined,
+            diagnosisCompleted: index === lastAssistantIndex ? data.diagnosisCompleted : undefined,
           }));
           setMessages(msgs);
         })
@@ -127,9 +126,8 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
             sentAt: new Date(msg.sentAt).toLocaleString("es-AR", {
               day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
             }),
-            recommendedProviders: index === lastAssistantIndex && updated.recommendedProviders && updated.recommendedProviders.length > 0 
-              ? updated.recommendedProviders 
-              : undefined,
+            recommendedProviders: index === lastAssistantIndex ? updated.recommendedProviders : undefined,
+            diagnosisCompleted: index === lastAssistantIndex ? updated.diagnosisCompleted : undefined,
           }));
           setMessages(newMessages);
           reply = updated.messages[updated.messages.length - 1]?.content ?? "";
@@ -144,9 +142,8 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
             sentAt: new Date(msg.sentAt).toLocaleString("es-AR", {
               day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
             }),
-            recommendedProviders: index === lastAssistantIndex && created.recommendedProviders && created.recommendedProviders.length > 0 
-              ? created.recommendedProviders 
-              : undefined,
+            recommendedProviders: index === lastAssistantIndex ? created.recommendedProviders : undefined,
+            diagnosisCompleted: index === lastAssistantIndex ? created.diagnosisCompleted : undefined,
           }));
           setMessages(newMessages);
           reply = created.messages[created.messages.length - 1]?.content ?? "";
@@ -337,9 +334,9 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
                 onToggleExpand={() => undefined}
                 isOwnMessage={msg.senderId === USER_ID}
               />
-              {msg.recommendedProviders && msg.recommendedProviders.length > 0 && (
+              {msg.diagnosisCompleted && (
                 <div className="mt-2 mb-2 w-full max-w-2xl self-start">
-                  <RecommendedProvidersList providers={msg.recommendedProviders} />
+                  <RecommendedProvidersList providers={msg.recommendedProviders} diagnosisCompleted={msg.diagnosisCompleted} />
                 </div>
               )}
             </div>

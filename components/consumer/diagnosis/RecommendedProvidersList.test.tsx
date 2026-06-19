@@ -31,25 +31,25 @@ describe("RecommendedProvidersList", () => {
   ];
 
   it("should render provider cards when providers are present", () => {
-    render(<RecommendedProvidersList providers={mockProviders} />);
+    render(<RecommendedProvidersList providers={mockProviders} diagnosisCompleted={true} />);
     expect(screen.getByText(t.aiDiagnosis.recommendedProviders)).toBeInTheDocument();
     expect(screen.getAllByRole("img", { hidden: true })).toHaveLength(1); // One has image, one has fallback
   });
 
   it("should display provider name and surname", () => {
-    render(<RecommendedProvidersList providers={mockProviders} />);
+    render(<RecommendedProvidersList providers={mockProviders} diagnosisCompleted={true} />);
     expect(screen.getByText("Juan Pérez")).toBeInTheDocument();
     expect(screen.getByText("María Gómez")).toBeInTheDocument();
   });
 
   it("should display provider category name", () => {
-    render(<RecommendedProvidersList providers={mockProviders} />);
+    render(<RecommendedProvidersList providers={mockProviders} diagnosisCompleted={true} />);
     expect(screen.getByText("Plomería")).toBeInTheDocument();
     expect(screen.getByText("Electricidad")).toBeInTheDocument();
   });
 
   it("should render provider avatar with profile photo", () => {
-    render(<RecommendedProvidersList providers={mockProviders} />);
+    render(<RecommendedProvidersList providers={mockProviders} diagnosisCompleted={true} />);
     const avatarImg = screen.getByTestId("avatar-img-1");
     expect(avatarImg).toHaveAttribute("src", "https://example.com/photo.jpg");
     
@@ -58,8 +58,13 @@ describe("RecommendedProvidersList", () => {
     expect(avatarFallback).toBeInTheDocument();
   });
 
-  it("should not render anything when providers array is empty", () => {
-    const { container } = render(<RecommendedProvidersList providers={[]} />);
+  it("should render InfoBanner when providers array is empty but diagnosis is completed", () => {
+    render(<RecommendedProvidersList providers={[]} diagnosisCompleted={true} />);
+    expect(screen.getByText(t.aiDiagnosis.noProvidersFound)).toBeInTheDocument();
+  });
+
+  it("should not render anything when diagnosis is not completed", () => {
+    const { container } = render(<RecommendedProvidersList providers={mockProviders} diagnosisCompleted={false} />);
     expect(container).toBeEmptyDOMElement();
   });
 });

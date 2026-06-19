@@ -325,6 +325,52 @@ When("recibo una nueva respuesta del asistente", async () => {
     ],
   });
 
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations/1",
+    status: 200,
+    body: {
+      id: 1,
+      conversation_id: 1,
+      status: "active",
+      title: "Pérdida de agua en la cocina",
+      response_status: "answered",
+      messages: [
+        {
+          id: 1,
+          sender_role: "consumer",
+          content: "Se está filtrando agua debajo de la bacha",
+          created_on: "2026-06-18T10:00:00Z",
+        },
+        {
+          id: 2,
+          sender_role: "chatbot",
+          content: "Revisá si el agua sale desde la rosca del sifón.",
+          created_on: "2026-06-18T10:00:01Z",
+        },
+        {
+          id: 3,
+          sender_role: "consumer",
+          content: "Ya revisé y no es eso.",
+          created_on: "2026-06-18T10:05:00Z",
+        },
+        {
+          id: 4,
+          sender_role: "chatbot",
+          content: "Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?",
+          created_on: "2026-06-18T10:05:05Z",
+        }
+      ],
+      response: {
+        id: 4,
+        sender_role: "chatbot",
+        content: "Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?",
+        created_on: "2026-06-18T10:05:05Z",
+      },
+      recommended_providers: [],
+    },
+  });
+
   const input = page.getByPlaceholder("Escribe un mensaje...");
   await input.fill("Ya revisé y no es eso.");
   

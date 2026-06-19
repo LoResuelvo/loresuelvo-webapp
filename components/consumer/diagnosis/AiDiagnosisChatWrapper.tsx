@@ -3,23 +3,27 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import AiDiagnosisChat from "@/components/consumer/diagnosis/AiDiagnosisChat";
 import { createApiAssistantClient } from "@/infrastructure/repositories/api-assistant-client";
-import { ApiAiChatRepository } from "@/infrastructure/repositories/api-ai-chat-repository";
+import { createAiConversationAction, sendAiMessageAction, getAiConversationByIdAction } from "@/app/consumidor/mensajes-ia/actions";
 import type { AiConversationContact } from "@/domain/messaging/types";
 import { ROUTES } from "@/lib/routes";
 import { Bot } from "lucide-react";
 
 interface AiDiagnosisChatWrapperProps {
   initialConversations: AiConversationContact[];
-  accessToken?: string;
 }
 
-export default function AiDiagnosisChatWrapper({ initialConversations: conversations, accessToken }: AiDiagnosisChatWrapperProps) {
+export default function AiDiagnosisChatWrapper({ initialConversations: conversations }: AiDiagnosisChatWrapperProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("id");
 
-  const assistantClient = createApiAssistantClient(accessToken);
-  const chatRepository = new ApiAiChatRepository(accessToken);
+  const assistantClient = createApiAssistantClient();
+  const chatRepository = {
+    create: createAiConversationAction,
+    sendMessage: sendAiMessageAction,
+    getById: getAiConversationByIdAction,
+    getConversations: async () => []
+  };
 
   const handleConversationClick = (id: string) => {
     router.push(`${ROUTES.consumer.aiMessages}?id=${id}`);

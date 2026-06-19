@@ -238,7 +238,7 @@ Then("veo una respuesta del asistente en el chat", async () => {
   );
 });
 
-Given("envié un mensaje al asistente", async () => {
+Given("estoy en una conversación con el asistente", async () => {
   await setConsumerSession();
 
   if (!await hasApiStub("GET", "/chatbot/conversations")) {
@@ -290,38 +290,70 @@ Given("envié un mensaje al asistente", async () => {
   await page.waitForLoadState("networkidle");
 });
 
-Given("envié un mensaje al asistente con un error simulado", async () => {
-  await setConsumerSession();
-  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}`);
-  await page.waitForLoadState("networkidle");
-
-  await addApiStub({
-    method: "POST",
-    endpoint: "/chatbot/conversations",
-    status: 500,
-    body: { error: "Internal Server Error" },
+When("envío un nuevo mensaje y la respuesta tarda en llegar", async () => {
+  await page.route("**/chatbot/conversations/1/messages", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: 1,
+        conversation_id: 1,
+        status: "active",
+        title: "Pérdida de agua",
+        response_status: "answered",
+        messages: [
+          {
+            id: 1,
+            sender_role: "consumer",
+            content: "Se está filtrando agua debajo de la bacha",
+            created_on: "2026-06-18T10:00:00Z",
+          },
+          {
+            id: 2,
+            sender_role: "consumer",
+            content: "Sigue perdiendo agua",
+            created_on: "2026-06-18T10:05:00Z",
+          },
+          {
+            id: 3,
+            sender_role: "chatbot",
+            content: "Podría ser la manguera de desagüe.",
+            created_on: "2026-06-18T10:05:05Z",
+          },
+        ],
+        response: {
+          id: 3,
+          sender_role: "chatbot",
+          content: "Podría ser la manguera de desagüe.",
+          created_on: "2026-06-18T10:05:05Z",
+        },
+        recommended_providers: [],
+      }),
+    });
   });
 
-  const mensaje = "Se está filtrando agua debajo de la bacha";
-  await page.evaluate((msg) => {
-    const messages = [{
-      id: `msg-user-${Date.now()}`,
-      content: msg,
-      senderId: "consumer-ai-diagnosis",
-      sentAt: "Recién",
-    }];
-    localStorage.setItem("ai_chat_messages", JSON.stringify(messages));
-  }, mensaje);
-  await page.reload();
-  await page.waitForLoadState("networkidle");
+  const input = page.getByPlaceholder(/escribe un mensaje/i);
+  await input.fill("Sigue perdiendo agua");
+  const sendButton = page.getByRole("button", { name: /enviar mensaje/i });
+  await sendButton.click();
 });
 
-When("la respuesta aún se encuentra en procesamiento", async () => {
-  // El cliente mock tiene un delay por defecto (800ms). Verificamos el indicador
-  // antes de que la respuesta del asistente aparezca.
-  await page.getByRole("status", { name: /asistente escribiendo/i })
-    .waitFor({ state: "visible", timeout: 2000 });
+When("envío un nuevo mensaje y el servicio falla", async () => {
+  await page.route("**/chatbot/conversations/1/messages", async (route) => {
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Internal Server Error" }),
+    });
+  });
+
+  const input = page.getByPlaceholder(/escribe un mensaje/i);
+  await input.fill("Sigue perdiendo agua");
+  const sendButton = page.getByRole("button", { name: /enviar mensaje/i });
+  await sendButton.click();
 });
+
 
 Then("veo un indicador de carga", async () => {
   const indicator = page.getByRole("status", { name: /asistente escribiendo/i });
@@ -337,13 +369,6 @@ Then("no puedo enviar un nuevo mensaje hasta recibir una respuesta", async () =>
   assert.ok(await sendButton.isDisabled(), "El botón enviar debería estar deshabilitado durante el procesamiento");
 });
 
-When("el servicio de IA no se encuentra disponible", async () => {
-  // Ya navegamos con ?simulate=error en el Given. Sólo esperamos a que el
-  // mensaje de error esté visible (controlado por el cliente mockeado).
-  await page.getByText("No pudimos obtener una respuesta en este momento")
-    .first()
-    .waitFor({ state: "visible", timeout: 5000 });
-});
 
 Then("veo el mensaje del asistente {string}", async (expected: string) => {
   const element = page.getByText(expected).first();

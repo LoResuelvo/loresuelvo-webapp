@@ -12,7 +12,7 @@ export default async function ConsumerAiMessagesPage() {
 
   let conversations: AiConversationContact[] = [];
   try {
-    const repository = new ApiAiChatRepository(session?.accessToken);
+    const repository = new ApiAiChatRepository();
     conversations = await getAiConversations(repository);
   } catch (error) {
     console.error("Failed to fetch AI conversations:", error);
@@ -27,7 +27,6 @@ export default async function ConsumerAiMessagesPage() {
           <Suspense fallback={null}>
             <AiDiagnosisChatWrapper
               initialConversations={conversations}
-              accessToken={session?.accessToken}
             />
           </Suspense>
         </main>

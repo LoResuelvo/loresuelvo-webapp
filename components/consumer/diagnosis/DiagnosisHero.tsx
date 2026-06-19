@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { t } from "@/infrastructure/i18n/translations";
-import { ApiAiChatRepository } from "@/infrastructure/repositories/api-ai-chat-repository";
+import { createAiConversationAction } from "@/app/consumidor/mensajes-ia/actions";
 
 import { cn } from "@/lib/utils";
 
@@ -20,10 +20,9 @@ const LINE_HEIGHT_CSS = 24;
 
 interface DiagnosisHeroProps {
   className?: string;
-  accessToken?: string;
 }
 
-export default function DiagnosisHero({ className, accessToken }: DiagnosisHeroProps) {
+export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -69,8 +68,7 @@ export default function DiagnosisHero({ className, accessToken }: DiagnosisHeroP
 
     try {
       console.log("[DiagnosisHero] Creating conversation with:", trimmed);
-      const repository = new ApiAiChatRepository(accessToken);
-      const conversation = await repository.create(trimmed);
+      const conversation = await createAiConversationAction(trimmed);
       console.log("[DiagnosisHero] Conversation created:", conversation);
       router.push(`${ROUTES.consumer.aiMessages}?id=${conversation.id}`);
     } catch (error) {

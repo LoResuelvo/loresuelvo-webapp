@@ -12,7 +12,7 @@ export default async function ConsumerAiMessagesPage() {
 
   let conversations: AiConversationContact[] = [];
   try {
-    const repository = new ApiAiChatRepository();
+    const repository = new ApiAiChatRepository(session?.accessToken);
     conversations = await getAiConversations(repository);
   } catch (error) {
     console.error("Failed to fetch AI conversations:", error);

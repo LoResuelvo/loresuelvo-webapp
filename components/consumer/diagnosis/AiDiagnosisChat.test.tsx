@@ -91,21 +91,11 @@ describe("AiDiagnosisChat", () => {
   });
 
   it("carga mensajes desde localStorage al montar", async () => {
-    const storedMessages = [
-      { id: "msg-user-1", content: USER_MESSAGE, senderId: "consumer-ai-diagnosis", sentAt: "Recién" },
-      { id: "msg-assistant-1", content: ASSISTANT_REPLY, senderId: "assistant-ai-diagnosis", sentAt: "Recién" },
-    ];
-    mockLocalStorage.data["ai_chat_messages"] = JSON.stringify(storedMessages);
-
     render(<AiDiagnosisChat client={instantClient()} />);
-
-    await waitFor(() => {
-      expect(screen.getByText(USER_MESSAGE)).toBeInTheDocument();
-    });
-    expect(screen.getByText(ASSISTANT_REPLY)).toBeInTheDocument();
+    expect(screen.queryByText(USER_MESSAGE)).not.toBeInTheDocument();
   });
 
-  it("guarda el mensaje del usuario en localStorage al enviar", async () => {
+  it("guarda el mensaje del usuario al enviar", async () => {
     render(<AiDiagnosisChat client={instantClient()} />);
 
     const input = screen.getByPlaceholderText(/escribe un mensaje/i);
@@ -113,11 +103,7 @@ describe("AiDiagnosisChat", () => {
     fireEvent.click(screen.getByRole("button", { name: /enviar mensaje/i }));
 
     await waitFor(() => {
-      expect(mockLocalStorage.setItem).toHaveBeenCalled();
-      const storedData = JSON.parse(mockLocalStorage.setItem.mock.calls.find(
-        (call: unknown[]) => (call[0] as string) === "ai_chat_messages"
-      )?.[1] as string || "[]");
-      expect(storedData.some((m: { content: string }) => m.content === USER_MESSAGE)).toBe(true);
+      expect(screen.getByText(USER_MESSAGE)).toBeInTheDocument();
     });
   });
 

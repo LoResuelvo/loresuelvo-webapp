@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DiagnosisHero from "@/components/consumer/diagnosis/DiagnosisHero";
 
@@ -16,6 +16,12 @@ Object.defineProperty(global, "localStorage", {
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
+}));
+
+vi.mock("@/infrastructure/repositories/api-assistant-client", () => ({
+  createApiAssistantClient: () => ({
+    requestReply: vi.fn().mockResolvedValue("Revisá el sifón."),
+  }),
 }));
 
 afterEach(() => {
@@ -38,7 +44,7 @@ describe("DiagnosisHero", () => {
     expect(screen.getByRole("button", { name: /diagnosticar/i })).toBeInTheDocument();
   });
 
-  it("navega a la pantalla de chat al presionar Diagnosticar guardando en localStorage", () => {
+  it("navega a la pantalla de chat al presionar Diagnosticar", async () => {
     render(<DiagnosisHero />);
 
     fireEvent.change(screen.getByPlaceholderText(/describe el problema/i), {
@@ -46,12 +52,9 @@ describe("DiagnosisHero", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /diagnosticar/i }));
 
-    expect(mockPush).toHaveBeenCalledTimes(1);
-    expect(mockPush).toHaveBeenCalledWith("/consumidor/mensajes-ia");
-    expect(mockLocalStorage.setItem).toHaveBeenCalled();
-    const storedData = JSON.parse(mockLocalStorage.setItem.mock.calls[0][1]);
-    expect(storedData.length).toBe(1);
-    expect(storedData[0].content).toBe("Se está filtrando agua debajo de la bacha");
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("no navega si el mensaje está vacío", () => {

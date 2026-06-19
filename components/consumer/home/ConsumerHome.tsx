@@ -20,7 +20,7 @@ export default function ConsumerHome({ session, categories = [] }: ConsumerHomeP
         <ConsumerHeader session={session} />
         <main className="flex-1 p-8 lg:p-10 flex justify-center">
           <div className="max-w-6xl w-full flex flex-col gap-10">
-            <DiagnosisHero />
+            <DiagnosisHero accessToken={session?.accessToken} />
             <CategoryGrid categories={categories} />
           </div>
         </main>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AiDiagnosisChat from "@/components/consumer/diagnosis/AiDiagnosisChat";
 import { createApiAssistantClient } from "@/infrastructure/repositories/api-assistant-client";
+import { ApiAiChatRepository } from "@/infrastructure/repositories/api-ai-chat-repository";
 import type { AiConversationContact } from "@/domain/messaging/types";
 import { ROUTES } from "@/lib/routes";
 import { Bot } from "lucide-react";
@@ -20,6 +21,7 @@ export default function AiDiagnosisChatWrapper({ initialConversations, accessTok
   const [conversations] = useState<AiConversationContact[]>(initialConversations);
 
   const assistantClient = createApiAssistantClient(accessToken);
+  const chatRepository = new ApiAiChatRepository(accessToken);
 
   const handleConversationClick = (id: string) => {
     router.push(`${ROUTES.consumer.aiMessages}?id=${id}`);
@@ -73,7 +75,7 @@ export default function AiDiagnosisChatWrapper({ initialConversations, accessTok
 
       <div className="flex-1 flex flex-col min-w-0">
         <div className="max-w-3xl w-full mx-auto p-6">
-          <AiDiagnosisChat client={assistantClient} />
+          <AiDiagnosisChat client={assistantClient} chatRepository={chatRepository} conversationId={selectedId} />
         </div>
       </div>
     </>

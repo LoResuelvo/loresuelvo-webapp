@@ -26,6 +26,71 @@ Given("me encuentro en la pantalla Home", async () => {
     });
   }
 
+  if (!await hasApiStub("POST", "/chatbot/conversations")) {
+    await addApiStub({
+      method: "POST",
+      endpoint: "/chatbot/conversations",
+      status: 200,
+      body: {
+        id: 1,
+        conversation_id: 1,
+        status: "active",
+        title: "Pérdida de agua",
+        response_status: "answered",
+        messages: [
+          {
+            id: 1,
+            sender_role: "consumer",
+            content: "Se está filtrando agua debajo de la bacha",
+            created_on: "2026-06-18T10:00:00Z",
+          },
+          {
+            id: 2,
+            sender_role: "chatbot",
+            content: "Revisá si el agua sale desde la rosca del sifón.",
+            created_on: "2026-06-18T10:00:01Z",
+          },
+        ],
+        response: {
+          id: 2,
+          sender_role: "chatbot",
+          content: "Revisá si el agua sale desde la rosca del sifón.",
+          created_on: "2026-06-18T10:00:01Z",
+        },
+        recommended_providers: [],
+      },
+    });
+  }
+
+  if (!await hasApiStub("GET", "/conversations/1")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/conversations/1",
+      status: 200,
+      body: {
+        id: 1,
+        conversation_id: 1,
+        status: "active",
+        title: "Pérdida de agua",
+        response_status: "answered",
+        messages: [
+          {
+            id: 1,
+            sender_role: "consumer",
+            content: "Se está filtrando agua debajo de la bacha",
+            created_on: "2026-06-18T10:00:00Z",
+          },
+          {
+            id: 2,
+            sender_role: "chatbot",
+            content: "Revisá si el agua sale desde la rosca del sifón.",
+            created_on: "2026-06-18T10:00:01Z",
+          },
+        ],
+      },
+    });
+  }
+
   await page.goto(APP_URL + ROUTES.consumer.home);
   await page.waitForLoadState("networkidle");
 });
@@ -62,8 +127,28 @@ Then("veo mi mensaje en el chat", async () => {
 
 Given("inicié una conversación con el asistente", async () => {
   await setConsumerSession();
-  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}`);
-  await page.waitForLoadState("networkidle");
+
+  if (!await hasApiStub("GET", "/chatbot/conversations")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/chatbot/conversations",
+      status: 200,
+      body: [
+        {
+          id: 1,
+          status: "active",
+          title: "Pérdida de agua",
+          last_message: {
+            id: 2,
+            sender_role: "chatbot",
+            content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
+            created_on: "2026-06-18T10:00:01Z",
+          },
+          updated_on: "2026-06-18T10:00:01Z",
+        },
+      ],
+    });
+  }
 
   if (!await hasApiStub("POST", "/chatbot/conversations")) {
     await addApiStub({
@@ -71,24 +156,66 @@ Given("inicié una conversación con el asistente", async () => {
       endpoint: "/chatbot/conversations",
       status: 200,
       body: {
+        id: 1,
+        conversation_id: 1,
+        status: "active",
+        title: "Pérdida de agua",
+        response_status: "answered",
+        messages: [
+          {
+            id: 1,
+            sender_role: "consumer",
+            content: "Se está filtrando agua debajo de la bacha",
+            created_on: "2026-06-18T10:00:00Z",
+          },
+          {
+            id: 2,
+            sender_role: "chatbot",
+            content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
+            created_on: "2026-06-18T10:00:01Z",
+          },
+        ],
         response: {
+          id: 2,
+          sender_role: "chatbot",
           content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
+          created_on: "2026-06-18T10:00:01Z",
         },
+        recommended_providers: [],
       },
     });
   }
 
-  const mensaje = "Se está filtrando agua debajo de la bacha";
-  await page.evaluate((msg) => {
-    const messages = [{
-      id: `msg-user-${Date.now()}`,
-      content: msg,
-      senderId: "consumer-ai-diagnosis",
-      sentAt: "Recién",
-    }];
-    localStorage.setItem("ai_chat_messages", JSON.stringify(messages));
-  }, mensaje);
-  await page.reload();
+  if (!await hasApiStub("GET", "/conversations/1")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/conversations/1",
+      status: 200,
+      body: {
+        id: 1,
+        conversation_id: 1,
+        status: "active",
+        title: "Pérdida de agua",
+        response_status: "answered",
+        messages: [
+          {
+            id: 1,
+            sender_role: "consumer",
+            content: "Se está filtrando agua debajo de la bacha",
+            created_on: "2026-06-18T10:00:00Z",
+          },
+          {
+            id: 2,
+            sender_role: "chatbot",
+            content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
+            created_on: "2026-06-18T10:00:01Z",
+          },
+        ],
+      },
+    });
+  }
+
+  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);
   await page.waitForLoadState("networkidle");
 });
 
@@ -119,37 +246,47 @@ Given("envié un mensaje al asistente", async () => {
       method: "GET",
       endpoint: "/chatbot/conversations",
       status: 200,
-      body: [],
+      body: [
+        {
+          id: 1,
+          status: "active",
+          title: "Pérdida de agua",
+          last_message: {
+            id: 1,
+            sender_role: "consumer",
+            content: "Se está filtrando agua debajo de la bacha",
+            created_on: "2026-06-18T10:00:00Z",
+          },
+          updated_on: "2026-06-18T10:00:00Z",
+        },
+      ],
     });
   }
 
-  if (!await hasApiStub("POST", "/chatbot/conversations")) {
+  if (!await hasApiStub("GET", "/conversations/1")) {
     await addApiStub({
-      method: "POST",
-      endpoint: "/chatbot/conversations",
+      method: "GET",
+      endpoint: "/conversations/1",
       status: 200,
       body: {
-        response: {
-          content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
-        },
+        id: 1,
+        conversation_id: 1,
+        status: "active",
+        title: "Pérdida de agua",
+        response_status: "pending",
+        messages: [
+          {
+            id: 1,
+            sender_role: "consumer",
+            content: "Se está filtrando agua debajo de la bacha",
+            created_on: "2026-06-18T10:00:00Z",
+          },
+        ],
       },
     });
   }
 
-  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}`);
-  await page.waitForLoadState("networkidle");
-
-  const mensaje = "Se está filtrando agua debajo de la bacha";
-  await page.evaluate((msg) => {
-    const messages = [{
-      id: `msg-user-${Date.now()}`,
-      content: msg,
-      senderId: "consumer-ai-diagnosis",
-      sentAt: "Recién",
-    }];
-    localStorage.setItem("ai_chat_messages", JSON.stringify(messages));
-  }, mensaje);
-  await page.reload();
+  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);
   await page.waitForLoadState("networkidle");
 });
 
@@ -222,22 +359,60 @@ Then("puedo volver a intentarlo", async () => {
 
 When("visualizo la conversación con el asistente", async () => {
   await setConsumerSession();
-  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}`);
+
+  if (!await hasApiStub("GET", "/chatbot/conversations")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/chatbot/conversations",
+      status: 200,
+      body: [
+        {
+          id: 1,
+          status: "active",
+          title: "Pérdida de agua",
+          last_message: {
+            id: 2,
+            sender_role: "chatbot",
+            content: "Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo",
+            created_on: "2026-06-18T10:00:01Z",
+          },
+          updated_on: "2026-06-18T10:00:01Z",
+        },
+      ],
+    });
+  }
+
+  if (!await hasApiStub("GET", "/conversations/1")) {
+    await addApiStub({
+      method: "GET",
+      endpoint: "/conversations/1",
+      status: 200,
+      body: {
+        id: 1,
+        conversation_id: 1,
+        status: "active",
+        title: "Pérdida de agua",
+        response_status: "answered",
+        messages: [
+          {
+            id: 1,
+            sender_role: "consumer",
+            content: "Se está filtrando agua debajo de la bacha",
+            created_on: "2026-06-18T10:00:00Z",
+          },
+          {
+            id: 2,
+            sender_role: "chatbot",
+            content: "Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo",
+            created_on: "2026-06-18T10:00:01Z",
+          },
+        ],
+      },
+    });
+  }
+
+  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);
   await page.waitForLoadState("networkidle");
-  const mensaje = "Se está filtrando agua debajo de la bacha";
-  await page.evaluate((msg) => {
-    const messages = [{
-      id: `msg-user-${Date.now()}`,
-      content: msg,
-      senderId: "consumer-ai-diagnosis",
-      sentAt: "Recién",
-    }];
-    localStorage.setItem("ai_chat_messages", JSON.stringify(messages));
-  }, mensaje);
-  await page.reload();
-  await page.waitForLoadState("networkidle");
-  await page.getByText("Se está filtrando agua debajo de la bacha").first()
-    .waitFor({ state: "visible" });
 });
 
 When("selecciono la opción {string}", async (optionName: string) => {

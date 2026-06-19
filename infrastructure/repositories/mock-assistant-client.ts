@@ -15,5 +15,13 @@ export function createMockAssistantClient(
       }
       return getAssistantReply(userMessage);
     },
+
+    async getConversation() {
+      return {
+        id: "",
+        title: "",
+        messages: [],
+      };
+    },
   };
 }

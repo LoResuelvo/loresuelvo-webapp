@@ -4,11 +4,11 @@ import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, Info } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
-import { saveAiMessages, loadAiMessages, type AiMessage } from "@/infrastructure/storage/ai-chat-storage";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { t } from "@/infrastructure/i18n/translations";
+import { ApiAiChatRepository } from "@/infrastructure/repositories/api-ai-chat-repository";
 
 import { cn } from "@/lib/utils";
 
@@ -18,15 +18,15 @@ const MAX_LINES = 6;
 const INITIAL_HEIGHT = 50;
 const LINE_HEIGHT_CSS = 24;
 
-const USER_ID = "consumer-ai-diagnosis";
-
 interface DiagnosisHeroProps {
   className?: string;
+  accessToken?: string;
 }
 
-export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
+export default function DiagnosisHero({ className, accessToken }: DiagnosisHeroProps) {
   const router = useRouter();
   const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -60,35 +60,23 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
     }
   }, []);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = message.trim();
-    if (!trimmed) return;
+    if (!trimmed || isLoading) return;
 
-    const newMessage: AiMessage = {
-      id: `msg-user-${Date.now()}`,
-      content: trimmed,
-      senderId: USER_ID,
-      sentAt: new Date().toLocaleString("es-AR", {
-        day: "2-digit",
-        month: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
+    setIsLoading(true);
 
-    const existingMessages = loadAiMessages();
-    saveAiMessages([...existingMessages, newMessage]);
-
-    setMessage("");
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.rows = 2;
-      textarea.style.height = `${INITIAL_HEIGHT}px`;
-      textarea.style.overflowY = "hidden";
+    try {
+      console.log("[DiagnosisHero] Creating conversation with:", trimmed);
+      const repository = new ApiAiChatRepository(accessToken);
+      const conversation = await repository.create(trimmed);
+      console.log("[DiagnosisHero] Conversation created:", conversation);
+      router.push(`${ROUTES.consumer.aiMessages}?id=${conversation.id}`);
+    } catch (error) {
+      console.error("[DiagnosisHero] Failed to create conversation:", error);
+      router.push(ROUTES.consumer.aiMessages);
     }
-
-    router.push(ROUTES.consumer.aiMessages);
   };
 
   return (

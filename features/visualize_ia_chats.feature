@@ -18,7 +18,7 @@ Feature: Gestión de chats con IA
     Given ingreso a la sección "Chat con IA"
     Then cada conversación muestra un título
     And cada conversación muestra una preview del último mensaje intercambiado
-  @wip
+
   Scenario: 04-CHI Abrir una conversación existente
     Given ingreso a la sección "Chat con IA"
     When selecciono una conversación existente

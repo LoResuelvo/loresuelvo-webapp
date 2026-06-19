@@ -59,5 +59,51 @@ export function createApiAssistantClient(accessToken?: string): AssistantClient 
       const data = await response.json();
       return data.response?.content ?? data.content ?? data.reply ?? data.message ?? "";
     },
+
+    async getConversation(conversationId: string): Promise<{
+      id: string;
+      title: string;
+      messages: Array<{
+        id: string;
+        content: string;
+        senderRole: "consumer" | "chatbot";
+        sentAt: string;
+      }>;
+    }> {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
+      const stub = getE2EStub("GET", `/conversations/${conversationId}`);
+      if (stub) {
+        console.log(`[ApiAssistantClient] [E2E] Stub found: ${stub.status} for GET /conversations/${conversationId}`);
+        if (stub.status >= 400) {
+          throw new Error(`API Error: ${stub.status}`);
+        }
+        return stub.body as {
+          id: string;
+          title: string;
+          messages: Array<{
+            id: string;
+            content: string;
+            senderRole: "consumer" | "chatbot";
+            sentAt: string;
+          }>;
+        };
+      }
+
+      const headers: Record<string, string> = {
+        accept: "application/json",
+      };
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+      const response = await fetch(`${baseUrl}/conversations/${conversationId}`, {
+        method: "GET",
+        headers,
+      });
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+      return response.json();
+    },
   };
 }

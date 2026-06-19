@@ -8,15 +8,12 @@ import InfoBanner from "@/components/messaging/InfoBanner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AssistantClient } from "@/ports/assistant-client";
+import type { AiChatRepository } from "@/ports/ai-chat-repository";
 import {
   createMockAssistantClient,
   DEFAULT_ASSISTANT_DELAY_MS,
 } from "@/infrastructure/repositories/mock-assistant-client";
-import {
-  saveAiMessages,
-  loadAiMessages,
-  type AiMessage,
-} from "@/infrastructure/storage/ai-chat-storage";
+import type { AiMessage } from "@/infrastructure/storage/ai-chat-storage";
 
 const USER_ID = "consumer-ai-diagnosis";
 const ASSISTANT_ID = "assistant-ai-diagnosis";
@@ -29,13 +26,16 @@ const LINE_HEIGHT_CSS = 24;
 
 interface AiDiagnosisChatProps {
   client?: AssistantClient;
+  chatRepository?: AiChatRepository;
   simulateError?: boolean;
+  conversationId?: string | null;
 }
 
-export default function AiDiagnosisChat({ client, simulateError = false }: AiDiagnosisChatProps = {}) {
+export default function AiDiagnosisChat({ client, chatRepository, simulateError = false, conversationId }: AiDiagnosisChatProps = {}) {
   const searchParams = useSearchParams();
   const urlSimulateError = searchParams.get("simulate") === "error";
   const shouldSimulateError = simulateError || urlSimulateError;
+  const effectiveConversationId = conversationId ?? searchParams.get("id");
 
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [assistantReply, setAssistantReply] = useState<string | null>(null);
@@ -57,10 +57,23 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
   );
 
   useEffect(() => {
-    const stored = loadAiMessages();
-    setMessages(stored);
+    if (effectiveConversationId && chatRepository) {
+      chatRepository.getById(effectiveConversationId)
+        .then((data) => {
+          const msgs = data.messages.map((msg) => ({
+            id: msg.id,
+            content: msg.content,
+            senderId: msg.senderRole === "consumer" ? USER_ID : ASSISTANT_ID,
+            sentAt: new Date(msg.sentAt).toLocaleString("es-AR", {
+              day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+            }),
+          }));
+          setMessages(msgs);
+        })
+        .catch(console.error);
+    }
     setIsInitialized(true);
-  }, []);
+  }, [effectiveConversationId]);
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -75,37 +88,56 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
     setHasError(false);
 
     let cancelled = false;
-    assistantClient
-      .requestReply(lastMessage.content)
-      .then((reply) => {
+
+    const sendMessageToApi = async () => {
+      try {
+        let reply: string;
+
+        if (effectiveConversationId && chatRepository) {
+          const updated = await chatRepository.sendMessage(effectiveConversationId, lastMessage.content);
+          const newMessages = updated.messages.map((msg) => ({
+            id: msg.id,
+            content: msg.content,
+            senderId: msg.senderRole === "consumer" ? USER_ID : ASSISTANT_ID,
+            sentAt: new Date(msg.sentAt).toLocaleString("es-AR", {
+              day: "2-digit",
+              month: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          }));
+          setMessages(newMessages);
+          reply = updated.messages[updated.messages.length - 1]?.content ?? "";
+        } else {
+          reply = await assistantClient.requestReply(lastMessage.content);
+          const assistantMessage: AiMessage = {
+            id: `msg-assistant-${Date.now()}`,
+            content: reply,
+            senderId: ASSISTANT_ID,
+            sentAt: new Date().toLocaleString("es-AR", {
+              day: "2-digit",
+              month: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          };
+          setMessages((prev) => [...prev, assistantMessage]);
+        }
+
         if (cancelled) return;
-        const assistantMessage: AiMessage = {
-          id: `msg-assistant-${Date.now()}`,
-          content: reply,
-          senderId: ASSISTANT_ID,
-          sentAt: new Date().toLocaleString("es-AR", {
-            day: "2-digit",
-            month: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        };
-        setMessages((prev) => {
-          const updated = [...prev, assistantMessage];
-          saveAiMessages(updated);
-          return updated;
-        });
         setIsWaitingForReply(false);
         setAssistantReply(null);
         setHasError(false);
         setLastUserMessage(null);
-      })
-      .catch(() => {
+      } catch {
         if (cancelled) return;
         setIsWaitingForReply(false);
         setAssistantReply(null);
         setHasError(true);
-      });
+      }
+    };
+
+    sendMessageToApi();
 
     return () => {
       cancelled = true;
@@ -118,7 +150,7 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
     setIsWaitingForReply(true);
   }, [lastUserMessage]);
 
-  const handleSendMessage = useCallback(() => {
+  const handleSendMessage = useCallback(async () => {
     const trimmed = messageInput.trim();
     if (!trimmed || isSending) return;
 
@@ -137,11 +169,28 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
       }),
     };
 
-    setMessages((prev) => {
-      const updated = [...prev, newMessage];
-      saveAiMessages(updated);
-      return updated;
-    });
+    if (effectiveConversationId && chatRepository) {
+      try {
+        await chatRepository.sendMessage(effectiveConversationId, trimmed);
+        const updated = await chatRepository.getById(effectiveConversationId);
+        const msgs = updated.messages.map((msg) => ({
+          id: msg.id,
+          content: msg.content,
+          senderId: msg.senderRole === "consumer" ? USER_ID : ASSISTANT_ID,
+          sentAt: new Date(msg.sentAt).toLocaleString("es-AR", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        }));
+        setMessages(msgs);
+      } catch {
+        setHasError(true);
+      }
+    } else {
+      setMessages((prev) => [...prev, { ...newMessage, senderId: USER_ID, content: trimmed }]);
+    }
 
     setIsSending(false);
 
@@ -152,7 +201,7 @@ export default function AiDiagnosisChat({ client, simulateError = false }: AiDia
       textarea.style.overflowY = "hidden";
       textarea.focus();
     }
-  }, [messageInput, isSending]);
+  }, [messageInput, isSending, effectiveConversationId, chatRepository]);
 
   const adjustHeight = useCallback(() => {
     const textarea = textareaRef.current;

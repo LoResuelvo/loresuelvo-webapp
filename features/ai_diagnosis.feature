@@ -45,8 +45,8 @@ Feature: Diagnóstico asistido por IA
     Then veo el mensaje del asistente "Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo"
 
   Scenario: 06-DIA Navegar al chat de IA
-      When selecciono la opción "Chat con IA"
-      Then veo la pantalla de conversación con el asistente
+    When selecciono la opción "Chat con IA"
+    Then veo la pantalla de conversación con el asistente
 
   Scenario: 07-DIA Expandir campo de texto automáticamente
     Given me encuentro escribiendo un mensaje para el asistente
@@ -60,3 +60,33 @@ Feature: Diagnóstico asistido por IA
     Then el campo de texto mantiene una altura máxima de 6 líneas
     And puedo desplazarme mediante scroll dentro del campo
     And el contenido completo permanece accesible
+
+  @wip
+  Scenario: 09-DIA Visualizar diagnóstico concluido con prestadores recomendados
+    Given la IA concluyó el diagnóstico y recomienda prestadores del rubro "Plomería"
+    When visualizo la respuesta del asistente
+    Then veo una sección destacada indicando que el diagnóstico fue concluido
+    And veo la explicación del problema detectado
+    And veo los prestadores recomendados del rubro "Plomería"
+
+  @wip
+  Scenario: 10-DIA Visualizar datos de cada prestador recomendado
+    Given la IA concluyó el diagnóstico y recomienda prestadores del rubro "Plomería"
+    When visualizo la respuesta del asistente
+    Then cada prestador muestra nombre y apellido
+    And cada prestador muestra el rubro "Plomería"
+    And cada prestador muestra su foto de perfil
+
+  @wip
+  Scenario: 11-DIA Navegar a búsqueda de prestadores desde la recomendación
+    Given la IA concluyó el diagnóstico y recomienda prestadores del rubro "Plomería"
+    When visualizo la respuesta del asistente
+    And selecciono la opción de buscar más prestadores
+    Then soy redirigido a la búsqueda de prestadores
+
+  @wip
+  Scenario: 12-DIA Conversación sin recomendaciones de prestador
+    Given la IA respondió sin recomendar prestadores
+    When visualizo la respuesta del asistente
+    Then no veo la sección de prestadores recomendados
+    And la conversación continúa normalmente

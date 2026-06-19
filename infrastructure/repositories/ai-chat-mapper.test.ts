@@ -3,6 +3,7 @@ import {
   mapApiToAiConversationContact,
   mapApiToAiConversationDetail,
   mapApiToAiMessage,
+  mapApiToRecommendedProvider,
 } from "./ai-chat-mapper";
 
 describe("ai-chat-mapper", () => {
@@ -110,6 +111,80 @@ describe("ai-chat-mapper", () => {
       expect(result.messages).toHaveLength(2);
       expect(result.messages[0].senderRole).toBe("consumer");
       expect(result.messages[1].senderRole).toBe("chatbot");
+      expect(result.recommendedProviders).toEqual([]);
+    });
+
+    it("should map recommended_providers to domain format", () => {
+      const api = {
+        id: 1,
+        conversation_id: 1,
+        status: "active",
+        title: "Pérdida de agua",
+        response_status: "answered",
+        messages: [],
+        recommended_providers: [
+          {
+            id: 10,
+            name: "Juan",
+            surname: "Gómez",
+            category_name: "Plomería",
+            profile_photo_url: "url1",
+          },
+          {
+            id: 11,
+            name: "María",
+            surname: "López",
+            category_name: "Plomería",
+          },
+        ],
+      };
+
+      const result = mapApiToAiConversationDetail(api as any);
+
+      expect(result.recommendedProviders).toHaveLength(2);
+      expect(result.recommendedProviders[0].id).toBe(10);
+      expect(result.recommendedProviders[0].name).toBe("Juan");
+      expect(result.recommendedProviders[0].surname).toBe("Gómez");
+      expect(result.recommendedProviders[0].categoryName).toBe("Plomería");
+      expect(result.recommendedProviders[0].profilePhotoUrl).toBe("url1");
+      expect(result.recommendedProviders[1].id).toBe(11);
+      expect(result.recommendedProviders[1].categoryName).toBe("Plomería");
+      expect(result.recommendedProviders[1].profilePhotoUrl).toBeUndefined();
+    });
+
+    it("should return empty array when no recommended providers", () => {
+      const api = {
+        id: 1,
+        conversation_id: 1,
+        status: "active",
+        title: "Pérdida de agua",
+        response_status: "answered",
+        messages: [],
+      };
+
+      const result = mapApiToAiConversationDetail(api as any);
+
+      expect(result.recommendedProviders).toEqual([]);
+    });
+  });
+
+  describe("mapApiToRecommendedProvider", () => {
+    it("should map api provider to domain recommended provider", () => {
+      const api = {
+        id: 1,
+        name: "Test",
+        surname: "User",
+        category_name: "Electricidad",
+        profile_photo_url: "photo.jpg",
+      };
+
+      const result = mapApiToRecommendedProvider(api);
+
+      expect(result.id).toBe(1);
+      expect(result.name).toBe("Test");
+      expect(result.surname).toBe("User");
+      expect(result.categoryName).toBe("Electricidad");
+      expect(result.profilePhotoUrl).toBe("photo.jpg");
     });
   });
 });

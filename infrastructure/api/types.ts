@@ -87,6 +87,14 @@ export interface ApiAiConversationMessage {
   created_on: string;
 }
 
+export interface ApiRecommendedProvider {
+  id: number;
+  name: string;
+  surname: string;
+  category_name: string;
+  profile_photo_url?: string;
+}
+
 export interface ApiAiConversationDetail {
   id: number;
   conversation_id: number;
@@ -95,5 +103,5 @@ export interface ApiAiConversationDetail {
   response_status: string;
   messages: ApiAiConversationMessage[];
   response?: ApiAiConversationMessage;
-  recommended_providers: unknown[];
+  recommended_providers: ApiRecommendedProvider[];
 }

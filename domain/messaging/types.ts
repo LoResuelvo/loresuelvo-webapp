@@ -70,12 +70,21 @@ export interface AiConversationContact {
   lastMessageAt: string;
 }
 
+export interface RecommendedProvider {
+  id: number;
+  name: string;
+  surname: string;
+  categoryName: string;
+  profilePhotoUrl?: string;
+}
+
 export interface AiConversationDetail {
   id: number;
   status: string;
   title: string;
   responseStatus: string;
   messages: AiMessage[];
+  recommendedProviders: RecommendedProvider[];
   updatedOn: string;
 }
 

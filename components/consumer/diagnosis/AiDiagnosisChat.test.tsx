@@ -212,7 +212,7 @@ describe("AiDiagnosisChat", () => {
       getAll: vi.fn(),
     };
 
-    render(<AiDiagnosisChat chatRepository={mockRepo as any} conversationId="1" />);
+    render(<AiDiagnosisChat chatRepository={mockRepo as unknown as ReturnType<typeof vi.fn>} conversationId="1" />);
 
     await waitFor(() => {
       expect(screen.getByText("Prestadores recomendados")).toBeInTheDocument();

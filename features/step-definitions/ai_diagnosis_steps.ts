@@ -543,3 +543,191 @@ Then("el contenido completo permanece accesible", async () => {
     `El contenido debería exceder la altura visible (scrollHeight: ${scrollHeight}, clientHeight: ${clientHeight})`,
   );
 });
+
+Given("la IA concluyó el diagnóstico y recomienda prestadores del rubro {string}", async (rubro: string) => {
+  await setConsumerSession();
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/chatbot/conversations",
+    status: 200,
+    body: [
+      {
+        id: 1,
+        status: "active",
+        title: "Pérdida de agua",
+        last_message: {
+          id: 2,
+          sender_role: "chatbot",
+          content: "El problema es una fuga. Te sugiero un plomero.",
+          created_on: "2026-06-18T10:00:01Z",
+        },
+        updated_on: "2026-06-18T10:00:01Z",
+      },
+    ],
+  });
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations/1",
+    status: 200,
+    body: {
+      id: 1,
+      conversation_id: 1,
+      status: "active",
+      title: "Pérdida de agua",
+      response_status: "answered",
+      messages: [
+        {
+          id: 1,
+          sender_role: "consumer",
+          content: "Se está filtrando agua",
+          created_on: "2026-06-18T10:00:00Z",
+        },
+        {
+          id: 2,
+          sender_role: "chatbot",
+          content: "El problema es una fuga. Te sugiero un plomero.",
+          created_on: "2026-06-18T10:00:01Z",
+        },
+      ],
+      recommended_providers: [
+        {
+          id: 10,
+          name: "Juan",
+          surname: "Gómez",
+          category_name: rubro,
+          profile_photo_url: "https://cdn.example/files/provider1.jpg"
+        },
+        {
+          id: 11,
+          name: "María",
+          surname: "López",
+          category_name: rubro,
+          profile_photo_url: "https://cdn.example/files/provider2.jpg"
+        }
+      ],
+    },
+  });
+
+  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);
+  await page.waitForLoadState("networkidle");
+});
+
+When("visualizo la respuesta del asistente", async () => {
+  const reply = page.getByText("El problema es una fuga. Te sugiero un plomero.").first();
+  await reply.waitFor({ state: "visible" });
+});
+
+Then("veo una sección destacada indicando que el diagnóstico fue concluido", async () => {
+  const badge = page.getByText("Diagnóstico concluido").first();
+  await badge.waitFor({ state: "visible" });
+  assert.ok(await badge.isVisible(), "No se ve la indicación de diagnóstico concluido");
+});
+
+Then("veo la explicación del problema detectado", async () => {
+  const explanation = page.getByText("El problema es una fuga. Te sugiero un plomero.").first();
+  await explanation.waitFor({ state: "visible" });
+  assert.ok(await explanation.isVisible(), "No se ve la explicación");
+});
+
+Then("veo los prestadores recomendados del rubro {string}", async (rubro: string) => {
+  const section = page.getByText("Prestadores recomendados").first();
+  await section.waitFor({ state: "visible" });
+  assert.ok(await section.isVisible(), "No se ve la sección de prestadores recomendados");
+  
+  const categoryElement = page.getByText(rubro).first();
+  await categoryElement.waitFor({ state: "visible" });
+  assert.ok(await categoryElement.isVisible(), "No se ve el rubro recomendado");
+});
+
+Then("cada prestador muestra nombre y apellido", async () => {
+  const provider1 = page.getByText("Juan Gómez").first();
+  const provider2 = page.getByText("María López").first();
+  await provider1.waitFor({ state: "visible" });
+  await provider2.waitFor({ state: "visible" });
+  assert.ok(await provider1.isVisible() && await provider2.isVisible(), "Falta nombre y apellido de prestadores");
+});
+
+Then("cada prestador muestra el rubro {string}", async (rubro: string) => {
+  const categories = await page.getByText(rubro).all();
+  assert.ok(categories.length >= 2, `Se esperaban al menos 2 menciones de ${rubro}`);
+});
+
+Then("cada prestador muestra su foto de perfil", async () => {
+  const img1 = page.getByRole("img", { name: "Juan Gómez" }).first();
+  const img2 = page.getByRole("img", { name: "María López" }).first();
+  await img1.waitFor({ state: "attached" });
+  await img2.waitFor({ state: "attached" });
+  assert.ok(await img1.count() > 0, "No se encontró la foto de Juan Gómez");
+  assert.ok(await img2.count() > 0, "No se encontró la foto de María López");
+});
+
+When("selecciono la opción de buscar más prestadores", async () => {
+  const btn = page.getByRole("button", { name: "Ver más especialistas" });
+  await btn.waitFor({ state: "visible" });
+  await btn.click();
+  await page.waitForLoadState("networkidle");
+});
+
+Then("soy redirigido a la búsqueda de prestadores", async () => {
+  await page.waitForURL(`**${ROUTES.consumer.buscar}**`);
+  assert.ok(
+    page.url().includes(ROUTES.consumer.buscar),
+    `Se esperaba estar en ${ROUTES.consumer.buscar} pero la URL es ${page.url()}`,
+  );
+});
+
+Given("la IA respondió sin recomendar prestadores", async () => {
+  await setConsumerSession();
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/chatbot/conversations",
+    status: 200,
+    body: [{
+      id: 1,
+      status: "active",
+      title: "Pérdida de agua",
+      last_message: {
+        id: 2,
+        sender_role: "chatbot",
+        content: "Revisá el sifón",
+        created_on: "2026-06-18T10:00:01Z",
+      },
+      updated_on: "2026-06-18T10:00:01Z",
+    }],
+  });
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations/1",
+    status: 200,
+    body: {
+      id: 1,
+      conversation_id: 1,
+      status: "active",
+      title: "Pérdida de agua",
+      response_status: "answered",
+      messages: [
+        { id: 1, sender_role: "consumer", content: "Pérdida de agua", created_on: "2026-06-18T10:00:00Z" },
+        { id: 2, sender_role: "chatbot", content: "El problema es una fuga. Te sugiero un plomero.", created_on: "2026-06-18T10:00:01Z" },
+      ],
+      recommended_providers: [],
+    },
+  });
+
+  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);
+  await page.waitForLoadState("networkidle");
+});
+
+Then("no veo la sección de prestadores recomendados", async () => {
+  const section = page.getByText("Prestadores recomendados");
+  assert.strictEqual(await section.count(), 0, "No se debería ver la sección de prestadores recomendados");
+});
+
+Then("la conversación continúa normalmente", async () => {
+  const input = page.getByPlaceholder(/escribe un mensaje/i);
+  await input.waitFor({ state: "visible" });
+  assert.ok(await input.isEnabled(), "El input debería estar habilitado");
+});

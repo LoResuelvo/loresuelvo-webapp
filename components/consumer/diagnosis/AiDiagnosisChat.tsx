@@ -80,7 +80,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
         .catch(console.error);
     }
     setIsInitialized(true);
-  }, [effectiveConversationId]);
+  }, [effectiveConversationId, chatRepository]);
 
   useEffect(() => {
     if (!isInitialized) return;

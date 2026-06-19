@@ -24,14 +24,12 @@ Feature: Gestión de chats con IA
     When selecciono una conversación existente
     Then veo el historial completo de mensajes de esa conversación
 
-  @wip
   Scenario: 05-CHI Crear una nueva conversación
     Given ingreso a la sección Chat con IA
     When selecciono nuevo chat
     Then se crea una nueva conversación
     And puedo comenzar a enviar mensajes
 
-  @wip
   Scenario: 06-CHI Actualizar preview al recibir respuesta
     Given existe una conversación con la IA
     When recibo una nueva respuesta del asistente

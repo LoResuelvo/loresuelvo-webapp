@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ROUTES } from "@/lib/routes";
 import { AlertCircle, Loader2, MessageSquare, Send } from "lucide-react";
 import MessageBubble from "@/components/messaging/MessageBubble";
 import InfoBanner from "@/components/messaging/InfoBanner";
@@ -33,6 +34,7 @@ interface AiDiagnosisChatProps {
 
 export default function AiDiagnosisChat({ client, chatRepository, simulateError = false, conversationId }: AiDiagnosisChatProps = {}) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const urlSimulateError = searchParams.get("simulate") === "error";
   const shouldSimulateError = simulateError || urlSimulateError;
   const effectiveConversationId = conversationId ?? searchParams.get("id");
@@ -108,6 +110,23 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
           }));
           setMessages(newMessages);
           reply = updated.messages[updated.messages.length - 1]?.content ?? "";
+          router.refresh();
+        } else if (chatRepository) {
+          const created = await chatRepository.create(lastMessage.content);
+          const newMessages = created.messages.map((msg) => ({
+            id: msg.id,
+            content: msg.content,
+            senderId: msg.senderRole === "consumer" ? USER_ID : ASSISTANT_ID,
+            sentAt: new Date(msg.sentAt).toLocaleString("es-AR", {
+              day: "2-digit",
+              month: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          }));
+          setMessages(newMessages);
+          reply = created.messages[created.messages.length - 1]?.content ?? "";
+          router.push(`${ROUTES.consumer.aiMessages}?id=${created.id}`);
         } else {
           reply = await assistantClient.requestReply(lastMessage.content);
           const assistantMessage: AiMessage = {
@@ -142,7 +161,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
     return () => {
       cancelled = true;
     };
-  }, [messages, assistantClient, isInitialized]);
+  }, [messages, assistantClient, isInitialized, effectiveConversationId, chatRepository, router]);
 
   const handleRetry = useCallback(() => {
     if (!lastUserMessage) return;
@@ -169,28 +188,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
       }),
     };
 
-    if (effectiveConversationId && chatRepository) {
-      try {
-        await chatRepository.sendMessage(effectiveConversationId, trimmed);
-        const updated = await chatRepository.getById(effectiveConversationId);
-        const msgs = updated.messages.map((msg) => ({
-          id: msg.id,
-          content: msg.content,
-          senderId: msg.senderRole === "consumer" ? USER_ID : ASSISTANT_ID,
-          sentAt: new Date(msg.sentAt).toLocaleString("es-AR", {
-            day: "2-digit",
-            month: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        }));
-        setMessages(msgs);
-      } catch {
-        setHasError(true);
-      }
-    } else {
-      setMessages((prev) => [...prev, { ...newMessage, senderId: USER_ID, content: trimmed }]);
-    }
+    setMessages((prev) => [...prev, newMessage]);
 
     setIsSending(false);
 
@@ -201,7 +199,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
       textarea.style.overflowY = "hidden";
       textarea.focus();
     }
-  }, [messageInput, isSending, effectiveConversationId, chatRepository]);
+  }, [messageInput, isSending]);
 
   const adjustHeight = useCallback(() => {
     const textarea = textareaRef.current;

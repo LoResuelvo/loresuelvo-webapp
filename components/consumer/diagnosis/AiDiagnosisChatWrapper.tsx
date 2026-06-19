@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AiDiagnosisChat from "@/components/consumer/diagnosis/AiDiagnosisChat";
 import { createApiAssistantClient } from "@/infrastructure/repositories/api-assistant-client";
@@ -14,11 +13,10 @@ interface AiDiagnosisChatWrapperProps {
   accessToken?: string;
 }
 
-export default function AiDiagnosisChatWrapper({ initialConversations, accessToken }: AiDiagnosisChatWrapperProps) {
+export default function AiDiagnosisChatWrapper({ initialConversations: conversations, accessToken }: AiDiagnosisChatWrapperProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("id");
-  const [conversations] = useState<AiConversationContact[]>(initialConversations);
 
   const assistantClient = createApiAssistantClient(accessToken);
   const chatRepository = new ApiAiChatRepository(accessToken);

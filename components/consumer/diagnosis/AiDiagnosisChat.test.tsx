@@ -22,9 +22,11 @@ Object.defineProperty(global, "localStorage", {
 });
 
 const mockUseSearchParams = vi.fn();
+const mockUseRouter = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => mockUseSearchParams(),
+  useRouter: () => mockUseRouter(),
 }));
 
 function instantClient(): AssistantClient {
@@ -72,6 +74,7 @@ describe("AiDiagnosisChat", () => {
     mockLocalStorage.getItem.mockClear();
     mockLocalStorage.setItem.mockClear();
     mockUseSearchParams.mockReturnValue(new URLSearchParams());
+    mockUseRouter.mockReturnValue({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() });
   });
 
   afterEach(() => {

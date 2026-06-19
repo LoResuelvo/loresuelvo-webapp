@@ -126,6 +126,12 @@ export const t = {
       infoText: "Nuestra IA permite identificar el problema y contactar con un profesional",
     },
   },
+  aiDiagnosis: {
+    diagnosisConcluded: "Diagnóstico concluido",
+    recommendedProviders: "Prestadores recomendados",
+    searchMoreSpecialists: "Ver más especialistas",
+    categoryLabel: "Rubro",
+  },
   providerHome: {
     incomePanel: {
       ariaLabel: "Panel de ingresos",

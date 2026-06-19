@@ -127,9 +127,7 @@ export const t = {
     },
   },
   aiDiagnosis: {
-    diagnosisConcluded: "Diagnóstico concluido",
     recommendedProviders: "Prestadores recomendados",
-    searchMoreSpecialists: "Ver más especialistas",
     categoryLabel: "Rubro",
   },
   providerHome: {

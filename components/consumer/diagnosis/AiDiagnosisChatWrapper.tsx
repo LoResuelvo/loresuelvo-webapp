@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo } from "react";
 import AiDiagnosisChat from "@/components/consumer/diagnosis/AiDiagnosisChat";
 import { createApiAssistantClient } from "@/infrastructure/repositories/api-assistant-client";
 import { createAiConversationAction, sendAiMessageAction, getAiConversationByIdAction } from "@/app/consumidor/mensajes-ia/actions";
@@ -17,13 +18,13 @@ export default function AiDiagnosisChatWrapper({ initialConversations: conversat
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("id");
 
-  const assistantClient = createApiAssistantClient();
-  const chatRepository = {
+  const assistantClient = useMemo(() => createApiAssistantClient(), []);
+  const chatRepository = useMemo(() => ({
     create: createAiConversationAction,
     sendMessage: sendAiMessageAction,
     getById: getAiConversationByIdAction,
     getConversations: async () => []
-  };
+  }), []);
 
   const handleConversationClick = (id: string) => {
     router.push(`${ROUTES.consumer.aiMessages}?id=${id}`);

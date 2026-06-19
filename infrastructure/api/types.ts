@@ -97,11 +97,21 @@ export interface ApiRecommendedProvider {
 
 export interface ApiAiConversationDetail {
   id: number;
-  conversation_id: number;
+  conversation_id?: number;
   status: string;
-  title: string;
-  response_status: string;
+  title?: string;
+  response_status?: string;
   messages: ApiAiConversationMessage[];
   response?: ApiAiConversationMessage;
-  recommended_providers: ApiRecommendedProvider[];
+  recommended_providers?: ApiRecommendedProvider[];
+  chatbot?: {
+    title: string;
+    response_status: string;
+    diagnosis_completed?: boolean;
+    recommended_category?: {
+      id: number;
+      name: string;
+    };
+    recommended_providers?: ApiRecommendedProvider[];
+  };
 }

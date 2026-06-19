@@ -217,7 +217,6 @@ describe("AiDiagnosisChat", () => {
     await waitFor(() => {
       expect(screen.getByText("Prestadores recomendados")).toBeInTheDocument();
       expect(screen.getByText("Juan Pérez")).toBeInTheDocument();
-      expect(screen.getByText("Diagnóstico concluido")).toBeInTheDocument();
     });
   });
 });

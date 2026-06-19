@@ -54,8 +54,7 @@ Feature: Diagnóstico asistido por IA
   Scenario: 09-DIA Visualizar diagnóstico concluido con prestadores recomendados
     Given la IA concluyó el diagnóstico y recomienda prestadores del rubro "Plomería"
     When visualizo la respuesta del asistente
-    Then veo una sección destacada indicando que el diagnóstico fue concluido
-    And veo la explicación del problema detectado
+    Then veo la explicación del problema detectado
     And veo los prestadores recomendados del rubro "Plomería"
 
   Scenario: 10-DIA Visualizar datos de cada prestador recomendado
@@ -65,13 +64,7 @@ Feature: Diagnóstico asistido por IA
     And cada prestador muestra el rubro "Plomería"
     And cada prestador muestra su foto de perfil
 
-  Scenario: 11-DIA Navegar a búsqueda de prestadores desde la recomendación
-    Given la IA concluyó el diagnóstico y recomienda prestadores del rubro "Plomería"
-    When visualizo la respuesta del asistente
-    And selecciono la opción de buscar más prestadores
-    Then soy redirigido a la búsqueda de prestadores
-
-  Scenario: 12-DIA Conversación sin recomendaciones de prestador
+  Scenario: 11-DIA Conversación sin recomendaciones de prestador
     Given la IA respondió sin recomendar prestadores
     When visualizo la respuesta del asistente
     Then no veo la sección de prestadores recomendados

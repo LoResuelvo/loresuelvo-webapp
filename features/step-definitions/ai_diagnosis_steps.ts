@@ -644,11 +644,6 @@ When("visualizo la respuesta del asistente", async () => {
   await reply.waitFor({ state: "visible" });
 });
 
-Then("veo una sección destacada indicando que el diagnóstico fue concluido", async () => {
-  const badge = page.getByText("Diagnóstico concluido").first();
-  await badge.waitFor({ state: "visible" });
-  assert.ok(await badge.isVisible(), "No se ve la indicación de diagnóstico concluido");
-});
 
 Then("veo la explicación del problema detectado", async () => {
   const explanation = page.getByText("El problema es una fuga. Te sugiero un plomero.").first();
@@ -686,21 +681,6 @@ Then("cada prestador muestra su foto de perfil", async () => {
   await img2.waitFor({ state: "attached" });
   assert.ok(await img1.count() > 0, "No se encontró la foto de Juan Gómez");
   assert.ok(await img2.count() > 0, "No se encontró la foto de María López");
-});
-
-When("selecciono la opción de buscar más prestadores", async () => {
-  const btn = page.getByRole("button", { name: "Ver más especialistas" });
-  await btn.waitFor({ state: "visible" });
-  await btn.click();
-  await page.waitForLoadState("networkidle");
-});
-
-Then("soy redirigido a la búsqueda de prestadores", async () => {
-  await page.waitForURL(`**${ROUTES.consumer.buscar}**`);
-  assert.ok(
-    page.url().includes(ROUTES.consumer.buscar),
-    `Se esperaba estar en ${ROUTES.consumer.buscar} pero la URL es ${page.url()}`,
-  );
 });
 
 Given("la IA respondió sin recomendar prestadores", async () => {

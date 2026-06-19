@@ -58,20 +58,8 @@ describe("RecommendedProvidersList", () => {
     expect(avatarFallback).toBeInTheDocument();
   });
 
-  it("should render search more button", () => {
-    render(<RecommendedProvidersList providers={mockProviders} />);
-    expect(screen.getByRole("button", { name: t.aiDiagnosis.searchMoreSpecialists })).toBeInTheDocument();
-  });
-
   it("should not render anything when providers array is empty", () => {
     const { container } = render(<RecommendedProvidersList providers={[]} />);
     expect(container).toBeEmptyDOMElement();
-  });
-
-  it("should navigate to search page when clicking search more button", () => {
-    render(<RecommendedProvidersList providers={mockProviders} />);
-    const button = screen.getByRole("button", { name: t.aiDiagnosis.searchMoreSpecialists });
-    fireEvent.click(button);
-    expect(mockPush).toHaveBeenCalledWith(ROUTES.consumer.buscar);
   });
 });

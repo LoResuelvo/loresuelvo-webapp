@@ -52,6 +52,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
   const [isWaitingForReply, setIsWaitingForReply] = useState(false);
   const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fetchedConversationId = useRef<string | null>(null);
 
   const assistantClient = useMemo(
     () =>
@@ -63,7 +64,8 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
   );
 
   useEffect(() => {
-    if (effectiveConversationId && chatRepository) {
+    if (effectiveConversationId && chatRepository && fetchedConversationId.current !== effectiveConversationId) {
+      fetchedConversationId.current = effectiveConversationId;
       chatRepository.getById(effectiveConversationId)
         .then((data) => {
           const msgs = data.messages.map((msg) => ({
@@ -328,9 +330,6 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
 
         {recommendedProviders.length > 0 && (
           <div className="mt-4 border-t border-slate-200 pt-6">
-            <div className="mb-4 inline-flex items-center rounded-full border border-brand-primary/20 bg-brand-primary/10 px-3 py-1 text-sm font-medium text-brand-primary">
-              {t.aiDiagnosis.diagnosisConcluded}
-            </div>
             <RecommendedProvidersList providers={recommendedProviders} />
           </div>
         )}

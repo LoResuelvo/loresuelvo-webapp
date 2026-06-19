@@ -30,13 +30,17 @@ export function mapApiToRecommendedProvider(api: ApiRecommendedProvider): Recomm
 }
 
 export function mapApiToAiConversationDetail(api: ApiAiConversationDetail): AiConversationDetail {
+  const providers = api.recommended_providers ?? api.chatbot?.recommended_providers ?? [];
+  const title = api.title ?? api.chatbot?.title ?? "";
+  const responseStatus = api.response_status ?? api.chatbot?.response_status ?? "";
+
   return {
     id: api.id,
     status: api.status,
-    title: api.title,
-    responseStatus: api.response_status,
+    title: title,
+    responseStatus: responseStatus,
     messages: api.messages.map(mapApiToAiMessage),
-    recommendedProviders: (api.recommended_providers ?? []).map(mapApiToRecommendedProvider),
+    recommendedProviders: providers.map(mapApiToRecommendedProvider),
     updatedOn: api.messages.length > 0
       ? api.messages[api.messages.length - 1].created_on
       : new Date().toISOString(),

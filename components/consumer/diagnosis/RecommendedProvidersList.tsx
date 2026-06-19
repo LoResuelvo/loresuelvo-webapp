@@ -43,9 +43,6 @@ export function RecommendedProvidersList({ providers }: RecommendedProvidersList
           </Card>
         ))}
       </div>
-      <Button variant="brandSecondary" onClick={handleSearchMore} className="w-full">
-        {t.aiDiagnosis.searchMoreSpecialists}
-      </Button>
     </div>
   );
 }

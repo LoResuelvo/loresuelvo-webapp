@@ -146,7 +146,9 @@ Given("que me encuentro visualizando el detalle de una solicitud pendiente", asy
     body: {
       id: 1,
       status: "pending",
-      counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández", category_name: "Plomería" },
+      work: {
+        counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández", category_name: "Plomería" },
+      },
       messages: [],
       updated_on: "2026-06-03T12:00:00Z",
     },
@@ -179,7 +181,7 @@ Given("que me encuentro visualizando el detalle de una solicitud pendiente", asy
 });
 
 Then("la solicitud cambia a estado aceptada", async () => {
-  await page.waitForSelector('button:has-text("Aceptar Solicitud")', { state: "hidden", timeout: 5000 }).catch(() => {});
+  await page.waitForSelector('button:has-text("Continuar conversación")', { state: "hidden", timeout: 5000 }).catch(() => {});
 });
 
 Then("la solicitud cambia a estado rechazada", async () => {

@@ -19,7 +19,7 @@ export default async function ConsumerAiMessagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-brand-neutral/30 flex font-sans text-brand-primary">
+    <div className="h-screen flex overflow-hidden bg-brand-neutral/30 font-sans text-brand-primary">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <ConsumerHeader session={session} />

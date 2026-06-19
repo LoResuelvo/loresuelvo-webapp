@@ -63,6 +63,7 @@ export const t = {
     viewJobRequest: "Ver Solicitud",
     viewJobRequestLabel: "Ver solicitud de trabajo",
     chatPanelLabel: "Detalle de conversación",
+    backToList: "Volver a la lista",
   },
   header: {
     logout: "Cerrar sesión",
@@ -129,6 +130,12 @@ export const t = {
   aiDiagnosis: {
     recommendedProviders: "Prestadores recomendados",
     categoryLabel: "Rubro",
+    newChat: "Nuevo chat",
+    noConversations: "No hay conversaciones aún",
+    conversationsList: "Conversaciones con IA",
+    noMessages: "Sin mensajes",
+    assistantName: "Asistente de diagnóstico",
+    backToList: "Volver a la lista",
   },
   providerHome: {
     incomePanel: {
@@ -166,7 +173,7 @@ export const t = {
         title: "Detalle de Solicitud",
         closeLabel: "Cerrar",
         descriptionLabel: "Descripción",
-        acceptBtn: "Aceptar Solicitud",
+        acceptBtn: "Continuar conversación",
         rejectBtn: "Rechazar Solicitud",
       },
     },

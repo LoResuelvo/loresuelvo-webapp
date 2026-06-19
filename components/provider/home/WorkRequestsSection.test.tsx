@@ -58,7 +58,7 @@ describe("WorkRequestsSection handleAccept redirect", () => {
     fireEvent.click(viewButton);
 
     const modal = screen.getByRole("dialog");
-    const acceptButton = within(modal).getByRole("button", { name: "Aceptar Solicitud" });
+    const acceptButton = within(modal).getByRole("button", { name: "Continuar conversación" });
 
     await act(async () => {
       fireEvent.click(acceptButton);

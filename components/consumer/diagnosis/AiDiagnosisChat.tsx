@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
-import { AlertCircle, Loader2, MessageSquare, Send } from "lucide-react";
+import { AlertCircle, Loader2, MessageSquare, Send, ChevronLeft } from "lucide-react";
 import MessageBubble from "@/components/messaging/MessageBubble";
 import InfoBanner from "@/components/messaging/InfoBanner";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AssistantClient } from "@/ports/assistant-client";
@@ -43,7 +44,6 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
   const effectiveConversationId = conversationId ?? searchParams.get("id");
 
   const [messages, setMessages] = useState<AiMessage[]>([]);
-  const [recommendedProviders, setRecommendedProviders] = useState<RecommendedProvider[]>([]);
   const [assistantReply, setAssistantReply] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
   const [messageInput, setMessageInput] = useState("");
@@ -53,6 +53,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
   const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fetchedConversationId = useRef<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const assistantClient = useMemo(
     () =>
@@ -64,20 +65,34 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
   );
 
   useEffect(() => {
+    if (!effectiveConversationId) {
+      setMessages([]);
+      setAssistantReply(null);
+      setHasError(false);
+      setIsWaitingForReply(false);
+      setLastUserMessage(null);
+      fetchedConversationId.current = null;
+      setIsInitialized(true);
+      return;
+    }
+
     if (effectiveConversationId && chatRepository && fetchedConversationId.current !== effectiveConversationId) {
       fetchedConversationId.current = effectiveConversationId;
       chatRepository.getById(effectiveConversationId)
         .then((data) => {
-          const msgs = data.messages.map((msg) => ({
+          const lastAssistantIndex = data.messages.findLastIndex((m) => m.senderRole === "chatbot");
+          const msgs = data.messages.map((msg, index) => ({
             id: msg.id,
             content: msg.content,
             senderId: msg.senderRole === "consumer" ? USER_ID : ASSISTANT_ID,
             sentAt: new Date(msg.sentAt).toLocaleString("es-AR", {
               day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
             }),
+            recommendedProviders: index === lastAssistantIndex && data.recommendedProviders && data.recommendedProviders.length > 0 
+              ? data.recommendedProviders 
+              : undefined,
           }));
           setMessages(msgs);
-          setRecommendedProviders(data.recommendedProviders || []);
         })
         .catch(console.error);
     }
@@ -104,36 +119,36 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
 
         if (effectiveConversationId && chatRepository) {
           const updated = await chatRepository.sendMessage(effectiveConversationId, lastMessage.content);
-          const newMessages = updated.messages.map((msg) => ({
+          const lastAssistantIndex = updated.messages.findLastIndex((m) => m.senderRole === "chatbot");
+          const newMessages = updated.messages.map((msg, index) => ({
             id: msg.id,
             content: msg.content,
             senderId: msg.senderRole === "consumer" ? USER_ID : ASSISTANT_ID,
             sentAt: new Date(msg.sentAt).toLocaleString("es-AR", {
-              day: "2-digit",
-              month: "2-digit",
-              hour: "2-digit",
-              minute: "2-digit",
+              day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
             }),
+            recommendedProviders: index === lastAssistantIndex && updated.recommendedProviders && updated.recommendedProviders.length > 0 
+              ? updated.recommendedProviders 
+              : undefined,
           }));
           setMessages(newMessages);
-          setRecommendedProviders(updated.recommendedProviders || []);
           reply = updated.messages[updated.messages.length - 1]?.content ?? "";
           router.refresh();
         } else if (chatRepository) {
           const created = await chatRepository.create(lastMessage.content);
-          const newMessages = created.messages.map((msg) => ({
+          const lastAssistantIndex = created.messages.findLastIndex((m) => m.senderRole === "chatbot");
+          const newMessages = created.messages.map((msg, index) => ({
             id: msg.id,
             content: msg.content,
             senderId: msg.senderRole === "consumer" ? USER_ID : ASSISTANT_ID,
             sentAt: new Date(msg.sentAt).toLocaleString("es-AR", {
-              day: "2-digit",
-              month: "2-digit",
-              hour: "2-digit",
-              minute: "2-digit",
+              day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
             }),
+            recommendedProviders: index === lastAssistantIndex && created.recommendedProviders && created.recommendedProviders.length > 0 
+              ? created.recommendedProviders 
+              : undefined,
           }));
           setMessages(newMessages);
-          setRecommendedProviders(created.recommendedProviders || []);
           reply = created.messages[created.messages.length - 1]?.content ?? "";
           router.push(`${ROUTES.consumer.aiMessages}?id=${created.id}`);
         } else {
@@ -255,19 +270,51 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
 
   const isProcessing = isWaitingForReply && assistantReply === null && !hasError;
 
+  useEffect(() => {
+    if (typeof messagesEndRef.current?.scrollIntoView === "function") {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, isProcessing, hasError]);
+
+  const handleBackToList = useCallback(() => {
+    router.push(ROUTES.consumer.aiMessages);
+  }, [router]);
+
   return (
     <section
+      role="region"
       aria-label="Chat con el asistente de diagnóstico"
-      className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col"
+      className="flex-1 flex flex-col bg-brand-neutral/30 min-h-0"
     >
-      <div className="px-6 pt-6">
+      <div className="border-b border-slate-200 bg-white flex-shrink-0">
+        <div className="h-16 flex items-center px-4 md:px-6 gap-3 md:gap-4">
+          <button
+            onClick={handleBackToList}
+            className="md:hidden p-2 -ml-2 text-slate-500 hover:text-brand-primary transition-colors"
+            aria-label={t.aiDiagnosis.backToList}
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <Avatar
+            alt={t.aiDiagnosis.assistantName}
+            initials="IA"
+            size="sm"
+          />
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-brand-primary truncate">
+              {t.aiDiagnosis.assistantName}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4 relative">
         <InfoBanner tone="info">
           Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo
         </InfoBanner>
-      </div>
-      <div className="flex flex-col gap-4 p-6 min-h-[280px]">
+
         {!isInitialized ? null : messages.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center text-center">
+          <div className="flex flex-1 items-center justify-center text-center mt-4">
             <div>
               <MessageSquare className="w-14 h-14 text-slate-300 mx-auto mb-4" aria-hidden="true" />
               <h1 className="text-[22px] font-bold text-brand-primary">
@@ -280,16 +327,22 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
           </div>
         ) : (
           messages.map((msg) => (
-            <MessageBubble
-              key={msg.id}
-              id={msg.id}
-              content={msg.content}
-              sentAt={msg.sentAt}
-              isExpanded={false}
-              showExpandButton={false}
-              onToggleExpand={() => undefined}
-              isOwnMessage={msg.senderId === USER_ID}
-            />
+            <div key={msg.id} className="flex flex-col gap-4">
+              <MessageBubble
+                id={msg.id}
+                content={msg.content}
+                sentAt={msg.sentAt}
+                isExpanded={false}
+                showExpandButton={false}
+                onToggleExpand={() => undefined}
+                isOwnMessage={msg.senderId === USER_ID}
+              />
+              {msg.recommendedProviders && msg.recommendedProviders.length > 0 && (
+                <div className="mt-2 mb-2 w-full max-w-2xl self-start">
+                  <RecommendedProvidersList providers={msg.recommendedProviders} />
+                </div>
+              )}
+            </div>
           ))
         )}
 
@@ -328,14 +381,10 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
           </div>
         )}
 
-        {recommendedProviders.length > 0 && (
-          <div className="mt-4 border-t border-slate-200 pt-6">
-            <RecommendedProvidersList providers={recommendedProviders} />
-          </div>
-        )}
+        <div ref={messagesEndRef} />
       </div>
 
-      <div className="border-t border-slate-200 p-4 flex gap-3 bg-white">
+      <div className="p-4 flex gap-3 bg-white border-t border-slate-200 flex-shrink-0">
         <Textarea
           ref={setTextareaRef}
           value={messageInput}
@@ -347,15 +396,16 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
             }
           }}
           placeholder="Escribe un mensaje..."
-          className="flex-1 resize-none px-4 py-3 min-h-0 rounded-xl border-slate-200 bg-white text-[14px] leading-6 focus-visible:ring-brand-secondary/40"
+          className="flex-1 resize-none px-4 py-3 min-h-[48px] rounded-xl border border-slate-200 bg-white text-[14px] leading-6 focus-visible:ring-brand-secondary/40"
           disabled={isProcessing || isSending}
         />
         <Button
+          variant="brand"
           type="button"
           onClick={handleSendMessage}
           disabled={isProcessing || isSending || !messageInput.trim()}
           aria-label="Enviar mensaje"
-          className="px-5 h-[auto] py-3 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-xl font-semibold"
+          className="h-[48px] px-5 rounded-xl font-semibold"
         >
           <Send className="w-5 h-5" aria-hidden="true" />
         </Button>

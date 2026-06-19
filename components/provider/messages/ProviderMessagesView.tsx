@@ -40,9 +40,11 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
   myUserId,
   pendingBannerText,
 }, ref) => {
+  const isChatActive = !!selectedConsumerId;
+
   return (
     <main className="flex-1 flex min-h-0">
-      <div className="w-[360px] border-r border-slate-200 bg-white flex flex-col h-full">
+      <div className={`${isChatActive ? 'hidden md:flex' : 'flex'} w-full md:w-[360px] border-r border-slate-200 bg-white flex-col h-full`}>
         <ContactList
           contacts={contacts.map(c => ({
             id: c.id,
@@ -58,30 +60,32 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
         />
       </div>
 
-      <ChatPanel
-        ref={ref}
-        selectedContact={selectedContact ? {
-          id: selectedContact.id,
-          providerId: selectedContact.consumerId,
-          providerName: selectedContact.consumerName,
-          providerSurname: selectedContact.consumerSurname,
-          lastMessage: selectedContact.lastMessage,
-          lastMessageAt: selectedContact.lastMessageAt,
-          pending: selectedContact.pending,
-        } : null}
-        messages={messages}
-        expandedMessages={expandedMessages}
-        onToggleExpand={onToggleExpand}
-        messagesEndRef={messagesEndRef}
-        messageInput={messageInput}
-        onMessageInputChange={onMessageInputChange}
-        onSendMessage={onSendMessage}
-        isSending={isSending}
-        onAccept={onAccept}
-        myUserId={myUserId}
-        pendingBannerText={pendingBannerText}
-        blockInputWhenPending={true}
-      />
+      <div className={`${isChatActive ? 'flex' : 'hidden md:flex'} flex-1 flex-col min-w-0`}>
+        <ChatPanel
+          ref={ref}
+          selectedContact={selectedContact ? {
+            id: selectedContact.id,
+            providerId: selectedContact.consumerId,
+            providerName: selectedContact.consumerName,
+            providerSurname: selectedContact.consumerSurname,
+            lastMessage: selectedContact.lastMessage,
+            lastMessageAt: selectedContact.lastMessageAt,
+            pending: selectedContact.pending,
+          } : null}
+          messages={messages}
+          expandedMessages={expandedMessages}
+          onToggleExpand={onToggleExpand}
+          messagesEndRef={messagesEndRef}
+          messageInput={messageInput}
+          onMessageInputChange={onMessageInputChange}
+          onSendMessage={onSendMessage}
+          isSending={isSending}
+          onAccept={onAccept}
+          myUserId={myUserId}
+          pendingBannerText={pendingBannerText}
+          blockInputWhenPending={true}
+        />
+      </div>
     </main>
   );
 });

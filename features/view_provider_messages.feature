@@ -39,7 +39,7 @@ Feature: US-37 Ver mensajes como prestador
     When hago clic en una conversación
     Then se muestra el contenido completo de la conversación
 
-  Scenario: 08-VMP RST-06 - Aceptar solicitud abre el chat con el consumidor
+  Scenario: 08-VMP RST-06 - Continuar conversación abre el chat con el consumidor
     Given que me encuentro visualizando el detalle de una solicitud pendiente
-    When hago clic en "Aceptar Solicitud"
+    When hago clic en "Continuar conversación"
     Then se abre el chat con el consumidor para iniciar la comunicación

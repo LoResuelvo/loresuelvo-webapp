@@ -45,18 +45,27 @@ import { ApiConversationDetail } from "@/infrastructure/api/types";
 import { ConversationDetailInfo, Message } from "@/domain/messaging/types";
 
 export function transformApiToConversationDetail(api: ApiConversationDetail): ConversationDetailInfo {
+  const counterpart = api.work?.counterpart || {
+    id: 0,
+    role: "unknown",
+    name: "Unknown",
+    surname: "",
+    category_name: "",
+    profile_photo_url: undefined,
+  };
+
   return {
     id: api.id,
     status: api.status,
     counterpart: {
-      id: api.counterpart.id,
-      role: api.counterpart.role,
-      name: api.counterpart.name,
-      surname: api.counterpart.surname,
-      categoryName: api.counterpart.category_name,
-      profilePhotoUrl: api.counterpart.profile_photo_url,
+      id: counterpart.id,
+      role: counterpart.role,
+      name: counterpart.name,
+      surname: counterpart.surname,
+      categoryName: counterpart.category_name,
+      profilePhotoUrl: counterpart.profile_photo_url,
     },
-    messages: api.messages.map((m) => ({
+    messages: api.messages ? api.messages.map((m) => ({
       id: String(m.id),
       content: m.content,
       senderId: m.sender_role,
@@ -64,7 +73,7 @@ export function transformApiToConversationDetail(api: ApiConversationDetail): Co
         hour: "2-digit",
         minute: "2-digit",
       }),
-    })),
+    })) : [],
     updatedOn: api.updated_on,
   };
 }

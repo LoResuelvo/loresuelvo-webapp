@@ -5,7 +5,6 @@ import { ApiCategoryRepository } from "@/infrastructure/repositories/api-categor
 
 export default async function ConsumerHomePage() {
   const session = await getAuthService().getSession();
-  console.debug("[DEBUG] Token:", session?.accessToken);
 
   const categoryRepo = new ApiCategoryRepository();
   const categories = await getConsumerHome(categoryRepo);

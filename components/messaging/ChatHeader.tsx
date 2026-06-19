@@ -17,13 +17,29 @@ interface ChatHeaderProps {
   profilePhotoUrl?: string;
 }
 
+import { ChevronLeft } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+
 export default function ChatHeader({ providerName, providerSurname, pending, jobRequest, onAccept, profilePhotoUrl }: ChatHeaderProps) {
   const [showPanel, setShowPanel] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const handleBack = () => {
+    router.push(pathname);
+  };
 
   return (
     <>
       <div className="border-b border-slate-200 bg-white flex-shrink-0">
-        <div className="h-16 flex items-center px-6 gap-4">
+        <div className="h-16 flex items-center px-4 md:px-6 gap-3 md:gap-4">
+          <button
+            onClick={handleBack}
+            className="md:hidden p-2 -ml-2 text-slate-500 hover:text-brand-primary transition-colors"
+            aria-label="Volver a la lista"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
           <Avatar
             src={profilePhotoUrl}
             alt={`${t.messaging.photoAlt} ${providerName}`}

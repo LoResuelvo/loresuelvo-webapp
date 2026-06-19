@@ -2,11 +2,19 @@ import type { ApiAiConversation, ApiAiConversationDetail, ApiAiConversationMessa
 import type { AiConversationContact, AiConversationDetail, AiMessage, RecommendedProvider } from "@/domain/messaging/types";
 
 export function mapApiToAiConversationContact(api: ApiAiConversation): AiConversationContact {
+  const dateString = api.last_message?.created_on ?? api.updated_on;
   return {
     id: String(api.id),
     title: api.title,
     lastMessage: api.last_message?.content ?? "",
-    lastMessageAt: api.last_message?.created_on ?? api.updated_on,
+    lastMessageAt: dateString
+      ? new Date(dateString).toLocaleString("es-AR", {
+          day: "2-digit",
+          month: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "",
   };
 }
 

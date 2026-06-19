@@ -41,7 +41,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
     return (
       <div className="flex-1 flex items-center justify-center bg-brand-neutral/30">
         <div className="text-center">
-          <MessageSquare className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+          <MessageSquare className="w-14 h-14 text-slate-300 mx-auto mb-4" />
           <p className="text-slate-400">{t.messaging.selectContact}</p>
         </div>
       </div>

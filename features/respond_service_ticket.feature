@@ -13,16 +13,16 @@ Feature: US-43 Responder solicitudes de trabajo
     When hago clic en "Ver solicitud"
     Then se muestra el detalle de la solicitud
     And visualizo:
-      | Campo              |
-      | nombre del consumidor |
-      | ubicación           |
-      | fecha de creación   |
-      | categoría           |
+      | Campo                    |
+      | nombre del consumidor    |
+      | ubicación                |
+      | fecha de creación        |
+      | categoría                |
       | descripción del problema |
 
-  Scenario: 03-RST Aceptar solicitud
+  Scenario: 03-RST Continuar conversación
     Given que me encuentro visualizando el detalle de una solicitud pendiente
-    When hago clic en "Aceptar Solicitud"
+    When hago clic en "Continuar conversación"
     Then la solicitud cambia a estado aceptada
     And deja de aparecer en la lista de solicitudes pendientes
 
@@ -38,7 +38,7 @@ Feature: US-43 Responder solicitudes de trabajo
     Then regreso al dashboard de prestador
     And continúo visualizando la lista de solicitudes pendientes
   @wip
-  Scenario: 06-RST Aceptar solicitud abre el chat con el consumidor
+  Scenario: 06-RST Continuar conversación abre el chat con el consumidor
     Given que me encuentro visualizando el detalle de una solicitud pendiente
-    When hago clic en "Aceptar Solicitud"
+    When hago clic en "Continuar conversación"
     Then se abre el chat con el consumidor para iniciar la comunicación

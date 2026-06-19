@@ -7,9 +7,10 @@ import MessagesList from "@/components/messaging/MessagesList";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
   useSearchParams: () => ({ get: vi.fn() }),
+  usePathname: () => "/mock-path",
 }));
 
-describe("08-VMP: Aceptar solicitud - ChatHeader con botón aceptar", () => {
+describe("08-VMP: Continuar conversación - ChatHeader con botón aceptar", () => {
   it("no muestra botón aceptar cuando la conversación no está pendiente", () => {
     render(
       <ChatHeader

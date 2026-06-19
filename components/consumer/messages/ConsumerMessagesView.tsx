@@ -37,9 +37,11 @@ const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesView
   myUserId,
   jobRequest,
 }, ref) => {
+  const isChatActive = !!selectedProviderId;
+
   return (
     <main className="flex-1 flex min-h-0">
-      <div className="w-[360px] border-r border-slate-200 bg-white flex flex-col h-full">
+      <div className={`${isChatActive ? 'hidden md:flex' : 'flex'} w-full md:w-[360px] border-r border-slate-200 bg-white flex-col h-full`}>
         <ContactList
           contacts={contacts}
           selectedProviderId={selectedProviderId}
@@ -47,20 +49,22 @@ const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesView
         />
       </div>
 
-      <ChatPanel
-        ref={ref}
-        selectedContact={selectedContact}
-        messages={messages}
-        expandedMessages={expandedMessages}
-        onToggleExpand={onToggleExpand}
-        messagesEndRef={messagesEndRef}
-        messageInput={messageInput}
-        onMessageInputChange={onMessageInputChange}
-        onSendMessage={onSendMessage}
-        isSending={isSending}
-        myUserId={myUserId}
-        jobRequest={jobRequest}
-      />
+      <div className={`${isChatActive ? 'flex' : 'hidden md:flex'} flex-1 flex-col min-w-0`}>
+        <ChatPanel
+          ref={ref}
+          selectedContact={selectedContact}
+          messages={messages}
+          expandedMessages={expandedMessages}
+          onToggleExpand={onToggleExpand}
+          messagesEndRef={messagesEndRef}
+          messageInput={messageInput}
+          onMessageInputChange={onMessageInputChange}
+          onSendMessage={onSendMessage}
+          isSending={isSending}
+          myUserId={myUserId}
+          jobRequest={jobRequest}
+        />
+      </div>
     </main>
   );
 });

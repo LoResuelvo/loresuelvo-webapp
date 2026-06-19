@@ -54,14 +54,17 @@ export interface ApiConversationMessage {
 
 export interface ApiConversationDetail {
   id: number;
+  type?: string;
   status: string;
-  counterpart: {
-    id: number;
-    role: string;
-    name: string;
-    surname: string;
-    category_name: string;
-    profile_photo_url?: string;
+  work?: {
+    counterpart: {
+      id: number;
+      role: string;
+      name: string;
+      surname: string;
+      category_name: string;
+      profile_photo_url?: string;
+    };
   };
   messages: ApiConversationMessage[];
   updated_on: string;

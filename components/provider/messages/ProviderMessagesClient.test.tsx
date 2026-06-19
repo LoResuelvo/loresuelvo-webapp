@@ -97,7 +97,7 @@ describe("ProviderMessagesClient handleAccept redirect", () => {
       fireEvent.click(verSolicitudButton);
     });
 
-    const acceptButton = await screen.findByRole("button", { name: "Aceptar Solicitud" });
+    const acceptButton = await screen.findByRole("button", { name: "Continuar conversación" });
     await act(async () => {
       fireEvent.click(acceptButton);
     });

@@ -15,6 +15,9 @@ import {
   DEFAULT_ASSISTANT_DELAY_MS,
 } from "@/infrastructure/repositories/mock-assistant-client";
 import type { AiMessage } from "@/infrastructure/storage/ai-chat-storage";
+import type { RecommendedProvider } from "@/domain/messaging/types";
+import { RecommendedProvidersList } from "./RecommendedProvidersList";
+import { t } from "@/infrastructure/i18n/translations";
 
 const USER_ID = "consumer-ai-diagnosis";
 const ASSISTANT_ID = "assistant-ai-diagnosis";
@@ -40,6 +43,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
   const effectiveConversationId = conversationId ?? searchParams.get("id");
 
   const [messages, setMessages] = useState<AiMessage[]>([]);
+  const [recommendedProviders, setRecommendedProviders] = useState<RecommendedProvider[]>([]);
   const [assistantReply, setAssistantReply] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
   const [messageInput, setMessageInput] = useState("");
@@ -71,6 +75,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
             }),
           }));
           setMessages(msgs);
+          setRecommendedProviders(data.recommendedProviders || []);
         })
         .catch(console.error);
     }
@@ -109,6 +114,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
             }),
           }));
           setMessages(newMessages);
+          setRecommendedProviders(updated.recommendedProviders || []);
           reply = updated.messages[updated.messages.length - 1]?.content ?? "";
           router.refresh();
         } else if (chatRepository) {
@@ -125,6 +131,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
             }),
           }));
           setMessages(newMessages);
+          setRecommendedProviders(created.recommendedProviders || []);
           reply = created.messages[created.messages.length - 1]?.content ?? "";
           router.push(`${ROUTES.consumer.aiMessages}?id=${created.id}`);
         } else {
@@ -316,6 +323,15 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
                 Reintentar
               </Button>
             </div>
+          </div>
+        )}
+
+        {recommendedProviders.length > 0 && (
+          <div className="mt-4 border-t border-slate-200 pt-6">
+            <div className="mb-4 inline-flex items-center rounded-full border border-brand-primary/20 bg-brand-primary/10 px-3 py-1 text-sm font-medium text-brand-primary">
+              {t.aiDiagnosis.diagnosisConcluded}
+            </div>
+            <RecommendedProvidersList providers={recommendedProviders} />
           </div>
         )}
       </div>

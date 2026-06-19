@@ -190,4 +190,34 @@ describe("AiDiagnosisChat", () => {
       expect(screen.getByRole("button", { name: /reintentar/i })).toBeInTheDocument();
     }, { timeout: 3000 });
   });
+
+  it("muestra la sección de prestadores recomendados si el repositorio los devuelve", async () => {
+    const mockRepo = {
+      getById: vi.fn().mockResolvedValue({
+        id: 1,
+        status: "active",
+        title: "Pérdida",
+        responseStatus: "answered",
+        messages: [
+          { id: "m1", senderRole: "consumer", content: USER_MESSAGE, sentAt: "2026-01-01T10:00:00Z" },
+          { id: "m2", senderRole: "chatbot", content: ASSISTANT_REPLY, sentAt: "2026-01-01T10:01:00Z" }
+        ],
+        recommendedProviders: [
+          { id: 10, name: "Juan", surname: "Pérez", categoryName: "Plomería" }
+        ],
+        updatedOn: "2026-01-01T10:01:00Z"
+      }),
+      sendMessage: vi.fn(),
+      create: vi.fn(),
+      getAll: vi.fn(),
+    };
+
+    render(<AiDiagnosisChat chatRepository={mockRepo as any} conversationId="1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Prestadores recomendados")).toBeInTheDocument();
+      expect(screen.getByText("Juan Pérez")).toBeInTheDocument();
+      expect(screen.getByText("Diagnóstico concluido")).toBeInTheDocument();
+    });
+  });
 });

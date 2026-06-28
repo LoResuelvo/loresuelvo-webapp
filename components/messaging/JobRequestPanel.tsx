@@ -26,7 +26,6 @@ export default function JobRequestPanel({ jobRequest, onClose }: JobRequestPanel
       open={true}
       onClose={onClose}
       title={t.messaging.jobRequestPanel.title}
-      titleId="job-request-panel-title"
       closeLabel={t.messaging.jobRequestPanel.closeLabel}
     >
       <DetailPanel

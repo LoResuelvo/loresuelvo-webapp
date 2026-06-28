@@ -9,7 +9,7 @@ import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import { AuthSession } from "@/infrastructure/auth/types";
 import { ROUTES } from "@/lib/routes";
 import { getConversationDetail, sendMessage, createConversation, acceptJobRequest, getJobRequestForConversation } from "@/app/prestador/mensajes/actions";
-import { getPresignedUrlAction, confirmUploadAction } from "@/application/files/upload-file";
+import { getPresignedUrlAction, confirmUploadAction } from "@/app/files/actions";
 import { t } from "@/infrastructure/i18n/translations";
 import { useWebSocket } from "@/infrastructure/websocket";
 import RequestDetailModal from "@/components/provider/home/RequestDetailModal";

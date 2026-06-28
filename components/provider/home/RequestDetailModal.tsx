@@ -46,7 +46,6 @@ export default function RequestDetailModal({
       open={true}
       onClose={onClose}
       title={t.providerHome.workRequestsSection.modal.title}
-      titleId="modal-title"
       closeLabel={t.providerHome.workRequestsSection.modal.closeLabel}
       footer={footer}
     >

@@ -3,6 +3,7 @@ export interface WsEventMessage {
   sender_role: "consumer" | "provider";
   content: string;
   created_on: string;
+  images?: { id: number; url: string; original_name: string }[];
 }
 
 export interface WsEvent {

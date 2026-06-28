@@ -12,7 +12,8 @@ export async function createConversation(
 export async function sendMessage(
   conversationRepository: ConversationRepository,
   conversationId: string,
-  content: string
-): Promise<unknown> {
-  return conversationRepository.sendMessage(conversationId, content);
+  content?: string,
+  imageFileIds?: string[]
+) {
+  return conversationRepository.sendMessage(conversationId, content, imageFileIds);
 }

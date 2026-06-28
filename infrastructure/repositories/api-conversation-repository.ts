@@ -26,7 +26,10 @@ export class ApiConversationRepository implements ConversationRepository {
     return { id: res.id };
   }
 
-  async sendMessage(conversationId: string, content: string): Promise<unknown> {
-    return api.post(`/conversations/${conversationId}/messages`, { content });
+  async sendMessage(conversationId: string, content?: string, imageFileIds?: string[]): Promise<unknown> {
+    const payload: Record<string, unknown> = {};
+    if (content !== undefined) payload.content = content;
+    if (imageFileIds && imageFileIds.length > 0) payload.image_file_ids = imageFileIds;
+    return api.post(`/conversations/${conversationId}/messages`, payload);
   }
 }

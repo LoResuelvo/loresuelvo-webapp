@@ -1,6 +1,13 @@
+export interface MessageImage {
+  id: string;
+  url: string;
+  originalName: string;
+}
+
 export interface Message {
   id: string;
-  content: string;
+  content?: string;
+  images?: MessageImage[];
   senderId?: string;
   sentAt: string;
 }

@@ -65,7 +65,7 @@ export default function MessagesList({
 
       {messages.map((msg) => {
         const isExpanded = isMessageExpanded(msg.id);
-        const showExpandButton = shouldShowExpandButton(msg.content);
+        const showExpandButton = shouldShowExpandButton(msg.content || "");
         const isOwnMessage = String(msg.senderId) === myUserId;
         return (
           <MessageBubble

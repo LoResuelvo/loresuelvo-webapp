@@ -24,7 +24,23 @@ describe("send-message", () => {
 
       const res = await sendMessage(mockConversationRepository, "conv-123", "Mi mensaje");
       expect(res).toEqual({ success: true });
-      expect(mockConversationRepository.sendMessage).toHaveBeenCalledWith("conv-123", "Mi mensaje");
+      expect(mockConversationRepository.sendMessage).toHaveBeenCalledWith("conv-123", "Mi mensaje", undefined);
+    });
+
+    it("sends a message with only images", async () => {
+      vi.mocked(mockConversationRepository.sendMessage).mockResolvedValue({ success: true });
+
+      const res = await sendMessage(mockConversationRepository, "conv-123", undefined, ["img-1", "img-2"]);
+      expect(res).toEqual({ success: true });
+      expect(mockConversationRepository.sendMessage).toHaveBeenCalledWith("conv-123", undefined, ["img-1", "img-2"]);
+    });
+
+    it("sends a message with both text and images", async () => {
+      vi.mocked(mockConversationRepository.sendMessage).mockResolvedValue({ success: true });
+
+      const res = await sendMessage(mockConversationRepository, "conv-123", "Mira esto", ["img-1"]);
+      expect(res).toEqual({ success: true });
+      expect(mockConversationRepository.sendMessage).toHaveBeenCalledWith("conv-123", "Mira esto", ["img-1"]);
     });
   });
 });

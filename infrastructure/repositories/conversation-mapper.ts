@@ -69,6 +69,11 @@ export function transformApiToConversationDetail(api: ApiConversationDetail): Co
       id: String(m.id),
       content: m.content,
       senderId: m.sender_role,
+      images: m.images ? m.images.map(img => ({
+        id: img.id,
+        url: img.url,
+        originalName: img.original_name,
+      })) : undefined,
       sentAt: new Date(m.created_on).toLocaleString("es-AR", {
         hour: "2-digit",
         minute: "2-digit",

@@ -45,10 +45,17 @@ export interface ApiProvider {
   profile_photo_url?: string;
 }
 
+export interface ApiMessageImage {
+  id: string;
+  url: string;
+  original_name: string;
+}
+
 export interface ApiConversationMessage {
   id: number;
   sender_role: string;
-  content: string;
+  content?: string;
+  images?: ApiMessageImage[];
   created_on: string;
 }
 

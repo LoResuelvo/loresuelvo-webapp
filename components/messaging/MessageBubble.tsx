@@ -3,7 +3,7 @@ import { t } from "@/infrastructure/i18n/translations";
 
 interface MessageBubbleProps {
   id: string;
-  content: string;
+  content?: string;
   sentAt: string;
   isExpanded: boolean;
   showExpandButton: boolean;
@@ -30,9 +30,11 @@ export default function MessageBubble({
             : "bg-white text-brand-primary border border-slate-200 rounded-tl-sm"
         }`}
       >
-        <p className={`text-[14px] whitespace-pre-wrap break-words ${!isExpanded && showExpandButton ? "line-clamp-5" : ""}`}>
-          {content}
-        </p>
+        {content && (
+          <p className={`text-[14px] whitespace-pre-wrap break-words ${!isExpanded && showExpandButton ? "line-clamp-5" : ""}`}>
+            {content}
+          </p>
+        )}
         {showExpandButton && (
           <Button
             variant="ghost"

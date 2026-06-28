@@ -6,16 +6,19 @@ import { submitRegistration } from "@/app/onboarding/actions";
 
 // Mock of the Server Action to avoid Auth0 alerts and verify submission in isolation
 vi.mock("@/app/onboarding/actions", () => ({
-  submitRegistration: vi.fn(),
+  submitRegistration: vi.fn().mockResolvedValue(true),
+}));
+
+vi.mock("@/app/files/actions", () => ({
   getPresignedUrlAction: vi.fn().mockResolvedValue({
+    upload_url: "http://mock-upload.test/url",
     file_id: "mock-file-id",
     key: "mock-key",
-    upload_url: "http://mock-url",
     headers: {},
   }),
   confirmUploadAction: vi.fn().mockResolvedValue({
     id: "mock-file-id",
-    url: "http://mock-url",
+    url: "http://mock-cdn.test/url.jpg",
     original_name: "mock.png",
   }),
 }));

@@ -1,9 +1,7 @@
 "use server";
 
 import { ApiUserRepository } from "@/infrastructure/repositories/api-user-repository";
-import { ApiFileRepository } from "@/infrastructure/repositories/api-file-repository";
 import { registerUser } from "@/application/onboarding/register-user";
-import { getPresignedUrl, confirmUpload } from "@/application/onboarding/upload-profile-photo";
 import { getAuthService } from "@/infrastructure/auth";
 import { UserRole } from "@/domain/onboarding/types";
 
@@ -37,24 +35,4 @@ export async function submitRegistration(formData: FormData) {
   });
 }
 
-export async function getPresignedUrlAction(
-  originalName: string,
-  mimeType: string,
-  sizeBytes: number,
-  purpose: string
-) {
-  const fileRepo = new ApiFileRepository();
-  const authService = getAuthService();
-  return getPresignedUrl(fileRepo, authService, originalName, mimeType, sizeBytes, purpose);
-}
 
-export async function confirmUploadAction(
-  fileId: string,
-  key: string,
-  mimeType: string,
-  sizeBytes: number
-) {
-  const fileRepo = new ApiFileRepository();
-  const authService = getAuthService();
-  return confirmUpload(fileRepo, authService, fileId, key, mimeType, sizeBytes);
-}

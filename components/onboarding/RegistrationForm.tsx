@@ -4,7 +4,8 @@ import { AuthSession } from "@/infrastructure/auth/types";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { submitRegistration, getPresignedUrlAction, confirmUploadAction } from "@/app/onboarding/actions";
+import { submitRegistration } from "@/app/onboarding/actions";
+import { getPresignedUrlAction, confirmUploadAction } from "@/app/files/actions";
 import { RoleSelectionStep } from "./RoleSelectionStep";
 import { ProfileFormStep } from "./ProfileFormStep";
 import { Category } from "@/domain/shared/types";

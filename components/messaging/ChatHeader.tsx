@@ -83,6 +83,7 @@ export default function ChatHeader({ providerName, providerSurname, pending, job
             description: jobRequest.description,
             providerName: jobRequest.providerName ?? providerName,
             providerSurname: jobRequest.providerSurname ?? providerSurname,
+            providerProfilePhotoUrl: jobRequest.providerProfilePhotoUrl ?? profilePhotoUrl,
           }}
           onClose={() => setShowPanel(false)}
         />

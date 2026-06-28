@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import ChatHeader from "./ChatHeader";
 
@@ -30,5 +30,46 @@ describe("ChatHeader", () => {
     expect(screen.queryByTestId("chat-header-profile-photo")).not.toBeInTheDocument();
     const svgElement = container.querySelector("svg.lucide-user");
     expect(svgElement).toBeInTheDocument();
+  });
+
+  it("shows Ver Solicitud button when jobRequest is present", () => {
+    render(
+      <ChatHeader
+        providerName="Juan"
+        providerSurname="Perez"
+        pending={false}
+        jobRequest={{
+          title: "Reparación",
+          description: "Necesito reparar algo",
+          providerName: "Juan",
+          providerSurname: "Perez",
+        }}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Ver solicitud de trabajo" })).toBeInTheDocument();
+  });
+
+  it("opens JobRequestPanel with provider photo when clicking Ver Solicitud", () => {
+    render(
+      <ChatHeader
+        providerName="Juan"
+        providerSurname="Perez"
+        pending={false}
+        profilePhotoUrl="https://example.com/provider-photo.jpg"
+        jobRequest={{
+          title: "Reparación",
+          description: "Necesito reparar algo",
+          providerName: "Juan",
+          providerSurname: "Perez",
+        }}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver solicitud de trabajo" }));
+
+    const providerImage = screen.getByRole("img", { name: /foto de juan/i });
+    expect(providerImage).toBeInTheDocument();
+    expect(providerImage).toHaveAttribute("src", "https://example.com/provider-photo.jpg");
   });
 });

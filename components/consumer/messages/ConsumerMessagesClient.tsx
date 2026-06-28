@@ -146,6 +146,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
             description: jr.description,
             providerName: data.counterpart.name,
             providerSurname: data.counterpart.surname,
+            providerProfilePhotoUrl: data.counterpart.profilePhotoUrl,
           } : null))
           .catch(() => setActiveJobRequest(null));
       })

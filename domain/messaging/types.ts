@@ -17,6 +17,7 @@ export interface JobRequestInfo {
   description: string;
   providerName?: string;
   providerSurname?: string;
+  providerProfilePhotoUrl?: string;
 }
 
 export interface ConversationContact {

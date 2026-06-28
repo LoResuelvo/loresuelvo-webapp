@@ -32,8 +32,8 @@ Feature: 50 Adjuntar imágenes en el chat con un prestador
         Then el sistema registra y muestra el mensaje con las imágenes "vista-general-cocina.jpg" y "detalle-conexion.jpg"
 
     Scenario: 50.5-AICP La contraparte consulta un mensaje con imágenes
-        Given que el consumidor envió un mensaje con la imagen "perdida-bajo-mesada.jpg"
-        And que estoy en el chat con el consumidor "Ana Pérez" como prestador
+        Given que estoy en el chat con el consumidor "Ana Pérez" como prestador
+        And que el consumidor envió un mensaje con la imagen "perdida-bajo-mesada.jpg"
         Then el detalle del mensaje en pantalla incluye la imagen "perdida-bajo-mesada.jpg"
 
     Scenario: 50.6-AICP La contraparte recibe en tiempo real un mensaje con imágenes

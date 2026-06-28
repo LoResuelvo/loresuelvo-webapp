@@ -3,6 +3,8 @@ import assert from "assert";
 import { page } from "./landing_page_visualization_steps";
 import { addApiStub } from "./stubs-helper";
 
+let currentAttachedImages: string[] = [];
+
 async function stubFileUpload(fileName: string, fileId: string = "mock-file-123") {
   await addApiStub({
     method: "POST",
@@ -32,6 +34,7 @@ async function stubFileUpload(fileName: string, fileId: string = "mock-file-123"
 }
 
 Given("que adjunté la imagen {string}", async function (imagen: string) {
+  currentAttachedImages.push(imagen);
   await stubFileUpload(imagen);
   
   // Simulamos click en el botón de adjuntar
@@ -51,6 +54,7 @@ Given("que adjunté la imagen {string}", async function (imagen: string) {
 });
 
 Given("que adjunté las imágenes {string} y {string}", async function (img1: string, img2: string) {
+  currentAttachedImages.push(img1, img2);
   await stubFileUpload(img1, "mock-file-1");
   await stubFileUpload(img2, "mock-file-2");
   
@@ -80,6 +84,7 @@ When("adjunto la imagen {string} que supera los 5MB", async function (imagen: st
 });
 
 Given("que eliminé la imagen {string} de los archivos adjuntos", async function (imagen: string) {
+  currentAttachedImages = currentAttachedImages.filter(img => img !== imagen);
   const deleteBtn = page.getByRole('button', { name: `Eliminar ${imagen}` });
   await deleteBtn.click();
 });
@@ -94,10 +99,12 @@ When("envío el mensaje {string}", async function (mensaje: string) {
       conversation_id: 1,
       sender_role: "consumer",
       content: mensaje,
-      images: [{ id: "mock-file-123", url: "https://mock-download.test/image.jpg", original_name: "image.jpg" }],
+      images: currentAttachedImages.map((name, idx) => ({ id: `mock-file-${idx}`, url: `https://mock-download.test/${name}`, original_name: name })),
       created_on: new Date().toISOString()
     }
   });
+
+  currentAttachedImages = []; // reset after sending
 
   const input = page.getByRole('textbox', { name: /escribe un mensaje/i });
   await input.fill(mensaje);
@@ -116,10 +123,12 @@ When("envío el mensaje sin texto", async function () {
       conversation_id: 1,
       sender_role: "consumer",
       content: "",
-      images: [{ id: "mock-file-123", url: "https://mock-download.test/image.jpg", original_name: "image.jpg" }],
+      images: currentAttachedImages.map((name, idx) => ({ id: `mock-file-${idx}`, url: `https://mock-download.test/${name}`, original_name: name })),
       created_on: new Date().toISOString()
     }
   });
+
+  currentAttachedImages = []; // reset after sending
 
   const sendButton = page.getByRole('button', { name: /enviar/i });
   await sendButton.click();
@@ -163,6 +172,7 @@ Given("que el consumidor envió un mensaje con la imagen {string}", async functi
       updated_on: new Date().toISOString(),
     },
   });
+  await page.reload({ waitUntil: "networkidle" });
 });
 
 Then("el detalle del mensaje en pantalla incluye la imagen {string}", async function (imagen: string) {
@@ -196,7 +206,7 @@ Then("veo el mensaje con la imagen {string} en la pantalla del chat sin recargar
 });
 
 Then("veo un mensaje de error indicando que la imagen es muy grande", async function () {
-  const errorMsg = page.getByText(/supera el límite de 5MB/i);
+  const errorMsg = page.getByText(/no debe superar los 5MB/i);
   await errorMsg.waitFor({ state: "visible", timeout: 2000 });
   assert.ok(await errorMsg.isVisible(), "No se muestra el error de tamaño");
 });

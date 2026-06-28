@@ -18,14 +18,14 @@ export async function getConversationDetail(id: string): Promise<ConversationDet
   return getConvDetailUseCase(repository, id);
 }
 
-export async function createConversation(providerId: number, content: string): Promise<{ id: number }> {
+export async function createConversation(providerId: number, content?: string, imageFileIds?: string[]): Promise<{ id: number }> {
   const repository = new ApiConversationRepository();
-  return createConvUseCase(repository, providerId, content);
+  return createConvUseCase(repository, providerId, content, imageFileIds);
 }
 
-export async function sendMessage(conversationId: string, content: string): Promise<unknown> {
+export async function sendMessage(conversationId: string, content?: string, imageFileIds?: string[]): Promise<unknown> {
   const repository = new ApiConversationRepository();
-  return sendMsgUseCase(repository, conversationId, content);
+  return sendMsgUseCase(repository, conversationId, content, imageFileIds);
 }
 
 export async function getJobRequestForConversation(conversationId: string): Promise<JobRequestSummary | null> {

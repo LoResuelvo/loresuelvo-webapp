@@ -21,8 +21,12 @@ export class ApiConversationRepository implements ConversationRepository {
     return transformApiToConversationDetail(data);
   }
 
-  async create(data: { counterpart_id: number; content: string }): Promise<{ id: number }> {
-    const res = await api.post<ApiConversation>("/conversations", data);
+  async create(data: { counterpart_id: number; content?: string; image_file_ids?: string[] }): Promise<{ id: number }> {
+    const payload: Record<string, unknown> = { counterpart_id: data.counterpart_id };
+    if (data.content !== undefined) payload.content = data.content;
+    if (data.image_file_ids && data.image_file_ids.length > 0) payload.image_file_ids = data.image_file_ids;
+    
+    const res = await api.post<ApiConversation>("/conversations", payload);
     return { id: res.id };
   }
 

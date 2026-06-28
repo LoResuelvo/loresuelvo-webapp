@@ -105,6 +105,7 @@ describe("MessagesList - integración de mensajes", () => {
   it("renderiza mensajes con estilos correctos según remitente", () => {
     render(
       <MessagesList
+        myUserId="user-id"
         messages={mockMessages}
         expandedMessages={new Set()}
         onToggleExpand={vi.fn()}
@@ -122,6 +123,7 @@ describe("MessagesList - integración de mensajes", () => {
   it("muestra banner pendiente cuando showPendingBanner es true", () => {
     render(
       <MessagesList
+        myUserId="user-id"
         messages={[]}
         expandedMessages={new Set()}
         onToggleExpand={vi.fn()}

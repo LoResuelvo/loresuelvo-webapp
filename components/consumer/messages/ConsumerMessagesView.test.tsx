@@ -90,6 +90,7 @@ describe("ConsumerMessagesView", () => {
 
     render(
       <ConsumerMessagesView
+        myUserId="user-id"
         contacts={[mockContact]}
         selectedContact={mockContact}
         selectedProviderId="20"

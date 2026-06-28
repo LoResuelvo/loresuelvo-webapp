@@ -2,6 +2,7 @@ import { render, screen, waitFor, fireEvent, cleanup, act } from "@testing-libra
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import AiDiagnosisChat from "@/components/consumer/diagnosis/AiDiagnosisChat";
 import { AssistantClient } from "@/ports/assistant-client";
+import { AiChatRepository } from "@/ports/ai-chat-repository";
 
 const ASSISTANT_REPLY =
   "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?";
@@ -30,7 +31,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 function instantClient(): AssistantClient {
-  return { async requestReply() { return ASSISTANT_REPLY; } };
+  return { async requestReply() { return ASSISTANT_REPLY; }, getConversation: vi.fn() as unknown as AssistantClient["getConversation"] };
 }
 
 function delayedClient(delayMs: number): AssistantClient {
@@ -39,6 +40,7 @@ function delayedClient(delayMs: number): AssistantClient {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
       return userMessage ? ASSISTANT_REPLY : "";
     },
+    getConversation: vi.fn() as unknown as AssistantClient["getConversation"],
   };
 }
 
@@ -56,6 +58,7 @@ function manualClient(): { client: AssistantClient; handle: ManualHandle } {
         handle.reject = reject;
       });
     },
+    getConversation: vi.fn() as unknown as AssistantClient["getConversation"],
   };
   return { client, handle };
 }
@@ -65,6 +68,7 @@ function failingClient(error: Error = new Error("Servicio no disponible")): Assi
     async requestReply() {
       throw error;
     },
+    getConversation: vi.fn() as unknown as AssistantClient["getConversation"],
   };
 }
 
@@ -213,7 +217,7 @@ describe("AiDiagnosisChat", () => {
       getAll: vi.fn(),
     };
 
-    render(<AiDiagnosisChat chatRepository={mockRepo as unknown as ReturnType<typeof vi.fn>} conversationId="1" />);
+    render(<AiDiagnosisChat chatRepository={mockRepo as unknown as AiChatRepository} conversationId="1" />);
 
     await waitFor(() => {
       expect(screen.getByText("Prestadores recomendados")).toBeInTheDocument();

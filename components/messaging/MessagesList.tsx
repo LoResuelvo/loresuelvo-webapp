@@ -77,6 +77,7 @@ export default function MessagesList({
             showExpandButton={showExpandButton}
             onToggleExpand={onToggleExpand}
             isOwnMessage={isOwnMessage}
+            images={msg.images}
           />
         );
       })}

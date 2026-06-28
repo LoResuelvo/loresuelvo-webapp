@@ -19,6 +19,9 @@ interface ConsumerMessagesViewProps {
   isSending: boolean;
   myUserId: string;
   jobRequest?: JobRequestInfo | null;
+  attachedFiles?: File[];
+  onAttachFiles?: (files: File[]) => void;
+  onRemoveFile?: (index: number) => void;
 }
 
 const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesViewProps>(({
@@ -36,6 +39,9 @@ const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesView
   isSending,
   myUserId,
   jobRequest,
+  attachedFiles,
+  onAttachFiles,
+  onRemoveFile,
 }, ref) => {
   const isChatActive = !!selectedProviderId;
 
@@ -63,6 +69,9 @@ const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesView
           isSending={isSending}
           myUserId={myUserId}
           jobRequest={jobRequest}
+          attachedFiles={attachedFiles}
+          onAttachFiles={onAttachFiles}
+          onRemoveFile={onRemoveFile}
         />
       </div>
     </main>

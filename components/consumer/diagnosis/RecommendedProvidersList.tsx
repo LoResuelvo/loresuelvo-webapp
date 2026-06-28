@@ -1,8 +1,6 @@
 import React from "react";
-import { useRouter } from "next/navigation";
 import { RecommendedProvider } from "@/domain/messaging/types";
 import { t } from "@/infrastructure/i18n/translations";
-import { ROUTES } from "@/lib/routes";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import InfoBanner from "@/components/messaging/InfoBanner";
@@ -13,7 +11,6 @@ interface RecommendedProvidersListProps {
 }
 
 export function RecommendedProvidersList({ providers, diagnosisCompleted }: RecommendedProvidersListProps) {
-  const router = useRouter();
 
   if (!diagnosisCompleted) {
     return null;

@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { createWorkRequest } from "./create-work-request";
-import { JobRequestRepository, JobRequestResponse } from "@/ports/job-request-repository";
+import { JobRequestRepository, JobRequestResult } from "@/ports/job-request-repository";
 
 describe("createWorkRequest", () => {
-  const mockJobRequestResponse: JobRequestResponse = {
+  const mockJobRequestResponse: JobRequestResult = {
     id: 1,
-    conversation_id: 10,
+    conversationId: 10,
     title: "Title",
     description: "Description",
   };

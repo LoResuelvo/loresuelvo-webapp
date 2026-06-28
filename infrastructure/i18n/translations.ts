@@ -64,6 +64,8 @@ export const t = {
     viewJobRequestLabel: "Ver solicitud de trabajo",
     chatPanelLabel: "Detalle de conversación",
     backToList: "Volver a la lista",
+    fileTooLarge: "La imagen no debe superar los 5MB",
+    attachedImage: "Imagen adjunta",
   },
   header: {
     logout: "Cerrar sesión",

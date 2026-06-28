@@ -15,18 +15,18 @@ vi.mock("next/navigation", () => ({
 const mockContacts = [
   {
     id: "conv-1",
-    consumerId: "10",
-    consumerName: "Maria",
-    consumerSurname: "Fernandez",
+    providerId: "10",
+    providerName: "Maria",
+    providerSurname: "Fernandez",
     lastMessage: "Hola, me gustaria contratarte para el trabajo",
     lastMessageAt: "01/06 14:30",
     pending: false,
   },
   {
     id: "conv-2",
-    consumerId: "11",
-    consumerName: "Javier",
-    consumerSurname: "Torres",
+    providerId: "11",
+    providerName: "Javier",
+    providerSurname: "Torres",
     lastMessage: "Necesito reparar una fuga de agua",
     lastMessageAt: "01/06 13:30",
     pending: true,
@@ -95,9 +95,9 @@ describe("03-VMP: Cada conversación muestra el nombre del consumidor", () => {
     render(
       <ContactItem
         id={contact.id}
-        providerId={contact.consumerId}
-        providerName={contact.consumerName}
-        providerSurname={contact.consumerSurname}
+        providerId={contact.providerId}
+        providerName={contact.providerName}
+        providerSurname={contact.providerSurname}
         lastMessage={contact.lastMessage}
         lastMessageAt={contact.lastMessageAt}
         pending={contact.pending}
@@ -116,9 +116,9 @@ describe("03-VMP: Cada conversación muestra el nombre del consumidor", () => {
     render(
       <ContactItem
         id={contact.id}
-        providerId={contact.consumerId}
-        providerName={contact.consumerName}
-        providerSurname={contact.consumerSurname}
+        providerId={contact.providerId}
+        providerName={contact.providerName}
+        providerSurname={contact.providerSurname}
         lastMessage={contact.lastMessage}
         lastMessageAt={contact.lastMessageAt}
         pending={contact.pending}
@@ -137,9 +137,9 @@ describe("03-VMP: Cada conversación muestra el nombre del consumidor", () => {
     render(
       <ContactItem
         id={contact.id}
-        providerId={contact.consumerId}
-        providerName={contact.consumerName}
-        providerSurname={contact.consumerSurname}
+        providerId={contact.providerId}
+        providerName={contact.providerName}
+        providerSurname={contact.providerSurname}
         lastMessage={contact.lastMessage}
         lastMessageAt={contact.lastMessageAt}
         pending={contact.pending}
@@ -158,9 +158,9 @@ describe("03-VMP: Cada conversación muestra el nombre del consumidor", () => {
     render(
       <ContactItem
         id={pendingContact.id}
-        providerId={pendingContact.consumerId}
-        providerName={pendingContact.consumerName}
-        providerSurname={pendingContact.consumerSurname}
+        providerId={pendingContact.providerId}
+        providerName={pendingContact.providerName}
+        providerSurname={pendingContact.providerSurname}
         lastMessage={pendingContact.lastMessage}
         lastMessageAt={pendingContact.lastMessageAt}
         pending={pendingContact.pending}
@@ -180,9 +180,9 @@ describe("03-VMP: Cada conversación muestra el nombre del consumidor", () => {
     const { rerender } = render(
       <ContactItem
         id={pendingContact.id}
-        providerId={pendingContact.consumerId}
-        providerName={pendingContact.consumerName}
-        providerSurname={pendingContact.consumerSurname}
+        providerId={pendingContact.providerId}
+        providerName={pendingContact.providerName}
+        providerSurname={pendingContact.providerSurname}
         lastMessage={pendingContact.lastMessage}
         lastMessageAt={pendingContact.lastMessageAt}
         pending={pendingContact.pending}
@@ -196,9 +196,9 @@ describe("03-VMP: Cada conversación muestra el nombre del consumidor", () => {
     rerender(
       <ContactItem
         id={acceptedContact.id}
-        providerId={acceptedContact.consumerId}
-        providerName={acceptedContact.consumerName}
-        providerSurname={acceptedContact.consumerSurname}
+        providerId={acceptedContact.providerId}
+        providerName={acceptedContact.providerName}
+        providerSurname={acceptedContact.providerSurname}
         lastMessage={acceptedContact.lastMessage}
         lastMessageAt={acceptedContact.lastMessageAt}
         pending={acceptedContact.pending}

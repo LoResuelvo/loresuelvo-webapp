@@ -9,6 +9,8 @@ import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import { AuthSession } from "@/infrastructure/auth/types";
 import { ROUTES } from "@/lib/routes";
 import { getConversationDetail, sendMessage, createConversation, acceptJobRequest, getJobRequestForConversation } from "@/app/prestador/mensajes/actions";
+import { getPresignedUrlAction, confirmUploadAction } from "@/application/files/upload-file";
+import { t } from "@/infrastructure/i18n/translations";
 import { useWebSocket } from "@/infrastructure/websocket";
 import RequestDetailModal from "@/components/provider/home/RequestDetailModal";
 import type { ProviderWorkRequest } from "@/domain/provider/types";
@@ -55,6 +57,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
   const searchParams = useSearchParams();
   const selectedConsumerId = searchParams.get("consumer_id");
   const [messageInput, setMessageInput] = useState("");
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
   const [loadedMessages, setLoadedMessages] = useState<Message[]>([]);
   const [isSending, setIsSending] = useState(false);
@@ -120,6 +123,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
           content: msg.content,
           senderId: msg.senderId === "provider" ? myUserId : String(data.counterpart.id),
           sentAt: msg.sentAt,
+          images: msg.images,
         }));
         const pendingMessages = loadPendingMessages(effectiveConversationId);
         const allMessages = [...messages];
@@ -160,6 +164,11 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
           id: String(event.message.id),
           content: event.message.content,
           senderId: counterpartIdRef.current ?? incomingConvId,
+          images: event.message.images ? event.message.images.map((img: { id: number; url: string; original_name: string }) => ({
+            id: String(img.id),
+            url: img.url,
+            originalName: img.original_name,
+          })) : undefined,
           sentAt: new Date(event.message.created_on).toLocaleString("es-AR", {
             day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
           }),
@@ -205,22 +214,32 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
 
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !selectedConsumerId || isSending || isSendingRef.current) return;
+    if ((!messageInput.trim() && attachedFiles.length === 0) || !selectedConsumerId || isSending || isSendingRef.current) return;
     isSendingRef.current = true;
-
-    const messageContent = messageInput;
     setIsSending(true);
+
+    const messageContent = messageInput.trim() || undefined;
+    const currentFiles = [...attachedFiles];
+    
     const tempId = `local-${Date.now()}`;
     const optimisticMessage: Message = {
       id: tempId,
       content: messageContent,
       senderId: session?.user?.id ?? myUserId,
       sentAt: "Ahora",
+      images: currentFiles.map(file => ({
+        id: `temp-img-${Math.random()}`,
+        url: URL.createObjectURL(file),
+        originalName: file.name
+      }))
     };
 
     setLocalMessages(prev => [...prev, optimisticMessage]);
     
-    const previewText = messageContent.length > 40 ? messageContent.slice(0, 40) + "…" : messageContent;
+    const previewText = messageContent 
+      ? (messageContent.length > 40 ? messageContent.slice(0, 40) + "…" : messageContent)
+      : `📷 ${t.messaging.attachedImage}`;
+      
     setLocalContacts(prev => prev.map(c => 
       c.consumerId === selectedConsumerId 
         ? { ...c, lastMessage: previewText, lastMessageAt: "Ahora" } 
@@ -228,6 +247,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
     ));
 
     setMessageInput("");
+    setAttachedFiles([]);
     const interval = setInterval(() => {
       if (typeof document === 'undefined') return;
       const inputEl = document.querySelector<HTMLInputElement>('[placeholder="Escribe un mensaje..."]');
@@ -252,7 +272,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
       } catch (error) {
         console.error("Error creating conversation:", error);
         setLocalMessages(prev => prev.filter(msg => msg.id !== tempId));
-        setMessageInput(messageContent);
+        setMessageInput(messageContent || "");
         setIsSending(false);
         return;
       }
@@ -277,8 +297,24 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
       return;
     }
 
+    const uploadedImageIds: string[] = [];
+
     try {
-      const response = await sendMessage(conversationIdToUse, messageContent) as { id?: number; created_on?: string; content?: string };
+      if (currentFiles.length > 0) {
+        for (const file of currentFiles) {
+          const presigned = await getPresignedUrlAction(file.name, file.type, file.size, "conversation_message_image");
+          const uploadRes = await fetch(presigned.upload_url, {
+            method: "PUT",
+            body: file,
+            headers: presigned.headers,
+          });
+          if (!uploadRes.ok) throw new Error("Error al subir archivo a S3/R2");
+          const confirm = await confirmUploadAction(presigned.file_id, presigned.key, file.type, file.size);
+          uploadedImageIds.push(confirm.id);
+        }
+      }
+
+      const response = await sendMessage(conversationIdToUse, messageContent, uploadedImageIds.length > 0 ? uploadedImageIds : undefined) as { id?: number; created_on?: string; content?: string, images?: { id: number; url: string; original_name: string }[] };
 
       const sentAt = new Date().toLocaleString("es-AR", {
         day: "2-digit",
@@ -291,6 +327,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
         content: messageContent,
         senderId: session?.user?.id ?? myUserId,
         sentAt,
+        images: optimisticMessage.images,
       };
 
       if (response && response.id) {
@@ -305,6 +342,11 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
           content: response.content || messageContent,
           senderId: session?.user?.id ?? myUserId,
           sentAt: serverSentAt,
+          images: response.images ? response.images.map((img: { id: number; url: string; original_name: string }) => ({
+            id: String(img.id),
+            url: img.url,
+            originalName: img.original_name
+          })) : successfulMessage.images,
         };
         setLocalMessages(prev => prev.filter(msg => msg.id !== tempId));
         setLoadedMessages(prev => [...prev, updatedMessage]);
@@ -319,15 +361,8 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
         prev.map(msg => msg.id === tempId ? { ...msg, id: `pending-${tempId}` } : msg)
       );
       const pendingMsg: Message = {
+        ...optimisticMessage,
         id: `pending-${tempId}`,
-        content: messageContent,
-        senderId: session?.user?.id ?? myUserId,
-        sentAt: new Date().toLocaleString("es-AR", {
-          day: "2-digit",
-          month: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
       };
       setLoadedMessages(prev => [...prev, pendingMsg]);
       const existingPending = loadPendingMessages(conversationIdToUse);
@@ -364,6 +399,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
     content: msg.content,
     sentAt: msg.sentAt,
     senderId: msg.senderId,
+    images: msg.images,
   }));
 
   const modalRequest: ProviderWorkRequest | null = activeJobRequest ? {
@@ -407,6 +443,9 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
           onAccept={activeJobRequest ? () => setShowRequestModal(true) : undefined}
           myUserId={myUserId}
           pendingBannerText="Solicitud de trabajo aún no aceptada. Para comunicarte con el consumidor primero tenés que aceptarla."
+          attachedFiles={attachedFiles}
+          onAttachFiles={(files) => setAttachedFiles(prev => [...prev, ...files].slice(0, 5))}
+          onRemoveFile={(idx) => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
         />
       </div>
 

@@ -10,7 +10,6 @@ interface ModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
-  titleId?: string;
   closeLabel?: string;
   children: React.ReactNode;
   className?: string;
@@ -21,7 +20,6 @@ export function Modal({
   open,
   onClose,
   title,
-  titleId,
   closeLabel = "Cerrar",
   children,
   className,

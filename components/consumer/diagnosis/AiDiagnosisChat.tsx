@@ -16,7 +16,6 @@ import {
   DEFAULT_ASSISTANT_DELAY_MS,
 } from "@/infrastructure/repositories/mock-assistant-client";
 import type { AiMessage } from "@/infrastructure/storage/ai-chat-storage";
-import type { RecommendedProvider } from "@/domain/messaging/types";
 import { RecommendedProvidersList } from "./RecommendedProvidersList";
 import { t } from "@/infrastructure/i18n/translations";
 

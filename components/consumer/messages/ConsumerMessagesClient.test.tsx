@@ -73,7 +73,7 @@ describe("ConsumerMessagesClient", () => {
     });
 
     render(
-      <ConsumerMessagesClient session={mockSession} contacts={mockContacts} />
+      <ConsumerMessagesClient myUserId="user-id" session={mockSession} contacts={mockContacts} />
     );
     expect(screen.getByRole("heading", { name: "Mensajes" })).toBeInTheDocument();
     expect(screen.getAllByText("Carlos Méndez")[0]).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe("ConsumerMessagesClient", () => {
     });
 
     render(
-      <ConsumerMessagesClient session={mockSession} contacts={mockContacts} />
+      <ConsumerMessagesClient myUserId="user-id" session={mockSession} contacts={mockContacts} />
     );
 
     await waitFor(() => {
@@ -117,7 +117,7 @@ describe("ConsumerMessagesClient", () => {
     });
 
     render(
-      <ConsumerMessagesClient session={mockSession} contacts={mockContacts} />
+      <ConsumerMessagesClient myUserId="user-id" session={mockSession} contacts={mockContacts} />
     );
 
     const input = screen.getByPlaceholderText("Escribe un mensaje...");
@@ -140,7 +140,7 @@ describe("ConsumerMessagesClient", () => {
     });
 
     render(
-      <ConsumerMessagesClient session={mockSession} contacts={mockContacts} />
+      <ConsumerMessagesClient myUserId="user-id" session={mockSession} contacts={mockContacts} />
     );
 
     expect(screen.getByText("Esperando aceptación")).toBeInTheDocument();

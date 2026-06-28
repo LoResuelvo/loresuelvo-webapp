@@ -21,6 +21,9 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   jobRequest?: JobRequestInfo | null;
   pendingBannerText?: string;
   blockInputWhenPending?: boolean;
+  attachedFiles?: File[];
+  onAttachFiles?: (files: File[]) => void;
+  onRemoveFile?: (index: number) => void;
 }>(({
   selectedContact,
   messages,
@@ -36,6 +39,9 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   jobRequest,
   pendingBannerText,
   blockInputWhenPending = false,
+  attachedFiles,
+  onAttachFiles,
+  onRemoveFile,
 }, ref) => {
   if (!selectedContact) {
     return (
@@ -81,6 +87,9 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
             onChange={onMessageInputChange}
             onSend={onSendMessage}
             disabled={isSending}
+            attachedFiles={attachedFiles}
+            onAttachFiles={onAttachFiles}
+            onRemoveFile={onRemoveFile}
           />
         )}
       </div>

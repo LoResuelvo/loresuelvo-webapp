@@ -9,6 +9,8 @@ import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import { AuthSession } from "@/infrastructure/auth/types";
 import { ROUTES } from "@/lib/routes";
 import { getConversationDetail, sendMessage, createConversation, getJobRequestForConversation } from "@/app/consumidor/mensajes/actions";
+import { confirmUploadAction, getPresignedUrlAction } from "@/application/files/upload-file";
+import { t } from "@/infrastructure/i18n/translations";
 import { useWebSocket } from "@/infrastructure/websocket";
 
 import { Message, JobRequestInfo, ConsumerConversationContact as ConversationContact } from "@/domain/messaging/types";
@@ -53,6 +55,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
   const searchParams = useSearchParams();
   const selectedProviderId = searchParams.get("provider_id");
   const [messageInput, setMessageInput] = useState("");
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
   const [loadedMessages, setLoadedMessages] = useState<Message[]>([]);
   const [isSending, setIsSending] = useState(false);
@@ -122,6 +125,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
           content: msg.content,
           senderId: msg.senderId === "consumer" ? myUserId : String(data.counterpart.id),
           sentAt: msg.sentAt,
+          images: msg.images,
         }));
         const pendingMessages = loadPendingMessages(effectiveConversationId);
         const allMessages = [...messages];
@@ -164,6 +168,11 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
           id: String(event.message.id),
           content: event.message.content,
           senderId: counterpartIdRef.current ?? incomingConvId,
+          images: event.message.images ? event.message.images.map((img: { id: number; url: string; original_name: string }) => ({
+            id: String(img.id),
+            url: img.url,
+            originalName: img.original_name,
+          })) : undefined,
           sentAt: new Date(event.message.created_on).toLocaleString("es-AR", {
             day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
           }),
@@ -209,22 +218,32 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
 
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !selectedProviderId || isSending || isSendingRef.current) return;
+    if ((!messageInput.trim() && attachedFiles.length === 0) || !selectedProviderId || isSending || isSendingRef.current) return;
     isSendingRef.current = true;
-
-    const messageContent = messageInput;
     setIsSending(true);
+
+    const messageContent = messageInput.trim() || undefined;
+    const currentFiles = [...attachedFiles];
+    
     const tempId = `local-${Date.now()}`;
     const optimisticMessage: Message = {
       id: tempId,
       content: messageContent,
       senderId: session?.user?.id ?? myUserId,
       sentAt: "Ahora",
+      images: currentFiles.map(file => ({
+        id: `temp-img-${Math.random()}`,
+        url: URL.createObjectURL(file),
+        originalName: file.name
+      }))
     };
 
     setLocalMessages(prev => [...prev, optimisticMessage]);
     
-    const previewText = messageContent.length > 40 ? messageContent.slice(0, 40) + "…" : messageContent;
+    const previewText = messageContent 
+      ? (messageContent.length > 40 ? messageContent.slice(0, 40) + "…" : messageContent)
+      : `📷 ${t.messaging.attachedImage}`;
+      
     setLocalContacts(prev => prev.map(c => 
       c.providerId === selectedProviderId 
         ? { ...c, lastMessage: previewText, lastMessageAt: "Ahora" } 
@@ -232,6 +251,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
     ));
     
     setMessageInput("");
+    setAttachedFiles([]);
     const interval = setInterval(() => {
       if (typeof document === 'undefined') return;
       const inputEl = document.querySelector<HTMLInputElement>('[placeholder="Escribe un mensaje..."]');
@@ -256,7 +276,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
       } catch (error) {
         console.error("Error creating conversation:", error);
         setLocalMessages(prev => prev.filter(msg => msg.id !== tempId));
-        setMessageInput(messageContent);
+        setMessageInput(messageContent || "");
         setIsSending(false);
         return;
       }
@@ -274,6 +294,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
         content: messageContent,
         senderId: session?.user?.id ?? myUserId,
         sentAt,
+        images: optimisticMessage.images,
       };
       setLocalMessages(prev => prev.filter(msg => msg.id !== tempId));
       setLoadedMessages(prev => [...prev, successfulMessage]);
@@ -281,8 +302,24 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
       return;
     }
 
+    const uploadedImageIds: string[] = [];
+
     try {
-      const response = await sendMessage(conversationIdToUse, messageContent) as { id?: number; created_on?: string; content?: string };
+      if (currentFiles.length > 0) {
+        for (const file of currentFiles) {
+          const presigned = await getPresignedUrlAction(file.name, file.type, file.size, "conversation_message_image");
+          const uploadRes = await fetch(presigned.upload_url, {
+            method: "PUT",
+            body: file,
+            headers: presigned.headers,
+          });
+          if (!uploadRes.ok) throw new Error("Error al subir archivo a S3/R2");
+          const confirm = await confirmUploadAction(presigned.file_id, presigned.key, file.type, file.size);
+          uploadedImageIds.push(confirm.id);
+        }
+      }
+
+      const response = await sendMessage(conversationIdToUse, messageContent, uploadedImageIds.length > 0 ? uploadedImageIds : undefined) as { id?: number; created_on?: string; content?: string, images?: { id: number; url: string; original_name: string }[] };
 
       const sentAt = new Date().toLocaleString("es-AR", {
         day: "2-digit",
@@ -295,6 +332,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
         content: messageContent,
         senderId: session?.user?.id ?? myUserId,
         sentAt,
+        images: optimisticMessage.images,
       };
 
       if (response && response.id) {
@@ -309,6 +347,11 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
           content: response.content || messageContent,
           senderId: session?.user?.id ?? myUserId,
           sentAt: serverSentAt,
+          images: response.images ? response.images.map((img: { id: number; url: string; original_name: string }) => ({
+            id: String(img.id),
+            url: img.url,
+            originalName: img.original_name
+          })) : successfulMessage.images,
         };
         setLocalMessages(prev => prev.filter(msg => msg.id !== tempId));
         setLoadedMessages(prev => [...prev, updatedMessage]);
@@ -323,15 +366,8 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
         prev.map(msg => msg.id === tempId ? { ...msg, id: `pending-${tempId}` } : msg)
       );
       const pendingMsg: Message = {
+        ...optimisticMessage,
         id: `pending-${tempId}`,
-        content: messageContent,
-        senderId: session?.user?.id ?? myUserId,
-        sentAt: new Date().toLocaleString("es-AR", {
-          day: "2-digit",
-          month: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
       };
       setLoadedMessages(prev => [...prev, pendingMsg]);
       const existingPending = loadPendingMessages(conversationIdToUse);
@@ -351,6 +387,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
     content: msg.content,
     sentAt: msg.sentAt,
     senderId: msg.senderId,
+    images: msg.images,
   }));
 
   const contactsWithUnread = localContacts.map((c) => ({
@@ -379,6 +416,9 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
           isSending={isSending}
           myUserId={myUserId}
           jobRequest={activeJobRequest}
+          attachedFiles={attachedFiles}
+          onAttachFiles={(files) => setAttachedFiles(prev => [...prev, ...files].slice(0, 5))}
+          onRemoveFile={(idx) => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
         />
       </div>
     </div>

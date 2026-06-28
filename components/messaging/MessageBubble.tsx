@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
+import Image from "next/image";
 
 interface MessageBubbleProps {
   id: string;
@@ -9,6 +10,7 @@ interface MessageBubbleProps {
   showExpandButton: boolean;
   onToggleExpand: (id: string) => void;
   isOwnMessage?: boolean;
+  images?: { id: string; url: string; originalName: string }[];
 }
 
 export default function MessageBubble({
@@ -19,6 +21,7 @@ export default function MessageBubble({
   showExpandButton,
   onToggleExpand,
   isOwnMessage = true,
+  images,
 }: MessageBubbleProps) {
   return (
     <div className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}>
@@ -30,6 +33,20 @@ export default function MessageBubble({
             : "bg-white text-brand-primary border border-slate-200 rounded-tl-sm"
         }`}
       >
+        {images && images.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {images.map((img) => (
+              <div key={img.id} className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-lg overflow-hidden border border-white/20 bg-slate-100">
+                <Image
+                  src={img.url}
+                  alt={`${t.messaging.attachedImage} ${img.originalName}`}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            ))}
+          </div>
+        )}
         {content && (
           <p className={`text-[14px] whitespace-pre-wrap break-words ${!isExpanded && showExpandButton ? "line-clamp-5" : ""}`}>
             {content}

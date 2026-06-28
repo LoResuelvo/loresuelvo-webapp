@@ -21,6 +21,9 @@ interface ProviderMessagesViewProps {
   onAccept?: () => void;
   myUserId: string;
   pendingBannerText?: string;
+  attachedFiles?: File[];
+  onAttachFiles?: (files: File[]) => void;
+  onRemoveFile?: (index: number) => void;
 }
 
 const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesViewProps>(({
@@ -39,6 +42,9 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
   onAccept,
   myUserId,
   pendingBannerText,
+  attachedFiles,
+  onAttachFiles,
+  onRemoveFile,
 }, ref) => {
   const isChatActive = !!selectedConsumerId;
 
@@ -84,6 +90,9 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
           myUserId={myUserId}
           pendingBannerText={pendingBannerText}
           blockInputWhenPending={true}
+          attachedFiles={attachedFiles}
+          onAttachFiles={onAttachFiles}
+          onRemoveFile={onRemoveFile}
         />
       </div>
     </main>

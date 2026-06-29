@@ -168,6 +168,14 @@ Given("ya existe una solicitud de trabajo abierta con {string}", async (provider
 
 
 When("hago clic en {string} del prestador recomendado {string}", async (buttonText: string, providerName: string) => {
+  try {
+    await page.route("**/consumidor/mensajes*", async (route) => {
+      await new Promise(r => setTimeout(r, 1000));
+      await route.fallback();
+    });
+  } catch (e) {
+  }
+
   const providerCard = page.locator("[data-testid='recommended-provider']")
     .filter({ hasText: providerName })
     .first();

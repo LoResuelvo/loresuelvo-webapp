@@ -20,7 +20,7 @@ export function RecommendedProvidersList({
   onContactProvider,
   className,
 }: RecommendedProvidersListProps) {
-  const showList = assessment ? assessment.outcome !== "collecting_information" : diagnosisCompleted;
+  const showList = assessment ? assessment.outcome === "professional_required" : diagnosisCompleted;
 
   if (!showList) {
     return null;

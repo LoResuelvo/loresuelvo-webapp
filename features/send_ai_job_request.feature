@@ -1,4 +1,3 @@
-@wip
 Feature: US-51 Enviar solicitud de trabajo a prestadores desde diagnóstico IA
   Como consumidor
   Quiero contactar a uno o más prestadores recomendados a partir de la evaluación del chatbot

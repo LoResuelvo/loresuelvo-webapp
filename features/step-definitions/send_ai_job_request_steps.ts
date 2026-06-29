@@ -129,6 +129,13 @@ Given("la evaluación del chatbot determina que el problema puede resolverse sin
 });
 
 Given("el servicio de solicitudes de trabajo no está disponible", async () => {
+  await addApiStub({
+    method: "POST",
+    endpoint: "/chatbot/conversations/1/job-requests",
+    status: 500,
+    body: { error: "Internal Server Error" },
+  });
+
   await page.route("**/chatbot/conversations/1/job-requests", async (route) => {
     await route.fulfill({
       status: 500,
@@ -139,6 +146,15 @@ Given("el servicio de solicitudes de trabajo no está disponible", async () => {
 });
 
 Given("ya existe una solicitud de trabajo abierta con {string}", async (providerName: string) => {
+  await addApiStub({
+    method: "POST",
+    endpoint: "/chatbot/conversations/1/job-requests",
+    status: 409,
+    body: {
+      error: `Ya existe una solicitud de trabajo abierta con ${providerName}`,
+    },
+  });
+
   await page.route("**/chatbot/conversations/1/job-requests", async (route) => {
     await route.fulfill({
       status: 409,

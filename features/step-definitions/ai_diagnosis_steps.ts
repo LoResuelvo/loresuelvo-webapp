@@ -593,6 +593,18 @@ Given("la IA concluyó el diagnóstico y recomienda prestadores del rubro {strin
   });
 
   await addApiStub({
+    method: "POST",
+    endpoint: "/chatbot/conversations/1/job-requests",
+    status: 201,
+    body: {
+      id: 100,
+      conversation_id: 1,
+      title: "Solicitud de Plomería",
+      description: "Se está filtrando agua",
+    },
+  });
+
+  await addApiStub({
     method: "GET",
     endpoint: "/conversations/1",
     status: 200,
@@ -603,6 +615,13 @@ Given("la IA concluyó el diagnóstico y recomienda prestadores del rubro {strin
       title: "Pérdida de agua",
       response_status: "answered",
       diagnosis_completed: true,
+      assessment: {
+        outcome: "professional_required",
+        problem_category: {
+          id: 1,
+          name: rubro,
+        },
+      },
       messages: [
         {
           id: 1,

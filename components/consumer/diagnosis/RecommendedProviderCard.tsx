@@ -29,7 +29,8 @@ export function RecommendedProviderCard({
       setState("sent");
     } catch (err: unknown) {
       const status = err && typeof err === "object" && "status" in err ? (err as { status: unknown }).status : undefined;
-      if (status === 409) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (status === 409 || message.includes("409") || message.includes("Ya existe")) {
         setState("duplicate");
       } else {
         setState("error");

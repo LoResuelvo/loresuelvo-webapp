@@ -118,7 +118,7 @@ export function ImageAttachmentSelector({
           className="w-full flex items-center justify-center gap-2 h-11 rounded-xl font-semibold border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100"
         >
           <Paperclip className="w-4 h-4" />
-          {t.consumerSearch.form.attachImages} ({files.length}/{maxFiles})
+          {t.consumerSearch.form.attachImages}
         </Button>
       </div>
       <span className="text-[11px] text-slate-400">

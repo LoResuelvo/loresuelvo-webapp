@@ -25,7 +25,7 @@ describe("ImageAttachmentSelector", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: /Adjuntar imágenes \(0\/3\)/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Adjuntar imágenes/i })).toBeInTheDocument();
     expect(screen.getByText("Máximo 3 imágenes permitidas")).toBeInTheDocument();
   });
 
@@ -44,7 +44,7 @@ describe("ImageAttachmentSelector", () => {
 
     expect(screen.getByAltText(/test1.png/i)).toBeInTheDocument();
     expect(screen.getByAltText(/test2.jpg/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Adjuntar imágenes \(2\/3\)/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Adjuntar imágenes/i })).toBeInTheDocument();
   });
 
   it("removes an image when its delete button is clicked", () => {

@@ -8,7 +8,8 @@ export async function createWorkRequest(
   jobRequestRepository: JobRequestRepository,
   providerId: number,
   title: string,
-  description: string
+  description: string,
+  imageFileIds?: string[]
 ): Promise<CreateWorkRequestResult> {
   const trimmedTitle = title.trim();
   const trimmedDescription = description.trim();
@@ -22,6 +23,7 @@ export async function createWorkRequest(
       providerId: providerId,
       title: trimmedTitle,
       description: trimmedDescription,
+      imageFileIds,
     };
     const data = await jobRequestRepository.create(payload);
     return { success: true, data };

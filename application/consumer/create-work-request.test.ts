@@ -8,6 +8,7 @@ describe("createWorkRequest", () => {
     conversationId: 10,
     title: "Title",
     description: "Description",
+    images: [],
   };
 
   const mockJobRequestRepository = {
@@ -30,6 +31,34 @@ describe("createWorkRequest", () => {
     if (res.success) {
       expect(res.data).toEqual(mockJobRequestResponse);
     }
+    expect(mockJobRequestRepository.create).toHaveBeenCalledWith({
+      providerId: 12,
+      title: "Gotera",
+      description: "Filtra agua",
+      imageFileIds: undefined,
+    });
+  });
+
+  it("creates the work request with image file ids successfully", async () => {
+    const mockResponseWithImages: JobRequestResult = {
+      ...mockJobRequestResponse,
+      images: [
+        { id: "img-123", url: "http://example.com/123.jpg", originalName: "leak.jpg" }
+      ]
+    };
+    vi.mocked(mockJobRequestRepository.create).mockResolvedValue(mockResponseWithImages);
+
+    const res = await createWorkRequest(mockJobRequestRepository, 12, "Gotera", "Filtra agua", ["img-123"]);
+    expect(res.success).toBe(true);
+    if (res.success) {
+      expect(res.data).toEqual(mockResponseWithImages);
+    }
+    expect(mockJobRequestRepository.create).toHaveBeenCalledWith({
+      providerId: 12,
+      title: "Gotera",
+      description: "Filtra agua",
+      imageFileIds: ["img-123"],
+    });
   });
 
   it("maps to DUPLICATE error if the backend indicates it already exists", async () => {

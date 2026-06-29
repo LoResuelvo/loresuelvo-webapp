@@ -1,5 +1,5 @@
 import type { ApiAiConversation, ApiAiConversationDetail, ApiAiConversationMessage, ApiRecommendedProvider } from "@/infrastructure/api/types";
-import type { AiConversationContact, AiConversationDetail, AiMessage, RecommendedProvider } from "@/domain/messaging/types";
+import type { AiConversationContact, AiConversationDetail, AiMessage, RecommendedProvider, AssessmentOutcome } from "@/domain/messaging/types";
 
 export function mapApiToAiConversationContact(api: ApiAiConversation): AiConversationContact {
   const dateString = api.last_message?.created_on ?? api.updated_on;
@@ -49,12 +49,26 @@ export function mapApiToAiConversationDetail(api: ApiAiConversationDetail): AiCo
   const diagnosisCompleted = api.diagnosis_completed ?? api.chatbot?.diagnosis_completed ?? false;
   const recommendedCategory = api.recommended_category ?? api.chatbot?.recommended_category;
 
+  const apiAssessment = api.assessment ?? api.chatbot?.assessment;
+  const assessment = apiAssessment
+    ? {
+        outcome: apiAssessment.outcome as AssessmentOutcome,
+        problemCategory: apiAssessment.problem_category
+          ? {
+              id: apiAssessment.problem_category.id,
+              name: apiAssessment.problem_category.name,
+            }
+          : undefined,
+      }
+    : undefined;
+
   return {
     id: api.id,
     status: api.status,
     title: title,
     responseStatus: responseStatus,
     diagnosisCompleted: diagnosisCompleted,
+    assessment: assessment,
     recommendedCategory: recommendedCategory,
     messages: api.messages.map(mapApiToAiMessage),
     recommendedProviders: providers.map(mapApiToRecommendedProvider),

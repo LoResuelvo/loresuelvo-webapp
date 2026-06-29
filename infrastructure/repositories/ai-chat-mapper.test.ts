@@ -204,6 +204,72 @@ describe("ai-chat-mapper", () => {
 
       expect(result.recommendedProviders).toEqual([]);
     });
+
+    it("should map assessment field from root", () => {
+      const api = {
+        id: 1,
+        status: "active",
+        messages: [],
+        assessment: {
+          outcome: "professional_required",
+          problem_category: {
+            id: 2,
+            name: "Gasista",
+          },
+        },
+      };
+
+      const result = mapApiToAiConversationDetail(api as any);
+
+      expect(result.assessment).toEqual({
+        outcome: "professional_required",
+        problemCategory: {
+          id: 2,
+          name: "Gasista",
+        },
+      });
+    });
+
+    it("should map assessment field from chatbot nested object", () => {
+      const api = {
+        id: 1,
+        status: "active",
+        messages: [],
+        chatbot: {
+          title: "Title",
+          response_status: "answered",
+          assessment: {
+            outcome: "self_service",
+            problem_category: {
+              id: 3,
+              name: "Cerrajería",
+            },
+          },
+        },
+      };
+
+      const result = mapApiToAiConversationDetail(api as any);
+
+      expect(result.assessment).toEqual({
+        outcome: "self_service",
+        problemCategory: {
+          id: 3,
+          name: "Cerrajería",
+            },
+      });
+    });
+
+    it("should map undefined assessment when not present", () => {
+      const api = {
+        id: 1,
+        status: "active",
+        messages: [],
+      };
+
+      const result = mapApiToAiConversationDetail(api as any);
+
+      expect(result.assessment).toBeUndefined();
+    });
   });
 
   describe("mapApiToRecommendedProvider", () => {

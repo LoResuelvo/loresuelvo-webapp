@@ -150,6 +150,11 @@ export const t = {
     noMessages: "Sin mensajes",
     assistantName: "Asistente de diagnóstico",
     noProvidersFound: "No encontramos profesionales disponibles para este rubro por el momento.",
+    contactProvider: "Contactar",
+    jobRequestSent: "Solicitud enviada",
+    jobRequestSending: "Enviando solicitud...",
+    jobRequestError: "No se pudo enviar la solicitud. Intentá de nuevo.",
+    jobRequestDuplicate: "Ya existe una solicitud abierta con este prestador.",
     errors: {
       imageUpload: "No se pudo cargar la imagen",
       noResponse: "No pudimos obtener una respuesta en este momento",

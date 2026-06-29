@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import AiDiagnosisChat from "@/components/consumer/diagnosis/AiDiagnosisChat";
 import { createApiAssistantClient } from "@/infrastructure/repositories/api-assistant-client";
-import { createAiConversationAction, sendAiMessageAction, getAiConversationByIdAction } from "@/app/consumidor/mensajes-ia/actions";
+import { createAiConversationAction, sendAiMessageAction, getAiConversationByIdAction, createAiJobRequestAction } from "@/app/consumidor/mensajes-ia/actions";
 import type { AiConversationContact } from "@/domain/messaging/types";
 import { ROUTES } from "@/lib/routes";
 import { Bot } from "lucide-react";
@@ -26,6 +26,7 @@ export default function AiDiagnosisChatWrapper({ initialConversations: conversat
     create: createAiConversationAction,
     sendMessage: sendAiMessageAction,
     getById: getAiConversationByIdAction,
+    createJobRequest: createAiJobRequestAction,
     getConversations: async () => []
   }), []);
 

@@ -1,20 +1,28 @@
 import React from "react";
-import { RecommendedProvider } from "@/domain/messaging/types";
+import { RecommendedProvider, ProblemAssessment } from "@/domain/messaging/types";
 import { t } from "@/infrastructure/i18n/translations";
-import { Card } from "@/components/ui/card";
-import { Avatar } from "@/components/ui/avatar";
 import InfoBanner from "@/components/messaging/InfoBanner";
 import { cn } from "@/lib/utils";
+import { RecommendedProviderCard } from "./RecommendedProviderCard";
 
 interface RecommendedProvidersListProps {
   providers?: RecommendedProvider[];
   diagnosisCompleted?: boolean;
+  assessment?: ProblemAssessment;
+  onContactProvider?: (providerId: number) => Promise<void>;
   className?: string;
 }
 
-export function RecommendedProvidersList({ providers, diagnosisCompleted, className }: RecommendedProvidersListProps) {
+export function RecommendedProvidersList({
+  providers,
+  diagnosisCompleted,
+  assessment,
+  onContactProvider,
+  className,
+}: RecommendedProvidersListProps) {
+  const showList = assessment ? assessment.outcome !== "collecting_information" : diagnosisCompleted;
 
-  if (!diagnosisCompleted) {
+  if (!showList) {
     return null;
   }
 
@@ -32,20 +40,12 @@ export function RecommendedProvidersList({ providers, diagnosisCompleted, classN
       <h3 className="text-lg font-semibold">{t.aiDiagnosis.recommendedProviders}</h3>
       <div className="flex flex-col gap-3">
         {providers.map((provider) => (
-          <Card key={provider.id} variant="interactive" className="flex flex-row items-center p-4">
-            <Avatar
-              size="md"
-              src={provider.profilePhotoUrl}
-              alt={`${provider.name} ${provider.surname}`}
-              initials={`${provider.name.charAt(0)}${provider.surname.charAt(0)}`}
-              imgTestId={`avatar-img-${provider.id}`}
-              fallbackTestId={`avatar-fallback-${provider.id}`}
-            />
-            <div className="flex flex-col ml-4">
-              <span className="font-semibold text-base">{provider.name} {provider.surname}</span>
-              <span className="text-sm text-slate-500">{provider.categoryName}</span>
-            </div>
-          </Card>
+          <RecommendedProviderCard
+            key={provider.id}
+            provider={provider}
+            assessment={assessment}
+            onContactProvider={onContactProvider}
+          />
         ))}
       </div>
     </div>

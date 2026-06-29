@@ -32,29 +32,8 @@ describe("RecommendedProvidersList", () => {
   it("should render provider cards when providers are present", () => {
     render(<RecommendedProvidersList providers={mockProviders} diagnosisCompleted={true} />);
     expect(screen.getByText(t.aiDiagnosis.recommendedProviders)).toBeInTheDocument();
-    expect(screen.getAllByRole("img", { hidden: true })).toHaveLength(1); // One has image, one has fallback
-  });
-
-  it("should display provider name and surname", () => {
-    render(<RecommendedProvidersList providers={mockProviders} diagnosisCompleted={true} />);
-    expect(screen.getByText("Juan Pérez")).toBeInTheDocument();
-    expect(screen.getByText("María Gómez")).toBeInTheDocument();
-  });
-
-  it("should display provider category name", () => {
-    render(<RecommendedProvidersList providers={mockProviders} diagnosisCompleted={true} />);
-    expect(screen.getByText("Plomería")).toBeInTheDocument();
-    expect(screen.getByText("Electricidad")).toBeInTheDocument();
-  });
-
-  it("should render provider avatar with profile photo", () => {
-    render(<RecommendedProvidersList providers={mockProviders} diagnosisCompleted={true} />);
-    const avatarImg = screen.getByTestId("avatar-img-1");
-    expect(avatarImg).toHaveAttribute("src", "https://example.com/photo.jpg");
-    
-    // Fallback for the second provider
-    const avatarFallback = screen.getByTestId("avatar-fallback-2");
-    expect(avatarFallback).toBeInTheDocument();
+    const cards = screen.getAllByTestId("recommended-provider");
+    expect(cards).toHaveLength(2);
   });
 
   it("should render InfoBanner when providers array is empty but diagnosis is completed", () => {
@@ -64,6 +43,12 @@ describe("RecommendedProvidersList", () => {
 
   it("should not render anything when diagnosis is not completed", () => {
     const { container } = render(<RecommendedProvidersList providers={mockProviders} diagnosisCompleted={false} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("should not render anything when assessment is collecting_information", () => {
+    const assessment = { outcome: "collecting_information" as const };
+    const { container } = render(<RecommendedProvidersList providers={mockProviders} assessment={assessment} />);
     expect(container).toBeEmptyDOMElement();
   });
 });

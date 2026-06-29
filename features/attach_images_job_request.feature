@@ -1,4 +1,3 @@
-@wip
 Feature: US-52 Adjuntar imágenes a solicitud de trabajo
   Como consumidor
   quiero adjuntar imágenes a mi solicitud de trabajo

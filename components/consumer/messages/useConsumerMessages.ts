@@ -117,6 +117,7 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
             providerName: data.counterpart.name,
             providerSurname: data.counterpart.surname,
             providerProfilePhotoUrl: data.counterpart.profilePhotoUrl,
+            images: jr.images,
           } : null))
           .catch(() => setActiveJobRequest(null));
       })

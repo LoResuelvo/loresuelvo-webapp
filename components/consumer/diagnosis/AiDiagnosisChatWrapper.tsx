@@ -14,6 +14,7 @@ interface AiDiagnosisChatWrapperProps {
 }
 
 import { t } from "@/infrastructure/i18n/translations";
+import { Button } from "@/components/ui/button";
 
 export default function AiDiagnosisChatWrapper({ initialConversations: conversations }: AiDiagnosisChatWrapperProps) {
   const router = useRouter();
@@ -42,13 +43,14 @@ export default function AiDiagnosisChatWrapper({ initialConversations: conversat
     <>
       <div className={`${isChatActive ? 'hidden md:flex' : 'flex'} w-full md:w-[360px] border-r border-slate-200 bg-white flex-col h-full`}>
         <div className="p-4 border-b border-slate-200">
-          <button
+          <Button
+            variant="brand"
             onClick={handleNewChat}
-            className="w-full flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-xl font-semibold hover:bg-brand-primary/90 transition-colors"
+            className="w-full flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-colors"
           >
             <Bot className="w-5 h-5" />
             {t.aiDiagnosis.newChat}
-          </button>
+          </Button>
         </div>
 
         <div className="flex-1 overflow-y-auto">

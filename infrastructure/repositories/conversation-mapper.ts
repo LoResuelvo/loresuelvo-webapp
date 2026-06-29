@@ -1,5 +1,41 @@
-import { ApiConversation } from "@/infrastructure/api/types";
-import { ConsumerConversationContact, ProviderConversationContact } from "@/domain/messaging/types";
+import { ApiConversation, ApiConversationDetail, ApiConversationMessage } from "@/infrastructure/api/types";
+import { ConsumerConversationContact, ProviderConversationContact, ConversationDetailInfo, Message } from "@/domain/messaging/types";
+
+export function formatToLocalShortDateTime(dateString: string | Date): string {
+  return new Date(dateString).toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function formatToLocalTime(dateString: string | Date): string {
+  return new Date(dateString).toLocaleString("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function transformApiMessageToDomain(
+  apiMsg: ApiConversationMessage,
+  myUserId: string,
+  counterpartId: string,
+  myRole: "consumer" | "provider"
+): Message {
+  const isOwn = apiMsg.sender_role === myRole;
+  return {
+    id: String(apiMsg.id),
+    content: apiMsg.content,
+    senderId: isOwn ? myUserId : counterpartId,
+    images: apiMsg.images ? apiMsg.images.map(img => ({
+      id: img.id,
+      url: img.url,
+      originalName: img.original_name,
+    })) : undefined,
+    sentAt: formatToLocalTime(apiMsg.created_on),
+  };
+}
 
 export function transformApiToConsumerContact(apiConv: ApiConversation): ConsumerConversationContact {
   return {
@@ -9,12 +45,7 @@ export function transformApiToConsumerContact(apiConv: ApiConversation): Consume
     providerSurname: apiConv.counterpart.surname,
     lastMessage: apiConv.last_message?.content || "",
     lastMessageAt: apiConv.last_message?.created_on
-      ? new Date(apiConv.last_message.created_on).toLocaleString("es-AR", {
-          day: "2-digit",
-          month: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
+      ? formatToLocalShortDateTime(apiConv.last_message.created_on)
       : "",
     pending: apiConv.status === "pending",
     profilePhotoUrl: apiConv.counterpart.profile_photo_url,
@@ -29,20 +60,12 @@ export function transformApiToProviderContact(apiConv: ApiConversation): Provide
     consumerSurname: apiConv.counterpart.surname,
     lastMessage: apiConv.last_message?.content || "",
     lastMessageAt: apiConv.last_message?.created_on
-      ? new Date(apiConv.last_message.created_on).toLocaleString("es-AR", {
-          day: "2-digit",
-          month: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
+      ? formatToLocalShortDateTime(apiConv.last_message.created_on)
       : "",
     pending: apiConv.status === "pending",
     profilePhotoUrl: apiConv.counterpart.profile_photo_url,
   };
 }
-
-import { ApiConversationDetail } from "@/infrastructure/api/types";
-import { ConversationDetailInfo, Message } from "@/domain/messaging/types";
 
 export function transformApiToConversationDetail(api: ApiConversationDetail): ConversationDetailInfo {
   const counterpart = api.work?.counterpart || {
@@ -74,11 +97,9 @@ export function transformApiToConversationDetail(api: ApiConversationDetail): Co
         url: img.url,
         originalName: img.original_name,
       })) : undefined,
-      sentAt: new Date(m.created_on).toLocaleString("es-AR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      sentAt: formatToLocalTime(m.created_on),
     })) : [],
     updatedOn: api.updated_on,
   };
 }
+

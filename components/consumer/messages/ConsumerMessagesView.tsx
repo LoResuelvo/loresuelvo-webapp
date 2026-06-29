@@ -3,6 +3,7 @@ import ChatPanel from "@/components/messaging/ChatPanel";
 import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import ContactList from "@/components/messaging/ContactList";
 import { Message, JobRequestInfo, ConsumerConversationContact as ConversationContact } from "@/domain/messaging/types";
+import { cn } from "@/lib/utils";
 
 interface ConsumerMessagesViewProps {
   contacts: ConversationContact[];
@@ -22,6 +23,7 @@ interface ConsumerMessagesViewProps {
   attachedFiles?: File[];
   onAttachFiles?: (files: File[]) => void;
   onRemoveFile?: (index: number) => void;
+  className?: string;
 }
 
 const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesViewProps>(({
@@ -42,11 +44,12 @@ const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesView
   attachedFiles,
   onAttachFiles,
   onRemoveFile,
+  className,
 }, ref) => {
   const isChatActive = !!selectedProviderId;
 
   return (
-    <main className="flex-1 flex min-h-0">
+    <main className={cn("flex-1 flex min-h-0", className)}>
       <div className={`${isChatActive ? 'hidden md:flex' : 'flex'} w-full md:w-[360px] border-r border-slate-200 bg-white flex-col h-full`}>
         <ContactList
           contacts={contacts}

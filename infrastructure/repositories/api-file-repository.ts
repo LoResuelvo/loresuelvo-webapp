@@ -34,4 +34,19 @@ export class ApiFileRepository implements FileRepository {
     });
     return result as ConfirmUploadResponse;
   }
+
+  async uploadFile(
+    uploadUrl: string,
+    file: File | Blob,
+    headers: Record<string, string>
+  ): Promise<void> {
+    const uploadRes = await fetch(uploadUrl, {
+      method: "PUT",
+      body: file,
+      headers: headers,
+    });
+    if (!uploadRes.ok) {
+      throw new Error("Error al subir archivo a S3/R2");
+    }
+  }
 }

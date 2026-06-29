@@ -127,7 +127,7 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
       router.push(`${ROUTES.consumer.aiMessages}?id=${conversation.id}`);
     } catch (err) {
       console.error("[DiagnosisHero] Failed to create conversation:", err);
-      setError("No pudimos iniciar el diagnóstico en este momento");
+      setError(t.aiDiagnosis.errors.startDiagnosis);
       setIsLoading(false);
     }
   };
@@ -176,66 +176,68 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
             onChange={handleFileChange}
             disabled={isLoading || attachedFiles.length >= 5}
           />
-          <div className="flex items-center gap-2 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 p-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading || attachedFiles.length >= 5}
-              aria-label="Adjuntar imágenes"
-              className="text-white hover:text-white/80 hover:bg-white/10 flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-            >
-              <Paperclip className="w-5 h-5" />
-            </Button>
-            <Textarea
-              ref={textareaRefCallback}
-              id="diagnosis-message"
-              value={message}
-              onChange={handleChange}
-              placeholder={t.consumerDiagnosis.hero.placeholder}
-              className="flex-1 min-w-0 rounded-lg bg-white/20 backdrop-blur px-4 py-3 text-[16px] text-white placeholder:text-white/70 focus-visible:ring-2 focus-visible:ring-white/70 resize-none leading-6 min-h-0"
-            />
-            <Button
-              variant="brand"
-              type="submit"
-              className="px-6 py-3 h-auto whitespace-nowrap shadow-sm font-semibold rounded-lg"
-              disabled={isLoading}
-            >
-              {t.consumerDiagnosis.hero.buttonText}
-            </Button>
-          </div>
-          {attachedFiles.length > 0 && (
-            <div role="region" aria-label="Imágenes adjuntas" className="mt-3 flex gap-2 overflow-x-auto p-1">
-              {attachedFiles.map((file, idx) => {
-                const url = URL.createObjectURL(file);
-                return (
-                  <div key={`${file.name}-${idx}`} className="relative flex-shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setPreviewImage({ url, name: file.name })}
-                      className="w-16 h-16 rounded-md overflow-hidden border border-white/20 bg-white/10 relative cursor-pointer block hover:ring-2 hover:ring-white/60 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                    >
-                      <Image
-                        src={url}
-                        alt={`Vista previa de ${file.name}`}
-                        fill
-                        className="object-cover"
-                      />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFile(idx)}
-                      className="absolute -top-2 -right-2 bg-slate-800 text-white rounded-full p-1 hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                      aria-label={`Eliminar ${file.name}`}
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                );
-              })}
+          <div className="flex flex-col gap-2 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 p-2">
+            {attachedFiles.length > 0 && (
+              <div role="region" aria-label="Imágenes adjuntas" className="flex gap-2 overflow-x-auto pt-2 px-2 pb-1">
+                {attachedFiles.map((file, idx) => {
+                  const url = URL.createObjectURL(file);
+                  return (
+                    <div key={`${file.name}-${idx}`} className="relative flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewImage({ url, name: file.name })}
+                        className="w-16 h-16 rounded-md overflow-hidden border border-white/20 bg-white/10 relative cursor-pointer block hover:ring-2 hover:ring-white/60 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                      >
+                        <Image
+                          src={url}
+                          alt={`Vista previa de ${file.name}`}
+                          fill
+                          className="object-cover"
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(idx)}
+                        className="absolute -top-2 -right-2 bg-slate-800 text-white rounded-full p-1 hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                        aria-label={`Eliminar ${file.name}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading || attachedFiles.length >= 5}
+                aria-label="Adjuntar imágenes"
+                className="text-white hover:text-white/80 hover:bg-white/10 flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              >
+                <Paperclip className="w-5 h-5" />
+              </Button>
+              <Textarea
+                ref={textareaRefCallback}
+                id="diagnosis-message"
+                value={message}
+                onChange={handleChange}
+                placeholder={t.consumerDiagnosis.hero.placeholder}
+                className="flex-1 min-w-0 rounded-lg bg-white/20 backdrop-blur px-4 py-3 text-[16px] text-white placeholder:text-white/70 focus-visible:ring-2 focus-visible:ring-white/70 resize-none leading-6 min-h-0"
+              />
+              <Button
+                variant="brand"
+                type="submit"
+                className="px-6 py-3 h-auto whitespace-nowrap shadow-sm font-semibold rounded-lg"
+                disabled={isLoading}
+              >
+                {t.consumerDiagnosis.hero.buttonText}
+              </Button>
             </div>
-          )}
+          </div>
           {error && (
             <div className="mt-2 text-red-300 text-sm font-medium">
               {error}

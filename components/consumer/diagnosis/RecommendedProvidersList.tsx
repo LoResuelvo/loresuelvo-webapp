@@ -4,13 +4,15 @@ import { t } from "@/infrastructure/i18n/translations";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import InfoBanner from "@/components/messaging/InfoBanner";
+import { cn } from "@/lib/utils";
 
 interface RecommendedProvidersListProps {
   providers?: RecommendedProvider[];
   diagnosisCompleted?: boolean;
+  className?: string;
 }
 
-export function RecommendedProvidersList({ providers, diagnosisCompleted }: RecommendedProvidersListProps) {
+export function RecommendedProvidersList({ providers, diagnosisCompleted, className }: RecommendedProvidersListProps) {
 
   if (!diagnosisCompleted) {
     return null;
@@ -18,7 +20,7 @@ export function RecommendedProvidersList({ providers, diagnosisCompleted }: Reco
 
   if (!providers || providers.length === 0) {
     return (
-      <div className="flex flex-col gap-4 mt-6">
+      <div className={cn("flex flex-col gap-4", className)}>
         <h3 className="text-lg font-semibold">{t.aiDiagnosis.recommendedProviders}</h3>
         <InfoBanner tone="info">{t.aiDiagnosis.noProvidersFound}</InfoBanner>
       </div>
@@ -26,7 +28,7 @@ export function RecommendedProvidersList({ providers, diagnosisCompleted }: Reco
   }
 
   return (
-    <div className="flex flex-col gap-4 mt-6">
+    <div className={cn("flex flex-col gap-4", className)}>
       <h3 className="text-lg font-semibold">{t.aiDiagnosis.recommendedProviders}</h3>
       <div className="flex flex-col gap-3">
         {providers.map((provider) => (

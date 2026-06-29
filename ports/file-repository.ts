@@ -25,4 +25,10 @@ export interface FileRepository {
     mimeType: string,
     sizeBytes: number
   ): Promise<ConfirmUploadResponse>;
+
+  uploadFile(
+    uploadUrl: string,
+    file: File | Blob,
+    headers: Record<string, string>
+  ): Promise<void>;
 }

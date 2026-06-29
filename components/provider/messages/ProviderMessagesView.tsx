@@ -4,6 +4,7 @@ import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import ContactList from "@/components/messaging/ContactList";
 
 import { Message, ProviderConversationContact as ConversationContact } from "@/domain/messaging/types";
+import { cn } from "@/lib/utils";
 
 interface ProviderMessagesViewProps {
   contacts: ConversationContact[];
@@ -24,6 +25,7 @@ interface ProviderMessagesViewProps {
   attachedFiles?: File[];
   onAttachFiles?: (files: File[]) => void;
   onRemoveFile?: (index: number) => void;
+  className?: string;
 }
 
 const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesViewProps>(({
@@ -45,11 +47,12 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
   attachedFiles,
   onAttachFiles,
   onRemoveFile,
+  className,
 }, ref) => {
   const isChatActive = !!selectedConsumerId;
 
   return (
-    <main className="flex-1 flex min-h-0">
+    <main className={cn("flex-1 flex min-h-0", className)}>
       <div className={`${isChatActive ? 'hidden md:flex' : 'flex'} w-full md:w-[360px] border-r border-slate-200 bg-white flex-col h-full`}>
         <ContactList
           contacts={contacts.map(c => ({

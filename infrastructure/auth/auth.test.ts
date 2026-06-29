@@ -205,17 +205,17 @@ describe("getAuthService factory", () => {
   const originalEnv = process.env.NODE_ENV;
 
   afterEach(() => {
-    process.env.NODE_ENV = originalEnv;
+    (process.env as any).NODE_ENV = originalEnv;
   });
 
   it("should return Auth0Adapter in production", () => {
-    process.env.NODE_ENV = "production";
+    (process.env as any).NODE_ENV = "production";
     const service = getAuthService();
     expect(service).toBeInstanceOf(Auth0Adapter);
   });
 
   it("should return DevAuthAdapter in test or development", () => {
-    process.env.NODE_ENV = "test";
+    (process.env as any).NODE_ENV = "test";
     const service = getAuthService();
     expect(service).toBeInstanceOf(DevAuthAdapter);
   });

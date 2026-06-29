@@ -40,10 +40,10 @@ describe('ConsumerHome', () => {
     it("renders the categories list", () => {
         const mockCategories = [
             { id: 1, name: "Plomería" },
-            { id: 2, name: "Electricista" }
+            { id: 2, name: "Electricidad" }
         ];
         render(<ConsumerHome session={mockSession} categories={mockCategories} />);
         expect(screen.getByText("Plomería")).toBeInTheDocument();
-        expect(screen.getByText("Electricista")).toBeInTheDocument();
+        expect(screen.getByText("Electricidad")).toBeInTheDocument();
     });
 });

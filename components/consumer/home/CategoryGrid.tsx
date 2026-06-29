@@ -11,10 +11,11 @@ import { cn } from "@/lib/utils";
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   "Plomería": Bath,
   "Gas": Flame,
-  "Electricista": Zap,
+  "Electricidad": Zap,
   "Climatización": Snowflake,
   "Pintura": PaintRoller,
   "Construcción": Hammer,
+  "Carpintería": Hammer,
 };
 
 interface CategoryGridProps {

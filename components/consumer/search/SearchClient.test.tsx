@@ -24,7 +24,7 @@ const mockSession = {
 
 const mockCategories: Category[] = [
   { id: 1, name: "Plomería" },
-  { id: 2, name: "Electricista" }
+  { id: 2, name: "Electricidad" }
 ];
 
 const mockProviders: Provider[] = [

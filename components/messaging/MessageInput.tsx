@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
 import Image from "next/image";
+import { ImagePreviewModal } from "./ImagePreviewModal";
 
 interface MessageInputProps {
   value: string;
@@ -39,6 +40,14 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             setError(t.messaging.fileTooLarge);
             return false;
           }
+          
+          // Validate valid types
+          const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+          if (!validTypes.includes(file.type)) {
+            setError(t.messaging.photoInvalidFormat);
+            return false;
+          }
+          
           return true;
         });
         if (validFiles.length > 0) {
@@ -52,20 +61,28 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       }
     };
 
+    const [previewImage, setPreviewImage] = useState<{url: string, name: string} | null>(null);
+
     return (
       <div className="flex flex-col border-t border-slate-200 bg-white flex-shrink-0">
         {attachedFiles.length > 0 && (
           <div className="p-3 pb-0 flex gap-2 overflow-x-auto">
-            {attachedFiles.map((file, idx) => (
-              <div key={`${file.name}-${idx}`} className="relative flex-shrink-0">
-                <div className="w-16 h-16 rounded-md overflow-hidden border border-slate-200 bg-slate-50 relative">
-                  <Image
-                    src={URL.createObjectURL(file)}
-                    alt={`Vista previa de ${file.name}`}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
+            {attachedFiles.map((file, idx) => {
+              const url = URL.createObjectURL(file);
+              return (
+                <div key={`${file.name}-${idx}`} className="relative flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewImage({ url, name: file.name })}
+                    className="w-16 h-16 rounded-md overflow-hidden border border-slate-200 bg-slate-50 relative cursor-pointer block hover:ring-2 hover:ring-brand-primary/50 transition-all"
+                  >
+                    <Image
+                      src={url}
+                      alt={`${t.messaging.previewTitle} ${file.name}`}
+                      fill
+                      className="object-cover"
+                    />
+                  </button>
                 <button
                   type="button"
                   onClick={() => onRemoveFile?.(idx)}
@@ -75,7 +92,8 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                   <X className="w-3 h-3" />
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
         <div className="p-4 flex gap-3 items-center">
@@ -137,6 +155,13 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             {error}
           </div>
         )}
+        {/* Image Preview Modal */}
+        <ImagePreviewModal
+          open={previewImage !== null}
+          onClose={() => setPreviewImage(null)}
+          imageUrl={previewImage?.url ?? ""}
+          altText={previewImage ? `${t.messaging.previewTitle} ${previewImage.name}` : ""}
+        />
       </div>
     );
   }

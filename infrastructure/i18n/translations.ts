@@ -66,6 +66,9 @@ export const t = {
     backToList: "Volver a la lista",
     fileTooLarge: "La imagen no debe superar los 5MB",
     attachedImage: "Imagen adjunta",
+    photoInvalidFormat: "Formato de imagen no permitido. Los formatos permitidos son: PNG, JPG, JPEG y WEBP",
+    previewTitle: "Vista previa de imagen",
+    closePreview: "Cerrar vista previa",
   },
   header: {
     logout: "Cerrar sesión",

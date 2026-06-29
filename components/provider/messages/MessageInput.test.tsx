@@ -1,6 +1,11 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeAll } from "vitest";
 import MessageInput, { MessageInputHandle } from "@/components/messaging/MessageInput";
+import { t } from "@/infrastructure/i18n/translations";
+
+beforeAll(() => {
+  global.URL.createObjectURL = vi.fn(() => "blob:mock-url");
+});
 
 describe("MessageInput", () => {
   it("calls onSend when Enter is pressed", () => {
@@ -47,5 +52,44 @@ describe("MessageInput", () => {
 
     ref.current?.focus();
     expect(document.activeElement).toBe(getByRole("textbox"));
+  });
+  it("shows an error when attaching an invalid file type", () => {
+    const onAttachFiles = vi.fn();
+    render(
+      <MessageInput
+        value=""
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        disabled={false}
+        onAttachFiles={onAttachFiles}
+      />
+    );
+
+    const file = new File(["dummy content"], "dummy.pdf", { type: "application/pdf" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(onAttachFiles).not.toHaveBeenCalled();
+    expect(screen.getByText(t.messaging.photoInvalidFormat)).toBeInTheDocument();
+  });
+
+  it("calls onAttachFiles when a valid file is provided", () => {
+    const onAttachFiles = vi.fn();
+    render(
+      <MessageInput
+        value=""
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        disabled={false}
+        onAttachFiles={onAttachFiles}
+      />
+    );
+
+    const file = new File(["image dummy"], "dummy.jpg", { type: "image/jpeg" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(onAttachFiles).toHaveBeenCalledTimes(1);
+    expect(onAttachFiles).toHaveBeenCalledWith([file]);
   });
 });

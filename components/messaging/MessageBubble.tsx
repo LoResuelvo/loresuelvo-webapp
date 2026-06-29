@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
 import Image from "next/image";
+import { useState } from "react";
+import { ImagePreviewModal } from "./ImagePreviewModal";
 
 interface MessageBubbleProps {
   id: string;
@@ -23,6 +25,8 @@ export default function MessageBubble({
   isOwnMessage = true,
   images,
 }: MessageBubbleProps) {
+  const [previewImage, setPreviewImage] = useState<{url: string, name: string} | null>(null);
+
   return (
     <div className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}>
       <div
@@ -36,14 +40,19 @@ export default function MessageBubble({
         {images && images.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2">
             {images.map((img) => (
-              <div key={img.id} className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-lg overflow-hidden border border-white/20 bg-slate-100">
+              <button
+                key={img.id}
+                type="button"
+                onClick={() => setPreviewImage({ url: img.url, name: img.originalName })}
+                className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-lg overflow-hidden border border-white/20 bg-slate-100 cursor-pointer block hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              >
                 <Image
                   src={img.url}
                   alt={`${t.messaging.attachedImage} ${img.originalName}`}
                   fill
                   className="object-cover"
                 />
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -65,6 +74,13 @@ export default function MessageBubble({
         )}
         <p className={`text-[11px] mt-2 ${isOwnMessage ? "text-white/70" : "text-slate-400"}`}>{sentAt}</p>
       </div>
+      
+      <ImagePreviewModal
+        open={previewImage !== null}
+        onClose={() => setPreviewImage(null)}
+        imageUrl={previewImage?.url ?? ""}
+        altText={previewImage ? `${t.messaging.attachedImage} ${previewImage.name}` : ""}
+      />
     </div>
   );
 }

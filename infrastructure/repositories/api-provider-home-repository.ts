@@ -2,6 +2,8 @@ import { api } from "@/infrastructure/api/base-client";
 import { ProviderHomeDashboard, ProviderWorkRequest } from "@/domain/provider/types";
 import { ProviderHomeRepository } from "@/ports/provider-home-repository";
 
+import { ApiMessageImage } from "@/infrastructure/api/types";
+
 interface ApiWorkRequest {
   id: number;
   conversation_id: number;
@@ -11,6 +13,7 @@ interface ApiWorkRequest {
     name: string;
     surname: string;
   };
+  images?: ApiMessageImage[];
 }
 
 function transformApiWorkRequest(apiRequest: ApiWorkRequest): ProviderWorkRequest {
@@ -24,6 +27,13 @@ function transformApiWorkRequest(apiRequest: ApiWorkRequest): ProviderWorkReques
     location: "",
     publishedAtLabel: "Ahora",
     unreadMessagesCount: 0,
+    images: apiRequest.images
+      ? apiRequest.images.map((img) => ({
+          id: img.id,
+          url: img.url,
+          originalName: img.original_name,
+        }))
+      : [],
   };
 }
 

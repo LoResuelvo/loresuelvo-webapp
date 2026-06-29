@@ -5,11 +5,14 @@ import {
   JobRequestSummary,
   JobRequestRepository
 } from "@/ports/job-request-repository";
+import { ApiMessageImage } from "@/infrastructure/api/types";
+import { MessageImage } from "@/domain/messaging/types";
 
 interface ApiJobRequestPayload {
   provider_id: number;
   title: string;
   description: string;
+  image_file_ids?: string[];
 }
 
 interface ApiJobRequestResponse {
@@ -17,6 +20,7 @@ interface ApiJobRequestResponse {
   conversation_id: number;
   title: string;
   description: string;
+  images?: ApiMessageImage[];
 }
 
 interface ApiJobRequestSummary {
@@ -25,7 +29,17 @@ interface ApiJobRequestSummary {
   title: string;
   description: string;
   requester: { name: string; surname: string; };
+  images?: ApiMessageImage[];
 }
+
+const mapApiImages = (images?: ApiMessageImage[]): MessageImage[] => {
+  if (!images) return [];
+  return images.map((img) => ({
+    id: img.id,
+    url: img.url,
+    originalName: img.original_name,
+  }));
+};
 
 export class ApiJobRequestRepository implements JobRequestRepository {
   async create(data: CreateJobRequestInput): Promise<JobRequestResult> {
@@ -33,9 +47,16 @@ export class ApiJobRequestRepository implements JobRequestRepository {
       provider_id: data.providerId,
       title: data.title,
       description: data.description,
+      image_file_ids: data.imageFileIds,
     };
     const res = await api.post<ApiJobRequestResponse>("/job-requests", payload);
-    return { id: res.id, conversationId: res.conversation_id, title: res.title, description: res.description };
+    return {
+      id: res.id,
+      conversationId: res.conversation_id,
+      title: res.title,
+      description: res.description,
+      images: mapApiImages(res.images),
+    };
   }
 
   async accept(id: number): Promise<void> {
@@ -50,6 +71,7 @@ export class ApiJobRequestRepository implements JobRequestRepository {
       title: item.title,
       description: item.description,
       requester: item.requester,
+      images: mapApiImages(item.images),
     }));
   }
 }

@@ -1,3 +1,5 @@
+import { MessageImage } from "../messaging/types";
+
 export interface Provider {
   id: number;
   name: string;
@@ -21,6 +23,7 @@ export interface ProviderWorkRequest {
   location: string;
   publishedAtLabel: string;
   unreadMessagesCount: number;
+  images?: MessageImage[];
 }
 
 export interface ProviderScheduledJob {

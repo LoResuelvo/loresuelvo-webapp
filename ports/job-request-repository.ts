@@ -1,7 +1,10 @@
+import { MessageImage } from "@/domain/messaging/types";
+
 export interface CreateJobRequestInput {
   providerId: number;
   title: string;
   description: string;
+  imageFileIds?: string[];
 }
 
 export interface JobRequestResult {
@@ -9,6 +12,7 @@ export interface JobRequestResult {
   conversationId: number;
   title: string;
   description: string;
+  images: MessageImage[];
 }
 
 export interface JobRequestSummary {
@@ -20,6 +24,7 @@ export interface JobRequestSummary {
     name: string;
     surname: string;
   };
+  images: MessageImage[];
 }
 
 export interface JobRequestRepository {

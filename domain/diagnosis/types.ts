@@ -7,4 +7,5 @@ export interface AiMessage {
   sentAt: string;
   recommendedProviders?: RecommendedProvider[];
   diagnosisCompleted?: boolean;
+  images?: { id: string; url: string; originalName: string }[];
 }

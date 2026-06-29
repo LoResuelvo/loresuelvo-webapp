@@ -1,4 +1,3 @@
-@wip
 Feature: Adjuntar imágenes del problema en el chat con la IA
     Como consumidor
     quiero adjuntar imágenes del problema

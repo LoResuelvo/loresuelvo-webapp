@@ -22,6 +22,8 @@ Object.defineProperty(global, "localStorage", {
   writable: true,
 });
 
+global.URL.createObjectURL = vi.fn(() => "blob:https://loresuelvo.com/mock-blob");
+
 const mockUseSearchParams = vi.fn();
 const mockUseRouter = vi.fn();
 
@@ -29,6 +31,22 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => mockUseSearchParams(),
   useRouter: () => mockUseRouter(),
 }));
+
+vi.mock("@/app/files/actions", () => ({
+  getPresignedUrlAction: vi.fn().mockResolvedValue({
+    file_id: "file-id-123",
+    key: "key-123",
+    upload_url: "https://upload.url",
+    headers: {},
+  }),
+  confirmUploadAction: vi.fn().mockResolvedValue({
+    id: "confirmed-file-id-123",
+  }),
+}));
+
+global.fetch = vi.fn().mockResolvedValue({
+  ok: true,
+});
 
 function instantClient(): AssistantClient {
   return { async requestReply() { return ASSISTANT_REPLY; }, getConversation: vi.fn() as unknown as AssistantClient["getConversation"] };
@@ -222,6 +240,73 @@ describe("AiDiagnosisChat", () => {
     await waitFor(() => {
       expect(screen.getByText("Prestadores recomendados")).toBeInTheDocument();
       expect(screen.getByText("Juan Pérez")).toBeInTheDocument();
+    });
+  });
+
+  describe("Funcionalidad de adjuntos de imagen", () => {
+    it("muestra el botón para adjuntar imágenes", () => {
+      render(<AiDiagnosisChat client={instantClient()} />);
+      expect(screen.getByRole("button", { name: /adjuntar imágenes/i })).toBeInTheDocument();
+    });
+
+    it("permite agregar una imagen válida y mostrar su miniatura", async () => {
+      render(<AiDiagnosisChat client={instantClient()} />);
+
+      const file = new File(["dummy content"], "fuga.jpg", { type: "image/jpeg" });
+      const fileInput = screen.getByLabelText(/adjuntar imágenes/i).previousSibling as HTMLInputElement;
+
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [file] } });
+      });
+
+      expect(screen.getByAltText(/vista previa de fuga.jpg/i)).toBeInTheDocument();
+    });
+
+    it("muestra error al intentar adjuntar un archivo mayor a 5MB", async () => {
+      render(<AiDiagnosisChat client={instantClient()} />);
+
+      const largeFile = new File(["dummy content"], "large.jpg", { type: "image/jpeg" });
+      Object.defineProperty(largeFile, "size", { value: 6 * 1024 * 1024 }); // 6MB
+
+      const fileInput = screen.getByLabelText(/adjuntar imágenes/i).previousSibling as HTMLInputElement;
+
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [largeFile] } });
+      });
+
+      expect(screen.getByText(/no debe superar los 5MB/i)).toBeInTheDocument();
+      expect(screen.queryByAltText(/vista previa de large.jpg/i)).not.toBeInTheDocument();
+    });
+
+    it("muestra error al intentar adjuntar un formato de archivo no permitido", async () => {
+      render(<AiDiagnosisChat client={instantClient()} />);
+
+      const invalidFile = new File(["dummy content"], "document.pdf", { type: "application/pdf" });
+      const fileInput = screen.getByLabelText(/adjuntar imágenes/i).previousSibling as HTMLInputElement;
+
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [invalidFile] } });
+      });
+
+      expect(screen.getByText(/formato de imagen no permitido/i)).toBeInTheDocument();
+    });
+
+    it("permite eliminar una imagen previamente adjuntada", async () => {
+      render(<AiDiagnosisChat client={instantClient()} />);
+
+      const file = new File(["dummy content"], "fuga.jpg", { type: "image/jpeg" });
+      const fileInput = screen.getByLabelText(/adjuntar imágenes/i).previousSibling as HTMLInputElement;
+
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [file] } });
+      });
+
+      expect(screen.getByAltText(/vista previa de fuga.jpg/i)).toBeInTheDocument();
+
+      const removeBtn = screen.getByRole("button", { name: /eliminar fuga.jpg/i });
+      fireEvent.click(removeBtn);
+
+      expect(screen.queryByAltText(/vista previa de fuga.jpg/i)).not.toBeInTheDocument();
     });
   });
 });

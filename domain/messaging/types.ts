@@ -106,4 +106,5 @@ export interface AiMessage {
   senderRole: "consumer" | "chatbot";
   content: string;
   sentAt: string;
+  images?: MessageImage[];
 }

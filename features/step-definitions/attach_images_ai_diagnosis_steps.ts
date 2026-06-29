@@ -340,9 +340,62 @@ Then("la imagen no se adjunta al área de adjuntos", async () => {
   assert.strictEqual(count, 0, "Se adjuntó una imagen cuando no debería");
 });
 
+function buildHomeAiConversationResponse(
+  images: string[] = [],
+  content: string = "Se está filtrando agua debajo de la bacha"
+) {
+  return {
+    id: 1,
+    conversation_id: 1,
+    status: "active",
+    title: "Pérdida de agua",
+    response_status: "answered",
+    messages: [
+      {
+        id: 1,
+        sender_role: "consumer",
+        content,
+        images: images.map((name, idx) => ({
+          id: `mock-diag-file-${idx}`,
+          url: `/${name}`,
+          original_name: name,
+        })),
+        created_on: "2026-06-18T10:00:00Z",
+      },
+      {
+        id: 2,
+        sender_role: "chatbot",
+        content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
+        created_on: "2026-06-18T10:00:01Z",
+      },
+    ],
+    response: {
+      id: 2,
+      sender_role: "chatbot",
+      content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
+      created_on: "2026-06-18T10:00:01Z",
+    },
+    recommended_providers: [],
+  };
+}
+
 Given("adjunté la imagen {string} en el campo de diagnóstico", async (imagen: string) => {
   currentDiagnosisImages.push(imagen);
   await stubDiagnosisFileUpload(imagen);
+
+  await addApiStub({
+    method: "POST",
+    endpoint: "/chatbot/conversations",
+    status: 200,
+    body: buildHomeAiConversationResponse(currentDiagnosisImages),
+  });
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations/1",
+    status: 200,
+    body: buildHomeAiConversationResponse(currentDiagnosisImages),
+  });
 
   const fileChooserPromise = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: /adjuntar/i }).click();
@@ -361,6 +414,20 @@ Given("adjunté la imagen {string} en el campo de diagnóstico", async (imagen: 
 When("adjunto una imagen {string} en el campo de diagnóstico desde la galería", async (imagen: string) => {
   currentDiagnosisImages.push(imagen);
   await stubDiagnosisFileUpload(imagen);
+
+  await addApiStub({
+    method: "POST",
+    endpoint: "/chatbot/conversations",
+    status: 200,
+    body: buildHomeAiConversationResponse(currentDiagnosisImages),
+  });
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/conversations/1",
+    status: 200,
+    body: buildHomeAiConversationResponse(currentDiagnosisImages),
+  });
 
   const fileChooserPromise = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: /adjuntar/i }).click();

@@ -75,6 +75,44 @@ describe("ai-chat-mapper", () => {
 
       expect(result.senderRole).toBe("chatbot");
     });
+
+    it("should map message with attached images", () => {
+      const api = {
+        id: 3,
+        sender_role: "consumer",
+        content: "Aquí está la foto",
+        created_on: "2026-06-18T12:00:02Z",
+        images: [
+          {
+            id: "file-123",
+            url: "https://bucket.com/file-123.jpg",
+            original_name: "fuga.jpg",
+          },
+        ],
+      };
+
+      const result = mapApiToAiMessage(api);
+
+      expect(result.images).toHaveLength(1);
+      expect(result.images?.[0]).toEqual({
+        id: "file-123",
+        url: "https://bucket.com/file-123.jpg",
+        originalName: "fuga.jpg",
+      });
+    });
+
+    it("should map message without images to undefined images", () => {
+      const api = {
+        id: 4,
+        sender_role: "consumer",
+        content: "Sin fotos",
+        created_on: "2026-06-18T12:00:03Z",
+      };
+
+      const result = mapApiToAiMessage(api);
+
+      expect(result.images).toBeUndefined();
+    });
   });
 
   describe("mapApiToAiConversationDetail", () => {

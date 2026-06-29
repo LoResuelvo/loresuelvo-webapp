@@ -95,6 +95,7 @@ export interface ApiAiConversationMessage {
   sender_role: string;
   content: string;
   created_on: string;
+  images?: ApiMessageImage[];
 }
 
 export interface ApiRecommendedProvider {

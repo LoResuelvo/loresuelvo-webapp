@@ -24,6 +24,11 @@ export function mapApiToAiMessage(api: ApiAiConversationMessage): AiMessage {
     senderRole: api.sender_role as "consumer" | "chatbot",
     content: api.content,
     sentAt: api.created_on,
+    images: api.images?.map((img) => ({
+      id: img.id,
+      url: img.url,
+      originalName: img.original_name,
+    })),
   };
 }
 

@@ -3,6 +3,6 @@ import { AiConversationContact, AiConversationDetail } from "@/domain/messaging/
 export interface AiChatRepository {
   getConversations(): Promise<AiConversationContact[]>;
   getById(id: string): Promise<AiConversationDetail>;
-  create(content: string): Promise<AiConversationDetail>;
-  sendMessage(conversationId: string, content: string): Promise<AiConversationDetail>;
+  create(content: string, imageFileIds?: string[]): Promise<AiConversationDetail>;
+  sendMessage(conversationId: string, content: string, imageFileIds?: string[]): Promise<AiConversationDetail>;
 }

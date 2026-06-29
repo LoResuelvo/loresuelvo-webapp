@@ -1,4 +1,4 @@
-import type { RecommendedProvider } from "@/domain/messaging/types";
+import type { RecommendedProvider, ProblemAssessment } from "@/domain/messaging/types";
 
 export interface AiMessage {
   id: string;
@@ -7,5 +7,6 @@ export interface AiMessage {
   sentAt: string;
   recommendedProviders?: RecommendedProvider[];
   diagnosisCompleted?: boolean;
+  assessment?: ProblemAssessment;
   images?: { id: string; url: string; originalName: string }[];
 }

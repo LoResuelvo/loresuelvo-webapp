@@ -243,6 +243,52 @@ describe("AiDiagnosisChat", () => {
     });
   });
 
+  it("debería llamar a jobRequestFn y redireccionar al chat al hacer clic en Contactar", async () => {
+    const mockRepo = {
+      getById: vi.fn().mockResolvedValue({
+        id: "1",
+        status: "active",
+        title: "Pérdida",
+        responseStatus: "answered",
+        messages: [
+          { id: "m1", senderRole: "consumer", content: USER_MESSAGE, sentAt: "2026-01-01T10:00:00Z" },
+          { id: "m2", senderRole: "chatbot", content: ASSISTANT_REPLY, sentAt: "2026-01-01T10:01:00Z" }
+        ],
+        recommendedProviders: [
+          { id: 10, name: "Juan", surname: "Pérez", categoryName: "Plomería" }
+        ],
+        assessment: { outcome: "professional_required" },
+        updatedOn: "2026-01-01T10:01:00Z"
+      }),
+      sendMessage: vi.fn(),
+      create: vi.fn(),
+      getAll: vi.fn(),
+    };
+
+    const mockJobRequestFn = vi.fn().mockResolvedValue({ id: 100 });
+    const pushMock = vi.fn();
+    mockUseRouter.mockReturnValue({ push: pushMock, replace: vi.fn(), refresh: vi.fn() });
+
+    render(
+      <AiDiagnosisChat
+        chatRepository={mockRepo as unknown as AiChatRepository}
+        conversationId="1"
+        jobRequestFn={mockJobRequestFn}
+      />
+    );
+
+    const contactButton = await screen.findByRole("button", { name: "Contactar" });
+    expect(contactButton).toBeInTheDocument();
+
+    fireEvent.click(contactButton);
+
+    await waitFor(() => {
+      expect(mockJobRequestFn).toHaveBeenCalledWith("1", 10);
+      expect(pushMock).toHaveBeenCalledWith("/consumidor/mensajes?provider_id=10");
+    });
+  });
+
+
   describe("Funcionalidad de adjuntos de imagen", () => {
     it("muestra el botón para adjuntar imágenes", () => {
       render(<AiDiagnosisChat client={instantClient()} />);

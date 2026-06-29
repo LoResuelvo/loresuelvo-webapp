@@ -11,6 +11,7 @@ import type { AiMessage } from "@/infrastructure/storage/ai-chat-storage";
 import { t } from "@/infrastructure/i18n/translations";
 import { ClientFileRepository } from "@/infrastructure/repositories/client-repositories";
 import { formatToLocalShortDateTime } from "@/infrastructure/repositories/conversation-mapper";
+import { createAiJobRequest } from "@/application/ai-chat/create-ai-job-request";
 
 const fileRepository = new ClientFileRepository();
 
@@ -22,9 +23,10 @@ interface UseAiDiagnosisChatProps {
   chatRepository?: AiChatRepository;
   simulateError?: boolean;
   conversationId?: string | null;
+  jobRequestFn?: (conversationId: string, providerId: number) => Promise<unknown>;
 }
 
-export function useAiDiagnosisChat({ client, chatRepository, simulateError = false, conversationId }: UseAiDiagnosisChatProps) {
+export function useAiDiagnosisChat({ client, chatRepository, simulateError = false, conversationId, jobRequestFn }: UseAiDiagnosisChatProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const urlSimulateError = searchParams.get("simulate") === "error";
@@ -84,6 +86,7 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
             images: msg.images,
             recommendedProviders: index === lastAssistantIndex ? data.recommendedProviders : undefined,
             diagnosisCompleted: index === lastAssistantIndex ? data.diagnosisCompleted : undefined,
+            assessment: index === lastAssistantIndex ? data.assessment : undefined,
           }));
           setMessages(msgs);
         })
@@ -123,6 +126,7 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
             images: msg.images,
             recommendedProviders: index === lastAssistantIndex ? updated.recommendedProviders : undefined,
             diagnosisCompleted: index === lastAssistantIndex ? updated.diagnosisCompleted : undefined,
+            assessment: index === lastAssistantIndex ? updated.assessment : undefined,
           }));
           setMessages(newMessages);
           reply = updated.messages[updated.messages.length - 1]?.content ?? "";
@@ -138,6 +142,7 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
             images: msg.images,
             recommendedProviders: index === lastAssistantIndex ? created.recommendedProviders : undefined,
             diagnosisCompleted: index === lastAssistantIndex ? created.diagnosisCompleted : undefined,
+            assessment: index === lastAssistantIndex ? created.assessment : undefined,
           }));
           setMessages(newMessages);
           reply = created.messages[created.messages.length - 1]?.content ?? "";
@@ -284,6 +289,20 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
     }
   };
 
+  const handleContactProvider = useCallback(
+    async (providerId: number) => {
+      if (jobRequestFn) {
+        await jobRequestFn(effectiveConversationId ?? "", providerId);
+      } else if (chatRepository && effectiveConversationId) {
+        await createAiJobRequest(chatRepository, effectiveConversationId, providerId);
+      } else {
+        throw new Error("No repository or jobRequestFn provided");
+      }
+      router.push(`${ROUTES.consumer.messages}?provider_id=${providerId}`);
+    },
+    [chatRepository, effectiveConversationId, jobRequestFn, router]
+  );
+
   return {
     messages,
     assistantReply,
@@ -306,6 +325,7 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
     handleFileChange,
     handleRemoveFile,
     handleSendMessage,
+    handleContactProvider,
     USER_ID,
     ASSISTANT_ID
   };

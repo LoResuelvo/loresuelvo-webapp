@@ -28,9 +28,10 @@ interface AiDiagnosisChatProps {
   simulateError?: boolean;
   conversationId?: string | null;
   className?: string;
+  jobRequestFn?: (conversationId: string, providerId: number) => Promise<unknown>;
 }
 
-export default function AiDiagnosisChat({ client, chatRepository, simulateError = false, conversationId, className }: AiDiagnosisChatProps = {}) {
+export default function AiDiagnosisChat({ client, chatRepository, simulateError = false, conversationId, className, jobRequestFn }: AiDiagnosisChatProps = {}) {
   const router = useRouter();
   
   const {
@@ -52,8 +53,9 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
     handleFileChange,
     handleRemoveFile,
     handleSendMessage,
+    handleContactProvider,
     USER_ID,
-  } = useAiDiagnosisChat({ client, chatRepository, simulateError, conversationId });
+  } = useAiDiagnosisChat({ client, chatRepository, simulateError, conversationId, jobRequestFn });
 
   const adjustHeight = useCallback(() => {
     const textarea = textareaRef.current;
@@ -168,9 +170,15 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
                 isOwnMessage={msg.senderId === USER_ID}
                 images={msg.images}
               />
-              {msg.diagnosisCompleted && (
+              {(msg.diagnosisCompleted || msg.assessment) && (
                 <div className="mt-2 mb-2 w-full max-w-2xl self-start">
-                  <RecommendedProvidersList providers={msg.recommendedProviders} diagnosisCompleted={msg.diagnosisCompleted} className="mt-6" />
+                  <RecommendedProvidersList
+                    providers={msg.recommendedProviders}
+                    diagnosisCompleted={msg.diagnosisCompleted}
+                    assessment={msg.assessment}
+                    onContactProvider={handleContactProvider}
+                    className="mt-6"
+                  />
                 </div>
               )}
             </div>

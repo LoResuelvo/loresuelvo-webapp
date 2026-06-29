@@ -17,6 +17,7 @@ interface WsEvent {
     content: string;
     sender_role: string;
     created_on: string;
+    images?: { id: number; url: string; original_name: string }[];
   };
 }
 
@@ -147,8 +148,10 @@ async function stubConversationApi(conversationId: number = 1) {
  */
 async function interceptWebSocket() {
   wsServer = null;
+  (global as any).wsServer = null;
   await page.routeWebSocket(/ws/, (ws) => {
     wsServer = ws;
+    (global as any).wsServer = ws;
     ws.onMessage(() => {
     });
   });

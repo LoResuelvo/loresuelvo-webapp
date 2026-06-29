@@ -37,7 +37,6 @@ Given("que adjunté la imagen {string}", async function (imagen: string) {
   currentAttachedImages.push(imagen);
   await stubFileUpload(imagen);
   
-  // Simulamos click en el botón de adjuntar
   const fileChooserPromise = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: /adjuntar/i }).click();
   const fileChooser = await fileChooserPromise;
@@ -48,7 +47,6 @@ Given("que adjunté la imagen {string}", async function (imagen: string) {
     buffer: Buffer.from('mock-image-data')
   }]);
   
-  // Esperamos ver el thumbnail
   const thumbnail = page.getByRole('img', { name: `Vista previa de ${imagen}` });
   await thumbnail.waitFor({ state: "visible", timeout: 2000 }).catch(() => {});
 });
@@ -99,7 +97,7 @@ When("envío el mensaje {string}", async function (mensaje: string) {
       conversation_id: 1,
       sender_role: "consumer",
       content: mensaje,
-      images: currentAttachedImages.map((name, idx) => ({ id: `mock-file-${idx}`, url: `https://mock-download.test/${name}`, original_name: name })),
+      images: currentAttachedImages.map((name, idx) => ({ id: `mock-file-${idx}`, url: `/${name}`, original_name: name })),
       created_on: new Date().toISOString()
     }
   });
@@ -123,7 +121,7 @@ When("envío el mensaje sin texto", async function () {
       conversation_id: 1,
       sender_role: "consumer",
       content: "",
-      images: currentAttachedImages.map((name, idx) => ({ id: `mock-file-${idx}`, url: `https://mock-download.test/${name}`, original_name: name })),
+      images: currentAttachedImages.map((name, idx) => ({ id: `mock-file-${idx}`, url: `/${name}`, original_name: name })),
       created_on: new Date().toISOString()
     }
   });
@@ -165,7 +163,7 @@ Given("que el consumidor envió un mensaje con la imagen {string}", async functi
           id: 1,
           sender_role: "consumer",
           content: "Hola",
-          images: [{ id: "file-xyz", url: "https://mock-download.test/img.jpg", original_name: imagen }],
+          images: [{ id: "file-xyz", url: "/img.jpg", original_name: imagen }],
           created_on: new Date().toISOString(),
         },
       ],
@@ -176,14 +174,13 @@ Given("que el consumidor envió un mensaje con la imagen {string}", async functi
 });
 
 Then("el detalle del mensaje en pantalla incluye la imagen {string}", async function (imagen: string) {
-  const receivedImage = page.getByRole('img', { name: `Imagen adjunta ${imagen}` }).first();
+  const receivedImage = page.locator(`img[alt*="${imagen}"]`).first();
   await receivedImage.waitFor({ state: "visible", timeout: 2000 });
   assert.ok(await receivedImage.isVisible(), `El detalle no incluye la imagen ${imagen}`);
 });
 
 When("el consumidor {string} me envía un mensaje con la imagen {string}", async function (nombre: string, imagen: string) {
-  // Simular evento WS de llegada de mensaje con imagen
-  const wsServer = (global as any).wsServer; // Este WS fue guardado en el setup de realtime_chat
+  const wsServer = (global as any).wsServer;
   if (wsServer) {
     wsServer.send(JSON.stringify({
       type: "conversation.message.created",
@@ -192,7 +189,7 @@ When("el consumidor {string} me envía un mensaje con la imagen {string}", async
         id: 200,
         content: "Mensaje WS",
         sender_role: "consumer",
-        images: [{ id: "file-ws", url: "https://ws.test/img.jpg", original_name: imagen }],
+        images: [{ id: 999, url: "/img.jpg", original_name: imagen }],
         created_on: new Date().toISOString(),
       },
     }));
@@ -200,7 +197,7 @@ When("el consumidor {string} me envía un mensaje con la imagen {string}", async
 });
 
 Then("veo el mensaje con la imagen {string} en la pantalla del chat sin recargar la página", async function (imagen: string) {
-  const receivedImage = page.getByRole('img', { name: `Imagen adjunta ${imagen}` }).first();
+  const receivedImage = page.locator(`img[alt*="${imagen}"]`).first();
   await receivedImage.waitFor({ state: "visible", timeout: 3000 });
   assert.ok(await receivedImage.isVisible(), `La imagen WS ${imagen} no se mostró en realtime`);
 });

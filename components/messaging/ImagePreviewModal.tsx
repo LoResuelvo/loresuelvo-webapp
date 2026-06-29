@@ -45,6 +45,7 @@ export function ImagePreviewModal({
           </DialogPrimitive.Title>
           <div className="relative inline-block pointer-events-auto">
             {displayUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={displayUrl}
                 alt={displayAlt}

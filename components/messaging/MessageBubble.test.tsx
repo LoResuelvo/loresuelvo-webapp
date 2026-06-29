@@ -1,10 +1,14 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import * as React from "react";
 import MessageBubble from "./MessageBubble";
 import { t } from "@/infrastructure/i18n/translations";
 
 vi.mock("next/image", () => ({
-  default: (props: any) => <img {...props} />
+  default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => (
+    // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
+    <img {...props} />
+  )
 }));
 
 describe("MessageBubble", () => {

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
 import { Modal } from "@/components/ui/modal";
 import { DetailPanel } from "@/components/shared/DetailPanel";
+import { ImageGalleryPreview } from "@/components/shared/ImageGalleryPreview";
 
 interface RequestDetailModalProps {
   request: ProviderWorkRequest;
@@ -67,7 +68,12 @@ export default function RequestDetailModal({
         title={request.problemTitle}
         descriptionLabel={t.providerHome.workRequestsSection.modal.descriptionLabel}
         description={request.description}
-      />
+      >
+        <ImageGalleryPreview
+          images={request.images}
+          label={t.providerHome.workRequestsSection.modal.imagesLabel}
+        />
+      </DetailPanel>
     </Modal>
   );
 }

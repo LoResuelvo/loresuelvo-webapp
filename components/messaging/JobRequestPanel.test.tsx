@@ -71,4 +71,40 @@ describe("JobRequestPanel", () => {
 
     expect(screen.getByRole("heading", { name: "Detalle de Solicitud" })).toBeInTheDocument();
   });
+
+  it("displays attached images when present", () => {
+    const images = [
+      { id: "img-1", url: "http://example.com/img1.jpg", originalName: "leak.jpg" },
+      { id: "img-2", url: "http://example.com/img2.jpg", originalName: "siphon.jpg" },
+    ];
+
+    render(
+      <JobRequestPanel
+        jobRequest={{
+          ...defaultJobRequest,
+          images,
+        }}
+        onClose={() => {}}
+      />
+    );
+
+    expect(screen.getByText("Imágenes adjuntas")).toBeInTheDocument();
+    expect(screen.getByAltText("leak.jpg")).toBeInTheDocument();
+    expect(screen.getByAltText("siphon.jpg")).toBeInTheDocument();
+  });
+
+  it("does not display images section when no images are provided", () => {
+    render(
+      <JobRequestPanel
+        jobRequest={{
+          ...defaultJobRequest,
+          images: [],
+        }}
+        onClose={() => {}}
+      />
+    );
+
+    expect(screen.queryByText("Imágenes adjuntas")).not.toBeInTheDocument();
+  });
 });
+

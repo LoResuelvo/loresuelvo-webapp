@@ -72,4 +72,46 @@ describe("WorkRequestsSection handleAccept redirect", () => {
       expect(mockPush).toHaveBeenCalledWith("/prestador/mensajes?consumer_id=2");
     });
   });
+
+  it("renders image count indicator badge on the request item when images are present", () => {
+    const requestsWithImages: ProviderWorkRequest[] = [
+      {
+        ...mockWorkRequests[0],
+        images: [
+          { id: "img-1", url: "http://example.com/img1.jpg", originalName: "leak.jpg" },
+          { id: "img-2", url: "http://example.com/img2.jpg", originalName: "siphon.jpg" },
+        ],
+      },
+    ];
+
+    render(<WorkRequestsSection requests={requestsWithImages} />);
+
+    const badge = screen.getByTestId("images-indicator");
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveTextContent("2 Imágenes");
+  });
+
+  it("does not render image count indicator badge when request has no images", () => {
+    render(<WorkRequestsSection requests={mockWorkRequests} />);
+    expect(screen.queryByTestId("images-indicator")).not.toBeInTheDocument();
+  });
+
+  it("renders attached images in RequestDetailModal when viewing request details", () => {
+    const requestsWithImages: ProviderWorkRequest[] = [
+      {
+        ...mockWorkRequests[0],
+        images: [
+          { id: "img-1", url: "http://example.com/img1.jpg", originalName: "leak.jpg" },
+        ],
+      },
+    ];
+
+    render(<WorkRequestsSection requests={requestsWithImages} />);
+
+    const viewButton = screen.getByRole("button", { name: "Ver Solicitud" });
+    fireEvent.click(viewButton);
+
+    expect(screen.getByText("Imágenes adjuntas")).toBeInTheDocument();
+    expect(screen.getByAltText("leak.jpg")).toBeInTheDocument();
+  });
 });

@@ -13,6 +13,8 @@ interface DetailPanelProps {
   descriptionLabel?: string;
   /** Texto de la descripción */
   description?: string;
+  /** Contenido adicional al final del panel */
+  children?: ReactNode;
 }
 
 export function DetailPanel({
@@ -22,6 +24,7 @@ export function DetailPanel({
   title,
   descriptionLabel,
   description,
+  children,
 }: DetailPanelProps) {
   return (
     <div className="p-6 space-y-5">
@@ -52,6 +55,8 @@ export function DetailPanel({
             </p>
           </div>
         )}
+
+        {children}
       </div>
     </div>
   );

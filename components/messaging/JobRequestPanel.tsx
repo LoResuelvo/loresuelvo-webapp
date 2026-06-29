@@ -3,6 +3,8 @@
 import { t } from "@/infrastructure/i18n/translations";
 import { Modal } from "@/components/ui/modal";
 import { Avatar } from "@/components/ui/avatar";
+import { MessageImage } from "@/domain/messaging/types";
+import { ImageGalleryPreview } from "@/components/shared/ImageGalleryPreview";
 
 export interface JobRequestPanelInfo {
   title: string;
@@ -10,6 +12,7 @@ export interface JobRequestPanelInfo {
   providerName?: string;
   providerSurname?: string;
   providerProfilePhotoUrl?: string;
+  images?: MessageImage[];
 }
 
 interface JobRequestPanelProps {
@@ -59,8 +62,14 @@ export default function JobRequestPanel({ jobRequest, onClose }: JobRequestPanel
               </p>
             </div>
           )}
+
+          <ImageGalleryPreview
+            images={jobRequest.images}
+            label={t.messaging.jobRequestPanel.imagesLabel}
+          />
         </div>
       </div>
     </Modal>
   );
 }
+

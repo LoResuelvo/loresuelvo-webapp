@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { t } from "@/infrastructure/i18n/translations";
+import { ImageAttachmentSelector } from "./ImageAttachmentSelector";
+import { ClientFileRepository } from "@/infrastructure/repositories/client-repositories";
 
 interface WorkRequestFormProps {
   provider: Provider;
@@ -22,6 +24,8 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,12 +37,50 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
     setIsSubmitting(true);
     setError(null);
 
+    const fileRepository = new ClientFileRepository();
+    const uploadedFileIds: string[] = [];
+
+    if (attachedFiles.length > 0) {
+      setIsUploading(true);
+      try {
+        for (const file of attachedFiles) {
+          const presigned = await fileRepository.getPresignedUrl(
+            file.name,
+            file.type,
+            file.size,
+            "job_request_image"
+          );
+          await fileRepository.uploadFile(presigned.upload_url, file, presigned.headers);
+          const confirm = await fileRepository.confirmUpload(
+            presigned.file_id,
+            presigned.key,
+            file.type,
+            file.size
+          );
+          uploadedFileIds.push(confirm.id);
+        }
+      } catch (err: unknown) {
+        console.error("Error uploading files:", err);
+        setError(t.consumerSearch.form.errorUnexpected);
+        setIsUploading(false);
+        setIsSubmitting(false);
+        return;
+      } finally {
+        setIsUploading(false);
+      }
+    }
+
     try {
-      const result = await createJobRequest(provider.id, title.trim(), description.trim());
-      
+      const result = await createJobRequest(
+        provider.id,
+        title.trim(),
+        description.trim(),
+        uploadedFileIds.length > 0 ? uploadedFileIds : undefined
+      );
+
       if (!result.success) {
         let displayError = t.consumerSearch.form.errorGeneric;
-        
+
         if (result.error.includes("Job request already exists") || result.error.includes("Conversation already exists")) {
           displayError = t.consumerSearch.form.errorDuplicate;
         } else if (result.error.includes("Only consumers can create job requests")) {
@@ -102,6 +144,21 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
           required
         />
       </div>
+
+      <ImageAttachmentSelector
+        files={attachedFiles}
+        onChange={setAttachedFiles}
+        maxFiles={3}
+        disabled={isSubmitting}
+        onError={setError}
+      />
+
+      {isUploading && (
+        <div className="text-xs text-brand-primary font-semibold bg-brand-secondary/10 border border-brand-secondary/20 p-3 rounded-xl flex items-center gap-2">
+          <span className="animate-spin rounded-full h-4 w-4 border-2 border-brand-primary border-t-transparent" />
+          {t.consumerSearch.form.uploadingImages}
+        </div>
+      )}
 
       {error && (
         <div className="text-xs text-red-500 font-semibold bg-red-50 border border-red-100 p-3 rounded-xl">

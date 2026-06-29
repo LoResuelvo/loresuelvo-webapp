@@ -116,6 +116,10 @@ export const t = {
       errorUnavailable: "El profesional seleccionado ya no está disponible.",
       errorMissing: "Faltan datos obligatorios para enviar la solicitud.",
       errorUnexpected: "Ocurrió un error inesperado. Por favor revisa tu conexión.",
+      attachImages: "Adjuntar imágenes",
+      imageLimit: "Máximo 3 imágenes permitidas",
+      imageLimitReached: "Ya alcanzaste el límite de 3 imágenes",
+      uploadingImages: "Subiendo imágenes...",
     },
     modal: {
       title: "Crear Solicitud de Trabajo",

@@ -11,10 +11,11 @@ export type CreateJobRequestResult =
 export async function createJobRequest(
   providerId: number,
   title: string,
-  description: string
+  description: string,
+  imageFileIds?: string[]
 ): Promise<CreateJobRequestResult> {
   const repository = new ApiJobRequestRepository();
-  const result = await createWorkRequest(repository, providerId, title, description);
+  const result = await createWorkRequest(repository, providerId, title, description, imageFileIds);
   
   if (result.success) {
     return { success: true, data: result.data };

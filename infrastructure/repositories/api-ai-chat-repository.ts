@@ -1,7 +1,7 @@
 import { api } from "@/infrastructure/api/base-client";
 import type { ApiAiConversation, ApiAiConversationDetail } from "@/infrastructure/api/types";
 import type { AiChatRepository } from "@/ports/ai-chat-repository";
-import { AiConversationContact, AiConversationDetail } from "@/domain/messaging/types";
+import { AiConversationContact, AiConversationDetail, AiJobRequestResult } from "@/domain/messaging/types";
 import { mapApiToAiConversationContact, mapApiToAiConversationDetail } from "./ai-chat-mapper";
 
 export class ApiAiChatRepository implements AiChatRepository {
@@ -40,5 +40,22 @@ export class ApiAiChatRepository implements AiChatRepository {
       body
     );
     return mapApiToAiConversationDetail(data);
+  }
+
+  async createJobRequest(conversationId: string, providerId: number): Promise<AiJobRequestResult> {
+    const data = await api.post<{
+      id: number;
+      conversation_id: number;
+      title: string;
+      description: string;
+    }>(`/chatbot/conversations/${conversationId}/job-requests`, {
+      provider_id: providerId,
+    });
+    return {
+      id: data.id,
+      conversationId: data.conversation_id,
+      title: data.title,
+      description: data.description,
+    };
   }
 }

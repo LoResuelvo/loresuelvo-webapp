@@ -92,6 +92,7 @@ export interface AiConversationDetail {
   title: string;
   responseStatus: string;
   diagnosisCompleted: boolean;
+  assessment?: ProblemAssessment;
   recommendedCategory?: {
     id: number;
     name: string;
@@ -99,6 +100,23 @@ export interface AiConversationDetail {
   messages: AiMessage[];
   recommendedProviders: RecommendedProvider[];
   updatedOn: string;
+}
+
+export type AssessmentOutcome = "collecting_information" | "self_service" | "professional_required";
+
+export interface ProblemAssessment {
+  outcome: AssessmentOutcome;
+  problemCategory?: {
+    id: number;
+    name: string;
+  };
+}
+
+export interface AiJobRequestResult {
+  id: number;
+  conversationId: number;
+  title: string;
+  description: string;
 }
 
 export interface AiMessage {

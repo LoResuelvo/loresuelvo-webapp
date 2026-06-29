@@ -106,12 +106,21 @@ export interface ApiRecommendedProvider {
   profile_photo_url?: string;
 }
 
+export interface ApiProblemAssessment {
+  outcome: string;
+  problem_category?: {
+    id: number;
+    name: string;
+  };
+}
+
 export interface ApiAiConversationDetail {
   id: number;
   status: string;
   title?: string;
   response_status?: string;
   diagnosis_completed?: boolean;
+  assessment?: ApiProblemAssessment;
   recommended_category?: {
     id: number;
     name: string;
@@ -123,6 +132,7 @@ export interface ApiAiConversationDetail {
     title: string;
     response_status: string;
     diagnosis_completed?: boolean;
+    assessment?: ApiProblemAssessment;
     recommended_category?: {
       id: number;
       name: string;

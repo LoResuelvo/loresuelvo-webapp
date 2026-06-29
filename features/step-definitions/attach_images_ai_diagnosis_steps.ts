@@ -18,7 +18,7 @@ async function stubDiagnosisFileUpload(fileName: string, fileId: string = "mock-
       file_id: fileId,
       upload_url: "https://mock-upload.test/upload",
       headers: {},
-      key: `chatbot_message_image/${fileId}`
+      key: `conversation_message_image/${fileId}`
     }
   });
 

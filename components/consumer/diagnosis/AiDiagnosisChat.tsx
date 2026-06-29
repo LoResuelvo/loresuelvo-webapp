@@ -228,7 +228,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
 
         for (const file of validFiles) {
           try {
-            const presigned = await getPresignedUrlAction(file.name, file.type, file.size, "chatbot_message_image");
+            const presigned = await getPresignedUrlAction(file.name, file.type, file.size, "conversation_message_image");
             const uploadRes = await fetch(presigned.upload_url, {
               method: "PUT",
               body: file,

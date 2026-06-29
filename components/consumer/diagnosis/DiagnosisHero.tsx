@@ -109,7 +109,7 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
     try {
       if (attachedFiles.length > 0) {
         for (const file of attachedFiles) {
-          const presigned = await getPresignedUrlAction(file.name, file.type, file.size, "chatbot_message_image");
+          const presigned = await getPresignedUrlAction(file.name, file.type, file.size, "conversation_message_image");
           const uploadRes = await fetch(presigned.upload_url, {
             method: "PUT",
             body: file,

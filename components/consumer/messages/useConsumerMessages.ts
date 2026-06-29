@@ -220,7 +220,7 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
         conversationRepository,
         fileRepository,
         {
-          conversationId: currentConversationId,
+          conversationId: currentConversationId ?? null,
           counterpartId: parseInt(selectedProviderId),
           myUserId: session?.user?.id ?? myUserId,
           myRole: "consumer",

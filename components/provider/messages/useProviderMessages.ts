@@ -206,7 +206,7 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
         conversationRepository,
         fileRepository,
         {
-          conversationId: currentConversationId,
+          conversationId: currentConversationId ?? null,
           counterpartId: parseInt(selectedConsumerId),
           myUserId: session?.user?.id ?? myUserId,
           myRole: "provider",

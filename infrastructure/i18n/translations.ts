@@ -149,7 +149,6 @@ export const t = {
     conversationsList: "Conversaciones con IA",
     noMessages: "Sin mensajes",
     assistantName: "Asistente de diagnóstico",
-    backToList: "Volver a la lista",
     noProvidersFound: "No encontramos profesionales disponibles para este rubro por el momento.",
     errors: {
       imageUpload: "No se pudo cargar la imagen",

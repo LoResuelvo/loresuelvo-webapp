@@ -55,7 +55,7 @@ jobs:
               "AUTH0_CLIENT_SECRET=${{ secrets.AUTH0_CLIENT_SECRET_STAGING }}" \
               "AUTH0_SECRET=${{ secrets.AUTH0_SECRET }}" \
               "AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE_STAGING }}" \
-              "NEXT_PUBLIC_STORAGE_BASE_URL=${{ secrets.STORAGE_PUBLIC_BASE_URL_STAGING }}" > .env
+              "NEXT_PUBLIC_PUBLIC_MEDIA_BASE_URL=${{ secrets.NEXT_PUBLIC_PUBLIC_MEDIA_BASE_URL_STAGING }}" > .env
 
             export IMAGE_TAG=${{ github.ref_name }}
             export GITHUB_REPOSITORY_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
@@ -93,7 +93,7 @@ jobs:
               "AUTH0_CLIENT_SECRET=${{ secrets.AUTH0_CLIENT_SECRET_PROD }}" \
               "AUTH0_SECRET=${{ secrets.AUTH0_SECRET }}" \
               "AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE_PROD }}" \
-              "NEXT_PUBLIC_STORAGE_BASE_URL=${{ secrets.STORAGE_PUBLIC_BASE_URL_PROD }}" > .env
+              "NEXT_PUBLIC_PUBLIC_MEDIA_BASE_URL=${{ secrets.NEXT_PUBLIC_PUBLIC_MEDIA_BASE_URL_PROD }}" > .env
 
             export IMAGE_TAG=${{ github.ref_name }}
             export GITHUB_REPOSITORY_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')

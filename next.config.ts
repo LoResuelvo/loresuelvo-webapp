@@ -16,11 +16,11 @@ const nextConfig: NextConfig = {
         hostname: "minio.localhost",
         port: "9000",
       },
-      ...(process.env.NEXT_PUBLIC_STORAGE_BASE_URL
+      ...(process.env.NEXT_PUBLIC_PUBLIC_MEDIA_BASE_URL
         ? [
             {
               protocol: "https" as const,
-              hostname: new URL(process.env.NEXT_PUBLIC_STORAGE_BASE_URL).hostname,
+              hostname: new URL(process.env.NEXT_PUBLIC_PUBLIC_MEDIA_BASE_URL).hostname,
             },
           ]
         : []),

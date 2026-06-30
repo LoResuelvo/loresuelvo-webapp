@@ -353,6 +353,33 @@ Then("el ancho de la lista de conversaciones es mayor al inicial", async () => {
   assert.ok(newWidth > originalContactsWidth, `Se esperaba que el ancho sea mayor. Inicial: ${originalContactsWidth}, actual: ${newWidth}`);
 });
 
+When("arrastro el separador más allá del ancho mínimo permitido", async () => {
+  const handle = page.getByRole("separator", { name: /redimensionar lista/i });
+  await handle.waitFor({ state: "visible", timeout: 10000 });
+
+  const handleBox = await handle.boundingBox();
+  if (!handleBox) throw new Error("No se pudo obtener la posición del separador");
+
+  const startX = handleBox.x + handleBox.width / 2;
+  const startY = handleBox.y + handleBox.height / 2;
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX - 9999, startY, { steps: 20 });
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+});
+
+Then("la lista de contactos mantiene el ancho mínimo", async () => {
+  const sidebar = page.locator("[data-testid='resizable-contacts-sidebar']");
+  await sidebar.waitFor({ state: "visible", timeout: 10000 });
+
+  const sidebarBox = await sidebar.boundingBox();
+  const newWidth = sidebarBox?.width ?? 0;
+
+  assert.ok(newWidth >= 220, `Se esperaba que el ancho sea al menos 220px (mínimo), pero es ${newWidth}px`);
+});
+
 When("cambio a otra conversación y vuelvo a abrir la conversación original", async () => {
   const messagesList = page.locator("[data-testid='messages-list']");
   const url = page.url();

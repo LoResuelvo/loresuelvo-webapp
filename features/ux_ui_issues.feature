@@ -25,3 +25,8 @@ Feature: US-44 UX/UI Issues
     And hice scroll en la conversación
     When cambio a otra conversación y vuelvo a abrir la conversación original
     Then la conversación se muestra en la misma posición de scroll que dejé
+
+  Scenario: 05-UXUI Respetar ancho mínimo de la lista
+    Given que estoy en la pantalla de mensajes como consumidor con conversaciones
+    When arrastro el separador más allá del ancho mínimo permitido
+    Then la lista de contactos mantiene el ancho mínimo

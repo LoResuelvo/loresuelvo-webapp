@@ -59,12 +59,14 @@ export function RecommendedProvidersList({
       <p data-testid="professionals-count" className="mt-0 text-base text-slate-700">
         {t.aiDiagnosis.professionalsCount(total)}
       </p>
-      {needsScroll ? (
-        <div
-          data-testid="providers-scroll-container"
-          className="max-h-80 overflow-y-auto rounded-xl border border-brand-primary/20 p-4 flex flex-col gap-50"
-        >
-          {cards}
+{needsScroll ? (
+        <div className="rounded-xl border border-brand-primary/20 overflow-hidden">
+          <div
+            data-testid="providers-scroll-container"
+            className="max-h-80 overflow-y-auto p-4 flex flex-col gap-3 [scrollbar-width:thin] [scrollbar-color:theme(colors.brand.primary)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-brand-primary [&::-webkit-scrollbar-thumb]:rounded-full"
+          >
+            {cards}
+          </div>
         </div>
       ) : (
         cards

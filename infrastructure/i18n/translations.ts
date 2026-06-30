@@ -155,6 +155,7 @@ export const t = {
     noMessages: "Sin mensajes",
     assistantName: "Asistente de diagnóstico",
     noProvidersFound: "No encontramos profesionales disponibles para este rubro por el momento.",
+    professionalsCount: (count: number) => `Encontramos ${count} profesionales para ayudarte`,
     contactProvider: "Contactar",
     jobRequestSent: "Solicitud enviada",
     jobRequestSending: "Enviando solicitud...",

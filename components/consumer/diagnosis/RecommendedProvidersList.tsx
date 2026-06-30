@@ -5,6 +5,8 @@ import InfoBanner from "@/components/messaging/InfoBanner";
 import { cn } from "@/lib/utils";
 import { RecommendedProviderCard } from "./RecommendedProviderCard";
 
+const SCROLL_THRESHOLD = 5;
+
 interface RecommendedProvidersListProps {
   providers?: RecommendedProvider[];
   diagnosisCompleted?: boolean;
@@ -28,26 +30,45 @@ export function RecommendedProvidersList({
 
   if (!providers || providers.length === 0) {
     return (
-      <div className={cn("flex flex-col gap-4", className)}>
-        <h3 className="text-lg font-semibold">{t.aiDiagnosis.recommendedProviders}</h3>
+      <div className={cn("flex flex-col gap-1", className)}>
+<h3 className="text-2xl font-semibold">{t.aiDiagnosis.recommendedProviders}</h3>
         <InfoBanner tone="info">{t.aiDiagnosis.noProvidersFound}</InfoBanner>
       </div>
     );
   }
 
+  const total = providers.length;
+  const needsScroll = total > SCROLL_THRESHOLD;
+
+  const cards = (
+    <div className="flex flex-col gap-3">
+      {providers.map((provider) => (
+        <RecommendedProviderCard
+          key={provider.id}
+          provider={provider}
+          assessment={assessment}
+          onContactProvider={onContactProvider}
+        />
+      ))}
+    </div>
+  );
+
   return (
-    <div className={cn("flex flex-col gap-4", className)}>
-      <h3 className="text-lg font-semibold">{t.aiDiagnosis.recommendedProviders}</h3>
-      <div className="flex flex-col gap-3">
-        {providers.map((provider) => (
-          <RecommendedProviderCard
-            key={provider.id}
-            provider={provider}
-            assessment={assessment}
-            onContactProvider={onContactProvider}
-          />
-        ))}
-      </div>
+    <div className={cn("flex flex-col gap-2", className)}>
+      <h3 className="text-2xl font-semibold">{t.aiDiagnosis.recommendedProviders}</h3>
+      <p data-testid="professionals-count" className="mt-0 text-base text-slate-700">
+        {t.aiDiagnosis.professionalsCount(total)}
+      </p>
+      {needsScroll ? (
+        <div
+          data-testid="providers-scroll-container"
+          className="max-h-80 overflow-y-auto rounded-xl border border-brand-primary/20 p-4 flex flex-col gap-50"
+        >
+          {cards}
+        </div>
+      ) : (
+        cards
+      )}
     </div>
   );
 }

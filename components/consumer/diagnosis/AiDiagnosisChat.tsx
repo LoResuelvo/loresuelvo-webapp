@@ -171,13 +171,13 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
                 images={msg.images}
               />
               {(msg.diagnosisCompleted || msg.assessment) && (
-                <div className="mt-2 mb-2 w-full max-w-2xl self-start">
+                <div className="mt-0 mb-0 w-full max-w-2xl self-start">
                   <RecommendedProvidersList
                     providers={msg.recommendedProviders}
                     diagnosisCompleted={msg.diagnosisCompleted}
                     assessment={msg.assessment}
                     onContactProvider={handleContactProvider}
-                    className="mt-6"
+                    className="mt-0"
                   />
                 </div>
               )}

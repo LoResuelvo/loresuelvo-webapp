@@ -12,6 +12,14 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+const buildProviders = (count: number): RecommendedProvider[] =>
+  Array.from({ length: count }, (_, i) => ({
+    id: i + 1,
+    name: `Nombre${i + 1}`,
+    surname: `Apellido${i + 1}`,
+    categoryName: "Plomería",
+  }));
+
 describe("RecommendedProvidersList", () => {
   const mockProviders: RecommendedProvider[] = [
     {
@@ -50,5 +58,34 @@ describe("RecommendedProvidersList", () => {
     const assessment = { outcome: "collecting_information" as const };
     const { container } = render(<RecommendedProvidersList providers={mockProviders} assessment={assessment} />);
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("RecommendedProvidersList - scrollable container when many providers", () => {
+  it("renders all providers when 5 or fewer are available (no scroll container)", () => {
+    render(<RecommendedProvidersList providers={buildProviders(3)} diagnosisCompleted={true} />);
+    expect(screen.getAllByTestId("recommended-provider")).toHaveLength(3);
+    expect(screen.queryByTestId("providers-scroll-container")).not.toBeInTheDocument();
+  });
+
+  it("renders all providers inside a scrollable container when more than 5 are available", () => {
+    render(<RecommendedProvidersList providers={buildProviders(23)} diagnosisCompleted={true} />);
+    expect(screen.getAllByTestId("recommended-provider")).toHaveLength(23);
+    expect(screen.getByTestId("providers-scroll-container")).toBeInTheDocument();
+  });
+
+  it("wraps the providers in a scroll container at exactly 6 providers", () => {
+    render(<RecommendedProvidersList providers={buildProviders(6)} diagnosisCompleted={true} />);
+    expect(screen.getByTestId("providers-scroll-container")).toBeInTheDocument();
+  });
+
+  it("does not wrap providers in a scroll container at exactly 5 providers", () => {
+    render(<RecommendedProvidersList providers={buildProviders(5)} diagnosisCompleted={true} />);
+    expect(screen.queryByTestId("providers-scroll-container")).not.toBeInTheDocument();
+  });
+
+  it("shows the total count of professionals available", () => {
+    render(<RecommendedProvidersList providers={buildProviders(23)} diagnosisCompleted={true} />);
+    expect(screen.getByText(t.aiDiagnosis.professionalsCount(23))).toBeInTheDocument();
   });
 });

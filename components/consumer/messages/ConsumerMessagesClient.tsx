@@ -55,6 +55,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
           isSending={isSending}
           myUserId={myUserId}
           jobRequest={activeJobRequest}
+          isLoadingJobRequest={activeJobRequest === undefined}
           attachedFiles={attachedFiles}
           onAttachFiles={(files) => setAttachedFiles(prev => [...prev, ...files].slice(0, 5))}
           onRemoveFile={(idx) => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}

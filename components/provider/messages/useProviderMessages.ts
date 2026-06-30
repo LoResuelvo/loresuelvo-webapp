@@ -47,7 +47,7 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const [acceptedConversations, setAcceptedConversations] = useState<Set<string>>(new Set());
-  const [activeJobRequest, setActiveJobRequest] = useState<{ id: number; title: string; description: string; consumerName: string } | null>(null);
+  const [activeJobRequest, setActiveJobRequest] = useState<{ id: number; title: string; description: string; consumerName: string } | null | undefined>(undefined);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [localContacts, setLocalContacts] = useState<ConversationContact[]>(contacts);
 
@@ -115,6 +115,7 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
       return;
     }
 
+    setActiveJobRequest(undefined);
     getConversationDetail(effectiveConversationId)
       .then((data) => {
         const messages: Message[] = data.messages.map(msg => ({

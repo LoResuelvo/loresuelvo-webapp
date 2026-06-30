@@ -20,6 +20,7 @@ interface ConsumerMessagesViewProps {
   isSending: boolean;
   myUserId: string;
   jobRequest?: JobRequestInfo | null;
+  isLoadingJobRequest?: boolean;
   attachedFiles?: File[];
   onAttachFiles?: (files: File[]) => void;
   onRemoveFile?: (index: number) => void;
@@ -41,6 +42,7 @@ const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesView
   isSending,
   myUserId,
   jobRequest,
+  isLoadingJobRequest,
   attachedFiles,
   onAttachFiles,
   onRemoveFile,
@@ -71,6 +73,7 @@ const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesView
           isSending={isSending}
           myUserId={myUserId}
           jobRequest={jobRequest}
+          isLoadingJobRequest={isLoadingJobRequest}
           attachedFiles={attachedFiles}
           onAttachFiles={onAttachFiles}
           onRemoveFile={onRemoveFile}

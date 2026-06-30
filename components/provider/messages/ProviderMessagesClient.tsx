@@ -65,6 +65,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
           isSending={isSending}
           onAccept={activeJobRequest ? () => setShowRequestModal(true) : undefined}
           myUserId={myUserId}
+          isLoadingJobRequest={activeJobRequest === undefined}
           pendingBannerText={t.messaging.pendingBannerProvider}
           attachedFiles={attachedFiles}
           onAttachFiles={(files) => setAttachedFiles(prev => [...prev, ...files].slice(0, 5))}

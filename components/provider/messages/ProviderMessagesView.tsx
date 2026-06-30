@@ -21,6 +21,7 @@ interface ProviderMessagesViewProps {
   isSending: boolean;
   onAccept?: () => void;
   myUserId: string;
+  isLoadingJobRequest?: boolean;
   pendingBannerText?: string;
   attachedFiles?: File[];
   onAttachFiles?: (files: File[]) => void;
@@ -43,6 +44,7 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
   isSending,
   onAccept,
   myUserId,
+  isLoadingJobRequest,
   pendingBannerText,
   attachedFiles,
   onAttachFiles,
@@ -90,6 +92,7 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
           isSending={isSending}
           onAccept={onAccept}
           myUserId={myUserId}
+          isLoadingJobRequest={isLoadingJobRequest}
           pendingBannerText={pendingBannerText}
           blockInputWhenPending={true}
           attachedFiles={attachedFiles}

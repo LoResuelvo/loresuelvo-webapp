@@ -51,7 +51,7 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
   const isSendingRef = useRef(false);
   const justCreatedRef = useRef(false);
   const justLoadedRef = useRef(false);
-  const [activeJobRequest, setActiveJobRequest] = useState<JobRequestInfo | null>(null);
+  const [activeJobRequest, setActiveJobRequest] = useState<JobRequestInfo | null | undefined>(undefined);
   const [isConversationPending, setIsConversationPending] = useState<boolean>(false);
   const [localContacts, setLocalContacts] = useState<ConversationContact[]>(contacts);
 
@@ -126,6 +126,7 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
       return;
     }
 
+    setActiveJobRequest(undefined);
     getConversationDetail(effectiveConversationId)
       .then((data) => {
         const messages: Message[] = data.messages.map(msg => ({

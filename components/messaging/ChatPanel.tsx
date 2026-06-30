@@ -19,6 +19,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   onAccept?: () => void;
   myUserId: string;
   jobRequest?: JobRequestInfo | null;
+  isLoadingJobRequest?: boolean;
   pendingBannerText?: string;
   blockInputWhenPending?: boolean;
   attachedFiles?: File[];
@@ -37,6 +38,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   onAccept,
   myUserId,
   jobRequest,
+  isLoadingJobRequest,
   pendingBannerText,
   blockInputWhenPending = false,
   attachedFiles,
@@ -61,6 +63,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
         providerSurname={selectedContact.providerSurname}
         pending={selectedContact.pending}
         jobRequest={jobRequest}
+        isLoadingJobRequest={isLoadingJobRequest}
         onAccept={onAccept}
         profilePhotoUrl={selectedContact.profilePhotoUrl}
       />

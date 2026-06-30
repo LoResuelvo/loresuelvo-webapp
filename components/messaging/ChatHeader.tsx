@@ -13,6 +13,7 @@ interface ChatHeaderProps {
   providerSurname: string;
   pending: boolean;
   jobRequest?: JobRequestInfo | null;
+  isLoadingJobRequest?: boolean;
   onAccept?: () => void;
   profilePhotoUrl?: string;
 }
@@ -20,7 +21,7 @@ interface ChatHeaderProps {
 import { ChevronLeft } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 
-export default function ChatHeader({ providerName, providerSurname, pending, jobRequest, onAccept, profilePhotoUrl }: ChatHeaderProps) {
+export default function ChatHeader({ providerName, providerSurname, pending, jobRequest, isLoadingJobRequest, onAccept, profilePhotoUrl }: ChatHeaderProps) {
   const [showPanel, setShowPanel] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -55,23 +56,35 @@ export default function ChatHeader({ providerName, providerSurname, pending, job
             )}
           </div>
 
-          {jobRequest && (
+          {isLoadingJobRequest ? (
             <Button
               variant="brandSecondary"
-              onClick={() => setShowPanel(true)}
-              aria-label={t.messaging.viewJobRequestLabel}
+              disabled
+              className="animate-pulse opacity-70"
             >
               {t.messaging.viewJobRequest}
             </Button>
-          )}
+          ) : (
+            <>
+              {jobRequest && (
+                <Button
+                  variant="brandSecondary"
+                  onClick={() => setShowPanel(true)}
+                  aria-label={t.messaging.viewJobRequestLabel}
+                >
+                  {t.messaging.viewJobRequest}
+                </Button>
+              )}
 
-          {pending && onAccept && (
-            <Button
-              variant="brandSecondary"
-              onClick={onAccept}
-            >
-              {t.messaging.viewJobRequest}
-            </Button>
+              {pending && onAccept && (
+                <Button
+                  variant="brandSecondary"
+                  onClick={onAccept}
+                >
+                  {t.messaging.viewJobRequest}
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>

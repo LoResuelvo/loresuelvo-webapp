@@ -54,10 +54,13 @@ export default function JobRequestPanel({ jobRequest, onClose }: JobRequestPanel
 
           {jobRequest.description && (
             <div className="pt-2 space-y-1">
-              <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wide">
+              <span className="text-base font-semibold text-slate-700 uppercase tracking-wide">
                 {t.messaging.jobRequestPanel.descriptionLabel}
               </span>
-              <p className="text-[15px] leading-relaxed text-slate-600 whitespace-pre-wrap">
+              <p
+                data-testid="job-request-description"
+                className="mt-2 text-[17px] leading-relaxed text-slate-700 whitespace-pre-wrap max-h-60 overflow-y-auto pr-2"
+              >
                 {jobRequest.description}
               </p>
             </div>

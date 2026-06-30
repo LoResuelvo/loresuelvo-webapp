@@ -18,17 +18,17 @@ export function ImageGalleryPreview({ images, label }: ImageGalleryPreviewProps)
 
   return (
     <div className="pt-4 border-t border-slate-100 space-y-2">
-      <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wide">
+      <span className="text-base font-semibold text-slate-700 uppercase tracking-wide">
         {label}
       </span>
-      <div className="flex gap-3 flex-wrap">
+      <div className="mt-2 flex gap-3 flex-wrap">
         {images.map((img) => (
-          <button
-            key={img.id}
-            type="button"
-            onClick={() => setPreviewImage({ url: img.url, name: img.originalName })}
-            className="w-20 h-20 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 relative cursor-pointer hover:ring-2 hover:ring-brand-primary/50 transition-all"
-          >
+<button
+              key={img.id}
+              type="button"
+              onClick={() => setPreviewImage({ url: img.url, name: img.originalName })}
+              className="w-24 h-24 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 relative cursor-pointer hover:ring-2 hover:ring-brand-primary/50 transition-all"
+            >
             <Image
               src={img.url}
               alt={img.originalName}

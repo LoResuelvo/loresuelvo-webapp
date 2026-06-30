@@ -106,5 +106,22 @@ describe("JobRequestPanel", () => {
 
     expect(screen.queryByText("Imágenes adjuntas")).not.toBeInTheDocument();
   });
+
+  it("limits the description to a scrollable area with a max height", () => {
+    const longDescription = "línea ".repeat(50);
+    render(
+      <JobRequestPanel
+        jobRequest={{
+          ...defaultJobRequest,
+          description: longDescription,
+        }}
+        onClose={() => {}}
+      />
+    );
+
+    const descriptionContainer = screen.getByTestId("job-request-description");
+    expect(descriptionContainer).toHaveClass("overflow-y-auto");
+    expect(descriptionContainer.className).toMatch(/max-h-/);
+  });
 });
 

@@ -47,7 +47,7 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const [acceptedConversations, setAcceptedConversations] = useState<Set<string>>(new Set());
-  const [activeJobRequest, setActiveJobRequest] = useState<{ id: number; title: string; description: string; consumerName: string } | null | undefined>(undefined);
+  const [activeJobRequest, setActiveJobRequest] = useState<{ id: number; title: string; description: string; consumerName: string; images?: { id: string; url: string; originalName: string; }[] } | null | undefined>(undefined);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [localContacts, setLocalContacts] = useState<ConversationContact[]>(contacts);
 
@@ -147,6 +147,7 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
             title: jr.title,
             description: jr.description,
             consumerName: `${data.counterpart.name} ${data.counterpart.surname}`,
+            images: jr.images,
           } : null))
           .catch(() => setActiveJobRequest(null));
       })
@@ -320,6 +321,7 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
     location: "",
     publishedAtLabel: "",
     unreadMessagesCount: 0,
+    images: activeJobRequest.images,
   } : null;
 
   const isPending = (c: ConversationContact) => c.pending && !acceptedConversations.has(c.id);

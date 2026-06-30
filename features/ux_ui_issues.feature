@@ -30,26 +30,26 @@ Feature: US-44 UX/UI Issues
     Given que estoy en la pantalla de mensajes como consumidor con conversaciones
     When arrastro el separador más allá del ancho mínimo permitido
     Then la lista de contactos mantiene el ancho mínimo
-  @wip
+
   Scenario: 06-UXUI Conservar borrador de mensaje al navegar
     Given que estoy chateando con un prestador con varios mensajes en la conversación
     When escribo el mensaje "Hola, esto es un borrador" en la caja de texto
-    And navego a la página de inicio del consumidor
+    And navego a inicio durante el borrador
     And vuelvo a la conversación con el prestador
     Then veo el mensaje "Hola, esto es un borrador" en la caja de texto
- @wip
+
   Scenario: 07-UXUI Conservar archivo adjunto al navegar
     Given que estoy chateando con un prestador con varios mensajes en la conversación
     And que adjunté la imagen "foto-borrador.jpg"
-    When navego a la página de inicio del consumidor
+    When navego a inicio durante el borrador
     And vuelvo a la conversación con el prestador
     Then la imagen "foto-borrador.jpg" continúa adjunta al mensaje
- @wip
+
   Scenario: 08-UXUI Conservar texto y adjuntos simultáneamente
     Given que estoy chateando con un prestador con varios mensajes en la conversación
     When escribo el mensaje "Te paso una foto" en la caja de texto
     And que adjunté la imagen "foto-borrador.jpg"
-    And navego a la página de inicio del consumidor
+    And navego a inicio durante el borrador
     And vuelvo a la conversación con el prestador
     Then veo el mensaje "Te paso una foto" en la caja de texto
     And la imagen "foto-borrador.jpg" continúa adjunta al mensaje
@@ -57,6 +57,6 @@ Feature: US-44 UX/UI Issues
   Scenario: UX-06 Limpiar borrador luego del envío
     Given que estoy chateando con un prestador con varios mensajes en la conversación
     And que escribí el mensaje "Mensaje de prueba" en la caja de texto
-    When envío el mensaje "Mensaje de prueba"
+    When envío el mensaje de borrador "Mensaje de prueba"
     Then la caja de texto queda vacía
     And si navego a la página de inicio y vuelvo, la caja de texto sigue vacía

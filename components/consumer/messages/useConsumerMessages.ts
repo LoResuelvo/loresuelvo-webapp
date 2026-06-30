@@ -11,6 +11,15 @@ import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/local
 import { sendMessageWithAttachments } from "@/application/messaging/send-message-with-attachments";
 import { transformApiMessageToDomain, formatToLocalShortDateTime } from "@/infrastructure/repositories/conversation-mapper";
 import type { MessageInputHandle } from "@/components/messaging/MessageInput";
+import { clearDraft, loadDraft, saveDraft, type DraftFileMeta } from "@/lib/message-drafts";
+
+function fileToMeta(file: File): DraftFileMeta {
+  return { name: file.name, size: file.size, type: file.type };
+}
+
+function metaToFile(meta: DraftFileMeta): File {
+  return new File([new Blob([])], meta.name, { type: meta.type });
+}
 
 const conversationRepository = new ClientConversationRepository({ create: createConversation, sendMessage });
 const fileRepository = new ClientFileRepository();
@@ -41,6 +50,7 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
   const inputRef = useRef<MessageInputHandle>(null);
   const isSendingRef = useRef(false);
   const justCreatedRef = useRef(false);
+  const justLoadedRef = useRef(false);
   const [activeJobRequest, setActiveJobRequest] = useState<JobRequestInfo | null>(null);
   const [isConversationPending, setIsConversationPending] = useState<boolean>(false);
   const [localContacts, setLocalContacts] = useState<ConversationContact[]>(contacts);
@@ -56,6 +66,28 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
 
   const effectiveConvIdRef = useRef(effectiveConversationId);
   effectiveConvIdRef.current = effectiveConversationId;
+
+  useEffect(() => {
+    if (!effectiveConversationId) return;
+    const draft = loadDraft(effectiveConversationId);
+    setMessageInput(draft.text);
+    setAttachedFiles(draft.files.map(metaToFile));
+    justLoadedRef.current = true;
+  }, [effectiveConversationId]);
+
+  useEffect(() => {
+    if (!effectiveConversationId) return;
+    if (isSendingRef.current) return;
+    if (justLoadedRef.current) {
+      justLoadedRef.current = false;
+      return;
+    }
+    if (messageInput || attachedFiles.length > 0) {
+      saveDraft(effectiveConversationId, messageInput, attachedFiles.map(fileToMeta));
+    } else {
+      clearDraft(effectiveConversationId);
+    }
+  }, [effectiveConversationId, messageInput, attachedFiles]);
 
   const counterpartIdRef = useRef<string | null>(null);
 
@@ -249,6 +281,7 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
         const filtered = prev.filter(msg => msg.id !== tempId);
         return [...filtered, message];
       });
+      clearDraft(currentConversationId ?? effectiveConversationId ?? "");
     } catch (error) {
       console.error("Error sending message:", error);
       const pendingMsg: Message = { ...optimisticMessage, id: `pending-${tempId}` };

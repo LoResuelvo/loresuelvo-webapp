@@ -380,6 +380,94 @@ Then("la lista de contactos mantiene el ancho mínimo", async () => {
   assert.ok(newWidth >= 220, `Se esperaba que el ancho sea al menos 220px (mínimo), pero es ${newWidth}px`);
 });
 
+When("escribo el mensaje {string} en la caja de texto", async (texto: string) => {
+  const input = page.getByRole("textbox", { name: /escribe un mensaje/i });
+  await input.waitFor({ state: "visible", timeout: 10000 });
+  await input.fill(texto);
+  await page.waitForTimeout(200);
+});
+
+When("que escribí el mensaje {string} en la caja de texto", async (texto: string) => {
+  const input = page.getByRole("textbox", { name: /escribe un mensaje/i });
+  await input.waitFor({ state: "visible", timeout: 10000 });
+  await input.fill(texto);
+  await page.waitForTimeout(200);
+});
+
+When("navego a inicio durante el borrador", async () => {
+  await page.goto(APP_URL + ROUTES.consumer.home, { waitUntil: "networkidle" });
+});
+
+When("vuelvo a la conversación con el prestador", async () => {
+  const firstContact = consumerContacts[0];
+  await page.goto(
+    APP_URL + ROUTES.consumer.messages + `?provider_id=${firstContact.providerId}&name=${firstContact.providerName}&surname=${firstContact.providerSurname}`,
+    { waitUntil: "networkidle" }
+  );
+  const messagesList = page.locator("[data-testid='messages-list']");
+  await messagesList.waitFor({ state: "visible", timeout: 10000 });
+});
+
+Then("veo el mensaje {string} en la caja de texto", async (texto: string) => {
+  const input = page.getByRole("textbox", { name: /escribe un mensaje/i });
+  await input.waitFor({ state: "visible", timeout: 10000 });
+  await page.waitForTimeout(300);
+  const value = await input.inputValue();
+  assert.strictEqual(value, texto, `Se esperaba que la caja contenga "${texto}" pero contiene "${value}"`);
+});
+
+Then("la imagen {string} continúa adjunta al mensaje", async (imagen: string) => {
+  const thumbnail = page.locator(`img[alt*="${imagen}"]`).first();
+  await thumbnail.waitFor({ state: "attached", timeout: 10000 });
+});
+
+When("envío el mensaje de borrador {string}", async (texto: string) => {
+  const input = page.getByRole("textbox", { name: /escribe un mensaje/i });
+  await input.waitFor({ state: "visible", timeout: 10000 });
+
+  await addApiStub({
+    method: "POST",
+    endpoint: "/conversations/1/messages",
+    status: 201,
+    body: {
+      id: 999,
+      conversation_id: 1,
+      sender_role: "consumer",
+      content: texto,
+      created_on: new Date().toISOString(),
+    },
+  });
+
+  await input.fill(texto);
+  const sendButton = page.getByRole("button", { name: /enviar/i });
+  await sendButton.click();
+  await page.waitForTimeout(500);
+});
+
+Then("la caja de texto queda vacía", async () => {
+  const input = page.getByRole("textbox", { name: /escribe un mensaje/i });
+  await input.waitFor({ state: "visible", timeout: 10000 });
+  await page.waitForTimeout(300);
+  const value = await input.inputValue();
+  assert.strictEqual(value, "", `Se esperaba que la caja esté vacía pero contiene "${value}"`);
+});
+
+Then("si navego a la página de inicio y vuelvo, la caja de texto sigue vacía", async () => {
+  await page.goto(APP_URL + ROUTES.consumer.home, { waitUntil: "networkidle" });
+
+  const firstContact = consumerContacts[0];
+  await page.goto(
+    APP_URL + ROUTES.consumer.messages + `?provider_id=${firstContact.providerId}&name=${firstContact.providerName}&surname=${firstContact.providerSurname}`,
+    { waitUntil: "networkidle" }
+  );
+
+  const input = page.getByRole("textbox", { name: /escribe un mensaje/i });
+  await input.waitFor({ state: "visible", timeout: 10000 });
+  await page.waitForTimeout(300);
+  const value = await input.inputValue();
+  assert.strictEqual(value, "", `Se esperaba que la caja esté vacía tras navegar pero contiene "${value}"`);
+});
+
 When("cambio a otra conversación y vuelvo a abrir la conversación original", async () => {
   const messagesList = page.locator("[data-testid='messages-list']");
   const url = page.url();

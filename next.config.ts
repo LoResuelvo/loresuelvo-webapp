@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
         hostname: "minio.localhost",
         port: "9000",
       },
+      {
+        protocol: "https",
+        hostname: "*.r2.cloudflarestorage.com",
+      },
       ...(process.env.NEXT_PUBLIC_PUBLIC_MEDIA_BASE_URL
         ? [
             {

@@ -1,23 +1,32 @@
 import { render, screen, fireEvent, cleanup, waitFor, act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DiagnosisHero from "@/components/consumer/diagnosis/DiagnosisHero";
+import { createAiConversationAction } from "@/app/consumidor/mensajes-ia/actions";
 
-const mockPush = vi.fn();
+const mockAssign = vi.fn();
 
-const mockLocalStorage = {
+const mockSessionStorage = {
   getItem: vi.fn().mockReturnValue(null),
   setItem: vi.fn(),
   removeItem: vi.fn(),
 };
 
-Object.defineProperty(global, "localStorage", {
-  value: mockLocalStorage,
+Object.defineProperty(global, "sessionStorage", {
+  value: mockSessionStorage,
+});
+
+Object.defineProperty(window, "location", {
+  value: {
+    href: "",
+    set href(url: string) { mockAssign(url); },
+  },
+  writable: true,
 });
 
 global.URL.createObjectURL = vi.fn(() => "blob:https://loresuelvo.com/mock-blob");
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: vi.fn() }),
 }));
 
 vi.mock("@/app/consumidor/mensajes-ia/actions", () => ({
@@ -42,15 +51,15 @@ global.fetch = vi.fn().mockResolvedValue({
 
 afterEach(() => {
   cleanup();
-  mockPush.mockReset();
-  mockLocalStorage.getItem.mockReturnValue(null);
-  mockLocalStorage.setItem.mockClear();
+  mockAssign.mockReset();
+  mockSessionStorage.getItem.mockReturnValue(null);
+  mockSessionStorage.setItem.mockClear();
 });
 
 describe("DiagnosisHero", () => {
   beforeEach(() => {
-    mockPush.mockReset();
-    mockLocalStorage.getItem.mockReturnValue(null);
+    mockAssign.mockReset();
+    mockSessionStorage.getItem.mockReturnValue(null);
   });
 
   it("muestra el título y el input para describir el problema", () => {
@@ -69,8 +78,45 @@ describe("DiagnosisHero", () => {
     fireEvent.click(screen.getByRole("button", { name: /diagnosticar/i }));
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledTimes(1);
+      expect(mockAssign).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("redirige con el id de la conversación creada después de esperar la respuesta del AI", async () => {
+    render(<DiagnosisHero />);
+
+    fireEvent.change(screen.getByPlaceholderText(/describe el problema/i), {
+      target: { value: "Se está filtrando agua debajo de la bacha" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /diagnosticar/i }));
+
+    await waitFor(() => {
+      expect(mockAssign).toHaveBeenCalledTimes(1);
+    });
+
+    const assignedUrl = mockAssign.mock.calls[0][0] as string;
+    expect(assignedUrl).toContain("id=1");
+    expect(assignedUrl).toContain("/consumidor/mensajes-ia");
+  });
+
+  it("muestra spinner en el botón mientras espera la respuesta del AI", async () => {
+    let resolveCreate: (value: { id: number }) => void = () => undefined;
+    (createAiConversationAction as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      () => new Promise<{ id: number }>((resolve) => { resolveCreate = resolve; })
+    );
+
+    render(<DiagnosisHero />);
+
+    fireEvent.change(screen.getByPlaceholderText(/describe el problema/i), {
+      target: { value: "Se está filtrando agua debajo de la bacha" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /diagnosticar/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /diagnosticando/i })).toBeInTheDocument();
+    });
+
+    resolveCreate({ id: 1 });
   });
 
   it("no navega si el mensaje está vacío", () => {
@@ -78,7 +124,7 @@ describe("DiagnosisHero", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /diagnosticar/i }));
 
-    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockAssign).not.toHaveBeenCalled();
   });
 
   describe("Funcionalidad de adjuntos de imagen en Hero", () => {

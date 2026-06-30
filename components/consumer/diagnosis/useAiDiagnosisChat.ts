@@ -33,7 +33,18 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
   const shouldSimulateError = simulateError || urlSimulateError;
   const effectiveConversationId = conversationId ?? searchParams.get("id");
 
-  const [messages, setMessages] = useState<AiMessage[]>([]);
+  const [messages, setMessages] = useState<AiMessage[]>(() => {
+    if (typeof window === "undefined") return [];
+    const pendingRaw = window.sessionStorage.getItem("pendingAiMessage");
+    if (!pendingRaw) return [];
+    const pending = JSON.parse(pendingRaw) as { text: string; imageIds: string[] };
+    return [{
+      id: `temp-${Date.now()}`,
+      content: pending.text,
+      senderId: USER_ID,
+      sentAt: formatToLocalShortDateTime(new Date().toISOString()),
+    }];
+  });
   const [assistantReply, setAssistantReply] = useState<string | null>(null);
   const [chatError, setChatError] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
@@ -43,6 +54,7 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
   const [isSending, setIsSending] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isWaitingForReply, setIsWaitingForReply] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
   
   const fetchedConversationId = useRef<string | null>(null);
@@ -62,6 +74,32 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
   );
 
   useEffect(() => {
+    if (!effectiveConversationId && typeof window !== "undefined") {
+      const pendingRaw = window.sessionStorage.getItem("pendingAiMessage");
+      if (pendingRaw) {
+        const pending = JSON.parse(pendingRaw) as { text: string; imageIds: string[] };
+        window.sessionStorage.removeItem("pendingAiMessage");
+
+        setIsWaitingForReply(true);
+        setIsInitialized(true);
+
+        if (chatRepository) {
+          chatRepository.create(pending.text, pending.imageIds.length > 0 ? pending.imageIds : undefined)
+            .then((conversation) => {
+              router.replace(`${ROUTES.consumer.aiMessages}?id=${conversation.id}`);
+            })
+            .catch((err) => {
+              console.error("Failed to create conversation:", err);
+              setChatError(t.aiDiagnosis.errors.noResponse);
+              setIsWaitingForReply(false);
+            });
+        }
+        return;
+      }
+
+      if (messages.length > 0) return;
+    }
+
     if (!effectiveConversationId) {
       setMessages([]);
       setAssistantReply(null);
@@ -75,6 +113,7 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
 
     if (effectiveConversationId && chatRepository && fetchedConversationId.current !== effectiveConversationId) {
       fetchedConversationId.current = effectiveConversationId;
+      setIsLoadingMessages(true);
       chatRepository.getById(effectiveConversationId)
         .then((data) => {
           const lastAssistantIndex = data.messages.findLastIndex((m) => m.senderRole === "chatbot");
@@ -90,10 +129,11 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
           }));
           setMessages(msgs);
         })
-        .catch(console.error);
+        .catch(console.error)
+        .finally(() => setIsLoadingMessages(false));
     }
     setIsInitialized(true);
-  }, [effectiveConversationId, chatRepository]);
+  }, [effectiveConversationId, chatRepository, router, messages.length]);
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -317,6 +357,7 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
     isSending,
     isInitialized,
     isWaitingForReply,
+    isLoadingMessages,
     lastUserMessage,
     messagesEndRef,
     textareaRef,

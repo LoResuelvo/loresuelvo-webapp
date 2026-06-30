@@ -21,3 +21,8 @@ export async function createAiJobRequestAction(conversationId: string, providerI
   const repo = new ApiAiChatRepository();
   return repo.createJobRequest(conversationId, providerId);
 }
+
+export async function getAiConversationsAction() {
+  const repo = new ApiAiChatRepository();
+  return repo.getConversations();
+}

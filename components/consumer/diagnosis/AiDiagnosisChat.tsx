@@ -46,6 +46,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
     isSending,
     isInitialized,
     isWaitingForReply,
+    isLoadingMessages,
     messagesEndRef,
     textareaRef,
     fileInputRef,
@@ -145,7 +146,14 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
           {t.aiDiagnosis.disclaimer}
         </InfoBanner>
 
-        {!isInitialized ? null : messages.length === 0 ? (
+        {!isInitialized ? null : messages.length === 0 && isLoadingMessages ? (
+          <div className="flex flex-1 items-center justify-center text-center mt-4" role="status" aria-live="polite">
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="w-8 h-8 text-brand-primary animate-spin" aria-hidden="true" />
+              <p className="text-[14px] text-slate-500">{t.aiDiagnosis.loadingMessages}</p>
+            </div>
+          </div>
+        ) : !isInitialized || messages.length === 0 ? (
           <div className="flex flex-1 items-center justify-center text-center mt-4">
             <div>
               <MessageSquare className="w-14 h-14 text-slate-300 mx-auto mb-4" aria-hidden="true" />

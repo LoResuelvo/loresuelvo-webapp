@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AiDiagnosisChat from "@/components/consumer/diagnosis/AiDiagnosisChat";
 import { createApiAssistantClient } from "@/infrastructure/repositories/api-assistant-client";
-import { createAiConversationAction, sendAiMessageAction, getAiConversationByIdAction, createAiJobRequestAction } from "@/app/consumidor/mensajes-ia/actions";
+import { createAiConversationAction, sendAiMessageAction, getAiConversationByIdAction, createAiJobRequestAction, getAiConversationsAction } from "@/app/consumidor/mensajes-ia/actions";
 import type { AiConversationContact } from "@/domain/messaging/types";
 import { ROUTES } from "@/lib/routes";
 import { Bot } from "lucide-react";
@@ -16,10 +16,18 @@ interface AiDiagnosisChatWrapperProps {
 import { t } from "@/infrastructure/i18n/translations";
 import { Button } from "@/components/ui/button";
 
-export default function AiDiagnosisChatWrapper({ initialConversations: conversations }: AiDiagnosisChatWrapperProps) {
+export default function AiDiagnosisChatWrapper({ initialConversations: initial }: AiDiagnosisChatWrapperProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("id");
+  const [conversations, setConversations] = useState<AiConversationContact[]>(initial);
+
+  useEffect(() => {
+    if (initial.length > 0 && !selectedId) return;
+    getAiConversationsAction()
+      .then((data) => setConversations(data))
+      .catch((err) => console.error("Failed to fetch conversations:", err));
+  }, [selectedId, initial.length]);
 
   const assistantClient = useMemo(() => createApiAssistantClient(), []);
   const chatRepository = useMemo(() => ({
@@ -38,7 +46,7 @@ export default function AiDiagnosisChatWrapper({ initialConversations: conversat
     router.push(`${ROUTES.consumer.aiMessages}?new=true`);
   };
 
-  const isChatActive = selectedId || searchParams.get("new") === "true";
+  const isChatActive = !!selectedId || searchParams.get("new") === "true" || searchParams.get("pending") === "1";
 
   return (
     <>

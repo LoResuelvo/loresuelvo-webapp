@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { Sparkles, Info, Paperclip, X } from "lucide-react";
+import { Sparkles, Info, Paperclip, X, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
@@ -25,9 +24,8 @@ interface DiagnosisHeroProps {
 }
 
 export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
-  const router = useRouter();
   const [message, setMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
@@ -99,9 +97,9 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = message.trim();
-    if ((!trimmed && attachedFiles.length === 0) || isLoading) return;
+    if ((!trimmed && attachedFiles.length === 0) || isSubmitting) return;
 
-    setIsLoading(true);
+    setIsSubmitting(true);
     setError(null);
 
     const uploadedImageIds: string[] = [];
@@ -121,14 +119,13 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
         }
       }
 
-      console.log("[DiagnosisHero] Creating conversation with:", trimmed, uploadedImageIds);
       const conversation = await createAiConversationAction(trimmed, uploadedImageIds.length > 0 ? uploadedImageIds : undefined);
-      console.log("[DiagnosisHero] Conversation created:", conversation);
-      router.push(`${ROUTES.consumer.aiMessages}?id=${conversation.id}`);
+
+      window.location.href = `${ROUTES.consumer.aiMessages}?id=${conversation.id}`;
     } catch (err) {
       console.error("[DiagnosisHero] Failed to create conversation:", err);
       setError(t.aiDiagnosis.errors.startDiagnosis);
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -174,7 +171,7 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
             accept="image/jpeg, image/png, image/webp"
             multiple
             onChange={handleFileChange}
-            disabled={isLoading || attachedFiles.length >= 5}
+            disabled={isSubmitting || attachedFiles.length >= 5}
           />
           <div className="flex flex-col gap-2 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 p-2">
             {attachedFiles.length > 0 && (
@@ -214,7 +211,7 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
                 variant="ghost"
                 size="icon"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isLoading || attachedFiles.length >= 5}
+disabled={isSubmitting || attachedFiles.length >= 5}
                 aria-label="Adjuntar imágenes"
                 className="text-white hover:text-white/80 hover:bg-white/10 flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
               >
@@ -231,10 +228,17 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
               <Button
                 variant="brand"
                 type="submit"
-                className="px-6 py-3 h-auto whitespace-nowrap shadow-sm font-semibold rounded-lg"
-                disabled={isLoading}
+                disabled={isSubmitting}
+                className="px-6 py-3 h-auto whitespace-nowrap shadow-sm font-semibold rounded-lg disabled:opacity-100"
               >
-                {t.consumerDiagnosis.hero.buttonText}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
+                    Diagnosticando…
+                  </>
+                ) : (
+                  t.consumerDiagnosis.hero.buttonText
+                )}
               </Button>
             </div>
           </div>

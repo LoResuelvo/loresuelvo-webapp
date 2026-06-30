@@ -143,6 +143,8 @@ export const t = {
     categoryLabel: "Rubro",
     newChat: "Nuevo chat",
     noConversations: "No hay conversaciones aún",
+    loadingConversations: "Estamos cargando las sesiones",
+    loadingMessages: "Estamos cargando los mensajes",
     disclaimer: "Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo",
     chatTitle: "Chat con IA",
     chatDescription: "Describe el problema de tu hogar para iniciar una conversación con el asistente.",

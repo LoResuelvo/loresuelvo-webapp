@@ -90,6 +90,74 @@ function failingClient(error: Error = new Error("Servicio no disponible")): Assi
   };
 }
 
+describe("AiDiagnosisChat - mensaje pendiente desde home", () => {
+  const mockSessionStorage: Record<string, string> = {};
+
+  beforeEach(() => {
+    mockSessionStorage["pendingAiMessage"] = JSON.stringify({
+      text: "Pérdida en la cocina",
+      imageIds: [],
+    });
+    Object.defineProperty(global, "sessionStorage", {
+      value: {
+        getItem: vi.fn((key: string) => mockSessionStorage[key] || null),
+        setItem: vi.fn((key: string, value: string) => { mockSessionStorage[key] = value; }),
+        removeItem: vi.fn((key: string) => { delete mockSessionStorage[key]; }),
+      },
+      writable: true,
+    });
+  });
+
+  afterEach(() => {
+    delete mockSessionStorage["pendingAiMessage"];
+  });
+
+  it("muestra el mensaje pendiente y el indicador de typing mientras espera la creación", async () => {
+    let resolveCreate: (value: { id: number; messages: unknown[]; recommendedProviders: unknown[]; diagnosisCompleted: boolean; assessment: unknown; updatedOn: string; status: string; title: string; responseStatus: string }) => void = () => undefined;
+    const mockRepo = {
+      getById: vi.fn(),
+      sendMessage: vi.fn(),
+      create: vi.fn().mockImplementation(
+        () => new Promise<{ id: number; messages: unknown[]; recommendedProviders: unknown[]; diagnosisCompleted: boolean; assessment: unknown; updatedOn: string; status: string; title: string; responseStatus: string }>((resolve) => {
+          resolveCreate = resolve;
+        })
+      ),
+      getAll: vi.fn(),
+    };
+
+    mockUseSearchParams.mockReturnValue(new URLSearchParams("pending=1"));
+
+    render(
+      <AiDiagnosisChat
+        client={instantClient()}
+        chatRepository={mockRepo as unknown as AiChatRepository}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Pérdida en la cocina")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("status", { name: /asistente escribiendo/i })).toBeInTheDocument();
+
+    resolveCreate({
+      id: 99,
+      status: "active",
+      title: "Pérdida",
+      responseStatus: "answered",
+      diagnosisCompleted: false,
+      assessment: undefined,
+      messages: [],
+      recommendedProviders: [],
+      updatedOn: new Date().toISOString(),
+    });
+
+    await waitFor(() => {
+      expect(mockRepo.create).toHaveBeenCalledWith("Pérdida en la cocina", undefined);
+    });
+  });
+});
+
 describe("AiDiagnosisChat", () => {
   beforeEach(() => {
     mockLocalStorage.data = {};

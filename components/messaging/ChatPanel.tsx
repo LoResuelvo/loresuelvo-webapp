@@ -73,6 +73,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
           showPendingBanner={selectedContact.pending}
           myUserId={myUserId}
           pendingBannerText={pendingBannerText}
+          conversationId={selectedContact.id}
         />
         {blockInputWhenPending && selectedContact.pending ? (
           <div className="p-4 bg-white border-t border-slate-200 flex-shrink-0">

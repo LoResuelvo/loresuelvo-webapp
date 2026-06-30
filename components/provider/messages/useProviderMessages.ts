@@ -16,10 +16,19 @@ const conversationRepository = new ClientConversationRepository({ create: create
 const fileRepository = new ClientFileRepository();
 const offlineQueueRepo = new LocalOfflineQueueRepository();
 
+let lastProviderConsumerId: string | null = null;
+
 export function useProviderMessages(session: AuthSession | null, contacts: ConversationContact[], myUserId: string) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const selectedConsumerId = searchParams.get("consumer_id");
+  const urlConsumerId = searchParams.get("consumer_id");
+  const selectedConsumerId = urlConsumerId ?? lastProviderConsumerId;
+
+  useEffect(() => {
+    if (selectedConsumerId) {
+      lastProviderConsumerId = selectedConsumerId;
+    }
+  }, [selectedConsumerId]);
   
   const [messageInput, setMessageInput] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);

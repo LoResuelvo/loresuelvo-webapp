@@ -377,7 +377,8 @@ When("recibo una nueva respuesta del asistente", async () => {
   const sendButton = page.getByRole("button", { name: "Enviar mensaje" });
   await sendButton.click();
   
-  const newResponse = page.getByText("Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?");
+  const chatArea = page.getByRole("region", { name: "Chat con el asistente de diagnóstico" });
+  const newResponse = chatArea.getByText("Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?");
   await newResponse.waitFor({ state: "visible", timeout: 5000 });
 });
 

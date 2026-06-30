@@ -92,7 +92,11 @@ describe("ProviderMessagesClient handleAccept redirect", () => {
       <ProviderMessagesClient session={mockSession} contacts={mockContacts} myUserId="provider-001" />
     );
 
-    const verSolicitudButton = await screen.findByRole("button", { name: "Ver Solicitud" });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Ver Solicitud" })).not.toBeDisabled();
+    });
+
+    const verSolicitudButton = screen.getByRole("button", { name: "Ver Solicitud" });
     await act(async () => {
       fireEvent.click(verSolicitudButton);
     });

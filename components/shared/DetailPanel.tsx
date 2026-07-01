@@ -50,7 +50,7 @@ export function DetailPanel({
                 {descriptionLabel}
               </span>
             )}
-            <p className="text-[15px] leading-relaxed text-slate-600 whitespace-pre-wrap">
+            <p className="text-[15px] leading-relaxed text-slate-600 whitespace-pre-wrap max-h-60 overflow-y-auto pr-2">
               {description}
             </p>
           </div>

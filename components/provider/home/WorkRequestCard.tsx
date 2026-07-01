@@ -37,7 +37,7 @@ export default function WorkRequestCard({ request, onViewDetails }: WorkRequestC
 
           <p
             data-field="description"
-            className="text-[14px] leading-6 text-slate-600"
+            className="text-[14px] leading-6 text-slate-600 line-clamp-3"
           >
             {request.description}
           </p>

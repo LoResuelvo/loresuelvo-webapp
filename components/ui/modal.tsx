@@ -34,14 +34,14 @@ export function Modal({
         <DialogPrimitive.Content
           aria-describedby={undefined}
           className={cn(
-            "fixed left-1/2 top-1/2 z-50 w-full max-w-[580px] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white shadow-xl overflow-hidden mx-4",
+            "fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-[580px] max-h-[90vh] flex flex-col -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white shadow-xl",
             "data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95",
             "data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95",
             className
           )}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-slate-200">
+          <div className="flex items-center justify-between p-4 border-b border-slate-200 shrink-0">
             <DialogPrimitive.Title
               className="text-lg font-semibold text-brand-primary"
             >
@@ -60,10 +60,16 @@ export function Modal({
           </div>
 
           {/* Body */}
-          {children}
+          <div className="overflow-y-auto flex-1 min-h-0">
+            {children}
+          </div>
 
           {/* Footer (opcional) */}
-          {footer}
+          {footer && (
+            <div className="shrink-0 border-t border-slate-200">
+              {footer}
+            </div>
+          )}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

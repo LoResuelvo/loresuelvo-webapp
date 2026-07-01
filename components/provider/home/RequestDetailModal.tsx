@@ -22,7 +22,7 @@ export default function RequestDetailModal({
   onReject,
 }: RequestDetailModalProps) {
   const footer = (
-    <div className="p-6 pt-4 border-t border-slate-200 bg-slate-50 space-y-3">
+    <div className="p-6 pt-4 bg-slate-50 space-y-3">
       <Button
         variant="accept"
         size="action"

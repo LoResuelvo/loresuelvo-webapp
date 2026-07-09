@@ -127,3 +127,22 @@ export interface AiMessage {
   sentAt: string;
   images?: MessageImage[];
 }
+
+export interface ServiceProposal {
+  id: number;
+  conversationId: number;
+  consumerId: number;
+  providerId: number;
+  amountCents: number;
+  scheduledOn: string;
+  description: string;
+  status: "pending" | "accepted" | "rejected";
+}
+
+export interface CreateServiceProposalInput {
+  consumerId: number;
+  amount: string;       // "15000.50" — string decimal, la API lo convierte a cents
+  scheduledOn: string;  // ISO 8601 datetime
+  description: string;
+}
+

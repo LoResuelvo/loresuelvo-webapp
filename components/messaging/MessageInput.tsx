@@ -1,10 +1,11 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
-import { Send, Paperclip, X } from "lucide-react";
+import { Send, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
 import Image from "next/image";
 import { ImagePreviewModal } from "./ImagePreviewModal";
+import { AttachmentMenu } from "@/components/messaging/AttachmentMenu";
 
 interface MessageInputProps {
   value: string;
@@ -14,6 +15,7 @@ interface MessageInputProps {
   attachedFiles?: File[];
   onAttachFiles?: (files: File[]) => void;
   onRemoveFile?: (index: number) => void;
+  onOpenServiceProposal?: () => void;
 }
 
 export interface MessageInputHandle {
@@ -21,7 +23,7 @@ export interface MessageInputHandle {
 }
 
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
-  ({ value, onChange, onSend, disabled, attachedFiles = [], onAttachFiles, onRemoveFile }, ref) => {
+  ({ value, onChange, onSend, disabled, attachedFiles = [], onAttachFiles, onRemoveFile, onOpenServiceProposal }, ref) => {
     const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -108,17 +110,12 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 onChange={handleFileChange}
                 disabled={disabled || attachedFiles.length >= 5}
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => fileInputRef.current?.click()}
+              <AttachmentMenu
+                onAttachImages={() => fileInputRef.current?.click()}
+                onCreateProposal={onOpenServiceProposal}
+                showProposalOption={!!onOpenServiceProposal}
                 disabled={disabled || attachedFiles.length >= 5}
-                aria-label="Adjuntar imágenes"
-                className="text-slate-500 hover:text-brand-primary"
-              >
-                <Paperclip className="w-5 h-5" />
-              </Button>
+              />
             </>
           )}
           <Input

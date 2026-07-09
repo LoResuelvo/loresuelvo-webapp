@@ -33,13 +33,25 @@ async function stubFileUpload(fileName: string, fileId: string = "mock-file-123"
   });
 }
 
+async function triggerFileChooser() {
+  const fileChooserPromise = page.waitForEvent('filechooser');
+  
+  const menuBtn = page.getByLabel("Abrir menú de acciones");
+  await menuBtn.waitFor({ state: "visible" });
+  await menuBtn.click();
+  
+  const option = page.getByRole("menuitem", { name: "Adjuntar imágenes" });
+  await option.waitFor({ state: "visible" });
+  await option.click();
+  
+  return await fileChooserPromise;
+}
+
 Given("que adjunté la imagen {string}", async function (imagen: string) {
   currentAttachedImages.push(imagen);
   await stubFileUpload(imagen);
   
-  const fileChooserPromise = page.waitForEvent('filechooser');
-  await page.getByRole('button', { name: /adjuntar/i }).click();
-  const fileChooser = await fileChooserPromise;
+  const fileChooser = await triggerFileChooser();
   
   await fileChooser.setFiles([{
     name: imagen,
@@ -56,9 +68,7 @@ Given("que adjunté las imágenes {string} y {string}", async function (img1: st
   await stubFileUpload(img1, "mock-file-1");
   await stubFileUpload(img2, "mock-file-2");
   
-  const fileChooserPromise = page.waitForEvent('filechooser');
-  await page.getByRole('button', { name: /adjuntar/i }).click();
-  const fileChooser = await fileChooserPromise;
+  const fileChooser = await triggerFileChooser();
   
   await fileChooser.setFiles([
     { name: img1, mimeType: 'image/jpeg', buffer: Buffer.from('mock1') },
@@ -67,9 +77,7 @@ Given("que adjunté las imágenes {string} y {string}", async function (img1: st
 });
 
 When("adjunto la imagen {string} que supera los 5MB", async function (imagen: string) {
-  const fileChooserPromise = page.waitForEvent('filechooser');
-  await page.getByRole('button', { name: /adjuntar/i }).click();
-  const fileChooser = await fileChooserPromise;
+  const fileChooser = await triggerFileChooser();
   
   // Create a large buffer (5.1MB)
   const largeBuffer = Buffer.alloc(5.1 * 1024 * 1024);

@@ -4,7 +4,7 @@ import { page } from "./landing_page_visualization_steps";
 import { ROUTES } from "../../lib/routes";
 import { AuthSession } from "../../infrastructure/auth/types";
 import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
-import { addApiStub } from "./stubs-helper";
+import { addApiStub, hasApiStub } from "./stubs-helper";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
@@ -153,21 +153,24 @@ Given("que tengo abierto el formulario de propuesta de servicio", async () => {
 });
 
 When("completo y envío la propuesta con monto {string}, fecha futura y motivo {string}", async (monto: string, motivo: string) => {
-  await addApiStub({
-    method: "POST",
-    endpoint: "/service-proposals",
-    status: 201,
-    body: {
-      id: 10,
-      conversation_id: 1,
-      consumer_id: 10,
-      provider_id: 1,
-      amount_cents: parseFloat(monto) * 100,
-      scheduled_on: "2026-07-20T12:00:00Z",
-      description: motivo,
-      status: "pending",
-    },
-  });
+  const alreadyStubbed = await hasApiStub("POST", "/service-proposals");
+  if (!alreadyStubbed) {
+    await addApiStub({
+      method: "POST",
+      endpoint: "/service-proposals",
+      status: 201,
+      body: {
+        id: 10,
+        conversation_id: 1,
+        consumer_id: 10,
+        provider_id: 1,
+        amount_cents: parseFloat(monto) * 100,
+        scheduled_on: "2026-07-20T12:00:00Z",
+        description: motivo,
+        status: "pending",
+      },
+    });
+  }
 
   const modal = page.getByRole("dialog", { name: "Propuesta de Servicio" });
   

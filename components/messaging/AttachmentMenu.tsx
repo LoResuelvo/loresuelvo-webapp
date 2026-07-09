@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Plus, Image, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface AttachmentMenuProps {
   onAttachImages: () => void;
@@ -36,7 +37,7 @@ export function AttachmentMenu({
         size="icon"
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
-        aria-label="Abrir menú de acciones"
+        aria-label={t.messaging.attachmentMenu.openMenu}
         className="text-slate-500 hover:text-brand-primary"
       >
         <Plus className="w-5 h-5" />
@@ -58,7 +59,7 @@ export function AttachmentMenu({
             role="menuitem"
           >
             <Image className="w-4 h-4 text-slate-500" />
-            <span>Adjuntar imágenes</span>
+            <span>{t.messaging.attachmentMenu.attachImages}</span>
           </button>
           {showProposalOption && onCreateProposal && (
             <button
@@ -71,7 +72,7 @@ export function AttachmentMenu({
               role="menuitem"
             >
               <FileText className="w-4 h-4 text-slate-500" />
-              <span>Crear propuesta de servicio</span>
+              <span>{t.messaging.attachmentMenu.createProposal}</span>
             </button>
           )}
         </div>

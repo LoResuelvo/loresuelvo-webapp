@@ -26,6 +26,7 @@ interface ProviderMessagesViewProps {
   attachedFiles?: File[];
   onAttachFiles?: (files: File[]) => void;
   onRemoveFile?: (index: number) => void;
+  onOpenServiceProposal?: () => void;
   className?: string;
 }
 
@@ -49,6 +50,7 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
   attachedFiles,
   onAttachFiles,
   onRemoveFile,
+  onOpenServiceProposal,
   className,
 }, ref) => {
   const isChatActive = !!selectedConsumerId;
@@ -94,10 +96,11 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
           myUserId={myUserId}
           isLoadingJobRequest={isLoadingJobRequest}
           pendingBannerText={pendingBannerText}
-          blockInputWhenPending={true}
+          blockInputWhenPending={false}
           attachedFiles={attachedFiles}
           onAttachFiles={onAttachFiles}
           onRemoveFile={onRemoveFile}
+          onOpenServiceProposal={onOpenServiceProposal}
         />
       </div>
     </main>

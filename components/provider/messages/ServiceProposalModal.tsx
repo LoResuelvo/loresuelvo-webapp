@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CreateServiceProposalInput } from "@/domain/messaging/types";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface ServiceProposalModalProps {
   open: boolean;
@@ -51,7 +52,7 @@ export function ServiceProposalModal({
     if (amount) {
       const parsed = parseFloat(amount);
       if (isNaN(parsed) || parsed <= 0) {
-        setAmountError("El monto debe ser mayor a cero.");
+        setAmountError(t.messaging.serviceProposal.errorAmountInvalid);
       } else {
         setAmountError("");
       }
@@ -65,7 +66,7 @@ export function ServiceProposalModal({
       const selectedDate = new Date(scheduledOn);
       const now = new Date();
       if (selectedDate <= now) {
-        setDateError("La fecha y hora deben ser futuras.");
+        setDateError(t.messaging.serviceProposal.errorDatePast);
       } else {
         setDateError("");
       }
@@ -97,7 +98,7 @@ export function ServiceProposalModal({
         onClose();
       }, 2000);
     } catch (err) {
-      setSubmitError("Hubo un problema al enviar la propuesta. Por favor intenta de nuevo.");
+      setSubmitError(t.messaging.serviceProposal.errorGeneric);
     } finally {
       setIsSubmitting(false);
     }
@@ -107,17 +108,17 @@ export function ServiceProposalModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Propuesta de Servicio"
-      closeLabel="Cerrar modal"
+      title={t.messaging.serviceProposal.modalTitle}
+      closeLabel={t.messaging.serviceProposal.closeLabel}
     >
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
         {isSuccess ? (
           <div className="flex flex-col items-center justify-center py-8 text-center space-y-4 animate-in fade-in zoom-in duration-300">
             <CheckCircle2 className="w-16 h-16 text-emerald-500" />
             <div className="space-y-1">
-              <h3 className="text-lg font-semibold text-slate-900">¡Enviado!</h3>
+              <h3 className="text-lg font-semibold text-slate-900">{t.messaging.serviceProposal.successTitle}</h3>
               <p className="text-sm text-slate-500 max-w-sm">
-                Propuesta enviada exitosamente. El consumidor fue notificado.
+                {t.messaging.serviceProposal.successMessage}
               </p>
             </div>
           </div>
@@ -126,14 +127,14 @@ export function ServiceProposalModal({
             <div className="space-y-4">
               {/* Amount */}
               <div className="space-y-2">
-                <Label htmlFor="amount">Monto</Label>
+                <Label htmlFor="amount">{t.messaging.serviceProposal.amountLabel}</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-medium">$</span>
                   <Input
                     id="amount"
                     type="number"
                     step="0.01"
-                    placeholder="Ej: 15000.50"
+                    placeholder={t.messaging.serviceProposal.amountPlaceholder}
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     className={`pl-8 ${amountError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
@@ -149,7 +150,7 @@ export function ServiceProposalModal({
 
               {/* ScheduledOn */}
               <div className="space-y-2">
-                <Label htmlFor="scheduledOn">Fecha y hora</Label>
+                <Label htmlFor="scheduledOn">{t.messaging.serviceProposal.scheduledOnLabel}</Label>
                 <Input
                   id="scheduledOn"
                   type="datetime-local"
@@ -167,10 +168,10 @@ export function ServiceProposalModal({
 
               {/* Description */}
               <div className="space-y-2">
-                <Label htmlFor="description">Motivo de la visita</Label>
+                <Label htmlFor="description">{t.messaging.serviceProposal.descriptionLabel}</Label>
                 <Textarea
                   id="description"
-                  placeholder="Ej: Reparación de pérdida de agua en cocina con materiales incluidos."
+                  placeholder={t.messaging.serviceProposal.descriptionPlaceholder}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="min-h-[100px] resize-none"
@@ -195,7 +196,7 @@ export function ServiceProposalModal({
                 onClick={onClose}
                 disabled={isSubmitting}
               >
-                Cancelar
+                {t.messaging.serviceProposal.cancelButton}
               </Button>
               <Button
                 type="submit"
@@ -203,7 +204,7 @@ export function ServiceProposalModal({
                 disabled={isSubmitDisabled}
                 className="px-6 font-semibold"
               >
-                {isSubmitting ? "Enviando..." : "Enviar propuesta"}
+                {isSubmitting ? t.messaging.serviceProposal.submittingButton : t.messaging.serviceProposal.submitButton}
               </Button>
             </div>
           </>

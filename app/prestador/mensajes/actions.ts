@@ -41,8 +41,13 @@ export async function getJobRequestForConversation(conversationId: string): Prom
   return getJobReqUseCase(repository, conversationId);
 }
 
-export async function createServiceProposal(input: CreateServiceProposalInput): Promise<ServiceProposal> {
-  const repository = new ApiServiceProposalRepository();
-  return sendServiceProposalUseCase(repository, input);
+export async function createServiceProposal(input: CreateServiceProposalInput): Promise<{ success: boolean; data?: ServiceProposal; error?: string }> {
+  try {
+    const repository = new ApiServiceProposalRepository();
+    const data = await sendServiceProposalUseCase(repository, input);
+    return { success: true, data };
+  } catch (error: any) {
+    return { success: false, error: error?.message || "Error" };
+  }
 }
 

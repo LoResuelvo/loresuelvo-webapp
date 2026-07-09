@@ -49,6 +49,7 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
   const [acceptedConversations, setAcceptedConversations] = useState<Set<string>>(new Set());
   const [activeJobRequest, setActiveJobRequest] = useState<{ id: number; title: string; description: string; consumerName: string; images?: { id: string; url: string; originalName: string; }[] } | null | undefined>(undefined);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showServiceProposalModal, setShowServiceProposalModal] = useState(false);
   const [localContacts, setLocalContacts] = useState<ConversationContact[]>(contacts);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -330,6 +331,10 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
     pending: isPending(c),
   }));
 
+  const handleServiceProposalSuccess = () => {
+    setShowServiceProposalModal(false);
+  };
+
   return {
     selectedConsumerId,
     selectedContact,
@@ -351,6 +356,9 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
     showRequestModal,
     setShowRequestModal,
     modalRequest,
-    isPending
+    isPending,
+    showServiceProposalModal,
+    setShowServiceProposalModal,
+    handleServiceProposalSuccess,
   };
 }

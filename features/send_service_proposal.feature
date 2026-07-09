@@ -1,4 +1,3 @@
-@wip
 Feature: US-53 Enviar propuesta de servicio
   Como prestador
   Quiero enviar una propuesta de servicio desde el chat

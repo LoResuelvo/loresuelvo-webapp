@@ -25,6 +25,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   attachedFiles?: File[];
   onAttachFiles?: (files: File[]) => void;
   onRemoveFile?: (index: number) => void;
+  onOpenServiceProposal?: () => void;
 }>(({
   selectedContact,
   messages,
@@ -44,6 +45,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   attachedFiles,
   onAttachFiles,
   onRemoveFile,
+  onOpenServiceProposal,
 }, ref) => {
   if (!selectedContact) {
     return (
@@ -94,6 +96,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
             attachedFiles={attachedFiles}
             onAttachFiles={onAttachFiles}
             onRemoveFile={onRemoveFile}
+            onOpenServiceProposal={onOpenServiceProposal}
           />
         )}
       </div>

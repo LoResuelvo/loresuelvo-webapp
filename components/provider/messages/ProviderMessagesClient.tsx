@@ -10,6 +10,8 @@ import RequestDetailModal from "@/components/provider/home/RequestDetailModal";
 import { ProviderConversationContact as ConversationContact } from "@/domain/messaging/types";
 import { useProviderMessages } from "./useProviderMessages";
 import { t } from "@/infrastructure/i18n/translations";
+import { ServiceProposalModal } from "@/components/provider/messages/ServiceProposalModal";
+import { createServiceProposal } from "@/app/prestador/mensajes/actions";
 
 interface ProviderMessagesClientProps {
   session: AuthSession | null;
@@ -39,7 +41,9 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
     showRequestModal,
     setShowRequestModal,
     modalRequest,
-    isPending
+    isPending,
+    showServiceProposalModal,
+    setShowServiceProposalModal,
   } = useProviderMessages(session, contacts, myUserId);
 
   const inputRef = useRef<MessageInputHandle>(null);
@@ -70,6 +74,11 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
           attachedFiles={attachedFiles}
           onAttachFiles={(files) => setAttachedFiles(prev => [...prev, ...files].slice(0, 5))}
           onRemoveFile={(idx) => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
+          onOpenServiceProposal={
+            selectedContact && !isPending(selectedContact)
+              ? () => setShowServiceProposalModal(true)
+              : undefined
+          }
         />
       </div>
 
@@ -79,6 +88,20 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
           onClose={() => setShowRequestModal(false)}
           onAccept={handleAccept}
           onReject={handleReject}
+        />
+      )}
+
+      {showServiceProposalModal && selectedContact && (
+        <ServiceProposalModal
+          open={showServiceProposalModal}
+          onClose={() => setShowServiceProposalModal(false)}
+          consumerId={parseInt(selectedContact.consumerId)}
+          onSubmit={async (input) => {
+            const res = await createServiceProposal(input);
+            if (!res.success) {
+              throw new Error(res.error);
+            }
+          }}
         />
       )}
     </div>

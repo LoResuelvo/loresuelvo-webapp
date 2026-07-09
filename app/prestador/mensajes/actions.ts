@@ -2,6 +2,7 @@
 
 import { ApiConversationRepository } from "@/infrastructure/repositories/api-conversation-repository";
 import { ApiJobRequestRepository } from "@/infrastructure/repositories/api-job-request-repository";
+import { ApiServiceProposalRepository } from "@/infrastructure/repositories/api-service-proposal-repository";
 import {
   getConversationDetail as getConvDetailUseCase,
   getJobRequestForConversation as getJobReqUseCase,
@@ -10,8 +11,9 @@ import {
   createConversation as createConvUseCase,
   sendMessage as sendMsgUseCase,
 } from "@/application/messaging/send-message";
+import { sendServiceProposal as sendServiceProposalUseCase } from "@/application/messaging/send-service-proposal";
 import { acceptWorkRequest } from "@/application/provider/accept-work-request";
-import { ConversationDetailInfo } from "@/domain/messaging/types";
+import { ConversationDetailInfo, CreateServiceProposalInput, ServiceProposal } from "@/domain/messaging/types";
 import { JobRequestSummary } from "@/ports/job-request-repository";
 
 export async function getConversationDetail(id: string): Promise<ConversationDetailInfo> {
@@ -38,3 +40,9 @@ export async function getJobRequestForConversation(conversationId: string): Prom
   const repository = new ApiJobRequestRepository();
   return getJobReqUseCase(repository, conversationId);
 }
+
+export async function createServiceProposal(input: CreateServiceProposalInput): Promise<ServiceProposal> {
+  const repository = new ApiServiceProposalRepository();
+  return sendServiceProposalUseCase(repository, input);
+}
+

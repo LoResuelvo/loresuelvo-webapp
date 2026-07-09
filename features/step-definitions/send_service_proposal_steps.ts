@@ -115,7 +115,7 @@ When("abro el formulario de propuesta desde el menú de acciones", async () => {
   await option.click();
 });
 
-Then("se abre el modal {string}", async (title: string) => {
+Then("se abre el modal de propuesta {string}", async (title: string) => {
   const modal = page.getByRole("dialog", { name: title });
   await modal.waitFor({ state: "visible" });
   assert.ok(await modal.isVisible(), `No se abrió el modal "${title}"`);
@@ -256,12 +256,12 @@ Then("veo un mensaje de error indicando el problema", async () => {
   assert.ok(await errorMsg.isVisible(), "No se muestra el error de servicio no disponible");
 });
 
-Then("no veo la opción {string}", async (optionName: string) => {
+Then("no veo la opción de acción {string}", async (optionName: string) => {
   const option = page.getByRole("menuitem", { name: optionName });
   assert.ok(!(await option.isVisible()), `Se visualiza la opción deshabilitada/inexistente ${optionName}`);
 });
 
-Then("veo la opción {string}", async (optionName: string) => {
+Then("veo la opción de acción {string}", async (optionName: string) => {
   const option = page.getByRole("menuitem", { name: optionName });
   await option.waitFor({ state: "visible" });
   assert.ok(await option.isVisible(), `No se visualiza la opción ${optionName}`);

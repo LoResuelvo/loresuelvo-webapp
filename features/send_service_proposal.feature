@@ -17,7 +17,7 @@ Feature: US-53 Enviar propuesta de servicio
 
   Scenario: 03-PSP Abrir formulario de propuesta de servicio
     When abro el formulario de propuesta desde el menú de acciones
-    Then se abre el modal "Propuesta de Servicio"
+    Then se abre el modal de propuesta "Propuesta de Servicio"
     And veo los campos obligatorios "Monto", "Fecha y hora" y "Motivo de la visita"
 
   Scenario: 04-PSP Enviar propuesta de servicio exitosamente
@@ -50,5 +50,6 @@ Feature: US-53 Enviar propuesta de servicio
   Scenario: 09-PSP No mostrar opción de propuesta en conversación pendiente
     Given que estoy en el chat del prestador con un consumidor pendiente
     When hago clic en el botón "+" del menú de acciones
-    Then no veo la opción "Crear propuesta de servicio"
-    And veo la opción "Adjuntar imágenes"
+    Then no veo la opción de acción "Crear propuesta de servicio"
+    And veo la opción de acción "Adjuntar imágenes"
+

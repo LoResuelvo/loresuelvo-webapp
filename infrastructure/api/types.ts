@@ -140,3 +140,22 @@ export interface ApiAiConversationDetail {
     recommended_providers?: ApiRecommendedProvider[];
   };
 }
+
+export interface ApiCreateServiceProposalRequest {
+  consumer_id: number;
+  amount: string;
+  scheduled_on: string;
+  description: string;
+}
+
+export interface ApiServiceProposal {
+  id: number;
+  conversation_id: number;
+  consumer_id: number;
+  provider_id: number;
+  amount_cents: number;
+  scheduled_on: string;
+  description: string;
+  status: string;
+}
+

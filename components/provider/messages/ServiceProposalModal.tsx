@@ -97,7 +97,7 @@ export function ServiceProposalModal({
       setTimeout(() => {
         onClose();
       }, 2000);
-    } catch (err) {
+    } catch {
       setSubmitError(t.messaging.serviceProposal.errorGeneric);
     } finally {
       setIsSubmitting(false);

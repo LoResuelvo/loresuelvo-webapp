@@ -46,8 +46,9 @@ export async function createServiceProposal(input: CreateServiceProposalInput): 
     const repository = new ApiServiceProposalRepository();
     const data = await sendServiceProposalUseCase(repository, input);
     return { success: true, data };
-  } catch (error: any) {
-    return { success: false, error: error?.message || "Error" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Error";
+    return { success: false, error: message };
   }
 }
 

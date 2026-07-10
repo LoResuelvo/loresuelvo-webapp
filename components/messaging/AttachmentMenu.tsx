@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, Image, FileText } from "lucide-react";
+import { Plus, Image as ImageIcon, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
 
@@ -58,7 +58,7 @@ export function AttachmentMenu({
             className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg md:rounded-xl transition-all"
             role="menuitem"
           >
-            <Image className="w-4 h-4 text-slate-500" />
+            <ImageIcon className="w-4 h-4 text-slate-500" />
             <span>{t.messaging.attachmentMenu.attachImages}</span>
           </button>
           {showProposalOption && onCreateProposal && (

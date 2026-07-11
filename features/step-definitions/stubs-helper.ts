@@ -1,36 +1,24 @@
 import type { ApiStub, HttpMethod } from "../../infrastructure/api/types";
 import { page } from "./landing_page_visualization_steps";
+import { parseE2EStubsFromCookies, createE2EStubCookies } from "../../infrastructure/api/e2e-stubs-utils";
 
 export { ApiStub, HttpMethod };
-
-const E2E_API_STUBS_COOKIE = "__e2e_api_stubs";
-
-async function getStubs(): Promise<ApiStub[]> {
-  const cookies = await page.context().cookies();
-  const stubsCookie = cookies.find(c => c.name === E2E_API_STUBS_COOKIE);
-  if (!stubsCookie?.value) return [];
-  try {
-    return JSON.parse(decodeURIComponent(stubsCookie.value));
-  } catch {
-    return [];
-  }
-}
-
 /*
  * Example:
  * await addApiStub({ method: "POST", endpoint: "/providers", status: 201, body: { id: "1" } });
  */
+async function getStubs(): Promise<ApiStub[]> {
+  const cookies = await page.context().cookies();
+  return parseE2EStubsFromCookies(cookies);
+}
+
 export async function addApiStub(stub: ApiStub): Promise<void> {
   let stubs = await getStubs();
   stubs = stubs.filter(s => !(s.method === stub.method && s.endpoint === stub.endpoint));
   stubs.push(stub);
 
-  await page.context().addCookies([{
-    name: E2E_API_STUBS_COOKIE,
-    value: encodeURIComponent(JSON.stringify(stubs)),
-    domain: "localhost",
-    path: "/",
-  }]);
+  const cookiesToSet = createE2EStubCookies(stubs);
+  await page.context().addCookies(cookiesToSet);
 }
 
 export async function hasApiStub(method: HttpMethod, endpoint: string): Promise<boolean> {

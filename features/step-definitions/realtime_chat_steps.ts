@@ -149,7 +149,7 @@ async function stubConversationApi(conversationId: number = 1) {
 async function interceptWebSocket() {
   wsServer = null;
   (global as any).wsServer = null;
-  await page.routeWebSocket(/ws/, (ws) => {
+  await page.routeWebSocket(/\/ws(\?.*)?$/, (ws) => {
     wsServer = ws;
     (global as any).wsServer = ws;
     ws.onMessage(() => {
@@ -358,14 +358,24 @@ Given("estoy revisando mensajes anteriores en la conversación",
       },
     });
 
-    await page.reload({ waitUntil: "networkidle" });
+    wsServer = null;
+    await page.reload();
 
     const chatPanel = page.locator("[data-testid='messages-list']");
     await chatPanel.waitFor({ state: "visible" });
+    
+    // Wait for the new WebSocket to be intercepted
+    let attempts = 0;
+    while (!wsServer && attempts < 50) {
+      await new Promise(r => setTimeout(r, 100));
+      attempts++;
+    }
     await chatPanel.evaluate((el) => {
       el.scrollTop = 0;
       el.dispatchEvent(new Event("scroll"));
     });
+    
+    await page.waitForTimeout(500);
   }
 );
 

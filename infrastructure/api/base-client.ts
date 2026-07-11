@@ -1,5 +1,6 @@
 import { getAuthService } from "@/infrastructure/auth";
 import type { ApiStub } from "./types";
+import { parseE2EStubsFromCookies } from "./e2e-stubs-utils";
 
 export class ApiClientError extends Error {
   constructor(
@@ -45,11 +46,11 @@ export class ApiClient {
       const cookieStore = await cookies();
 
       if (!cookieStore.has("__e2e_session")) return null;
+      
+      const allCookies = cookieStore.getAll().map(c => ({ name: c.name, value: c.value }));
+      const stubs = parseE2EStubsFromCookies(allCookies);
 
-      const stubsCookieValue = cookieStore.get("__e2e_api_stubs")?.value;
-      if (!stubsCookieValue) return null;
-
-      const stubs = JSON.parse(decodeURIComponent(stubsCookieValue)) as ApiStub[];
+      if (stubs.length === 0) return null;
       const match = stubs.find(
         (s) => s.method.toUpperCase() === method.toUpperCase() && s.endpoint === endpoint
       );
@@ -76,18 +77,28 @@ export class ApiClient {
     const url = `${this.baseUrl}${endpoint}`;
     const headers = await this.getHeaders();
 
-    console.log(`[ApiClient] ${options.method} to ${url}`);
-
     const e2eResult = await this.resolveE2EStub<T>(options.method ?? "", endpoint);
     if (e2eResult !== null) return e2eResult;
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...headers,
-        ...options.headers,
-      },
-    });
+    // Default timeout of 5000ms for all API calls to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          ...headers,
+          ...options.headers,
+        },
+      });
+    } catch (e) {
+      throw new ApiClientError(504, "Gateway Timeout", "The API request timed out or failed to connect", null);
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (response.status === 204) {
       return null as unknown as T;

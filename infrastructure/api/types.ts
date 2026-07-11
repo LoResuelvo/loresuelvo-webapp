@@ -159,3 +159,22 @@ export interface ApiServiceProposal {
   status: string;
 }
 
+export interface ApiServiceProposalCounterpart {
+  id: number;
+  role: string;
+  name: string;
+  surname: string;
+  category_name?: string;
+  profile_photo_url?: string;
+}
+
+export interface ApiServiceProposalSummary {
+  id: number;
+  conversation_id: number;
+  amount_cents: number;
+  scheduled_on: string;
+  description: string;
+  status: string;
+  created_on: string;
+  counterpart: ApiServiceProposalCounterpart;
+}

@@ -146,3 +146,22 @@ export interface CreateServiceProposalInput {
   description: string;
 }
 
+export interface ServiceProposalCounterpart {
+  id: number;
+  role: "consumer" | "provider";
+  name: string;
+  surname: string;
+  categoryName?: string;
+  profilePhotoUrl?: string;
+}
+
+export interface ServiceProposalSummary {
+  id: number;
+  conversationId: number;
+  amountCents: number;
+  scheduledOn: string;
+  description: string;
+  status: "pending" | "accepted" | "rejected";
+  createdOn: string;
+  counterpart: ServiceProposalCounterpart;
+}

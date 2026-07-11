@@ -329,9 +329,6 @@ Given("que estoy en la vista histórica de propuestas como consumidor con una pr
   await page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "networkidle" });
 });
 
-When("hago clic en el botón {string}", async (btnName: string) => {
-  await page.getByRole("button", { name: btnName }).click();
-});
 
 Then("se abre el chat asociado a esa propuesta", async () => {
   await page.waitForURL(/\/consumidor\/mensajes\?provider_id=2/);

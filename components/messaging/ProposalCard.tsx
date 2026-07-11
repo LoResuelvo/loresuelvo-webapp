@@ -1,10 +1,10 @@
 import React from "react";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 import { formatAmountCents, formatScheduledOn, getStatusBadge } from "@/lib/proposal-utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { getInitials } from "@/lib/text-utils";
 
 interface ProposalCardProps {
@@ -29,14 +29,15 @@ export function ProposalCard({ proposal, onViewConversation, isProvider }: Propo
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10 border" data-testid="proposal-card-avatar">
-            {counterpart.profilePhotoUrl ? (
-              <AvatarImage src={counterpart.profilePhotoUrl} alt={displayName} />
-            ) : null}
-            <AvatarFallback className="bg-muted text-muted-foreground">
-              {initials || <User className="h-5 w-5" />}
-            </AvatarFallback>
-          </Avatar>
+          <Avatar 
+            className="border"
+            size="sm"
+            src={counterpart.profilePhotoUrl} 
+            alt={displayName}
+            initials={initials}
+            imgTestId="proposal-card-avatar"
+            fallbackTestId="proposal-card-avatar-fallback"
+          />
           
           <div className="flex flex-col">
             <h3 className="text-foreground text-sm font-semibold leading-none">{displayName}</h3>

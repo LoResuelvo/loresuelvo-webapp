@@ -38,6 +38,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
     handleAccept,
     handleReject,
     activeJobRequest,
+    activeServiceProposal,
     showRequestModal,
     setShowRequestModal,
     modalRequest,
@@ -79,6 +80,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
               ? () => setShowServiceProposalModal(true)
               : undefined
           }
+          activeServiceProposal={activeServiceProposal || undefined}
         />
       </div>
 

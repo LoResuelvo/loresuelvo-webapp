@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AuthSession } from "@/infrastructure/auth/types";
 import { ROUTES } from "@/lib/routes";
-import { getConversationDetail, acceptJobRequest, getJobRequestForConversation, createConversation, sendMessage } from "@/app/prestador/mensajes/actions";
+import { getConversationDetail, acceptJobRequest, getJobRequestForConversation, createConversation, sendMessage, getServiceProposalsAction } from "@/app/prestador/mensajes/actions";
 import { t } from "@/infrastructure/i18n/translations";
 import { useWebSocket } from "@/infrastructure/websocket";
 import type { ProviderWorkRequest } from "@/domain/provider/types";
-import { Message, ProviderConversationContact as ConversationContact } from "@/domain/messaging/types";
+import { Message, ProviderConversationContact as ConversationContact, ServiceProposalSummary } from "@/domain/messaging/types";
 import { ClientConversationRepository, ClientFileRepository } from "@/infrastructure/repositories/client-repositories";
 import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/local-offline-queue-repository";
 import { sendMessageWithAttachments } from "@/application/messaging/send-message-with-attachments";
@@ -49,7 +49,8 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
   const [acceptedConversations, setAcceptedConversations] = useState<Set<string>>(new Set());
   const [activeJobRequest, setActiveJobRequest] = useState<{ id: number; title: string; description: string; consumerName: string; images?: { id: string; url: string; originalName: string; }[] } | null | undefined>(undefined);
   const [showRequestModal, setShowRequestModal] = useState(false);
-  const [showServiceProposalModal, setShowServiceProposalModal] = useState(false);
+   const [showServiceProposalModal, setShowServiceProposalModal] = useState(false);
+  const [activeServiceProposal, setActiveServiceProposal] = useState<ServiceProposalSummary | null>(null);
   const [localContacts, setLocalContacts] = useState<ConversationContact[]>(contacts);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -151,6 +152,13 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
             images: jr.images,
           } : null))
           .catch(() => setActiveJobRequest(null));
+
+        getServiceProposalsAction()
+          .then(proposals => {
+            const prop = proposals.find(p => p.conversationId === Number(effectiveConversationId));
+            setActiveServiceProposal(prop || null);
+          })
+          .catch(() => setActiveServiceProposal(null));
       })
       .catch(console.error);
   }, [selectedConsumerId, effectiveConversationId, myUserId]);
@@ -353,6 +361,7 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
     handleAccept,
     handleReject,
     activeJobRequest,
+    activeServiceProposal,
     showRequestModal,
     setShowRequestModal,
     modalRequest,

@@ -3,7 +3,7 @@ import ChatPanel from "@/components/messaging/ChatPanel";
 import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import ResizableContactsSidebar from "@/components/messaging/ResizableContactsSidebar";
 
-import { Message, ProviderConversationContact as ConversationContact } from "@/domain/messaging/types";
+import { Message, ProviderConversationContact as ConversationContact, ServiceProposalSummary } from "@/domain/messaging/types";
 import { cn } from "@/lib/utils";
 
 interface ProviderMessagesViewProps {
@@ -27,6 +27,7 @@ interface ProviderMessagesViewProps {
   onAttachFiles?: (files: File[]) => void;
   onRemoveFile?: (index: number) => void;
   onOpenServiceProposal?: () => void;
+  activeServiceProposal?: ServiceProposalSummary;
   className?: string;
 }
 
@@ -51,6 +52,7 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
   onAttachFiles,
   onRemoveFile,
   onOpenServiceProposal,
+  activeServiceProposal,
   className,
 }, ref) => {
   const isChatActive = !!selectedConsumerId;
@@ -101,6 +103,7 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
           onAttachFiles={onAttachFiles}
           onRemoveFile={onRemoveFile}
           onOpenServiceProposal={onOpenServiceProposal}
+          serviceProposal={activeServiceProposal}
         />
       </div>
     </main>

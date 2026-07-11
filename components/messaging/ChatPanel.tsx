@@ -3,8 +3,9 @@ import { forwardRef } from "react";
 import ChatHeader from "./ChatHeader";
 import MessagesList from "./MessagesList";
 import MessageInput, { MessageInputHandle } from "./MessageInput";
-import { ConversationContact, Message, JobRequestInfo } from "@/domain/messaging/types";
+import { ConversationContact, Message, JobRequestInfo, ServiceProposalSummary } from "@/domain/messaging/types";
 import { t } from "@/infrastructure/i18n/translations";
+import ServiceProposalPanel from "./ServiceProposalPanel";
 
 export const ChatPanel = forwardRef<MessageInputHandle, {
   selectedContact: ConversationContact | null;
@@ -26,6 +27,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   onAttachFiles?: (files: File[]) => void;
   onRemoveFile?: (index: number) => void;
   onOpenServiceProposal?: () => void;
+  serviceProposal?: ServiceProposalSummary | null;
 }>(({
   selectedContact,
   messages,
@@ -46,6 +48,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   onAttachFiles,
   onRemoveFile,
   onOpenServiceProposal,
+  serviceProposal,
 }, ref) => {
   if (!selectedContact) {
     return (
@@ -69,6 +72,9 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
         onAccept={onAccept}
         profilePhotoUrl={selectedContact.profilePhotoUrl}
       />
+      {serviceProposal && (
+        <ServiceProposalPanel proposal={serviceProposal} />
+      )}
       <div className="flex-1 flex flex-col min-h-0">
         <MessagesList
           messages={messages}

@@ -24,6 +24,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
     messagesEndRef,
     inputRef,
     activeJobRequest,
+    activeServiceProposal,
     isConversationPending,
     selectedContact,
     selectedProviderId,
@@ -59,6 +60,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
           attachedFiles={attachedFiles}
           onAttachFiles={(files) => setAttachedFiles(prev => [...prev, ...files].slice(0, 5))}
           onRemoveFile={(idx) => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
+          activeServiceProposal={activeServiceProposal || undefined}
         />
       </div>
     </div>

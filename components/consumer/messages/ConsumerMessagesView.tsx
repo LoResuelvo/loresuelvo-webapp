@@ -2,7 +2,7 @@ import { RefObject, forwardRef } from "react";
 import ChatPanel from "@/components/messaging/ChatPanel";
 import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import ResizableContactsSidebar from "@/components/messaging/ResizableContactsSidebar";
-import { Message, JobRequestInfo, ConsumerConversationContact as ConversationContact } from "@/domain/messaging/types";
+import { Message, JobRequestInfo, ConsumerConversationContact as ConversationContact, ServiceProposalSummary } from "@/domain/messaging/types";
 import { cn } from "@/lib/utils";
 
 interface ConsumerMessagesViewProps {
@@ -24,6 +24,7 @@ interface ConsumerMessagesViewProps {
   attachedFiles?: File[];
   onAttachFiles?: (files: File[]) => void;
   onRemoveFile?: (index: number) => void;
+  activeServiceProposal?: ServiceProposalSummary;
   className?: string;
 }
 
@@ -46,6 +47,7 @@ const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesView
   attachedFiles,
   onAttachFiles,
   onRemoveFile,
+  activeServiceProposal,
   className,
 }, ref) => {
   const isChatActive = !!selectedProviderId;
@@ -77,6 +79,7 @@ const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesView
           attachedFiles={attachedFiles}
           onAttachFiles={onAttachFiles}
           onRemoveFile={onRemoveFile}
+          serviceProposal={activeServiceProposal}
         />
       </div>
     </main>

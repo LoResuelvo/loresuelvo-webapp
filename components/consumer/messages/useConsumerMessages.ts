@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AuthSession } from "@/infrastructure/auth/types";
 import { ROUTES } from "@/lib/routes";
-import { getConversationDetail, getJobRequestForConversation, createConversation, sendMessage } from "@/app/consumidor/mensajes/actions";
+import { getConversationDetail, getJobRequestForConversation, createConversation, sendMessage, getServiceProposalsAction } from "@/app/consumidor/mensajes/actions";
 import { t } from "@/infrastructure/i18n/translations";
 import { useWebSocket } from "@/infrastructure/websocket";
-import { Message, JobRequestInfo, ConsumerConversationContact as ConversationContact } from "@/domain/messaging/types";
+import { Message, JobRequestInfo, ConsumerConversationContact as ConversationContact, ServiceProposalSummary } from "@/domain/messaging/types";
 import { ClientConversationRepository, ClientFileRepository } from "@/infrastructure/repositories/client-repositories";
 import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/local-offline-queue-repository";
 import { sendMessageWithAttachments } from "@/application/messaging/send-message-with-attachments";
@@ -52,6 +52,7 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
   const justCreatedRef = useRef(false);
   const justLoadedRef = useRef(false);
   const [activeJobRequest, setActiveJobRequest] = useState<JobRequestInfo | null | undefined>(undefined);
+  const [activeServiceProposal, setActiveServiceProposal] = useState<ServiceProposalSummary | null>(null);
   const [isConversationPending, setIsConversationPending] = useState<boolean>(false);
   const [localContacts, setLocalContacts] = useState<ConversationContact[]>(contacts);
 
@@ -162,6 +163,13 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
             images: jr.images,
           } : null))
           .catch(() => setActiveJobRequest(null));
+
+        getServiceProposalsAction()
+          .then(proposals => {
+            const prop = proposals.find(p => p.conversationId === Number(effectiveConversationId));
+            setActiveServiceProposal(prop || null);
+          })
+          .catch(() => setActiveServiceProposal(null));
       })
       .catch(console.error);
   }, [selectedProviderId, effectiveConversationId, myUserId]);
@@ -324,6 +332,7 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
     messagesEndRef,
     inputRef,
     activeJobRequest,
+    activeServiceProposal,
     isConversationPending,
     selectedContact,
     selectedProviderId,

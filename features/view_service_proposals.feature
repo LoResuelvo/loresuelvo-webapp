@@ -55,7 +55,6 @@ Feature: US-54 Visualizar propuestas de servicio
     When visualizo la lista de propuestas de servicio
     Then visualizo el mensaje "No tenés propuestas de servicio"
 
-  @wip
   Scenario: 09-VPS Ver resumen de propuesta en el chat
     Given que estoy en el chat del prestador con una propuesta de servicio asociada
     When visualizo el panel de la propuesta en el chat

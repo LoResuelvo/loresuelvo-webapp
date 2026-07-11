@@ -36,7 +36,6 @@ Feature: US-54 Visualizar propuestas de servicio
     And visualizo una lista de trabajos agendados
     And no se muestran propuestas pendientes ni rechazadas en esa sección
 
-  @wip
   Scenario: 05-VPS Consumidor ve propuestas pendientes y aceptadas en su inicio
     Given que ingreso a la HomePage como consumidor con propuestas pendientes y aceptadas
     When se carga la pantalla principal

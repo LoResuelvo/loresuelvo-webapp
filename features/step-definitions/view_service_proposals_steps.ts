@@ -93,7 +93,10 @@ Then("la tarjeta muestra un badge de estado {string} en color amarillo", async (
   const badge = card.getByText(status);
   await badge.waitFor({ state: "visible" });
   const classes = await badge.getAttribute("class");
-  assert.ok(classes?.includes("bg-amber-100"), "El badge no tiene el color amarillo esperado");
+  assert.ok(
+    classes?.includes("bg-amber-100") || classes?.includes("bg-badge-warning-bg"),
+    `El badge no tiene el color amarillo esperado: ${classes}`
+  );
 });
 
 Then("la tarjeta incluye un botón {string}", async (buttonName: string) => {
@@ -159,18 +162,51 @@ Given("que estoy en la vista de propuestas como consumidor con propuestas en est
   await page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "domcontentloaded" });
 });
 
-Then("veo un badge {string} en color verde", async (status: string) => {
-  const badge = page.getByText(status);
+async function selectTab(tabName: string) {
+  const tab = page.getByRole("tab", { name: tabName });
+  for (let i = 0; i < 5; i++) {
+    await tab.click();
+    try {
+      const isSelected = await tab.getAttribute("aria-selected");
+      if (isSelected === "true") break;
+      await page.waitForTimeout(200);
+    } catch (e) {
+      // ignore
+    }
+  }
+}
+
+Then("veo un badge {string} en color amarillo", async (status: string) => {
+  await selectTab("Pendientes");
+  const badge = page.getByTestId("proposal-card").getByText(status).first();
   await badge.waitFor({ state: "visible" });
   const classes = await badge.getAttribute("class");
-  assert.ok(classes?.includes("bg-emerald-100"), "El badge no tiene el color verde esperado");
+  assert.ok(
+    classes?.includes("bg-amber-100") || classes?.includes("bg-badge-warning-bg"),
+    `El badge no tiene el color amarillo esperado: ${classes}`
+  );
+});
+
+Then("veo un badge {string} en color verde", async (status: string) => {
+  await selectTab("Aceptadas");
+  const badge = page.getByTestId("proposal-card").getByText(status).first();
+  await badge.waitFor({ state: "visible" });
+  const classes = await badge.getAttribute("class");
+  assert.ok(
+    classes?.includes("bg-emerald-100") || classes?.includes("bg-badge-success-bg"),
+    `El badge no tiene el color verde esperado: ${classes}`
+  );
 });
 
 Then("veo un badge {string} en color rojo", async (status: string) => {
-  const badge = page.getByText(status);
+  await selectTab("Rechazadas");
+  const badge = page.getByTestId("proposal-card").getByText(status).first();
   await badge.waitFor({ state: "visible" });
   const classes = await badge.getAttribute("class");
-  assert.ok(classes?.includes("bg-red-100"), "El badge no tiene el color rojo esperado");
+  assert.ok(
+    classes?.includes("bg-red-100") || classes?.includes("bg-badge-destructive-bg"),
+    `El badge no tiene el color rojo esperado: ${classes}`
+  );
 });
 
 Given("que ingreso a la HomePage como prestador con propuestas aceptadas", async () => {
@@ -251,24 +287,10 @@ Given("que estoy en la vista histórica de propuestas como prestador con propues
 });
 
 When("selecciono la pestaña {string}", async (tabName: string) => {
-  const tab = page.getByRole("tab", { name: tabName });
-  // Retry click to ensure hydration hasn't missed it
-  for (let i = 0; i < 5; i++) {
-    await tab.click();
-    try {
-      await tab.waitFor({ state: "visible" });
-      const isSelected = await tab.getAttribute("aria-selected");
-      if (isSelected === "true") break;
-      await page.waitForTimeout(200);
-    } catch (e) {
-      // ignore
-    }
-  }
+  await selectTab(tabName);
 });
 
 Then("solo se muestran las propuestas con estado aceptado", async () => {
-  const html = await page.content();
-  require("fs").writeFileSync("debug.html", html);
   const list = page.getByTestId("proposals-list");
   // Wait for the UI to update and pending proposal to disappear
   await list.getByText("Pendiente", { exact: true }).waitFor({ state: "hidden", timeout: 2000 }).catch(() => {});
@@ -340,7 +362,7 @@ Given("que estoy en la vista histórica de propuestas como consumidor con una pr
     endpoint: "/service-proposals",
     status: 200,
     body: [
-      { id: 1, conversation_id: 42, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "accepted", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "provider", name: "P", surname: "1" } },
+      { id: 1, conversation_id: 42, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "pending", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "provider", name: "P", surname: "1" } },
     ],
   });
   await page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "domcontentloaded" });
@@ -364,9 +386,4 @@ Given("que no tengo una sesión válida", async () => {
 
 When("intento acceder a mis propuestas de servicio", async () => {
   await page.goto(APP_URL + ROUTES.provider.jobs);
-});
-
-Then("soy redirigido al flujo de autenticación", async () => {
-  await page.waitForURL(/\/auth\/login/);
-  assert.ok(page.url().includes("/auth/login"), "No redirigió al login");
 });

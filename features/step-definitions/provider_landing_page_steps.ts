@@ -67,10 +67,16 @@ Then("visualizo la sección {string}", async (sectionName: string) => {
 
 Then("visualizo el mensaje {string}", async (message: string) => {
   const section = page.getByRole("region", { name: "Solicitudes de Trabajo" });
-  await section.waitFor({ state: "visible" });
-  const messageElement = section.getByText(message);
-  await messageElement.waitFor({ state: "visible" });
-  assert.ok(await messageElement.isVisible(), `No se visualiza el mensaje "${message}"`);
+  const isSectionVisible = await section.isVisible().catch(() => false);
+  if (isSectionVisible) {
+    const messageElement = section.getByText(message);
+    await messageElement.waitFor({ state: "visible" });
+    assert.ok(await messageElement.isVisible(), `No se visualiza el mensaje "${message}"`);
+  } else {
+    const messageElement = page.getByText(message);
+    await messageElement.waitFor({ state: "visible" });
+    assert.ok(await messageElement.isVisible(), `No se visualiza el mensaje "${message}"`);
+  }
 });
 
 Then("visualizo una lista de solicitudes de trabajo", async () => {

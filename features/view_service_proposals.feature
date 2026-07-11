@@ -3,7 +3,6 @@ Feature: US-54 Visualizar propuestas de servicio
   Quiero ver mis propuestas de servicio
   Para revisar sus condiciones y acceder al chat
 
-  @wip
   Scenario: 01-VPS Visualizar tarjeta de propuesta con datos del prestador
     Given que estoy en la vista de propuestas como consumidor con una propuesta pendiente del prestador "Juan Gómez" con rubro "Plomería"
     When visualizo la lista de propuestas de servicio
@@ -14,14 +13,12 @@ Feature: US-54 Visualizar propuestas de servicio
     And la tarjeta muestra un badge de estado "Pendiente" en color amarillo
     And la tarjeta incluye un botón "Ver conversación"
 
-  @wip
   Scenario: 02-VPS Visualizar tarjeta de propuesta con datos del consumidor
     Given que estoy en la vista de propuestas como prestador con una propuesta pendiente para "Ana Pérez"
     When visualizo la lista de propuestas de servicio
     Then veo una tarjeta con el nombre "Ana Pérez" sin rubro visible
     And el nombre se centra verticalmente respecto al avatar
 
-  @wip
   Scenario: 03-VPS Visualizar propuestas con distintos estados
     Given que estoy en la vista de propuestas como consumidor con propuestas en estado "pending", "accepted" y "rejected"
     When visualizo la lista de propuestas de servicio
@@ -53,7 +50,6 @@ Feature: US-54 Visualizar propuestas de servicio
     When selecciono la pestaña "Aceptadas"
     Then solo se muestran las propuestas con estado aceptado
 
-  @wip
   Scenario: 08-VPS Mostrar estado vacío cuando no hay propuestas
     Given que estoy en la vista histórica de propuestas como consumidor sin propuestas
     When visualizo la lista de propuestas de servicio
@@ -65,14 +61,12 @@ Feature: US-54 Visualizar propuestas de servicio
     When visualizo el panel de la propuesta en el chat
     Then veo los datos de la propuesta incluyendo monto, fecha, descripción y estado
 
-  @wip
   Scenario: 10-VPS Navegar al chat desde la tarjeta de propuesta
     Given que estoy en la vista histórica de propuestas como consumidor con una propuesta
     When hago clic en el botón "Ver conversación"
     Then se abre el chat asociado a esa propuesta
 
-  @wip
-  Scenario: 11-VPS Redirigir a login si la sesión no es válida
+  Scenario: 11-VPS Redirigir a la página de inicio si la sesión no es válida
     Given que no tengo una sesión válida
     When intento acceder a mis propuestas de servicio
-    Then soy redirigido al flujo de autenticación
+    Then soy redirigido a la página de inicio

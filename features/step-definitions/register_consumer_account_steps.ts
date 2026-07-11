@@ -34,7 +34,16 @@ When('hago clic en el botón {string}', async (buttonName: string) => {
   const button = page.getByRole('button', { name: buttonName })
     .or(page.getByRole('link', { name: buttonName })).first();
   await button.waitFor({ state: "visible" });
-  await button.click();
+  if (buttonName === "Ver conversación") {
+    const initialUrl = page.url();
+    for (let i = 0; i < 5; i++) {
+      await button.click();
+      await page.waitForTimeout(300);
+      if (page.url() !== initialUrl) break;
+    }
+  } else {
+    await button.click();
+  }
 });
 
 When('finalizo el registro', async () => {

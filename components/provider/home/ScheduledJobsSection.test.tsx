@@ -1,24 +1,38 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import ScheduledJobsSection from "./ScheduledJobsSection";
-import { ProviderScheduledJob } from "@/domain/provider/types";
+import { ServiceProposalSummary } from "@/domain/messaging/types";
 
-const mockScheduledJobs: ProviderScheduledJob[] = [
+const mockScheduledJobs: ServiceProposalSummary[] = [
   {
-    id: "job-1",
-    jobTitle: "Reparación de grifería",
-    clientName: "Carlos Méndez",
-    scheduledAtLabel: "Mañana, 10:00",
-    location: "Belgrano, CABA",
-    priceLabel: "$45.000",
+    id: 1,
+    conversationId: 42,
+    amountCents: 4500000,
+    scheduledOn: "2026-07-05T10:00:00Z",
+    description: "Reparación de grifería",
+    status: "accepted",
+    createdOn: "2026-07-04T10:00:00Z",
+    counterpart: {
+      id: 5,
+      role: "consumer",
+      name: "Carlos",
+      surname: "Méndez",
+    }
   },
   {
-    id: "job-2",
-    jobTitle: "Instalación de aire acondicionado",
-    clientName: "Laura Pérez",
-    scheduledAtLabel: "Viernes, 14:30",
-    location: "Palermo, CABA",
-    priceLabel: "$80.000",
+    id: 2,
+    conversationId: 43,
+    amountCents: 8000000,
+    scheduledOn: "2026-07-06T14:30:00Z",
+    description: "Instalación de aire acondicionado",
+    status: "accepted",
+    createdOn: "2026-07-04T10:00:00Z",
+    counterpart: {
+      id: 6,
+      role: "consumer",
+      name: "Laura",
+      surname: "Pérez",
+    }
   },
 ];
 
@@ -30,7 +44,7 @@ describe("ScheduledJobsSection", () => {
     expect(within(section).getByText("No tienes trabajos agendados")).toBeInTheDocument();
   });
 
-  it("renders scheduled jobs with the expected details", () => {
+  it("renders scheduled jobs using ProposalCard", () => {
     render(<ScheduledJobsSection jobs={mockScheduledJobs} />);
 
     const section = screen.getByRole("region", { name: "Trabajos Agendados" });
@@ -42,8 +56,7 @@ describe("ScheduledJobsSection", () => {
     const firstJob = items[0];
     expect(within(firstJob).getByText("Reparación de grifería")).toBeInTheDocument();
     expect(within(firstJob).getByText("Carlos Méndez")).toBeInTheDocument();
-    expect(within(firstJob).getByText("Mañana, 10:00")).toBeInTheDocument();
-    expect(within(firstJob).getByText("Belgrano, CABA")).toBeInTheDocument();
-    expect(within(firstJob).getByText("$45.000")).toBeInTheDocument();
+    expect(within(firstJob).getByText("$ 45.000,00")).toBeInTheDocument();
+    expect(within(firstJob).getByText("Aceptada")).toBeInTheDocument();
   });
 });

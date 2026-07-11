@@ -304,6 +304,7 @@ Given("que ingreso a la HomePage como prestador con métricas", async () => {
     ],
   });
 
+  await addApiStub({ method: "GET", endpoint: "/service-proposals", status: 200, body: [] });
   await page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "networkidle" });
 });
 

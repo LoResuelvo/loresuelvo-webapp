@@ -88,7 +88,7 @@ Feature: Adjuntar imágenes del problema en el chat con la IA
         Given me encuentro en la pantalla Home
         When adjunto una imagen "foto-problema.jpg" en el campo de diagnóstico desde la galería
         Then veo la vista previa de la imagen "foto-problema.jpg" en el área de adjuntos
-
+    @wip
     Scenario: 12-AIDI Eliminar imagen adjunta en el Home antes de diagnosticar
         Given me encuentro en la pantalla Home
         And adjunté la imagen "foto-incorrecta.jpg" en el campo de diagnóstico

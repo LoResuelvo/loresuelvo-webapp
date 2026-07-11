@@ -1,5 +1,6 @@
 import { AuthSession } from "@/infrastructure/auth/types";
-import { ProviderMetrics, ProviderScheduledJob, ProviderWorkRequest } from "@/domain/provider/types";
+import { ProviderMetrics, ProviderWorkRequest } from "@/domain/provider/types";
+import { ServiceProposalSummary } from "@/domain/messaging/types";
 import IncomePanel from "./IncomePanel";
 import ProviderHeader from "./ProviderHeader";
 import ProviderSidebar from "./ProviderSidebar";
@@ -9,7 +10,7 @@ import WorkRequestsSection from "./WorkRequestsSection";
 interface ProviderHomeProps {
   session: AuthSession | null;
   workRequests: ProviderWorkRequest[];
-  scheduledJobs: ProviderScheduledJob[];
+  scheduledJobs: ServiceProposalSummary[];
   metrics: ProviderMetrics;
 }
 

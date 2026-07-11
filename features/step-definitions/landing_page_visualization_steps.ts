@@ -20,6 +20,14 @@ Before(async () => {
       body: JSON.stringify({ ticket: "global-mocked-ws-ticket" })
     });
   });
+
+  const { addApiStub } = await import("./stubs-helper");
+  await addApiStub({
+    method: "GET",
+    endpoint: "/service-proposals",
+    status: 200,
+    body: []
+  });
 });
 
 After(async () => {

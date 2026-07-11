@@ -42,14 +42,12 @@ Feature: US-54 Visualizar propuestas de servicio
     Then visualizo la sección "Propuestas Pendientes"
     And visualizo la sección "Servicios Próximos"
 
-  @wip
   Scenario: 06-VPS Visualizar listado completo con filtros por estado
     Given que estoy en la vista histórica de propuestas como prestador
     When visualizo la lista de propuestas de servicio
     Then veo pestañas para filtrar por "Pendientes", "Aceptadas" y "Rechazadas"
     And las propuestas se muestran ordenadas de la más reciente a la más antigua
 
-  @wip
   Scenario: 07-VPS Filtrar propuestas por estado aceptado
     Given que estoy en la vista histórica de propuestas como prestador con propuestas en varios estados
     When selecciono la pestaña "Aceptadas"

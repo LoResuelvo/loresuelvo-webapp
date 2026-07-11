@@ -57,7 +57,7 @@ Given("que estoy en la vista de propuestas como consumidor con una propuesta pen
     ],
   });
   // Navegar a la vista de mis servicios (Fase 8)
-  await page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "networkidle" });
+  await page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "domcontentloaded" });
 });
 
 When("visualizo la lista de propuestas de servicio", async () => {
@@ -126,7 +126,7 @@ Given("que estoy en la vista de propuestas como prestador con una propuesta pend
       }
     ],
   });
-  await page.goto(APP_URL + ROUTES.provider.jobs, { waitUntil: "networkidle" });
+  await page.goto(APP_URL + ROUTES.provider.jobs, { waitUntil: "domcontentloaded" });
 });
 
 Then("veo una tarjeta con el nombre {string} sin rubro visible", async (name: string) => {
@@ -156,7 +156,7 @@ Given("que estoy en la vista de propuestas como consumidor con propuestas en est
       { id: 3, conversation_id: 3, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "3", status: s3, created_on: "2026-07-03T00:00:00Z", counterpart: { id: 4, role: "provider", name: "P", surname: "3" } },
     ],
   });
-  await page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "networkidle" });
+  await page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "domcontentloaded" });
 });
 
 Then("veo un badge {string} en color verde", async (status: string) => {
@@ -185,7 +185,7 @@ Given("que ingreso a la HomePage como prestador con propuestas aceptadas", async
       { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "consumer", name: "C", surname: "2" } },
     ],
   });
-  await page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "networkidle" });
+  await page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "domcontentloaded" });
 });
 
 Then("no se muestran propuestas pendientes ni rechazadas en esa sección", async () => {
@@ -206,7 +206,7 @@ Given("que ingreso a la HomePage como consumidor con propuestas pendientes y ace
       { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "provider", name: "P", surname: "2" } },
     ],
   });
-  await page.goto(APP_URL + ROUTES.consumer.home, { waitUntil: "networkidle" });
+  await page.goto(APP_URL + ROUTES.consumer.home, { waitUntil: "domcontentloaded" });
 });
 
 Given("que estoy en la vista histórica de propuestas como prestador", async () => {
@@ -220,7 +220,7 @@ Given("que estoy en la vista histórica de propuestas como prestador", async () 
       { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "consumer", name: "C", surname: "2" } },
     ],
   });
-  await page.goto(APP_URL + ROUTES.provider.jobs, { waitUntil: "networkidle" });
+  await page.goto(APP_URL + ROUTES.provider.jobs, { waitUntil: "domcontentloaded" });
 });
 
 Then("veo pestañas para filtrar por {string}, {string} y {string}", async (t1, t2, t3) => {
@@ -247,16 +247,33 @@ Given("que estoy en la vista histórica de propuestas como prestador con propues
       { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "consumer", name: "C", surname: "2" } },
     ],
   });
-  await page.goto(APP_URL + ROUTES.provider.jobs, { waitUntil: "networkidle" });
+  await page.goto(APP_URL + ROUTES.provider.jobs, { waitUntil: "domcontentloaded" });
 });
 
 When("selecciono la pestaña {string}", async (tabName: string) => {
-  await page.getByRole("tab", { name: tabName }).click();
+  const tab = page.getByRole("tab", { name: tabName });
+  // Retry click to ensure hydration hasn't missed it
+  for (let i = 0; i < 5; i++) {
+    await tab.click();
+    try {
+      await tab.waitFor({ state: "visible" });
+      const isSelected = await tab.getAttribute("aria-selected");
+      if (isSelected === "true") break;
+      await page.waitForTimeout(200);
+    } catch (e) {
+      // ignore
+    }
+  }
 });
 
 Then("solo se muestran las propuestas con estado aceptado", async () => {
-  const pendingCount = await page.getByText("Pendiente").count();
-  const acceptedCount = await page.getByText("Aceptada").count();
+  const html = await page.content();
+  require("fs").writeFileSync("debug.html", html);
+  const list = page.getByTestId("proposals-list");
+  // Wait for the UI to update and pending proposal to disappear
+  await list.getByText("Pendiente", { exact: true }).waitFor({ state: "hidden", timeout: 2000 }).catch(() => {});
+  const pendingCount = await list.getByText("Pendiente", { exact: true }).count();
+  const acceptedCount = await list.getByText("Aceptada", { exact: true }).count();
   assert.strictEqual(pendingCount, 0, "Hay propuestas pendientes visibles");
   assert.ok(acceptedCount > 0, "No hay propuestas aceptadas");
 });
@@ -269,7 +286,7 @@ Given("que estoy en la vista histórica de propuestas como consumidor sin propue
     status: 200,
     body: [],
   });
-  await page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "networkidle" });
+  await page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "domcontentloaded" });
 });
 
 Given("que estoy en el chat del prestador con una propuesta de servicio asociada", async () => {
@@ -300,7 +317,7 @@ Given("que estoy en el chat del prestador con una propuesta de servicio asociada
       { id: 1, conversation_id: 1, amount_cents: 1500050, scheduled_on: "2026-07-05T09:30:00Z", description: "Arreglo", status: "pending", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández" } },
     ],
   });
-  await page.goto(APP_URL + ROUTES.provider.messages + "?consumer_id=10", { waitUntil: "networkidle" });
+  await page.goto(APP_URL + ROUTES.provider.messages + "?consumer_id=10", { waitUntil: "domcontentloaded" });
 });
 
 When("visualizo el panel de la propuesta en el chat", async () => {
@@ -326,7 +343,7 @@ Given("que estoy en la vista histórica de propuestas como consumidor con una pr
       { id: 1, conversation_id: 42, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "accepted", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "provider", name: "P", surname: "1" } },
     ],
   });
-  await page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "networkidle" });
+  await page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "domcontentloaded" });
 });
 
 

@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Bot, Home, MessageSquare } from "lucide-react";
+import { Bot, Home, MessageSquare, Briefcase } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
 
@@ -11,6 +11,7 @@ export default function Sidebar() {
   const isHomeActive = pathname === ROUTES.consumer.home;
   const isMessagesActive = pathname === ROUTES.consumer.messages;
   const isAiMessagesActive = pathname === ROUTES.consumer.aiMessages;
+  const isServicesActive = pathname === ROUTES.consumer.services;
 
   return (
     <aside className="w-[260px] bg-brand-neutral border-r border-slate-200 flex flex-col h-screen sticky top-0">
@@ -57,6 +58,18 @@ export default function Sidebar() {
         >
           <Bot className="w-5 h-5" />
           <span>{t.sidebar.aiChat}</span>
+        </Link>
+
+        <Link
+          href={ROUTES.consumer.services}
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-colors ${
+            isServicesActive
+              ? "bg-brand-secondary/20 text-brand-secondary"
+              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          }`}
+        >
+          <Briefcase className="w-5 h-5" />
+          <span>{t.sidebar.services}</span>
         </Link>
       </nav>
     </aside>

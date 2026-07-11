@@ -39,6 +39,7 @@ export const t = {
     aiChat: "Chat con IA",
     calendar: "Calendario",
     jobs: "Trabajos",
+    services: "Mis Servicios",
     profile: "Perfil",
   },
   messaging: {
@@ -92,6 +93,31 @@ export const t = {
       errorDatePast: "La fecha y hora deben ser futuras.",
       cancelButton: "Cancelar",
       closeLabel: "Cerrar modal",
+    },
+  },
+  serviceProposals: {
+    sectionTitle: "Propuestas de Servicio",
+    emptyState: "No tenés propuestas de servicio",
+    viewConversation: "Ver conversación",
+    statusPending: "Pendiente",
+    statusAccepted: "Aceptada",
+    statusRejected: "Rechazada",
+    tabs: {
+      pending: "Pendientes",
+      accepted: "Aceptadas",
+      rejected: "Rechazadas",
+    },
+    consumerHome: {
+      pendingTitle: "Propuestas Pendientes",
+      pendingSubtitle: "Requieren tu revisión",
+      acceptedTitle: "Servicios Próximos",
+    },
+    chatPanel: {
+      title: "Propuesta de Servicio",
+      amountLabel: "Monto",
+      dateLabel: "Fecha y hora",
+      descriptionLabel: "Descripción",
+      statusLabel: "Estado",
     },
   },
   header: {

@@ -46,6 +46,14 @@
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
 
+    /* Badge Semantic Colors */
+    --color-badge-success-bg: var(--badge-success-bg);
+    --color-badge-success-fg: var(--badge-success-fg);
+    --color-badge-warning-bg: var(--badge-warning-bg);
+    --color-badge-warning-fg: var(--badge-warning-fg);
+    --color-badge-destructive-bg: var(--badge-destructive-bg);
+    --color-badge-destructive-fg: var(--badge-destructive-fg);
+
     /* Brand Colors (from design system) */
     --color-brand-primary: #1A2B48;
     --color-brand-secondary: #147560;
@@ -99,6 +107,14 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
+
+    /* Badges */
+    --badge-success-bg: #d1fae5; /* emerald-100 */
+    --badge-success-fg: #047857; /* emerald-700 */
+    --badge-warning-bg: #fef3c7; /* amber-100 */
+    --badge-warning-fg: #b45309; /* amber-700 */
+    --badge-destructive-bg: #fee2e2; /* red-100 */
+    --badge-destructive-fg: #b91c1c; /* red-700 */
 }
 
 .dark {
@@ -133,6 +149,14 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+
+    /* Badges (adjusting for dark mode if needed, for now same soft pastel colors but maybe darkened slightly, actually for dark mode they usually invert or use a darker base. We will keep them matching the light pastel theme for consistency with brand unless dark mode needs specific tuning, but standard pastel on dark is okay or we can use dark bg with light text. Let's use darker background with light text for dark mode) */
+    --badge-success-bg: #064e3b; /* emerald-900 */
+    --badge-success-fg: #a7f3d0; /* emerald-200 */
+    --badge-warning-bg: #78350f; /* amber-900 */
+    --badge-warning-fg: #fde68a; /* amber-200 */
+    --badge-destructive-bg: #7f1d1d; /* red-900 */
+    --badge-destructive-fg: #fecaca; /* red-200 */
 }
 
 @layer base {

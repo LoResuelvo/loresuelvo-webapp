@@ -12,8 +12,9 @@ import {
   sendMessage as sendMsgUseCase,
 } from "@/application/messaging/send-message";
 import { sendServiceProposal as sendServiceProposalUseCase } from "@/application/messaging/send-service-proposal";
+import { getServiceProposals } from "@/application/messaging/get-service-proposals";
 import { acceptWorkRequest } from "@/application/provider/accept-work-request";
-import { ConversationDetailInfo, CreateServiceProposalInput, ServiceProposal } from "@/domain/messaging/types";
+import { ConversationDetailInfo, CreateServiceProposalInput, ServiceProposal, ServiceProposalSummary } from "@/domain/messaging/types";
 import { JobRequestSummary } from "@/ports/job-request-repository";
 
 export async function getConversationDetail(id: string): Promise<ConversationDetailInfo> {
@@ -52,3 +53,7 @@ export async function createServiceProposal(input: CreateServiceProposalInput): 
   }
 }
 
+export async function getServiceProposalsAction(): Promise<ServiceProposalSummary[]> {
+  const repository = new ApiServiceProposalRepository();
+  return getServiceProposals(repository);
+}

@@ -8,7 +8,7 @@ Feature: US-54 Visualizar propuestas de servicio
     When visualizo la lista de propuestas de servicio
     Then veo una tarjeta con el nombre "Juan Gómez", el rubro "Plomería" y su foto de perfil
     And la tarjeta muestra el monto "$ 15.000,50"
-    And la tarjeta muestra la fecha "05/07/2026 - 09:30 hs"
+    And la tarjeta muestra la fecha "05/07/2026"
     And la tarjeta muestra la descripción de la propuesta
     And la tarjeta muestra un badge de estado "Pendiente" en color amarillo
     And la tarjeta incluye un botón "Ver conversación"

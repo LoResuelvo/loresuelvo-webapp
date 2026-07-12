@@ -87,6 +87,7 @@ export class ApiClient {
     let response: Response;
     try {
       response = await fetch(url, {
+        cache: "no-store",
         ...options,
         signal: controller.signal,
         headers: {

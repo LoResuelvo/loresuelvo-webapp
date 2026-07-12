@@ -30,7 +30,8 @@ export default function ConsumerHome({
         <ConsumerHeader session={session} />
         <main className="flex-1 p-8 lg:p-10 flex justify-center">
           <div className="max-w-6xl w-full flex flex-col gap-10">
-            {pendingProposals.length > 0 && (
+            <DiagnosisHero />
+                        {pendingProposals.length > 0 && (
               <section aria-labelledby="pending-proposals-title">
                 <h2 id="pending-proposals-title" className="text-[26px] font-bold text-brand-primary mb-1">
                   {t.serviceProposals.consumerHome.pendingTitle}
@@ -56,8 +57,6 @@ export default function ConsumerHome({
                 </div>
               </section>
             )}
-
-            <DiagnosisHero />
             <CategoryGrid categories={categories} />
           </div>
         </main>

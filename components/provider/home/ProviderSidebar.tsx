@@ -10,7 +10,7 @@ const providerNavigationItems = [
   { label: t.sidebar.home, href: ROUTES.provider.home, icon: Home },
   { label: t.sidebar.calendar, href: "", icon: CalendarDays },
   { label: t.sidebar.messages, href: ROUTES.provider.messages, icon: MessageSquare },
-  { label: t.sidebar.jobs, href: "", icon: BriefcaseBusiness },
+  { label: t.sidebar.jobs, href: ROUTES.provider.jobs, icon: BriefcaseBusiness },
   { label: t.sidebar.profile, href: "", icon: User },
 ];
 

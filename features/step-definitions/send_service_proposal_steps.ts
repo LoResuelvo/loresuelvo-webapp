@@ -121,20 +121,23 @@ Then("se abre el modal de propuesta {string}", async (title: string) => {
   assert.ok(await modal.isVisible(), `No se abrió el modal "${title}"`);
 });
 
-Then("veo los campos obligatorios {string}, {string} y {string}", async (campo1: string, campo2: string, campo3: string) => {
+Then("veo los campos obligatorios {string}, {string}, {string} y {string}", async (campo1: string, campo2: string, campo3: string, campo4: string) => {
   const modal = page.getByRole("dialog", { name: "Propuesta de Servicio" });
   
   const label1 = modal.getByText(campo1);
   const label2 = modal.getByText(campo2);
   const label3 = modal.getByText(campo3);
+  const label4 = modal.getByText(campo4);
 
   await label1.waitFor({ state: "visible" });
   await label2.waitFor({ state: "visible" });
   await label3.waitFor({ state: "visible" });
+  await label4.waitFor({ state: "visible" });
 
   assert.ok(await label1.isVisible(), `No se visualiza el campo ${campo1}`);
   assert.ok(await label2.isVisible(), `No se visualiza el campo ${campo2}`);
   assert.ok(await label3.isVisible(), `No se visualiza el campo ${campo3}`);
+  assert.ok(await label4.isVisible(), `No se visualiza el campo ${campo4}`);
 });
 
 Given("que tengo abierto el formulario de propuesta de servicio", async () => {
@@ -177,14 +180,27 @@ When("completo y envío la propuesta con monto {string}, fecha futura y motivo {
   const inputMonto = modal.getByPlaceholder("Ej: 15000.50");
   await inputMonto.fill(monto);
 
-  const inputFecha = modal.locator('input[type="datetime-local"]');
-  await inputFecha.fill("2026-07-20T12:00");
+  const dateTrigger = modal.getByRole("button", { name: /Seleccionar|\d{2}\/\d{2}\/\d{4}/ });
+  await dateTrigger.click();
+  const futureDay = page.locator('button').filter({ hasText: /^20$/ }).first();
+  await futureDay.waitFor({ state: "visible" });
+  await futureDay.click();
+
+  const timeTrigger = modal.getByRole("combobox");
+  await timeTrigger.click();
+  const timeOption = page.getByRole("option", { name: "12:00", exact: true });
+  await timeOption.waitFor({ state: "visible" });
+  await timeOption.click();
 
   const inputMotivo = modal.getByPlaceholder("Ej: Reparación de pérdida de agua en cocina con materiales incluidos.");
   await inputMotivo.fill(motivo);
 
   const submitButton = modal.getByRole("button", { name: "Enviar propuesta" });
   await submitButton.click();
+
+  const confirmButton = page.getByRole("button", { name: "Sí, enviar propuesta" });
+  await confirmButton.waitFor({ state: "visible" });
+  await confirmButton.click();
 });
 
 Then("veo un indicador de éxito informando que la propuesta fue enviada", async () => {
@@ -232,8 +248,17 @@ Then("veo un mensaje de error indicando que el monto debe ser mayor a cero", asy
 
 When("selecciono una fecha y hora en el pasado", async () => {
   const modal = page.getByRole("dialog", { name: "Propuesta de Servicio" });
-  const inputFecha = modal.locator('input[type="datetime-local"]');
-  await inputFecha.fill("2020-01-01T12:00");
+  const dateTrigger = modal.getByRole("button", { name: /Seleccionar|\d{2}\/\d{2}\/\d{4}/ });
+  await dateTrigger.click();
+  const pastDay = page.locator('button').filter({ hasText: /^1$/ }).first();
+  await pastDay.waitFor({ state: "visible" });
+  await pastDay.click();
+
+  const timeTrigger = modal.getByRole("combobox");
+  await timeTrigger.click();
+  const timeOption = page.getByRole("option", { name: "12:00", exact: true });
+  await timeOption.waitFor({ state: "visible" });
+  await timeOption.click();
 });
 
 Then("veo un mensaje de error indicando que la fecha debe ser futura", async () => {

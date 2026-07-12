@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import ProviderSidebar from "@/components/provider/home/ProviderSidebar";
 import ProviderHeader from "@/components/provider/home/ProviderHeader";
 import ProviderMessagesView from "@/components/provider/messages/ProviderMessagesView";
@@ -48,6 +48,8 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
   } = useProviderMessages(session, contacts, myUserId);
 
   const inputRef = useRef<MessageInputHandle>(null);
+  
+  const [proposalDrafts, setProposalDrafts] = useState<Record<number, { amount: string; scheduledDate: string; scheduledTime: string; description: string }>>({});
 
   return (
     <div className="h-screen flex overflow-hidden bg-brand-neutral/30 font-sans text-brand-primary">
@@ -93,16 +95,28 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
         />
       )}
 
-      {showServiceProposalModal && selectedContact && (
+      {selectedContact && (
         <ServiceProposalModal
           open={showServiceProposalModal}
           onClose={() => setShowServiceProposalModal(false)}
           consumerId={parseInt(selectedContact.consumerId)}
+          draft={proposalDrafts[parseInt(selectedContact.consumerId)]}
+          onDraftChange={(draft) => {
+            setProposalDrafts(prev => ({
+              ...prev,
+              [parseInt(selectedContact.consumerId)]: draft,
+            }));
+          }}
           onSubmit={async (input) => {
             const res = await createServiceProposal(input);
             if (!res.success) {
               throw new Error(res.error);
             }
+            setProposalDrafts(prev => {
+              const next = { ...prev };
+              delete next[parseInt(selectedContact.consumerId)];
+              return next;
+            });
           }}
         />
       )}

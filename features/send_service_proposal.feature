@@ -17,7 +17,7 @@ Feature: US-53 Enviar propuesta de servicio
   Scenario: 03-PSP Abrir formulario de propuesta de servicio
     When abro el formulario de propuesta desde el menú de acciones
     Then se abre el modal de propuesta "Propuesta de Servicio"
-    And veo los campos obligatorios "Monto", "Fecha y hora" y "Motivo de la visita"
+    And veo los campos obligatorios "Monto", "Fecha", "Hora" y "Motivo de la visita"
 
   Scenario: 04-PSP Enviar propuesta de servicio exitosamente
     Given que tengo abierto el formulario de propuesta de servicio

@@ -1,6 +1,46 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import React from "react";
 import { ServiceProposalModal } from "./ServiceProposalModal";
+
+vi.mock("@/components/ui/select", () => ({
+  Select: ({ onValueChange, children }: { onValueChange: (value: string) => void, children: React.ReactNode }) => (
+    <div data-testid="select-mock">
+      <input data-testid="time-input" onChange={(e) => onValueChange(e.target.value)} />
+      {children}
+    </div>
+  ),
+  SelectTrigger: () => null,
+  SelectValue: () => null,
+  SelectContent: () => null,
+  SelectItem: () => null,
+}));
+
+vi.mock("@/components/ui/popover", () => ({
+  Popover: ({ children }: { children: React.ReactNode }) => <div data-testid="popover-mock">{children}</div>,
+  PopoverTrigger: ({ children }: { children: React.ReactNode }) => children,
+  PopoverContent: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+vi.mock("@/components/ui/alert-dialog", () => ({
+  AlertDialog: ({ children, open }: { children: React.ReactNode, open: boolean }) => open ? <div data-testid="alert-dialog-mock">{children}</div> : null,
+  AlertDialogContent: ({ children }: { children: React.ReactNode }) => children,
+  AlertDialogHeader: ({ children }: { children: React.ReactNode }) => children,
+  AlertDialogTitle: ({ children }: { children: React.ReactNode }) => children,
+  AlertDialogDescription: ({ children }: { children: React.ReactNode }) => children,
+  AlertDialogFooter: ({ children }: { children: React.ReactNode }) => children,
+  AlertDialogAction: ({ children, onClick }: { children: React.ReactNode, onClick?: () => void }) => <button onClick={onClick}>{children}</button>,
+  AlertDialogCancel: ({ children, onClick }: { children: React.ReactNode, onClick?: () => void }) => <button onClick={onClick}>{children}</button>,
+}));
+
+vi.mock("@/components/ui/calendar", () => ({
+  Calendar: ({ onSelect }: { onSelect: (date: Date) => void }) => (
+    <input 
+      data-testid="calendar-input" 
+      onChange={(e) => onSelect(new Date(e.target.value + "T00:00:00"))} 
+    />
+  )
+}));
 
 describe("ServiceProposalModal", () => {
   const mockOnClose = vi.fn();
@@ -22,7 +62,8 @@ describe("ServiceProposalModal", () => {
 
     expect(screen.getByRole("heading", { name: "Propuesta de Servicio" })).toBeInTheDocument();
     expect(screen.getByLabelText("Monto")).toBeInTheDocument();
-    expect(screen.getByLabelText("Fecha y hora")).toBeInTheDocument();
+    expect(screen.getByText("Fecha")).toBeInTheDocument();
+    expect(screen.getByText("Hora")).toBeInTheDocument();
     expect(screen.getByLabelText("Motivo de la visita")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Enviar propuesta" })).toBeInTheDocument();
   });
@@ -83,8 +124,11 @@ describe("ServiceProposalModal", () => {
       />
     );
 
-    const dateInput = screen.getByLabelText("Fecha y hora");
-    fireEvent.change(dateInput, { target: { value: "2020-01-01T12:00" } });
+    const dateInput = screen.getByTestId("calendar-input");
+    fireEvent.change(dateInput, { target: { value: "2020-01-01" } });
+
+    const timeInput = screen.getByTestId("time-input");
+    fireEvent.change(timeInput, { target: { value: "12:00" } });
 
     expect(await screen.findByText("La fecha y hora deben ser futuras.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Enviar propuesta" })).toBeDisabled();
@@ -104,35 +148,38 @@ describe("ServiceProposalModal", () => {
     );
 
     const amountInput = screen.getByLabelText("Monto");
-    const dateInput = screen.getByLabelText("Fecha y hora");
     const descInput = screen.getByLabelText("Motivo de la visita");
     const sendBtn = screen.getByRole("button", { name: "Enviar propuesta" });
 
-    // Set future date
+    fireEvent.change(amountInput, { target: { value: "15000.50" } });
+    fireEvent.change(descInput, { target: { value: "Reparación de pérdida" } });
+
     const futureDate = new Date();
     futureDate.setFullYear(futureDate.getFullYear() + 1);
     const dateString = futureDate.toISOString().slice(0, 16);
 
-    fireEvent.change(amountInput, { target: { value: "15000.50" } });
-    fireEvent.change(dateInput, { target: { value: dateString } });
-    fireEvent.change(descInput, { target: { value: "Reparación de pérdida" } });
+    const dateInput = screen.getByTestId("calendar-input");
+    fireEvent.change(dateInput, { target: { value: dateString.split("T")[0] } });
+
+    const timeInput = screen.getByTestId("time-input");
+    fireEvent.change(timeInput, { target: { value: "12:00" } });
 
     expect(sendBtn).not.toBeDisabled();
-
     fireEvent.click(sendBtn);
+
+    const confirmBtn = screen.getByRole("button", { name: "Sí, enviar propuesta" });
+    fireEvent.click(confirmBtn);
 
     await vi.runOnlyPendingTimersAsync();
 
     expect(mockOnSubmit).toHaveBeenCalledWith({
       consumerId: 10,
       amount: "15000.50",
-      scheduledOn: new Date(dateString).toISOString(),
+      scheduledOn: new Date(dateString.split("T")[0] + "T12:00:00").toISOString(),
       description: "Reparación de pérdida",
     });
-
     expect(screen.getByText("Propuesta enviada exitosamente. El consumidor fue notificado.")).toBeInTheDocument();
 
-    // Advance timers to trigger automatic modal close
     vi.advanceTimersByTime(2000);
     expect(mockOnClose).toHaveBeenCalledTimes(1);
 
@@ -153,19 +200,26 @@ describe("ServiceProposalModal", () => {
     );
 
     const amountInput = screen.getByLabelText("Monto");
-    const dateInput = screen.getByLabelText("Fecha y hora");
     const descInput = screen.getByLabelText("Motivo de la visita");
     const sendBtn = screen.getByRole("button", { name: "Enviar propuesta" });
+
+    fireEvent.change(amountInput, { target: { value: "15000.50" } });
+    fireEvent.change(descInput, { target: { value: "Reparación" } });
 
     const futureDate = new Date();
     futureDate.setFullYear(futureDate.getFullYear() + 1);
     const dateString = futureDate.toISOString().slice(0, 16);
 
-    fireEvent.change(amountInput, { target: { value: "15000.50" } });
-    fireEvent.change(dateInput, { target: { value: dateString } });
-    fireEvent.change(descInput, { target: { value: "Reparación" } });
+    const dateInput = screen.getByTestId("calendar-input");
+    fireEvent.change(dateInput, { target: { value: dateString.split("T")[0] } });
+
+    const timeInput = screen.getByTestId("time-input");
+    fireEvent.change(timeInput, { target: { value: "12:00" } });
 
     fireEvent.click(sendBtn);
+
+    const confirmBtn = screen.getByRole("button", { name: "Sí, enviar propuesta" });
+    fireEvent.click(confirmBtn);
 
     await vi.runOnlyPendingTimersAsync();
 

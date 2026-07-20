@@ -10,7 +10,7 @@ export class ApiPaymentAccountRepository implements PaymentAccountRepository {
     return mapApiToPaymentAccountConnection(res);
   }
 
-  async startConnection(): Promise<PaymentAccountAuthorization> {
+  async startAuthorization(): Promise<PaymentAccountAuthorization> {
     const res = await api.post<ApiPaymentAccountAuthorization>("/providers/me/payment-accounts/authorization", {});
     return mapApiToPaymentAccountAuthorization(res);
   }

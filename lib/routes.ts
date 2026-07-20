@@ -20,5 +20,6 @@ export const ROUTES = {
     messages: "/prestador/mensajes",
     jobs: "/prestador/trabajos",
     profile: "/prestador/perfil",
+    mercadoPagoCallback: "/provider/register/mercado-pago",
   }
 };

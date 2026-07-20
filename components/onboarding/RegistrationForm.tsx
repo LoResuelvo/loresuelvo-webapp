@@ -8,6 +8,7 @@ import { submitRegistration } from "@/app/onboarding/actions";
 import { getPresignedUrlAction, confirmUploadAction } from "@/app/files/actions";
 import { RoleSelectionStep } from "./RoleSelectionStep";
 import { ProfileFormStep } from "./ProfileFormStep";
+import { MercadoPagoConnectionStep } from "./MercadoPagoConnectionStep";
 import { Category } from "@/domain/shared/types";
 import { storageClient } from "@/infrastructure/storage/storage-client";
 import { cn } from "@/lib/utils";
@@ -42,8 +43,13 @@ export default function RegistrationForm({
       }
 
       const result = await submitRegistration(formData);
-      if (result?.redirectTo) {
-        router.push(result.redirectTo);
+      if (role === "provider") {
+        setStep(3);
+        setIsLoading(false);
+      } else {
+        if (result?.redirectTo) {
+          router.push(result.redirectTo);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -54,13 +60,14 @@ export default function RegistrationForm({
 
   return (
     <div className={cn("w-full rounded-2xl border border-border bg-white p-8 shadow-sm transition-all duration-300", className)}>
-      {step === 1 ? (
+      {step === 1 && (
         <RoleSelectionStep
           role={role}
           onSelectRole={setRole}
           onContinue={() => setStep(2)}
         />
-      ) : (
+      )}
+      {step === 2 && (
         <ProfileFormStep
           role={role}
           categories={categories}
@@ -69,6 +76,9 @@ export default function RegistrationForm({
           isLoading={isLoading}
           error={error}
         />
+      )}
+      {step === 3 && role === "provider" && (
+        <MercadoPagoConnectionStep />
       )}
     </div>
   );

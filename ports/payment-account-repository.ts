@@ -2,5 +2,5 @@ import { PaymentAccountConnection, PaymentAccountAuthorization } from "@/domain/
 
 export interface PaymentAccountRepository {
   getConnection(): Promise<PaymentAccountConnection>;
-  startConnection(): Promise<PaymentAccountAuthorization>;
+  startAuthorization(): Promise<PaymentAccountAuthorization>;
 }

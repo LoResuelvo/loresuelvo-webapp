@@ -27,6 +27,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
+vi.mock("@/app/onboarding/mercado-pago-actions", () => ({
+  startMercadoPagoConnectionAction: vi.fn(),
+}));
+
 vi.mock("@/infrastructure/storage/storage-client", () => ({
   storageClient: {
     uploadFile: vi.fn().mockResolvedValue(undefined),
@@ -143,6 +147,7 @@ describe("RegistrationForm", () => {
 
       await waitFor(() => {
         expect(mockSubmit).toHaveBeenCalledTimes(1);
+        expect(screen.getByText("Conectá tu cuenta de Mercado Pago")).toBeInTheDocument();
       });
 
       const [submittedFormData] = mockSubmit.mock.lastCall as [FormData];

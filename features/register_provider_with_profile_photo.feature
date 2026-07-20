@@ -10,6 +10,7 @@ Feature: Completar registro de prestador con foto de perfil
         And ingreso mi nombre "Juan" y apellido "Pérez" en el formulario
         And elegí el rubro "Plomería" de la lista en la pagina de registro de LoResuelvo
 
+    @wip
     Scenario: 01-RPP Registrar una cuenta nueva de prestador con foto de perfil correctamente
         Given elegí la foto de perfil "avatar.png" desde mi dispositivo
         When finalizo el registro

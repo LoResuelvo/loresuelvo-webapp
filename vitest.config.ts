@@ -12,7 +12,8 @@ export default defineConfig({
       "lib/**/*.test.{ts,tsx}",
       "domain/**/*.test.{ts,tsx}",
       "application/**/*.test.{ts,tsx}",
-      "infrastructure/**/*.test.{ts,tsx}"
+      "infrastructure/**/*.test.{ts,tsx}",
+      "app/**/*.test.{ts,tsx}"
     ],
   },
   resolve: {

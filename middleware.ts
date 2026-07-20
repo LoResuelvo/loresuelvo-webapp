@@ -17,7 +17,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (session && session.user.isOnboarded === false) {
-    if (!pathname.startsWith(ROUTES.onboarding)) {
+    if (!pathname.startsWith(ROUTES.onboarding) && !pathname.startsWith("/provider/register/mercado-pago")) {
       return NextResponse.redirect(new URL(ROUTES.onboarding, request.url));
     }
   }

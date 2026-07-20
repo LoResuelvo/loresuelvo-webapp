@@ -178,3 +178,16 @@ export interface ApiServiceProposalSummary {
   created_on: string;
   counterpart: ApiServiceProposalCounterpart;
 }
+
+export interface ApiPaymentAccountConnection {
+  status: string;
+  account_id?: string;
+  can_receive_payments: boolean;
+  can_send_service_proposals: boolean;
+}
+
+export interface ApiPaymentAccountAuthorization {
+  authorization_url: string;
+  state: string;
+}
+

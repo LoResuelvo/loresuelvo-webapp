@@ -182,7 +182,19 @@ When("completo y envío la propuesta con monto {string}, fecha futura y motivo {
 
   const dateTrigger = modal.getByRole("button", { name: /Seleccionar|\d{2}\/\d{2}\/\d{4}/ });
   await dateTrigger.click();
-  const futureDay = page.locator('button').filter({ hasText: /^20$/ }).first();
+
+  const today = new Date();
+  const currentDay = today.getDate();
+  let dayToSelect = (currentDay + 1).toString();
+
+  if (currentDay >= 28) {
+    const nextMonthButton = page.locator('button.rdp-button_next').first();
+    await nextMonthButton.waitFor({ state: "visible" });
+    await nextMonthButton.click();
+    dayToSelect = "15";
+  }
+
+  const futureDay = page.locator('button').filter({ hasText: new RegExp(`^${dayToSelect}$`) }).first();
   await futureDay.waitFor({ state: "visible" });
   await futureDay.click();
 

@@ -114,13 +114,6 @@ Given('que completé el registro y estoy en el paso de conexión de Mercado Pago
   await title.waitFor({ state: "visible" });
 });
 
-When('hago clic en el botón {string}', async (buttonName: string) => {
-  const button = page.getByRole('button', { name: buttonName })
-                     .or(page.getByRole('link', { name: buttonName })).first();
-  await button.waitFor({ state: "visible" });
-  await button.click();
-});
-
 Then('soy redirigido a la página de autorización de Mercado Pago', async () => {
   await page.waitForURL(url => url.toString().includes("mercadopago.com"));
   assert.ok(page.url().includes("mercadopago.com"), `No se redirigió a Mercado Pago. URL actual: ${page.url()}`);
@@ -162,12 +155,6 @@ When('llego a la página de resultado de conexión con resultado {string}', asyn
   // Navigate to the callback route with parameter
   const callbackUrl = APP_URL + "/provider/register/mercado-pago" + `?result=${result}`;
   await page.goto(callbackUrl);
-});
-
-Then('veo el mensaje {string}', async (message: string) => {
-  const textElement = page.getByText(message).first();
-  await textElement.waitFor({ state: "visible" });
-  assert.ok(await textElement.isVisible(), `No se encontró el mensaje: "${message}"`);
 });
 
 Given('que la conexión de Mercado Pago fue exitosa', async () => {

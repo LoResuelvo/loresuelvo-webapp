@@ -1,33 +1,21 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import { t } from "@/infrastructure/i18n/translations";
 import { ROUTES } from "@/lib/routes";
-import { startMercadoPagoConnectionAction } from "@/app/onboarding/mercado-pago-actions";
 import { AmbientGlows } from "@/components/ui/AmbientGlows";
 
 function MercadoPagoCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const result = searchParams.get("result");
 
-  async function handleRetry() {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const { authorizationUrl } = await startMercadoPagoConnectionAction();
-      router.push(authorizationUrl);
-    } catch (err) {
-      console.error(err);
-      setError(t.onboarding.mercadoPago.errorGeneric);
-      setIsLoading(false);
-    }
+  function handleRetry() {
+    router.push(ROUTES.onboarding);
   }
 
   function handleContinue() {
@@ -82,35 +70,20 @@ function MercadoPagoCallbackContent() {
                 {t.onboarding.mercadoPago.connectionCancelledSubtitle}
               </p>
               
-              {error && (
-                <div className="mb-6 w-full text-sm text-destructive bg-destructive/10 rounded-lg p-3 text-left">
-                  {error}
-                </div>
-              )}
-
               <div className="w-full space-y-3">
                 <Button
                   id="mp-retry-btn"
                   variant="brand"
                   size="full"
                   onClick={handleRetry}
-                  disabled={isLoading}
                 >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t.onboarding.mercadoPago.connecting}
-                    </>
-                  ) : (
-                    t.onboarding.mercadoPago.retryButton
-                  )}
+                  {t.onboarding.mercadoPago.retryButton}
                 </Button>
                 <Button
                   id="mp-cancel-continue-btn"
                   variant="ghost"
                   size="full"
                   onClick={handleContinue}
-                  disabled={isLoading}
                 >
                   {t.onboarding.mercadoPago.continueButton}
                 </Button>

@@ -1,4 +1,3 @@
-@wip
 Feature: US-35.3 Conectar cuenta de Mercado Pago durante el registro
     Como prestador
     quiero conectar mi cuenta de Mercado Pago al finalizar mi registro

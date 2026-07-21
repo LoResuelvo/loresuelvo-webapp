@@ -4,8 +4,9 @@ import { addApiStub } from "./stubs-helper";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 
+import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
+
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
-const MOCK_SESSION_COOKIE = "loresuelvo_session";
 
 When('finalizo el registro como prestador', async () => {
   // Mock external MercadoPago authorization page navigation
@@ -161,7 +162,7 @@ Given('que la conexión de Mercado Pago fue exitosa', async () => {
   await page.context().addCookies([{
     name: MOCK_SESSION_COOKIE,
     value: encodeURIComponent(JSON.stringify({
-      user: { id: "mock-provider-001", email: "prestador@example.com", firstName: "Juan", lastName: "Pérez", isOnboarded: true },
+      user: { id: "mock-provider-001", email: "prestador@example.com", firstName: "Juan", lastName: "Pérez", isOnboarded: true, role: "provider" },
       accessToken: "mock-access-token"
     })),
     domain: "localhost",
@@ -202,7 +203,7 @@ Given('que la conexión de Mercado Pago fue cancelada', async () => {
   await page.context().addCookies([{
     name: MOCK_SESSION_COOKIE,
     value: encodeURIComponent(JSON.stringify({
-      user: { id: "mock-provider-001", email: "prestador@example.com", firstName: "Juan", lastName: "Pérez", isOnboarded: true },
+      user: { id: "mock-provider-001", email: "prestador@example.com", firstName: "Juan", lastName: "Pérez", isOnboarded: false, role: "provider" },
       accessToken: "mock-access-token"
     })),
     domain: "localhost",

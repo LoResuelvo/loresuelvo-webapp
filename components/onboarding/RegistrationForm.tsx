@@ -23,8 +23,9 @@ export default function RegistrationForm({
   categories?: Category[];
   className?: string;
 }) {
-  const [step, setStep] = useState(1);
-  const [role, setRole] = useState<"consumer" | "provider" | null>(null);
+  const initialStep = (_session?.user?.role === "provider" && !_session?.user?.isOnboarded) ? 3 : 1;
+  const [step, setStep] = useState(initialStep);
+  const [role, setRole] = useState<"consumer" | "provider" | null>((_session?.user?.role as any) || null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();

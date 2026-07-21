@@ -5,7 +5,7 @@ import { ROUTES } from "@/lib/routes";
 
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
-let mockGetParam = vi.fn();
+const mockGetParam = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({

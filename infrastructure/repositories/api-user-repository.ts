@@ -1,6 +1,9 @@
 import { api } from "@/infrastructure/api/base-client";
 import { RegisterUserData } from "@/domain/onboarding/types";
 import { UserRepository } from "@/ports/user-repository";
+import { CurrentUser } from "@/domain/user/types";
+import { ApiCurrentUserResponse } from "@/infrastructure/api/types";
+import { mapApiToCurrentUser } from "./current-user-mapper";
 
 export class ApiUserRepository implements UserRepository {
   async registerProvider(
@@ -32,5 +35,10 @@ export class ApiUserRepository implements UserRepository {
     }
     const res = await api.post<{ profile_photo_url?: string }>("/consumers", body);
     return { profilePhotoUrl: res?.profile_photo_url };
+  }
+
+  async getCurrentUser(): Promise<CurrentUser> {
+    const res = await api.get<ApiCurrentUserResponse>("/me");
+    return mapApiToCurrentUser(res);
   }
 }

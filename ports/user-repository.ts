@@ -1,4 +1,5 @@
 import { RegisterUserData } from "@/domain/onboarding/types";
+import { CurrentUser } from "@/domain/user/types";
 
 export interface UserRepository {
   registerProvider(
@@ -11,4 +12,7 @@ export interface UserRepository {
     data: RegisterUserData,
     profilePhotoFileId?: string
   ): Promise<{ profilePhotoUrl?: string }>;
+
+  getCurrentUser(): Promise<CurrentUser>;
 }
+

@@ -4,6 +4,7 @@ import { AuthSession } from "../../infrastructure/auth/types";
 import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
+import { addApiStub } from "./stubs-helper";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 const AUTH0_LOGIN_URL = ROUTES.auth.login;
@@ -76,4 +77,75 @@ Given('que me logueé exitosamente en Auth0 como prestador', async () => {
 
 When('entro al home de clientes', async () => {
   await page.goto(CONSUMER_URL);
+});
+
+Given('la API devuelve mi perfil completo de consumidor sin foto', async () => {
+  await addApiStub({
+    method: "GET",
+    endpoint: "/me",
+    status: 200,
+    body: {
+      id: 1,
+      name: registeredFirstName || "Andres",
+      surname: registeredLastName || "Colina",
+      email: registeredEmail || "andy@pro.com",
+      role: "consumer",
+      profile_photo: null
+    }
+  });
+});
+
+Given('la API devuelve mi perfil completo de consumidor con foto', async () => {
+  await addApiStub({
+    method: "GET",
+    endpoint: "/me",
+    status: 200,
+    body: {
+      id: 1,
+      name: registeredFirstName || "Andres",
+      surname: registeredLastName || "Colina",
+      email: registeredEmail || "andy@pro.com",
+      role: "consumer",
+      profile_photo: {
+        original_name: "avatar.png",
+        url: "https://example.com/mock-avatar.png"
+      }
+    }
+  });
+});
+
+Given('la API devuelve mi perfil completo de prestador con rubro {string}', async (categoryName: string) => {
+  await addApiStub({
+    method: "GET",
+    endpoint: "/me",
+    status: 200,
+    body: {
+      id: 2,
+      name: registeredFirstName || "Andres",
+      surname: registeredLastName || "Colina",
+      email: registeredEmail || "andy@pro.com",
+      role: "provider",
+      profile_photo: {
+        original_name: "avatar.png",
+        url: "https://example.com/mock-avatar.png"
+      },
+      category: {
+        id: 1,
+        name: categoryName
+      }
+    }
+  });
+});
+
+Then('veo mi foto de perfil cargada en el encabezado', async () => {
+  const headerAvatar = page.locator('header img[data-testid="header-profile-photo"]').first();
+  await headerAvatar.waitFor({ state: "attached", timeout: 5000 });
+  assert.ok(await headerAvatar.isVisible(), "La foto de perfil no es visible en el encabezado.");
+});
+
+Then('el sistema cargó la información de mi rubro', async () => {
+  const categoryEl = page.locator('aside, header').getByText("Plomería").first()
+    .or(page.locator('[data-testid="provider-category"]').first());
+  await categoryEl.waitFor({ state: "visible", timeout: 5000 });
+  assert.ok(await categoryEl.isVisible(), "El rubro del prestador no se visualiza en la UI.");
 });

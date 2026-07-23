@@ -48,6 +48,7 @@ export async function createServiceProposal(input: CreateServiceProposalInput): 
     const data = await sendServiceProposalUseCase(repository, input);
     return { success: true, data };
   } catch (error) {
+    console.error("[actions] createServiceProposal error:", error);
     const message = error instanceof Error ? error.message : "Error";
     return { success: false, error: message };
   }

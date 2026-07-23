@@ -137,8 +137,12 @@ export function ServiceProposalModal({
       setTimeout(() => {
         onClose();
       }, 2000);
-    } catch {
-      setSubmitError(t.messaging.serviceProposal.errorGeneric);
+    } catch (e) {
+      if (e instanceof Error && e.message.includes("payment account")) {
+        setSubmitError(t.messaging.serviceProposal.errorNoPaymentAccount);
+      } else {
+        setSubmitError(t.messaging.serviceProposal.errorGeneric);
+      }
     } finally {
       setIsSubmitting(false);
     }

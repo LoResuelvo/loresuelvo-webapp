@@ -91,6 +91,7 @@ export const t = {
       successTitle: "¡Enviado!",
       successMessage: "Propuesta enviada exitosamente. El consumidor fue notificado.",
       errorGeneric: "Hubo un problema al enviar la propuesta. Por favor intenta de nuevo.",
+      errorNoPaymentAccount: "Para enviar la propuesta necesitas conectar tu cuenta de MercadoPago.",
       errorAmountInvalid: "El monto debe ser mayor a cero.",
       errorDatePast: "La fecha y hora deben ser futuras.",
       cancelButton: "Cancelar",
@@ -123,6 +124,8 @@ export const t = {
       dateLabel: "Fecha y hora",
       descriptionLabel: "Descripción",
       statusLabel: "Estado",
+      closeLabel: "Cerrar",
+      viewDetails: "Ver detalle de propuesta",
     },
   },
   header: {

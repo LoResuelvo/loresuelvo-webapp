@@ -39,7 +39,7 @@ export default function RegistrationForm({
         formData.append("role", role);
       }
 
-      if (role === "provider") {
+      if (role === "provider" || role === "consumer") {
         await handleProfilePhotoUpload(formData);
       }
 

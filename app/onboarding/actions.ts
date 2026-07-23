@@ -18,9 +18,10 @@ export async function submitRegistration(formData: FormData) {
   if (role === "provider") {
     const rawCategoryId = formData.get("categoryId") as string;
     categoryId = rawCategoryId ? parseInt(rawCategoryId, 10) : 0;
-    profilePhotoId = (formData.get("profilePhotoId") as string) || undefined;
-    profilePhotoUrl = (formData.get("profilePhotoUrl") as string) || undefined;
   }
+
+  profilePhotoId = (formData.get("profilePhotoId") as string) || undefined;
+  profilePhotoUrl = (formData.get("profilePhotoUrl") as string) || undefined;
 
   const userRepo = new ApiUserRepository();
   const authService = getAuthService();

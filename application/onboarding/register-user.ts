@@ -37,7 +37,12 @@ export async function registerUser(
       finalProfilePhotoUrl = command.profilePhotoUrl;
     }
   } else {
-    await userRepository.registerConsumer(userData);
+    const consumerResult = await userRepository.registerConsumer(userData, command.profilePhotoId);
+    if (consumerResult?.profilePhotoUrl) {
+      finalProfilePhotoUrl = consumerResult.profilePhotoUrl;
+    } else if (command.profilePhotoUrl) {
+      finalProfilePhotoUrl = command.profilePhotoUrl;
+    }
   }
 
   try {

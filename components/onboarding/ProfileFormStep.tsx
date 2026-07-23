@@ -53,7 +53,7 @@ export function ProfileFormStep({
     let photoName = "";
     let photoType = "";
 
-    if (role === "provider") {
+    if (role === "provider" || role === "consumer") {
       const profilePhoto = formData.get("profilePhoto") as File;
       if (profilePhoto) {
         photoSize = profilePhoto.size;
@@ -112,7 +112,7 @@ export function ProfileFormStep({
       )}
 
       <form onSubmit={handleFormSubmit} className="space-y-5" noValidate>
-        {role === "provider" && (
+        {(role === "provider" || role === "consumer") && (
           <ProfilePhotoUpload
             onPhotoSelected={(file) => {
               if (file) {

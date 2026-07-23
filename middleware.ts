@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth0 } from "./lib/auth0";
 import { ROUTES } from "./lib/routes";
 import { getAuthService } from "./infrastructure/auth";
+import { ApiUserRepository } from "./infrastructure/repositories/api-user-repository";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -22,10 +23,31 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (session && session.user.isOnboarded === true && pathname === ROUTES.home) {
-    const role = session.user.role; // TODO: hardcoded fields
-    const targetHome = role === "provider" ? ROUTES.provider.home : ROUTES.consumer.home;
-    return NextResponse.redirect(new URL(targetHome, request.url));
+  if (session && session.user.isOnboarded === true) {
+    let role = session.user.role;
+
+    if (!role) {
+      try {
+        const userRepo = new ApiUserRepository();
+        const currentUser = await userRepo.getCurrentUser();
+        role = currentUser.role;
+      } catch (e) {
+        console.warn("Failed to fetch current user in middleware:", e);
+      }
+    }
+
+    if (pathname === ROUTES.home) {
+      const targetHome = role === "provider" ? ROUTES.provider.home : ROUTES.consumer.home;
+      return NextResponse.redirect(new URL(targetHome, request.url));
+    }
+
+    if (role === "provider" && pathname.startsWith("/consumidor")) {
+      return NextResponse.redirect(new URL(ROUTES.provider.home, request.url));
+    }
+
+    if (role === "consumer" && pathname.startsWith("/prestador")) {
+      return NextResponse.redirect(new URL(ROUTES.consumer.home, request.url));
+    }
   }
 
   return NextResponse.next();

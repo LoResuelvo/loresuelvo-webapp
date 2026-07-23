@@ -91,7 +91,7 @@ export default function RegistrationForm({
         profilePhoto.name,
         profilePhoto.type,
         profilePhoto.size,
-        "provider_profile_photo"
+        "profile_photo"
       );
 
       await storageClient.uploadFile(profilePhoto, presigned.upload_url, presigned.headers);

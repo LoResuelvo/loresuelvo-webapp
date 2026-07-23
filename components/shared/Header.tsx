@@ -3,12 +3,17 @@ import { ROUTES } from "@/lib/routes";
 import { Container } from "@/components/shared/Container";
 import { AppUser } from "@/infrastructure/auth/types";
 import { t } from "@/infrastructure/i18n/translations";
+import { Avatar } from "@/components/ui/avatar";
 
 interface HeaderProps {
   user?: AppUser | null;
 }
 
 export default function Header({ user }: HeaderProps) {
+  const userInitials = user?.firstName
+    ? user.firstName.charAt(0).toUpperCase()
+    : "";
+
   return (
     <header className="flex h-20 items-center border-b border-transparent bg-transparent w-full relative z-50">
       <Container className="flex items-center justify-between">
@@ -18,6 +23,13 @@ export default function Header({ user }: HeaderProps) {
         <nav className="flex items-center">
           {user ? (
             <div className="flex items-center gap-4">
+              <Avatar
+                src={user.profilePhotoUrl}
+                alt={t.onboarding.photoUpload.label}
+                size="xs"
+                initials={userInitials}
+                imgTestId="header-profile-photo"
+              />
               <span className="text-[14px] font-medium text-brand-primary">
                 {t.header.greeting}{user.firstName}
               </span>

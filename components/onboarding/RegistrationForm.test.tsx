@@ -279,5 +279,38 @@ describe("RegistrationForm", () => {
       expect(await screen.findByText("La imagen no debe superar los 5MB")).toBeInTheDocument();
       expect(mockSubmit).not.toHaveBeenCalled();
     });
+    it("submits the correct consumer role with profile photo", async () => {
+      const mockSubmit = vi.mocked(submitRegistration).mockResolvedValue(undefined as never);
+      render(<RegistrationForm session={null} />);
+
+      const clientButton = screen.getByText("Soy Cliente").closest("button");
+      fireEvent.click(clientButton!);
+      const continueButton = screen.getByRole("button", { name: /Continuar/i });
+      fireEvent.click(continueButton);
+
+      const firstNameInput = screen.getByLabelText(/Nombre/i) as HTMLInputElement;
+      const lastNameInput = screen.getByLabelText(/Apellido/i) as HTMLInputElement;
+      fireEvent.change(firstNameInput, { target: { value: "Maria" } });
+      fireEvent.change(lastNameInput, { target: { value: "Gomez" } });
+
+      const file = new File(["dummy content"], "consumer_avatar.png", { type: "image/png" });
+      const originalGet = window.FormData.prototype.get;
+      vi.spyOn(window.FormData.prototype, 'get').mockImplementation(function(this: FormData, key: string) {
+        if (key === "profilePhoto") return file;
+        return originalGet.call(this, key);
+      });
+
+      const submitButton = screen.getByRole("button", { name: /Finalizar Registro/i });
+      fireEvent.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockSubmit).toHaveBeenCalledTimes(1);
+      });
+
+      const [submittedFormData] = mockSubmit.mock.lastCall as [FormData];
+      expect(submittedFormData.get("firstName")).toBe("Maria");
+      expect(submittedFormData.get("lastName")).toBe("Gomez");
+      expect(submittedFormData.get("role")).toBe("consumer");
+    });
   })
 });

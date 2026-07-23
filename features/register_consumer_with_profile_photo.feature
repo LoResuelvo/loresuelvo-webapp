@@ -1,4 +1,3 @@
-@wip
 Feature: Completar registro de consumidor con foto de perfil
     Como consumidor
     quiero cargar mi foto de perfil al registrarme

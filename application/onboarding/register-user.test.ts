@@ -38,17 +38,53 @@ describe("registerUser", () => {
       role: "consumer",
     });
 
-    expect(mockUserRepository.registerConsumer).toHaveBeenCalledWith({
-      email: "andres@test.com",
-      name: "Andres",
-      surname: "Gomez",
-    });
+    expect(mockUserRepository.registerConsumer).toHaveBeenCalledWith(
+      {
+        email: "andres@test.com",
+        name: "Andres",
+        surname: "Gomez",
+      },
+      undefined
+    );
     expect(mockAuthService.updateSession).toHaveBeenCalledWith({
       firstName: "Andres",
       lastName: "Gomez",
       isOnboarded: true,
       role: "consumer",
       profilePhotoUrl: undefined,
+    });
+    expect(result.redirectTo).toBe(ROUTES.consumer.home);
+  });
+
+  it("registers a consumer with profile photo successfully, updates session with photo URL", async () => {
+    vi.mocked(mockAuthService.getSession).mockResolvedValue({
+      user: { id: "1", email: "andres@test.com", firstName: "", lastName: "" },
+    });
+    vi.mocked(mockUserRepository.registerConsumer).mockResolvedValue({
+      profilePhotoUrl: "http://example.com/consumer-avatar.png",
+    });
+
+    const result = await registerUser(mockUserRepository, mockAuthService, {
+      firstName: "Ana",
+      lastName: "Pérez",
+      role: "consumer",
+      profilePhotoId: "photo-456",
+    });
+
+    expect(mockUserRepository.registerConsumer).toHaveBeenCalledWith(
+      {
+        email: "andres@test.com",
+        name: "Ana",
+        surname: "Pérez",
+      },
+      "photo-456"
+    );
+    expect(mockAuthService.updateSession).toHaveBeenCalledWith({
+      firstName: "Ana",
+      lastName: "Pérez",
+      isOnboarded: true,
+      role: "consumer",
+      profilePhotoUrl: "http://example.com/consumer-avatar.png",
     });
     expect(result.redirectTo).toBe(ROUTES.consumer.home);
   });

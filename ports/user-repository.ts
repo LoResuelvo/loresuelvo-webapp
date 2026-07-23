@@ -7,5 +7,8 @@ export interface UserRepository {
     profilePhotoId?: string
   ): Promise<{ profilePhotoUrl?: string }>;
 
-  registerConsumer(data: RegisterUserData): Promise<void>;
+  registerConsumer(
+    data: RegisterUserData,
+    profilePhotoFileId?: string
+  ): Promise<{ profilePhotoUrl?: string }>;
 }

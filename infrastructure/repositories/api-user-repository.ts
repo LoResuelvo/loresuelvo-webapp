@@ -18,11 +18,19 @@ export class ApiUserRepository implements UserRepository {
     return { profilePhotoUrl: res.profile_photo_url };
   }
 
-  async registerConsumer(data: RegisterUserData): Promise<void> {
-    return api.post<void>("/consumers", {
+  async registerConsumer(
+    data: RegisterUserData,
+    profilePhotoFileId?: string
+  ): Promise<{ profilePhotoUrl?: string }> {
+    const body: Record<string, unknown> = {
       email: data.email,
       name: data.name,
       surname: data.surname,
-    });
+    };
+    if (profilePhotoFileId) {
+      body.profile_photo_file_id = profilePhotoFileId;
+    }
+    const res = await api.post<{ profile_photo_url?: string }>("/consumers", body);
+    return { profilePhotoUrl: res?.profile_photo_url };
   }
 }

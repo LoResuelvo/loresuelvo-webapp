@@ -191,3 +191,10 @@ export interface ApiPaymentAccountAuthorization {
   state: string;
 }
 
+export interface ApiRegisterConsumerResponse {
+  id: number;
+  name: string;
+  surname: string;
+  profile_photo_url?: string;
+}
+

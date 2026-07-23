@@ -10,9 +10,10 @@ import { Avatar } from "@/components/ui/avatar";
 
 interface ProviderHeaderProps {
   session: AuthSession | null;
+  categoryName?: string;
 }
 
-export default function ProviderHeader({ session }: ProviderHeaderProps) {
+export default function ProviderHeader({ session, categoryName }: ProviderHeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -32,6 +33,14 @@ export default function ProviderHeader({ session }: ProviderHeaderProps) {
 
   return (
     <header className="h-20 border-b border-slate-200 bg-brand-neutral/30 flex items-center justify-end px-8 gap-6 sticky top-0 z-10">
+      {categoryName && (
+        <span
+          data-testid="provider-category"
+          className="text-[13px] font-semibold text-brand-secondary bg-brand-secondary/10 px-3 py-1 rounded-full"
+        >
+          {categoryName}
+        </span>
+      )}
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setIsOpen(!isOpen)}
@@ -56,6 +65,11 @@ export default function ProviderHeader({ session }: ProviderHeaderProps) {
                 <p className="text-[14px] font-bold text-brand-primary truncate">
                   {session.user.firstName} {session.user.lastName}
                 </p>
+                {categoryName && (
+                  <p className="text-[12px] text-brand-secondary font-medium truncate">
+                    {categoryName}
+                  </p>
+                )}
                 <p className="text-[12px] text-slate-500 truncate">
                   {session.user.email}
                 </p>

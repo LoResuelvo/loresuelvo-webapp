@@ -4,9 +4,28 @@ import { getConsumerHome } from "@/application/consumer/get-consumer-home";
 import { ApiCategoryRepository } from "@/infrastructure/repositories/api-category-repository";
 import { getServiceProposalsAction } from "@/app/prestador/mensajes/actions";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
+import { getCurrentUserAction } from "@/app/api/me/actions";
 
 export default async function ConsumerHomePage() {
-  const session = await getAuthService().getSession();
+  let session = await getAuthService().getSession();
+
+  try {
+    const currentUser = await getCurrentUserAction();
+    if (session?.user && currentUser) {
+      session = {
+        ...session,
+        user: {
+          ...session.user,
+          firstName: currentUser.firstName,
+          lastName: currentUser.lastName,
+          profilePhotoUrl: currentUser.profilePhoto?.url ?? session.user.profilePhotoUrl,
+          role: currentUser.role,
+        },
+      };
+    }
+  } catch {
+    // Graceful degradation: fallback to Auth0 session if /me fails
+  }
 
   const categoryRepo = new ApiCategoryRepository();
   const categories = await getConsumerHome(categoryRepo);
@@ -31,4 +50,3 @@ export default async function ConsumerHomePage() {
     />
   );
 }
-

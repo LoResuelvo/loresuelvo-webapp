@@ -93,6 +93,20 @@ Given('la API devuelve mi perfil completo de consumidor sin foto', async () => {
       profile_photo: null
     }
   });
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/categories",
+    status: 200,
+    body: []
+  });
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/service-proposals",
+    status: 200,
+    body: []
+  });
 });
 
 Given('la API devuelve mi perfil completo de consumidor con foto', async () => {
@@ -111,6 +125,20 @@ Given('la API devuelve mi perfil completo de consumidor con foto', async () => {
         url: "https://example.com/mock-avatar.png"
       }
     }
+  });
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/categories",
+    status: 200,
+    body: []
+  });
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/service-proposals",
+    status: 200,
+    body: []
   });
 });
 
@@ -134,6 +162,20 @@ Given('la API devuelve mi perfil completo de prestador con rubro {string}', asyn
         name: categoryName
       }
     }
+  });
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/job-requests",
+    status: 200,
+    body: []
+  });
+
+  await addApiStub({
+    method: "GET",
+    endpoint: "/service-proposals",
+    status: 200,
+    body: []
   });
 });
 

@@ -198,3 +198,29 @@ export interface ApiRegisterConsumerResponse {
   profile_photo_url?: string;
 }
 
+export interface ApiCurrentUserProfilePhoto {
+  original_name: string;
+  url: string;
+}
+
+export interface ApiCurrentUserCategory {
+  id: number;
+  name: string;
+}
+
+export interface ApiCurrentUserResponse {
+  id: number;
+  name: string;
+  surname: string;
+  email: string;
+  role: "consumer" | "provider";
+  profile_photo?: ApiCurrentUserProfilePhoto | null;
+}
+
+export type ApiConsumerCurrentUserResponse = ApiCurrentUserResponse;
+
+export interface ApiProviderCurrentUserResponse extends ApiCurrentUserResponse {
+  category: ApiCurrentUserCategory;
+}
+
+

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Clock3, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -57,13 +57,24 @@ export function PaymentResultPage({
   getPaymentIntent = getPaymentIntentAction,
 }: PaymentResultPageProps) {
   const router = useRouter();
-  const [paymentStorage] = useState<PaymentResultStorage>(() => storage ?? window.sessionStorage);
-  const [paymentIntentId] = useState(() => resolvePaymentIntentId(
-    search ?? window.location.search,
-    paymentStorage.getItem("activePayment"),
-  ));
+  const [paymentStorage, setPaymentStorage] = useState<PaymentResultStorage | null>(storage ?? null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(() => storage
+    ? resolvePaymentIntentId(search ?? "", storage.getItem("activePayment"))
+    : null);
+  const [hasResolvedPaymentIntent, setHasResolvedPaymentIntent] = useState(Boolean(storage));
+
+  useEffect(() => {
+    const resolvedStorage = storage ?? window.sessionStorage;
+    setPaymentStorage(resolvedStorage);
+    setPaymentIntentId(resolvePaymentIntentId(
+      search ?? window.location.search,
+      resolvedStorage.getItem("activePayment"),
+    ));
+    setHasResolvedPaymentIntent(true);
+  }, [search, storage]);
+
   const handlePaid = useCallback(() => {
-    paymentStorage.removeItem("activePayment");
+    paymentStorage?.removeItem("activePayment");
     router.refresh();
   }, [paymentStorage, router]);
   const polling = usePaymentIntentPolling({
@@ -78,7 +89,7 @@ export function PaymentResultPage({
   let canRetryVerification = false;
   let canRetryPayment = false;
 
-  if (!paymentIntentId) {
+  if (hasResolvedPaymentIntent && !paymentIntentId) {
     title = t.payments.result.unidentifiedTitle;
     description = t.payments.result.unidentifiedDescription;
     icon = <AlertTriangle className="h-12 w-12 text-amber-500" aria-hidden="true" />;

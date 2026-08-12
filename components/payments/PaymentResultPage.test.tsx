@@ -1,4 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PaymentIntentStatus } from "@/domain/payment/types";
 import { PaymentResultPage } from "./PaymentResultPage";
@@ -17,6 +18,12 @@ describe("PaymentResultPage", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("should render on the server without accessing window storage", () => {
+    expect(() => renderToString(
+      <PaymentResultPage returnKind="success" />,
+    )).not.toThrow();
   });
 
   it.each([

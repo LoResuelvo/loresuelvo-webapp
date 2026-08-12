@@ -1,4 +1,3 @@
-@wip
 Feature: Pagar la reserva de una propuesta de servicio
   Como consumidor autenticado
   Quiero pagar la reserva de una propuesta pendiente

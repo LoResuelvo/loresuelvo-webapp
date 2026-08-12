@@ -1,4 +1,23 @@
 export const t = {
+  payments: {
+    checkout: {
+      title: "Pago de reserva",
+      description: "Revisá el importe informado antes de continuar a Mercado Pago.",
+      depositLabel: "Reserva",
+      feeLabel: "Comisión de la plataforma",
+      totalLabel: "Total a pagar",
+      submitButton: "Pagar reserva",
+      submittingButton: "Preparando pago…",
+    },
+    errors: {
+      unauthorized: "Tu sesión venció. Iniciá sesión nuevamente para consultar el pago.",
+      forbidden: "No tenés permiso para pagar esta propuesta.",
+      notFound: "No encontramos la propuesta o el pago solicitado.",
+      conflict: "El pago no está disponible para esta propuesta.",
+      temporary: "No pudimos consultar el pago en este momento. Intentá otra vez.",
+      generic: "Ocurrió un error inesperado. Intentá nuevamente.",
+    },
+  },
   home: {
     hero: {
       badge: "Profesionales verificados",

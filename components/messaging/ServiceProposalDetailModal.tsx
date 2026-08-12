@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, DollarSign, FileText } from "lucide-react";
 import { t } from "@/infrastructure/i18n/translations";
 import { getInitials } from "@/lib/text-utils";
+import { BookingDepositPayment } from "@/components/payments/BookingDepositPayment";
 
 interface ServiceProposalDetailModalProps {
   proposal: ServiceProposalSummary;
@@ -88,6 +89,15 @@ export default function ServiceProposalDetailModal({ proposal, onClose }: Servic
               </p>
             </div>
           )}
+
+          {proposal.status === "pending" &&
+            counterpart.role === "provider" &&
+            proposal.pricing && (
+              <BookingDepositPayment
+                serviceProposalId={proposal.id}
+                pricing={proposal.pricing}
+              />
+            )}
         </div>
       </div>
     </Modal>

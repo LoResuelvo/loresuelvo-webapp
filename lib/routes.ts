@@ -6,6 +6,11 @@ export const ROUTES = {
     logout: "/auth/logout",
   },
   onboarding: "/onboarding",
+  payments: {
+    success: "/payments/success",
+    pending: "/payments/pending",
+    failure: "/payments/failure",
+  },
   consumer: {
     home: "/consumidor/home",
     buscar: "/consumidor/buscar",

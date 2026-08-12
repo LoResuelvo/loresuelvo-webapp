@@ -177,6 +177,26 @@ export interface ApiServiceProposalSummary {
   status: string;
   created_on: string;
   counterpart: ApiServiceProposalCounterpart;
+  pricing?: ApiPaymentPricing;
+}
+
+export interface ApiPaymentPricing {
+  currency: string;
+  deposit_cents: number;
+  platform_fee_due_now_cents: number;
+  amount_due_now_cents: number;
+}
+
+export interface ApiCheckoutSession {
+  payment_intent_id: string;
+  status: string;
+  checkout_url: string;
+  expires_on: string;
+  pricing: ApiPaymentPricing;
+}
+
+export interface ApiPaymentIntent {
+  status: string;
 }
 
 export interface ApiPaymentAccountConnection {
@@ -222,5 +242,4 @@ export type ApiConsumerCurrentUserResponse = ApiCurrentUserResponse;
 export interface ApiProviderCurrentUserResponse extends ApiCurrentUserResponse {
   category: ApiCurrentUserCategory;
 }
-
 

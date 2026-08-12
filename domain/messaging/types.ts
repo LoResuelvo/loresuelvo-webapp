@@ -1,3 +1,5 @@
+import type { PaymentPricing } from "@/domain/payment/types";
+
 export interface MessageImage {
   id: string;
   url: string;
@@ -164,4 +166,5 @@ export interface ServiceProposalSummary {
   status: "pending" | "accepted" | "rejected";
   createdOn: string;
   counterpart: ServiceProposalCounterpart;
+  pricing?: PaymentPricing;
 }

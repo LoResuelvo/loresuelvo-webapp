@@ -1,5 +1,6 @@
 import { ApiServiceProposal, ApiServiceProposalSummary } from "@/infrastructure/api/types";
 import { ServiceProposal, ServiceProposalSummary } from "@/domain/messaging/types";
+import { mapApiPaymentPricing } from "./payment-mapper";
 
 export function transformApiToServiceProposal(api: ApiServiceProposal): ServiceProposal {
   return {
@@ -33,5 +34,6 @@ export function transformApiToServiceProposalSummary(
       categoryName: api.counterpart.category_name,
       profilePhotoUrl: api.counterpart.profile_photo_url,
     },
+    ...(api.pricing ? { pricing: mapApiPaymentPricing(api.pricing) } : {}),
   };
 }

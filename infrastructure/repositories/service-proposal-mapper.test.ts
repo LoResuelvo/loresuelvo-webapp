@@ -48,6 +48,12 @@ describe("transformApiToServiceProposalSummary", () => {
         category_name: "Plomería",
         profile_photo_url: "https://example.com/photo.jpg",
       },
+      pricing: {
+        currency: "ARS",
+        deposit_cents: 2_000_000,
+        platform_fee_due_now_cents: 100_000,
+        amount_due_now_cents: 2_100_000,
+      },
     };
 
     const result = transformApiToServiceProposalSummary(apiModel);
@@ -67,6 +73,12 @@ describe("transformApiToServiceProposalSummary", () => {
         surname: "Gómez",
         categoryName: "Plomería",
         profilePhotoUrl: "https://example.com/photo.jpg",
+      },
+      pricing: {
+        currency: "ARS",
+        depositCents: 2_000_000,
+        platformFeeDueNowCents: 100_000,
+        amountDueNowCents: 2_100_000,
       },
     });
   });

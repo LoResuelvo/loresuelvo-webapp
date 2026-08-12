@@ -45,6 +45,7 @@ export function usePaymentIntentPolling({
       setIsLoading(false);
       return;
     }
+    const resolvedPaymentIntentId = paymentIntentId;
 
     let stopped = false;
     let requestInProgress = false;
@@ -65,7 +66,7 @@ export function usePaymentIntentPolling({
       requestInProgress = true;
 
       try {
-        const result = await getPaymentIntent(paymentIntentId);
+        const result = await getPaymentIntent(resolvedPaymentIntentId);
         if (stopped) return;
 
         setIsLoading(false);

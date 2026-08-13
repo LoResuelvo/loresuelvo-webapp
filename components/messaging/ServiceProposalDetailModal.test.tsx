@@ -17,11 +17,18 @@ const proposal: ServiceProposalSummary = {
     name: "Juan",
     surname: "Pérez",
   },
-  pricing: {
+  bookingTerms: {
     currency: "ARS",
+    serviceTotalCents: 10_000_000,
     depositCents: 2_000_000,
+    remainingServiceBalanceCents: 8_000_000,
+    platformFeeTotalCents: 500_000,
     platformFeeDueNowCents: 100_000,
+    remainingPlatformFeeCents: 400_000,
     amountDueNowCents: 2_100_000,
+    remainingAmountDueCents: 8_400_000,
+    contractTotalCents: 10_500_000,
+    bookingPaymentDeadline: "2026-08-31T12:00:00Z",
   },
 };
 

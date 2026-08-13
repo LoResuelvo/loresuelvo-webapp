@@ -12,6 +12,20 @@ export interface PaymentPricing {
   amountDueNowCents: number;
 }
 
+export interface BookingTerms {
+  currency: "ARS";
+  serviceTotalCents: number;
+  depositCents: number;
+  remainingServiceBalanceCents: number;
+  platformFeeTotalCents: number;
+  platformFeeDueNowCents: number;
+  remainingPlatformFeeCents: number;
+  amountDueNowCents: number;
+  remainingAmountDueCents: number;
+  contractTotalCents: number;
+  bookingPaymentDeadline: string;
+}
+
 export interface CheckoutSession {
   paymentIntentId: string;
   status: "checkout_ready";

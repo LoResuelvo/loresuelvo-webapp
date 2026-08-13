@@ -157,6 +157,7 @@ export interface ApiServiceProposal {
   scheduled_on: string;
   description: string;
   status: string;
+  booking_terms: ApiBookingTerms;
 }
 
 export interface ApiServiceProposalCounterpart {
@@ -177,7 +178,21 @@ export interface ApiServiceProposalSummary {
   status: string;
   created_on: string;
   counterpart: ApiServiceProposalCounterpart;
-  pricing?: ApiPaymentPricing;
+  booking_terms: ApiBookingTerms;
+}
+
+export interface ApiBookingTerms {
+  currency: "ARS";
+  service_total_cents: number;
+  deposit_cents: number;
+  remaining_service_balance_cents: number;
+  platform_fee_total_cents: number;
+  platform_fee_due_now_cents: number;
+  remaining_platform_fee_cents: number;
+  amount_due_now_cents: number;
+  remaining_amount_due_cents: number;
+  contract_total_cents: number;
+  booking_payment_deadline: string;
 }
 
 export interface ApiPaymentPricing {
@@ -242,4 +257,3 @@ export type ApiConsumerCurrentUserResponse = ApiCurrentUserResponse;
 export interface ApiProviderCurrentUserResponse extends ApiCurrentUserResponse {
   category: ApiCurrentUserCategory;
 }
-

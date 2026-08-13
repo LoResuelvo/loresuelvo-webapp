@@ -43,7 +43,19 @@ function proposalFixture(status: "pending" | "accepted" = "pending") {
       surname: "Pérez",
       category_name: "Plomería",
     },
-    pricing,
+    booking_terms: {
+      currency: "ARS",
+      service_total_cents: 10_000_000,
+      deposit_cents: pricing.deposit_cents,
+      remaining_service_balance_cents: 8_000_000,
+      platform_fee_total_cents: 500_000,
+      platform_fee_due_now_cents: pricing.platform_fee_due_now_cents,
+      remaining_platform_fee_cents: 400_000,
+      amount_due_now_cents: pricing.amount_due_now_cents,
+      remaining_amount_due_cents: 8_400_000,
+      contract_total_cents: 10_500_000,
+      booking_payment_deadline: "2026-08-31T12:00:00Z",
+    },
   };
 }
 

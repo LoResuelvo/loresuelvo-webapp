@@ -18,6 +18,19 @@ describe("sendServiceProposal", () => {
       scheduledOn: "2026-07-05T12:30:00Z",
       description: "Reparación de pérdida de agua...",
       status: "pending",
+      bookingTerms: {
+        currency: "ARS",
+        serviceTotalCents: 1_500_050,
+        depositCents: 300_010,
+        remainingServiceBalanceCents: 1_200_040,
+        platformFeeTotalCents: 500_000,
+        platformFeeDueNowCents: 100_000,
+        remainingPlatformFeeCents: 400_000,
+        amountDueNowCents: 400_010,
+        remainingAmountDueCents: 1_600_040,
+        contractTotalCents: 2_000_050,
+        bookingPaymentDeadline: "2026-07-04T12:30:00Z",
+      },
     };
 
     vi.mocked(mockServiceProposalRepository.create).mockResolvedValue(mockProposal);

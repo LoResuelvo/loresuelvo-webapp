@@ -1,4 +1,4 @@
-import type { PaymentPricing } from "@/domain/payment/types";
+import type { BookingTerms } from "@/domain/payment/types";
 
 export interface MessageImage {
   id: string;
@@ -139,6 +139,7 @@ export interface ServiceProposal {
   scheduledOn: string;
   description: string;
   status: "pending" | "accepted" | "rejected";
+  bookingTerms: BookingTerms;
 }
 
 export interface CreateServiceProposalInput {
@@ -166,5 +167,5 @@ export interface ServiceProposalSummary {
   status: "pending" | "accepted" | "rejected";
   createdOn: string;
   counterpart: ServiceProposalCounterpart;
-  pricing?: PaymentPricing;
+  bookingTerms: BookingTerms;
 }

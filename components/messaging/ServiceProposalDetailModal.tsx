@@ -92,12 +92,15 @@ export default function ServiceProposalDetailModal({ proposal, onClose }: Servic
 
           {proposal.status === "pending" &&
             counterpart.role === "provider" &&
-            proposal.pricing && (
-              <BookingDepositPayment
-                serviceProposalId={proposal.id}
-                pricing={proposal.pricing}
-              />
-            )}
+            <BookingDepositPayment
+              serviceProposalId={proposal.id}
+              pricing={{
+                currency: proposal.bookingTerms.currency,
+                depositCents: proposal.bookingTerms.depositCents,
+                platformFeeDueNowCents: proposal.bookingTerms.platformFeeDueNowCents,
+                amountDueNowCents: proposal.bookingTerms.amountDueNowCents,
+              }}
+            />}
         </div>
       </div>
     </Modal>

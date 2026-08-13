@@ -1,6 +1,6 @@
 import { ApiServiceProposal, ApiServiceProposalSummary } from "@/infrastructure/api/types";
 import { ServiceProposal, ServiceProposalSummary } from "@/domain/messaging/types";
-import { mapApiPaymentPricing } from "./payment-mapper";
+import { mapApiBookingTerms } from "./payment-mapper";
 
 export function transformApiToServiceProposal(api: ApiServiceProposal): ServiceProposal {
   return {
@@ -12,6 +12,7 @@ export function transformApiToServiceProposal(api: ApiServiceProposal): ServiceP
     scheduledOn: api.scheduled_on,
     description: api.description,
     status: api.status as "pending" | "accepted" | "rejected",
+    bookingTerms: mapApiBookingTerms(api.booking_terms),
   };
 }
 
@@ -34,6 +35,6 @@ export function transformApiToServiceProposalSummary(
       categoryName: api.counterpart.category_name,
       profilePhotoUrl: api.counterpart.profile_photo_url,
     },
-    ...(api.pricing ? { pricing: mapApiPaymentPricing(api.pricing) } : {}),
+    bookingTerms: mapApiBookingTerms(api.booking_terms),
   };
 }

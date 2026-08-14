@@ -139,7 +139,7 @@ export interface ServiceProposal {
   scheduledOn: string;
   description: string;
   status: "pending" | "accepted" | "rejected";
-  bookingTerms: BookingTerms;
+  bookingTerms?: BookingTerms;
 }
 
 export interface CreateServiceProposalInput {
@@ -167,5 +167,5 @@ export interface ServiceProposalSummary {
   status: "pending" | "accepted" | "rejected";
   createdOn: string;
   counterpart: ServiceProposalCounterpart;
-  bookingTerms: BookingTerms;
+  bookingTerms?: BookingTerms;
 }

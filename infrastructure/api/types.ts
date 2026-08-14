@@ -157,7 +157,7 @@ export interface ApiServiceProposal {
   scheduled_on: string;
   description: string;
   status: string;
-  booking_terms: ApiBookingTerms;
+  booking_terms?: ApiBookingTerms;
 }
 
 export interface ApiServiceProposalCounterpart {
@@ -178,7 +178,7 @@ export interface ApiServiceProposalSummary {
   status: string;
   created_on: string;
   counterpart: ApiServiceProposalCounterpart;
-  booking_terms: ApiBookingTerms;
+  booking_terms?: ApiBookingTerms;
 }
 
 export interface ApiBookingTerms {

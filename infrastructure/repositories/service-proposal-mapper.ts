@@ -3,6 +3,7 @@ import { ServiceProposal, ServiceProposalSummary } from "@/domain/messaging/type
 import { mapApiBookingTerms } from "./payment-mapper";
 
 export function transformApiToServiceProposal(api: ApiServiceProposal): ServiceProposal {
+  const bookingTerms = mapApiBookingTerms(api.booking_terms);
   return {
     id: api.id,
     conversationId: api.conversation_id,
@@ -12,13 +13,14 @@ export function transformApiToServiceProposal(api: ApiServiceProposal): ServiceP
     scheduledOn: api.scheduled_on,
     description: api.description,
     status: api.status as "pending" | "accepted" | "rejected",
-    bookingTerms: mapApiBookingTerms(api.booking_terms),
+    ...(bookingTerms ? { bookingTerms } : {}),
   };
 }
 
 export function transformApiToServiceProposalSummary(
   api: ApiServiceProposalSummary
 ): ServiceProposalSummary {
+  const bookingTerms = mapApiBookingTerms(api.booking_terms);
   return {
     id: api.id,
     conversationId: api.conversation_id,
@@ -35,6 +37,6 @@ export function transformApiToServiceProposalSummary(
       categoryName: api.counterpart.category_name,
       profilePhotoUrl: api.counterpart.profile_photo_url,
     },
-    bookingTerms: mapApiBookingTerms(api.booking_terms),
+    ...(bookingTerms ? { bookingTerms } : {}),
   };
 }

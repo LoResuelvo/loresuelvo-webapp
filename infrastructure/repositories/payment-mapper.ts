@@ -12,7 +12,8 @@ import type {
   PaymentPricing,
 } from "@/domain/payment/types";
 
-export function mapApiBookingTerms(api: ApiBookingTerms): BookingTerms {
+export function mapApiBookingTerms(api?: ApiBookingTerms): BookingTerms | undefined {
+  if (!api) return undefined;
   return {
     currency: api.currency,
     serviceTotalCents: api.service_total_cents,

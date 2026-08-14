@@ -29,6 +29,31 @@ async function setSession(role: "consumer" | "provider") {
   }]);
 }
 
+function createBookingTerms(amountCents: number) {
+  const depositCents = Math.round(amountCents * 0.2);
+  const remainingServiceBalanceCents = amountCents - depositCents;
+  const platformFeeTotalCents = Math.round(amountCents * 0.05);
+  const platformFeeDueNowCents = Math.round(platformFeeTotalCents * 0.2);
+  const remainingPlatformFeeCents = platformFeeTotalCents - platformFeeDueNowCents;
+  const amountDueNowCents = depositCents + platformFeeDueNowCents;
+  const remainingAmountDueCents = remainingServiceBalanceCents + remainingPlatformFeeCents;
+  const contractTotalCents = amountCents + platformFeeTotalCents;
+
+  return {
+    currency: "ARS" as const,
+    service_total_cents: amountCents,
+    deposit_cents: depositCents,
+    remaining_service_balance_cents: remainingServiceBalanceCents,
+    platform_fee_total_cents: platformFeeTotalCents,
+    platform_fee_due_now_cents: platformFeeDueNowCents,
+    remaining_platform_fee_cents: remainingPlatformFeeCents,
+    amount_due_now_cents: amountDueNowCents,
+    remaining_amount_due_cents: remainingAmountDueCents,
+    contract_total_cents: contractTotalCents,
+    booking_payment_deadline: "2026-07-04T12:00:00-03:00",
+  };
+}
+
 Given("que estoy en la vista de propuestas como consumidor con una propuesta pendiente del prestador {string} con rubro {string}", async (providerName: string, category: string) => {
   await setSession("consumer");
   const [name, surname] = providerName.split(" ");
@@ -52,7 +77,8 @@ Given("que estoy en la vista de propuestas como consumidor con una propuesta pen
           surname: surname,
           category_name: category,
           profile_photo_url: "https://example.com/photo.jpg"
-        }
+        },
+        booking_terms: createBookingTerms(1500050),
       }
     ],
   });
@@ -131,7 +157,8 @@ Given("que estoy en la vista de propuestas como prestador con una propuesta pend
           role: "consumer",
           name: name,
           surname: surname
-        }
+        },
+        booking_terms: createBookingTerms(500000),
       }
     ],
   });
@@ -160,9 +187,9 @@ Given("que estoy en la vista de propuestas como consumidor con propuestas en est
     endpoint: "/service-proposals",
     status: 200,
     body: [
-      { id: 1, conversation_id: 1, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: s1, created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "provider", name: "P", surname: "1" } },
-      { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: s2, created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "provider", name: "P", surname: "2" } },
-      { id: 3, conversation_id: 3, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "3", status: s3, created_on: "2026-07-03T00:00:00Z", counterpart: { id: 4, role: "provider", name: "P", surname: "3" } },
+      { id: 1, conversation_id: 1, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: s1, created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "provider", name: "P", surname: "1" }, booking_terms: createBookingTerms(1000) },
+      { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: s2, created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "provider", name: "P", surname: "2" }, booking_terms: createBookingTerms(1000) },
+      { id: 3, conversation_id: 3, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "3", status: s3, created_on: "2026-07-03T00:00:00Z", counterpart: { id: 4, role: "provider", name: "P", surname: "3" }, booking_terms: createBookingTerms(1000) },
     ],
   });
   await page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "domcontentloaded" });
@@ -172,14 +199,11 @@ async function selectTab(tabName: string) {
   const tab = page.getByRole("tab", { name: tabName });
   await tab.waitFor({ state: "visible" });
   for (let i = 0; i < 5; i++) {
-    await tab.click({ force: true });
-    try {
-      const isSelected = await tab.getAttribute("aria-selected");
-      if (isSelected === "true") break;
-      await page.waitForTimeout(200);
-    } catch (e) {
-      // ignore
-    }
+    await tab.click();
+    await page.waitForTimeout(200);
+    const isSelected = await tab.getAttribute("aria-selected");
+    if (isSelected === "true") break;
+    await page.waitForTimeout(300);
   }
 }
 
@@ -224,8 +248,8 @@ Given("que ingreso a la HomePage como prestador con propuestas aceptadas", async
     endpoint: "/service-proposals",
     status: 200,
     body: [
-      { id: 1, conversation_id: 1, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "accepted", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "consumer", name: "C", surname: "1" } },
-      { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "consumer", name: "C", surname: "2" } },
+      { id: 1, conversation_id: 1, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "accepted", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "consumer", name: "C", surname: "1" }, booking_terms: createBookingTerms(1000) },
+      { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "consumer", name: "C", surname: "2" }, booking_terms: createBookingTerms(1000) },
     ],
   });
   await page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "domcontentloaded" });
@@ -245,8 +269,8 @@ Given("que ingreso a la HomePage como consumidor con propuestas pendientes y ace
     endpoint: "/service-proposals",
     status: 200,
     body: [
-      { id: 1, conversation_id: 1, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "accepted", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "provider", name: "P", surname: "1" } },
-      { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "provider", name: "P", surname: "2" } },
+      { id: 1, conversation_id: 1, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "accepted", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "provider", name: "P", surname: "1" }, booking_terms: createBookingTerms(1000) },
+      { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "provider", name: "P", surname: "2" }, booking_terms: createBookingTerms(1000) },
     ],
   });
   await page.goto(APP_URL + ROUTES.consumer.home, { waitUntil: "domcontentloaded" });
@@ -259,8 +283,8 @@ Given("que estoy en la vista histórica de propuestas como prestador", async () 
     endpoint: "/service-proposals",
     status: 200,
     body: [
-      { id: 1, conversation_id: 1, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "accepted", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "consumer", name: "C", surname: "1" } },
-      { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "consumer", name: "C", surname: "2" } },
+      { id: 1, conversation_id: 1, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "accepted", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "consumer", name: "C", surname: "1" }, booking_terms: createBookingTerms(1000) },
+      { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "consumer", name: "C", surname: "2" }, booking_terms: createBookingTerms(1000) },
     ],
   });
   await page.goto(APP_URL + ROUTES.provider.jobs, { waitUntil: "domcontentloaded" });
@@ -286,8 +310,8 @@ Given("que estoy en la vista histórica de propuestas como prestador con propues
     endpoint: "/service-proposals",
     status: 200,
     body: [
-      { id: 1, conversation_id: 1, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "accepted", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "consumer", name: "C", surname: "1" } },
-      { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "consumer", name: "C", surname: "2" } },
+      { id: 1, conversation_id: 1, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "accepted", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "consumer", name: "C", surname: "1" }, booking_terms: createBookingTerms(1000) },
+      { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "consumer", name: "C", surname: "2" }, booking_terms: createBookingTerms(1000) },
     ],
   });
   await page.goto(APP_URL + ROUTES.provider.jobs, { waitUntil: "domcontentloaded" });
@@ -343,7 +367,7 @@ Given("que estoy en el chat del prestador con una propuesta de servicio asociada
     endpoint: "/service-proposals",
     status: 200,
     body: [
-      { id: 1, conversation_id: 1, amount_cents: 1500050, scheduled_on: "2026-07-05T09:30:00Z", description: "Arreglo", status: "pending", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández" } },
+      { id: 1, conversation_id: 1, amount_cents: 1500050, scheduled_on: "2026-07-05T09:30:00Z", description: "Arreglo", status: "pending", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández" }, booking_terms: createBookingTerms(1500050) },
     ],
   });
   await page.goto(APP_URL + ROUTES.provider.messages + "?consumer_id=10", { waitUntil: "domcontentloaded" });
@@ -366,10 +390,16 @@ Given("que estoy en la vista histórica de propuestas como consumidor con una pr
   await setSession("consumer");
   await addApiStub({
     method: "GET",
+    endpoint: "/conversations",
+    status: 200,
+    body: [],
+  });
+  await addApiStub({
+    method: "GET",
     endpoint: "/service-proposals",
     status: 200,
     body: [
-      { id: 1, conversation_id: 42, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "pending", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "provider", name: "P", surname: "1" } },
+      { id: 1, conversation_id: 42, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "pending", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "provider", name: "P", surname: "1" }, booking_terms: createBookingTerms(1000) },
     ],
   });
   await page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "domcontentloaded" });

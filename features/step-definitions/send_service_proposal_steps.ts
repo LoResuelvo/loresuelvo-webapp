@@ -67,7 +67,15 @@ async function setupChatWithStatus(status: "accepted" | "pending") {
     body: null,
   });
 
-  await page.goto(APP_URL + ROUTES.provider.messages + "?consumer_id=10", { waitUntil: "networkidle" });
+  await addApiStub({
+    method: "GET",
+    endpoint: "/service-proposals",
+    status: 200,
+    body: [],
+  });
+
+  await page.goto(APP_URL + ROUTES.provider.messages + "?consumer_id=10", { waitUntil: "domcontentloaded" });
+  await page.waitForTimeout(500);
 }
 
 Given("que estoy en el chat del prestador con un consumidor activo", async () => {
@@ -93,7 +101,16 @@ Then("veo un botón {string} para abrir el menú de acciones", async (buttonLabe
 When("hago clic en el botón {string} del menú de acciones", async (buttonLabel: string) => {
   const button = page.getByLabel("Abrir menú de acciones");
   await button.waitFor({ state: "visible" });
-  await button.click();
+  const menu = page.getByRole("menu");
+  for (let i = 0; i < 5; i++) {
+    await button.click();
+    try {
+      await menu.waitFor({ state: "visible", timeout: 1000 });
+      break;
+    } catch {
+      await page.waitForTimeout(500);
+    }
+  }
 });
 
 Then("veo las opciones {string} y {string}", async (option1: string, option2: string) => {
@@ -108,6 +125,7 @@ Then("veo las opciones {string} y {string}", async (option1: string, option2: st
 When("abro el formulario de propuesta desde el menú de acciones", async () => {
   const button = page.getByLabel("Abrir menú de acciones");
   await button.waitFor({ state: "visible" });
+  await page.waitForTimeout(200);
   await button.click();
 
   const option = page.getByRole("menuitem", { name: "Crear propuesta de servicio" });
@@ -145,6 +163,7 @@ Given("que tengo abierto el formulario de propuesta de servicio", async () => {
   
   const button = page.getByLabel("Abrir menú de acciones");
   await button.waitFor({ state: "visible" });
+  await page.waitForTimeout(200);
   await button.click();
 
   const option = page.getByRole("menuitem", { name: "Crear propuesta de servicio" });
@@ -171,6 +190,19 @@ When("completo y envío la propuesta con monto {string}, fecha futura y motivo {
         scheduled_on: "2026-07-20T12:00:00Z",
         description: motivo,
         status: "pending",
+        booking_terms: {
+          currency: "ARS",
+          service_total_cents: parseFloat(monto) * 100,
+          deposit_cents: Math.round(parseFloat(monto) * 20),
+          remaining_service_balance_cents: Math.round(parseFloat(monto) * 80),
+          platform_fee_total_cents: Math.round(parseFloat(monto) * 10),
+          platform_fee_due_now_cents: Math.round(parseFloat(monto) * 2),
+          remaining_platform_fee_cents: Math.round(parseFloat(monto) * 8),
+          amount_due_now_cents: Math.round(parseFloat(monto) * 22),
+          remaining_amount_due_cents: Math.round(parseFloat(monto) * 88),
+          contract_total_cents: Math.round(parseFloat(monto) * 110),
+          booking_payment_deadline: "2026-07-19T12:00:00Z",
+        },
       },
     });
   }

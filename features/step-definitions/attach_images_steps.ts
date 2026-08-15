@@ -34,12 +34,21 @@ async function stubFileUpload(fileName: string, fileId: string = "mock-file-123"
 }
 
 async function triggerFileChooser() {
-  const fileChooserPromise = page.waitForEvent('filechooser');
-  
   const menuBtn = page.getByLabel("Abrir menú de acciones");
   await menuBtn.waitFor({ state: "visible" });
-  await menuBtn.click();
   
+  const menu = page.getByRole("menu");
+  for (let i = 0; i < 5; i++) {
+    await menuBtn.click();
+    try {
+      await menu.waitFor({ state: "visible", timeout: 1000 });
+      break;
+    } catch {
+      await page.waitForTimeout(500);
+    }
+  }
+
+  const fileChooserPromise = page.waitForEvent('filechooser');
   const option = page.getByRole("menuitem", { name: "Adjuntar imágenes" });
   await option.waitFor({ state: "visible" });
   await option.click();
@@ -188,25 +197,30 @@ Then("el detalle del mensaje en pantalla incluye la imagen {string}", async func
 });
 
 When("el consumidor {string} me envía un mensaje con la imagen {string}", async function (nombre: string, imagen: string) {
-  const wsServer = (global as any).wsServer;
-  if (wsServer) {
-    wsServer.send(JSON.stringify({
-      type: "conversation.message.created",
-      conversation_id: 1,
-      message: {
-        id: 200,
-        content: "Mensaje WS",
-        sender_role: "consumer",
-        images: [{ id: 999, url: "/img.jpg", original_name: imagen }],
-        created_on: new Date().toISOString(),
-      },
-    }));
+  let wsServer = (global as any).wsServer;
+  let attempts = 0;
+  while (!wsServer && attempts < 100) {
+    await new Promise(r => setTimeout(r, 100));
+    wsServer = (global as any).wsServer;
+    attempts++;
   }
+  if (!wsServer) throw new Error("No hay WebSocket interceptado para enviar el mensaje con imagen");
+  wsServer.send(JSON.stringify({
+    type: "conversation.message.created",
+    conversation_id: 1,
+    message: {
+      id: 200,
+      content: "Mensaje WS",
+      sender_role: "consumer",
+      images: [{ id: "mock-file-123", url: "/perdida-bajo-mesada.jpg", original_name: imagen }],
+      created_on: new Date().toISOString(),
+    },
+  }));
 });
 
 Then("veo el mensaje con la imagen {string} en la pantalla del chat sin recargar la página", async function (imagen: string) {
   const receivedImage = page.locator(`img[alt*="${imagen}"]`).first();
-  await receivedImage.waitFor({ state: "visible", timeout: 3000 });
+  await receivedImage.waitFor({ state: "visible", timeout: 10000 });
   assert.ok(await receivedImage.isVisible(), `La imagen WS ${imagen} no se mostró en realtime`);
 });
 

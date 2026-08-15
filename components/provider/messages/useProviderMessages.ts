@@ -140,7 +140,15 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
           offlineQueueRepo.clearPendingMessages(effectiveConversationId);
         }
         
-        setLoadedMessages(allMsgs);
+        setLoadedMessages((prev) => {
+          const merged = [...allMsgs];
+          prev.forEach((existing) => {
+            if (!merged.some((m) => m.id === existing.id)) {
+              merged.push(existing);
+            }
+          });
+          return merged;
+        });
         counterpartIdRef.current = String(data.counterpart.id);
 
         getJobRequestForConversation(effectiveConversationId)

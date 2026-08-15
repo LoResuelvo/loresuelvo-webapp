@@ -149,7 +149,7 @@ async function stubConversationApi(conversationId: number = 1) {
 async function interceptWebSocket() {
   wsServer = null;
   (global as any).wsServer = null;
-  await page.routeWebSocket(/\/ws(\?.*)?$/, (ws) => {
+  await page.routeWebSocket(/.*\/ws.*/, (ws) => {
     wsServer = ws;
     (global as any).wsServer = ws;
     ws.onMessage(() => {
@@ -158,6 +158,11 @@ async function interceptWebSocket() {
 }
 
 async function sendWsMessageToPage(event: WsEvent) {
+  let attempts = 0;
+  while (!wsServer && attempts < 100) {
+    await new Promise(r => setTimeout(r, 200));
+    attempts++;
+  }
   if (!wsServer) throw new Error("No hay WebSocket interceptado. ¿Se ejecutó interceptWebSocket() antes de navegar?");
   wsServer.send(JSON.stringify(event));
 }
@@ -177,7 +182,9 @@ Given("que estoy en el chat con el prestador {string} como consumidor",
     await setConsumerRealtimeSession();
     await stubConversationApi(activeConversationId);
     await interceptWebSocket();
-    await page.goto(APP_URL + ROUTES.consumer.messages + `?provider_id=provider-001&name=Juan&surname=Gómez`, { waitUntil: "networkidle" });
+    await page.goto(APP_URL + ROUTES.consumer.messages + `?provider_id=provider-001&name=Juan&surname=Gómez`, { waitUntil: "domcontentloaded" });
+    await page.locator('[data-testid="messages-list"]').waitFor({ state: "visible" });
+    await page.getByText("Hola Juan, necesito reparar una pérdida de agua.").waitFor({ state: "visible" });
   }
 );
 
@@ -245,7 +252,9 @@ Given("que estoy en el chat con el consumidor {string} como prestador",
     });
 
     await interceptWebSocket();
-    await page.goto(APP_URL + ROUTES.provider.messages + `?consumer_id=consumer-001`, { waitUntil: "networkidle" });
+    await page.goto(APP_URL + ROUTES.provider.messages + `?consumer_id=consumer-001`, { waitUntil: "domcontentloaded" });
+    await page.locator('[data-testid="messages-list"]').waitFor({ state: "visible" });
+    await page.getByText("Hola Juan, necesito reparar una pérdida de agua.").waitFor({ state: "visible" });
   }
 );
 
@@ -363,13 +372,20 @@ Given("estoy revisando mensajes anteriores en la conversación",
 
     const chatPanel = page.locator("[data-testid='messages-list']");
     await chatPanel.waitFor({ state: "visible" });
+
+    // Wait for the reloaded messages to be rendered in the DOM
+    const msg15 = page.getByText("Msg 15");
+    await msg15.waitFor({ state: "visible" });
     
     // Wait for the new WebSocket to be intercepted
     let attempts = 0;
-    while (!wsServer && attempts < 50) {
-      await new Promise(r => setTimeout(r, 100));
+    while (!wsServer && attempts < 100) {
+      await new Promise(r => setTimeout(r, 200));
       attempts++;
     }
+
+    // Wait for initial render scroll to settle, then scroll to the top
+    await page.waitForTimeout(500);
     await chatPanel.evaluate((el) => {
       el.scrollTop = 0;
       el.dispatchEvent(new Event("scroll"));

@@ -29,9 +29,9 @@ export function transformApiMessageToDomain(
     content: apiMsg.content,
     senderId: isOwn ? myUserId : counterpartId,
     images: apiMsg.images ? apiMsg.images.map(img => ({
-      id: img.id,
+      id: String(img.id),
       url: img.url,
-      originalName: img.original_name,
+      originalName: (img as any).originalName || img.original_name,
     })) : undefined,
     sentAt: formatToLocalTime(apiMsg.created_on),
   };

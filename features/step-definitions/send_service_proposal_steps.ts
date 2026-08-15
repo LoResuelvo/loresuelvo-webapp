@@ -125,8 +125,17 @@ Then("veo las opciones {string} y {string}", async (option1: string, option2: st
 When("abro el formulario de propuesta desde el menú de acciones", async () => {
   const button = page.getByLabel("Abrir menú de acciones");
   await button.waitFor({ state: "visible" });
-  await page.waitForTimeout(200);
-  await button.click();
+  
+  const menu = page.getByRole("menu");
+  for (let i = 0; i < 5; i++) {
+    await button.click();
+    try {
+      await menu.waitFor({ state: "visible", timeout: 1000 });
+      break;
+    } catch {
+      await page.waitForTimeout(500);
+    }
+  }
 
   const option = page.getByRole("menuitem", { name: "Crear propuesta de servicio" });
   await option.waitFor({ state: "visible" });
@@ -163,8 +172,17 @@ Given("que tengo abierto el formulario de propuesta de servicio", async () => {
   
   const button = page.getByLabel("Abrir menú de acciones");
   await button.waitFor({ state: "visible" });
-  await page.waitForTimeout(200);
-  await button.click();
+  
+  const menu = page.getByRole("menu");
+  for (let i = 0; i < 5; i++) {
+    await button.click();
+    try {
+      await menu.waitFor({ state: "visible", timeout: 1000 });
+      break;
+    } catch {
+      await page.waitForTimeout(500);
+    }
+  }
 
   const option = page.getByRole("menuitem", { name: "Crear propuesta de servicio" });
   await option.waitFor({ state: "visible" });

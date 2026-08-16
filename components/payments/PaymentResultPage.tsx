@@ -13,9 +13,12 @@ import {
 import { ROUTES } from "@/lib/routes";
 import { resolvePaymentIntentId } from "@/lib/payment-utils";
 import { t } from "@/infrastructure/i18n/translations";
+import { cn } from "@/lib/utils";
 import { usePaymentIntentPolling } from "./usePaymentIntentPolling";
 
 export type PaymentReturnKind = "success" | "pending" | "failure";
+
+type StatusVariant = "info" | "success" | "warning" | "danger";
 
 interface PaymentResultStorage {
   getItem(key: string): string | null;
@@ -27,6 +30,39 @@ interface PaymentResultPageProps {
   search?: string;
   storage?: PaymentResultStorage;
   getPaymentIntent?: (paymentIntentId: string) => Promise<GetPaymentIntentResult>;
+}
+
+interface PaymentViewState {
+  title: string;
+  description: string;
+  variant: StatusVariant;
+  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
+  animateIcon?: boolean;
+  canRetryVerification?: boolean;
+  canRetryPayment?: boolean;
+}
+
+const VARIANT_STYLES: Record<StatusVariant, string> = {
+  info: "bg-brand-primary/10 text-brand-primary ring-brand-primary/5",
+  success: "bg-emerald-50 text-brand-accept ring-emerald-50/60",
+  warning: "bg-amber-50 text-amber-600 ring-amber-50/60",
+  danger: "bg-rose-50 text-brand-danger ring-rose-50/60",
+};
+
+function StatusBadge({
+  variant,
+  icon: Icon,
+  animate = false,
+}: {
+  variant: StatusVariant;
+  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
+  animate?: boolean;
+}) {
+  return (
+    <div className={cn("flex h-16 w-16 items-center justify-center rounded-2xl ring-8 shadow-sm", VARIANT_STYLES[variant])}>
+      <Icon className={cn("h-8 w-8", animate && "animate-pulse")} aria-hidden="true" />
+    </div>
+  );
 }
 
 function getErrorContent(status: number | null): { title: string; description: string } {
@@ -47,6 +83,93 @@ function getErrorContent(status: number | null): { title: string; description: s
       return { title: t.payments.result.errorTitle, description: t.payments.errors.temporary };
     default:
       return { title: t.payments.result.errorTitle, description: t.payments.errors.generic };
+  }
+}
+
+function resolvePaymentViewState(
+  returnKind: PaymentReturnKind,
+  hasResolvedPaymentIntent: boolean,
+  paymentIntentId: string | null,
+  polling: ReturnType<typeof usePaymentIntentPolling>,
+): PaymentViewState {
+  if (hasResolvedPaymentIntent && !paymentIntentId) {
+    return {
+      title: t.payments.result.unidentifiedTitle,
+      description: t.payments.result.unidentifiedDescription,
+      variant: "warning",
+      icon: AlertTriangle,
+    };
+  }
+
+  if (polling.errorStatus !== undefined) {
+    const errorContent = getErrorContent(polling.errorStatus);
+    return {
+      title: errorContent.title,
+      description: errorContent.description,
+      variant: "warning",
+      icon: AlertTriangle,
+      canRetryVerification: polling.errorStatus !== 401 && polling.errorStatus !== 403,
+    };
+  }
+
+  if (polling.timedOut) {
+    return {
+      title: t.payments.result.waitingTitle,
+      description: t.payments.result.timeoutDescription,
+      variant: "warning",
+      icon: Clock3,
+      canRetryVerification: true,
+    };
+  }
+
+  switch (polling.status) {
+    case "paid":
+      return {
+        title: t.payments.result.paidTitle,
+        description: t.payments.result.paidDescription,
+        variant: "success",
+        icon: CheckCircle2,
+      };
+    case "rejected":
+      return {
+        title: t.payments.result.rejectedTitle,
+        description: t.payments.result.rejectedDescription,
+        variant: "danger",
+        icon: XCircle,
+        canRetryPayment: true,
+      };
+    case "expired":
+      return {
+        title: t.payments.result.expiredTitle,
+        description: t.payments.result.expiredDescription,
+        variant: "warning",
+        icon: AlertTriangle,
+        canRetryPayment: true,
+      };
+    case "checkout_ready":
+      return {
+        title: t.payments.result.waitingTitle,
+        description: t.payments.result.waitingDescription,
+        variant: "info",
+        icon: Clock3,
+        animateIcon: true,
+      };
+    case "processing":
+      return {
+        title: t.payments.result.processingTitle,
+        description: t.payments.result.processingDescription,
+        variant: "info",
+        icon: Clock3,
+        animateIcon: true,
+      };
+    default:
+      return {
+        title: t.payments.result.verifyingTitle,
+        description: t.payments.result.returnDescriptions[returnKind],
+        variant: "info",
+        icon: Clock3,
+        animateIcon: true,
+      };
   }
 }
 
@@ -77,78 +200,69 @@ export function PaymentResultPage({
     paymentStorage?.removeItem("activePayment");
     router.refresh();
   }, [paymentStorage, router]);
+
   const polling = usePaymentIntentPolling({
     paymentIntentId,
     getPaymentIntent,
     onPaid: handlePaid,
   });
 
-  let title = t.payments.result.verifyingTitle;
-  let description = t.payments.result.returnDescriptions[returnKind];
-  let icon = <Clock3 className="h-12 w-12 text-brand-primary" aria-hidden="true" />;
-  let canRetryVerification = false;
-  let canRetryPayment = false;
-
-  if (hasResolvedPaymentIntent && !paymentIntentId) {
-    title = t.payments.result.unidentifiedTitle;
-    description = t.payments.result.unidentifiedDescription;
-    icon = <AlertTriangle className="h-12 w-12 text-amber-500" aria-hidden="true" />;
-  } else if (polling.errorStatus !== undefined) {
-    const errorContent = getErrorContent(polling.errorStatus);
-    title = errorContent.title;
-    description = errorContent.description;
-    icon = <AlertTriangle className="h-12 w-12 text-amber-500" aria-hidden="true" />;
-    canRetryVerification = polling.errorStatus !== 401 && polling.errorStatus !== 403;
-  } else if (polling.timedOut) {
-    title = t.payments.result.waitingTitle;
-    description = t.payments.result.timeoutDescription;
-    canRetryVerification = true;
-  } else if (polling.status === "checkout_ready") {
-    title = t.payments.result.waitingTitle;
-    description = t.payments.result.waitingDescription;
-  } else if (polling.status === "processing") {
-    title = t.payments.result.processingTitle;
-    description = t.payments.result.processingDescription;
-  } else if (polling.status === "paid") {
-    title = t.payments.result.paidTitle;
-    description = t.payments.result.paidDescription;
-    icon = <CheckCircle2 className="h-12 w-12 text-brand-accept" aria-hidden="true" />;
-  } else if (polling.status === "rejected") {
-    title = t.payments.result.rejectedTitle;
-    description = t.payments.result.rejectedDescription;
-    icon = <XCircle className="h-12 w-12 text-brand-danger" aria-hidden="true" />;
-    canRetryPayment = true;
-  } else if (polling.status === "expired") {
-    title = t.payments.result.expiredTitle;
-    description = t.payments.result.expiredDescription;
-    icon = <AlertTriangle className="h-12 w-12 text-amber-500" aria-hidden="true" />;
-    canRetryPayment = true;
-  }
+  const state = resolvePaymentViewState(
+    returnKind,
+    hasResolvedPaymentIntent,
+    paymentIntentId,
+    polling,
+  );
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
-      <Card className="w-full max-w-lg" aria-live="polite" aria-busy={polling.isLoading}>
-        <CardContent className="flex flex-col items-center gap-5 text-center">
-          {icon}
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-slate-800">{title}</h1>
-            <p className="text-sm leading-6 text-slate-600">{description}</p>
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100/70 px-4 py-8 sm:py-12">
+      <Card
+        className="w-full max-w-md sm:max-w-lg rounded-3xl border border-slate-200/80 bg-white shadow-xl shadow-slate-200/50 p-6 sm:p-8"
+        aria-live="polite"
+        aria-busy={polling.isLoading}
+      >
+        <CardContent className="flex flex-col items-center gap-6 p-0 text-center">
+          <StatusBadge
+            variant={state.variant}
+            icon={state.icon}
+            animate={state.animateIcon}
+          />
+          <div className="space-y-2.5 max-w-sm sm:max-w-md">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 leading-snug">
+              {state.title}
+            </h1>
+            <p className="text-sm sm:text-base leading-relaxed text-slate-600">
+              {state.description}
+            </p>
           </div>
 
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
-            {canRetryVerification && (
-              <Button type="button" variant="brand" size="full" onClick={polling.retry}>
+          <div className="flex w-full flex-col gap-3 pt-2 sm:flex-row sm:justify-center sm:items-center">
+            {state.canRetryVerification && (
+              <Button
+                type="button"
+                variant="brand"
+                className="w-full sm:w-auto sm:flex-1 h-11 rounded-xl font-semibold shadow-sm"
+                onClick={polling.retry}
+              >
                 {t.payments.result.checkAgain}
               </Button>
             )}
             {polling.errorStatus === 401 && (
-              <Button asChild variant="brand" size="full">
+              <Button
+                asChild
+                variant="brand"
+                className="w-full sm:w-auto sm:flex-1 h-11 rounded-xl font-semibold shadow-sm"
+              >
                 <Link href={ROUTES.auth.login}>{t.payments.result.login}</Link>
               </Button>
             )}
-            <Button asChild variant={canRetryPayment ? "brand" : "brandSecondary"} size="full">
+            <Button
+              asChild
+              variant={state.canRetryPayment ? "brand" : "brandSecondary"}
+              className="w-full sm:w-auto sm:flex-1 h-11 rounded-xl font-semibold shadow-sm"
+            >
               <Link href={ROUTES.consumer.services}>
-                {canRetryPayment
+                {state.canRetryPayment
                   ? t.payments.result.backToProposal
                   : t.payments.result.backToProposals}
               </Link>

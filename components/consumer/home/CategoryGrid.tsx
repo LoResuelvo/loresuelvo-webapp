@@ -25,31 +25,32 @@ interface CategoryGridProps {
 
 export default function CategoryGrid({ categories, className }: CategoryGridProps) {
   return (
-    <div className={cn("w-full", className)}>
-      <div className="flex justify-between items-end mb-8">
+    <section aria-labelledby="explore-categories-title" className={cn("w-full", className)}>
+      <div className="flex justify-between items-end mb-6">
         <div>
-          <h2 className="text-[28px] font-bold tracking-tight text-brand-primary mb-1">
+          <h2 id="explore-categories-title" className="text-[24px] md:text-[26px] font-bold tracking-tight text-brand-primary mb-1">
             {t.consumerHome.exploreCategories}
           </h2>
-          <p className="text-slate-500 font-medium">
+          <p className="text-sm text-slate-500 font-medium">
             {t.consumerHome.exploreCategoriesSubtitle}
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
         {categories.map((category) => {
           const Icon = ICON_MAP[category.name] || HelpCircle;
           return (
             <Link 
               href={`${ROUTES.consumer.buscar}?category_id=${category.id}`} 
               key={category.id}
+              className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-secondary rounded-2xl"
             >
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col h-[140px] justify-between">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-brand-primary">
+              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:shadow-md hover:border-brand-secondary/40 transition-all cursor-pointer flex flex-col h-[130px] md:h-[135px] justify-between">
+                <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-brand-primary group-hover:bg-brand-secondary/15 group-hover:text-brand-secondary transition-colors">
                   <Icon className="w-5 h-5" />
                 </div>
-                <span className="text-[18px] font-bold text-brand-primary">
+                <span className="text-[16px] md:text-[17px] font-bold text-brand-primary group-hover:text-brand-secondary transition-colors">
                   {category.name}
                 </span>
               </div>
@@ -57,6 +58,6 @@ export default function CategoryGrid({ categories, className }: CategoryGridProp
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }

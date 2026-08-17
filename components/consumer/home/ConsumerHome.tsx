@@ -7,10 +7,10 @@ import { ServiceProposalSummary } from "@/domain/messaging/types";
 import ConsumerHeader from "./ConsumerHeader";
 import CategoryGrid from "./CategoryGrid";
 import DiagnosisHero from "@/components/consumer/diagnosis/DiagnosisHero";
-import { ProposalCard } from "@/components/messaging/ProposalCard";
 import { t } from "@/infrastructure/i18n/translations";
 import { useRouter } from "next/navigation";
 import { Clock, CalendarCheck } from "lucide-react";
+import { ProposalCarousel } from "./ProposalCarousel";
 
 interface ConsumerHomeProps {
   session: AuthSession | null;
@@ -26,6 +26,10 @@ export default function ConsumerHome({
   acceptedProposals = []
 }: ConsumerHomeProps) {
   const router = useRouter();
+
+  const handleViewConversation = (proposal: ServiceProposalSummary) => {
+    router.push(`/consumidor/mensajes?provider_id=${proposal.counterpart.id}`);
+  };
 
   return (
     <div className="min-h-screen bg-brand-neutral/30 flex font-sans text-brand-primary">
@@ -49,86 +53,35 @@ export default function ConsumerHome({
                 aria-label="Panel de actividad y servicios" 
                 className="lg:col-span-5 flex flex-col gap-8"
               >
-                {/* Propuestas Pendientes */}
-                <section aria-labelledby="pending-proposals-title" role="region" className="w-full">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-amber-500" aria-hidden="true" />
-                        <h2 id="pending-proposals-title" className="text-[20px] md:text-[22px] font-bold text-brand-primary">
-                          {t.serviceProposals.consumerHome.pendingTitle}
-                        </h2>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {t.serviceProposals.consumerHome.pendingSubtitle}
-                      </p>
-                    </div>
-                    {pendingProposals.length > 0 && (
-                      <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
-                        {pendingProposals.length}
-                      </span>
-                    )}
-                  </div>
+                {/* Carousel de Propuestas Pendientes */}
+                <ProposalCarousel
+                  title={t.serviceProposals.consumerHome.pendingTitle}
+                  titleId="pending-proposals-title"
+                  icon={Clock}
+                  iconColor="text-amber-500"
+                  badgeClass="bg-amber-100 text-amber-800"
+                  proposals={pendingProposals}
+                  emptyMessage={t.serviceProposals.consumerHome.emptyPending}
+                  prevLabel={t.serviceProposals.consumerHome.prevProposal}
+                  nextLabel={t.serviceProposals.consumerHome.nextProposal}
+                  activeDotClass="bg-amber-500"
+                  onViewConversation={handleViewConversation}
+                />
 
-                  {pendingProposals.length === 0 ? (
-                    <div className="bg-white rounded-2xl p-6 border border-dashed border-slate-200 text-center shadow-xs">
-                      <p className="text-sm text-slate-400 font-medium">
-                        {t.serviceProposals.consumerHome.emptyPending}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-4">
-                      {pendingProposals.map(proposal => (
-                        <ProposalCard 
-                          key={proposal.id} 
-                          proposal={proposal} 
-                          isProvider={false}
-                          onViewConversation={() => {
-                            router.push(`/consumidor/mensajes?provider_id=${proposal.counterpart.id}`);
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </section>
-
-                {/* Servicios Próximos */}
-                <section aria-labelledby="accepted-proposals-title" role="region" className="w-full">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <CalendarCheck className="w-5 h-5 text-emerald-600" aria-hidden="true" />
-                      <h2 id="accepted-proposals-title" className="text-[20px] md:text-[22px] font-bold text-brand-primary">
-                        {t.serviceProposals.consumerHome.acceptedTitle}
-                      </h2>
-                    </div>
-                    {acceptedProposals.length > 0 && (
-                      <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
-                        {acceptedProposals.length}
-                      </span>
-                    )}
-                  </div>
-
-                  {acceptedProposals.length === 0 ? (
-                    <div className="bg-white rounded-2xl p-6 border border-dashed border-slate-200 text-center shadow-xs">
-                      <p className="text-sm text-slate-400 font-medium">
-                        {t.serviceProposals.consumerHome.emptyAccepted}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-4">
-                      {acceptedProposals.map(proposal => (
-                        <ProposalCard 
-                          key={proposal.id} 
-                          proposal={proposal} 
-                          isProvider={false}
-                          onViewConversation={() => {
-                            router.push(`/consumidor/mensajes?provider_id=${proposal.counterpart.id}`);
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </section>
+                {/* Carousel de Servicios Próximos */}
+                <ProposalCarousel
+                  title={t.serviceProposals.consumerHome.acceptedTitle}
+                  titleId="accepted-proposals-title"
+                  icon={CalendarCheck}
+                  iconColor="text-emerald-600"
+                  badgeClass="bg-emerald-100 text-emerald-800"
+                  proposals={acceptedProposals}
+                  emptyMessage={t.serviceProposals.consumerHome.emptyAccepted}
+                  prevLabel={t.serviceProposals.consumerHome.prevService}
+                  nextLabel={t.serviceProposals.consumerHome.nextService}
+                  activeDotClass="bg-emerald-600"
+                  onViewConversation={handleViewConversation}
+                />
               </aside>
             </div>
           </div>

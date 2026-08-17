@@ -165,6 +165,10 @@ export const t = {
       acceptedTitle: "Servicios Próximos",
       emptyPending: "No tenés propuestas pendientes",
       emptyAccepted: "No tenés servicios próximos agendados",
+      prevProposal: "Propuesta anterior",
+      nextProposal: "Siguiente propuesta",
+      prevService: "Servicio anterior",
+      nextService: "Siguiente servicio",
     },
     chatPanel: {
       title: "Propuesta de Servicio",

@@ -309,7 +309,7 @@ When("otro usuario me envía un mensaje en una conversación diferente",
         created_on: new Date().toISOString(),
       },
     });
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(100);
   }
 );
 

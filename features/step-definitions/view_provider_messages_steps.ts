@@ -264,7 +264,7 @@ Then("se muestra el contenido completo de la conversación", async () => {
 });
 
 Then("se abre el chat con el consumidor para iniciar la comunicación", async () => {
-  await page.waitForTimeout(3000);
+  await page.waitForURL((url) => url.searchParams.has("consumer_id") || url.toString().includes("consumer_id"), { timeout: 10_000 });
   const currentUrl = page.url();
   assert.ok(currentUrl.includes("consumer_id"), `Expected URL to contain consumer_id but got: ${currentUrl}`);
   

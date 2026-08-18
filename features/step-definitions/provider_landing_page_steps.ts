@@ -228,7 +228,6 @@ Given("que ingreso a la HomePage como prestador con trabajos agendados", async (
   });
 
   await page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "networkidle" });
-  await page.waitForTimeout(1000);
 });
 
 Then("visualizo una lista de trabajos agendados", async () => {

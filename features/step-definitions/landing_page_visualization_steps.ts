@@ -1,5 +1,5 @@
-import { Given, When, Then, Before, After, setDefaultTimeout } from "@cucumber/cucumber";
-import { Browser, Page, chromium } from "playwright";
+import { Given, When, Then, Before, After, BeforeAll, AfterAll, setDefaultTimeout } from "@cucumber/cucumber";
+import { Browser, BrowserContext, Page, chromium } from "playwright";
 import assert from "assert";
 
 setDefaultTimeout(30_000);
@@ -7,11 +7,23 @@ setDefaultTimeout(30_000);
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
 export let browser: Browser;
+export let context: BrowserContext;
 export let page: Page;
 
-Before(async () => {
+BeforeAll(async () => {
   browser = await chromium.launch({ headless: true });
-  page = await browser.newPage();
+});
+
+AfterAll(async () => {
+  await browser?.close();
+});
+
+Before(async () => {
+  if (!browser) {
+    browser = await chromium.launch({ headless: true });
+  }
+  context = await browser.newContext();
+  page = await context.newPage();
 
   await page.route('**/api/ws-tickets', async (route) => {
     await route.fulfill({
@@ -31,7 +43,7 @@ Before(async () => {
 });
 
 After(async () => {
-  await browser.close();
+  await context?.close();
 });
 
 Given('no estoy logueado', async () => {

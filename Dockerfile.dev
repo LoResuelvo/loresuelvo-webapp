@@ -3,8 +3,12 @@ FROM node:22-alpine
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
+# Instalar dependencias
 COPY package.json package-lock.json* ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+# Copiar el código fuente
+COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0

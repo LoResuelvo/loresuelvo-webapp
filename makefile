@@ -1,4 +1,5 @@
 # Usage: make help | make dev | make test | make test-e2e
+#        make docker-dev | make docker-dev-d | make docker-dev-down
 
 .DEFAULT_GOAL := help
 
@@ -13,7 +14,7 @@ export PATH := $(LOCAL_NODE_BIN):$(PATH)
 endif
 
 .PHONY: help install dev build start lint test test-e2e test-e2e-wip test-e2e-report \
-	docker-dev docker-dev-down
+	docker-dev docker-dev-d docker-dev-down docker-build docker-sh docker-lint docker-test
 
 help:
 	@echo "Lo Resuelvo — commands"
@@ -30,9 +31,14 @@ help:
 	@echo "    make test-e2e         Gherkin + Playwright"
 	@echo "    make test-e2e-report  Same as test-e2e but with HTML report in reports/"
 	@echo ""
-	@echo "  Docker"
-	@echo "    make docker-dev       compose dev (hot reload, port according to compose)"
-	@echo "    make docker-dev-down  Stop compose dev"
+	@echo "  Docker (Desarrollo containerizado)"
+	@echo "    make docker-dev       Iniciar app en Docker con logs y hot reload"
+	@echo "    make docker-dev-d     Iniciar app en Docker en background (-d)"
+	@echo "    make docker-dev-down  Detener contenedores de Docker"
+	@echo "    make docker-build     Reconstruir imagen de Docker dev"
+	@echo "    make docker-sh        Abrir shell dentro del contenedor"
+	@echo "    make docker-lint      Ejecutar linter dentro del contenedor"
+	@echo "    make docker-test      Ejecutar tests unitarios dentro del contenedor"
 
 install:
 	npm install
@@ -84,8 +90,31 @@ test-all-once:
 	npm run test
 	npm run test:e2e
 
-docker-dev:
+# Docker targets
+ensure-env:
+	@if [ ! -f .env.local ] && [ ! -f .env ]; then \
+		cp .env.example .env.local; \
+		echo "✓ Archivo .env.local creado automáticamente a partir de .env.example"; \
+	fi
+
+docker-dev: ensure-env
 	docker compose -f $(COMPOSE_DEV) up --build
+
+docker-dev-d: ensure-env
+	docker compose -f $(COMPOSE_DEV) up -d --build
+	@echo "✓ Frontend levantado en http://localhost:3000"
 
 docker-dev-down:
 	docker compose -f $(COMPOSE_DEV) down
+
+docker-build:
+	docker compose -f $(COMPOSE_DEV) build
+
+docker-sh:
+	docker compose -f $(COMPOSE_DEV) exec web sh
+
+docker-lint:
+	docker compose -f $(COMPOSE_DEV) exec web npm run lint
+
+docker-test:
+	docker compose -f $(COMPOSE_DEV) exec web npm run test

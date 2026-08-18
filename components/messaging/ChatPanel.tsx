@@ -1,11 +1,11 @@
 import { MessageSquare } from "lucide-react";
-import { forwardRef } from "react";
+import { forwardRef, useState } from "react";
 import ChatHeader from "./ChatHeader";
 import MessagesList from "./MessagesList";
 import MessageInput, { MessageInputHandle } from "./MessageInput";
 import { ConversationContact, Message, JobRequestInfo, ServiceProposalSummary } from "@/domain/messaging/types";
 import { t } from "@/infrastructure/i18n/translations";
-import ServiceProposalPanel from "./ServiceProposalPanel";
+import ServiceProposalDetailModal from "./ServiceProposalDetailModal";
 
 export const ChatPanel = forwardRef<MessageInputHandle, {
   selectedContact: ConversationContact | null;
@@ -28,6 +28,8 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   onRemoveFile?: (index: number) => void;
   onOpenServiceProposal?: () => void;
   serviceProposal?: ServiceProposalSummary | null;
+  proposals?: ServiceProposalSummary[];
+  isProvider?: boolean;
 }>(({
   selectedContact,
   messages,
@@ -49,7 +51,11 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   onRemoveFile,
   onOpenServiceProposal,
   serviceProposal,
+  proposals,
+  isProvider = false,
 }, ref) => {
+  const [selectedProposalModal, setSelectedProposalModal] = useState<ServiceProposalSummary | null>(null);
+
   if (!selectedContact) {
     return (
       <div className="flex-1 flex items-center justify-center bg-brand-neutral/30">
@@ -61,6 +67,10 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
     );
   }
 
+  const handleOpenProposal = (proposalToOpen: ServiceProposalSummary) => {
+    setSelectedProposalModal(proposalToOpen);
+  };
+
   return (
     <div data-testid="chat-panel" role="region" aria-label={t.messaging.chatPanelLabel} className="flex-1 flex flex-col bg-brand-neutral/30 min-h-0">
       <ChatHeader
@@ -71,10 +81,10 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
         isLoadingJobRequest={isLoadingJobRequest}
         onAccept={onAccept}
         profilePhotoUrl={selectedContact.profilePhotoUrl}
+        serviceProposal={serviceProposal}
+        onOpenProposal={serviceProposal ? () => handleOpenProposal(serviceProposal) : undefined}
+        isProvider={isProvider}
       />
-      {serviceProposal && (
-        <ServiceProposalPanel proposal={serviceProposal} />
-      )}
       <div className="flex-1 flex flex-col min-h-0">
         <MessagesList
           messages={messages}
@@ -85,6 +95,10 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
           myUserId={myUserId}
           pendingBannerText={pendingBannerText}
           conversationId={selectedContact.id}
+          serviceProposal={serviceProposal}
+          proposals={proposals}
+          onOpenProposal={handleOpenProposal}
+          isProvider={isProvider}
         />
         {blockInputWhenPending && selectedContact.pending ? (
           <div className="p-4 bg-white border-t border-slate-200 flex-shrink-0">
@@ -106,9 +120,17 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
           />
         )}
       </div>
+
+      {selectedProposalModal && (
+        <ServiceProposalDetailModal
+          proposal={selectedProposalModal}
+          onClose={() => setSelectedProposalModal(null)}
+        />
+      )}
     </div>
   );
 });
 
 ChatPanel.displayName = "ChatPanel";
 export default ChatPanel;
+

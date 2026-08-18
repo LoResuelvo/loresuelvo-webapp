@@ -1,11 +1,13 @@
-import { RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { RefObject, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import MessageBubble from "./MessageBubble";
+import { ProposalTimelineCard } from "./ProposalTimelineCard";
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
 import { shouldShowExpandButton } from "@/lib/text-utils";
+import { buildChatTimeline } from "@/lib/timeline-utils";
 import InfoBanner from "./InfoBanner";
 
-import { Message } from "@/domain/messaging/types";
+import { Message, ServiceProposalSummary } from "@/domain/messaging/types";
 
 const sharedScrollPositions = new Map<string, number>();
 
@@ -18,6 +20,10 @@ interface MessagesListProps {
   myUserId: string;
   pendingBannerText?: string;
   conversationId?: string;
+  serviceProposal?: ServiceProposalSummary | null;
+  proposals?: ServiceProposalSummary[];
+  onOpenProposal?: (proposal: ServiceProposalSummary) => void;
+  isProvider?: boolean;
 }
 
 export default function MessagesList({
@@ -29,11 +35,20 @@ export default function MessagesList({
   myUserId,
   pendingBannerText = t.messaging.pendingBannerDefault,
   conversationId,
+  serviceProposal,
+  proposals,
+  onOpenProposal,
+  isProvider = false,
 }: MessagesListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasNewMessage, setHasNewMessage] = useState(false);
-  const prevCountRef = useRef(messages.length);
+  const timelineItems = useMemo(() => {
+    const proposalList = proposals ?? (serviceProposal ? [serviceProposal] : []);
+    return buildChatTimeline(messages, proposalList);
+  }, [messages, proposals, serviceProposal]);
+
+  const prevCountRef = useRef(timelineItems.length);
   const scrollPositionsRef = useRef<Map<string, number>>(sharedScrollPositions);
   const conversationIdRef = useRef(conversationId);
 
@@ -62,12 +77,15 @@ export default function MessagesList({
         containerRef.current.scrollTop = saved;
       }
     }
-  }, [conversationId, messages]);
+  }, [conversationId, timelineItems]);
 
   useEffect(() => {
-    if (messages.length > prevCountRef.current) {
-      const latest = messages[messages.length - 1];
-      const isFromMe = latest != null && String(latest.senderId) === String(myUserId);
+    if (timelineItems.length > prevCountRef.current) {
+      const latest = timelineItems[timelineItems.length - 1];
+      const isFromMe =
+        latest != null &&
+        latest.type === "message" &&
+        String(latest.data.senderId) === String(myUserId);
 
       if (isFromMe || isAtBottom) {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -76,8 +94,8 @@ export default function MessagesList({
         setHasNewMessage(true);
       }
     }
-    prevCountRef.current = messages.length;
-  }, [messages, isAtBottom, messagesEndRef, myUserId]);
+    prevCountRef.current = timelineItems.length;
+  }, [timelineItems, isAtBottom, messagesEndRef, myUserId]);
 
   return (
     <div
@@ -90,7 +108,19 @@ export default function MessagesList({
         <InfoBanner tone="info">{pendingBannerText}</InfoBanner>
       )}
 
-      {messages.map((msg) => {
+      {timelineItems.map((item) => {
+        if (item.type === "proposal") {
+          return (
+            <ProposalTimelineCard
+              key={item.id}
+              proposal={item.data}
+              isProvider={isProvider}
+              onClick={() => onOpenProposal?.(item.data)}
+            />
+          );
+        }
+
+        const msg = item.data;
         const isExpanded = isMessageExpanded(msg.id);
         const showExpandButton = shouldShowExpandButton(msg.content || "");
         const isOwnMessage = String(msg.senderId) === myUserId;

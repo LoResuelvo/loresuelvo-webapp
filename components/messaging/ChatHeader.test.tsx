@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import ChatHeader from "./ChatHeader";
 
 describe("ChatHeader", () => {
@@ -71,5 +71,60 @@ describe("ChatHeader", () => {
     const providerImage = screen.getByRole("img", { name: /foto de juan/i });
     expect(providerImage).toBeInTheDocument();
     expect(providerImage).toHaveAttribute("src", "https://example.com/provider-photo.jpg");
+  });
+
+  it("shows pending proposal chip when serviceProposal is pending and calls onOpenProposal", () => {
+    const handleOpenProposal = vi.fn();
+    render(
+      <ChatHeader
+        providerName="Juan"
+        providerSurname="Perez"
+        pending={false}
+        serviceProposal={{
+          id: 42,
+          conversationId: 10,
+          amountCents: 3000000,
+          scheduledOn: "2026-09-01T15:00:00Z",
+          description: "Reparación",
+          status: "pending",
+          createdOn: "2026-08-18T14:00:00Z",
+          counterpart: { id: 1, role: "provider", name: "Juan", surname: "Perez" },
+        }}
+        onOpenProposal={handleOpenProposal}
+        isProvider={false}
+      />,
+    );
+
+    const chip = screen.getByRole("button", { name: /ver propuesta de servicio pendiente/i });
+    expect(chip).toBeInTheDocument();
+    expect(screen.getByText("$ 30.000,00")).toBeInTheDocument();
+
+    fireEvent.click(chip);
+    expect(handleOpenProposal).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not show pending proposal chip when serviceProposal is accepted", () => {
+    render(
+      <ChatHeader
+        providerName="Juan"
+        providerSurname="Perez"
+        pending={false}
+        serviceProposal={{
+          id: 42,
+          conversationId: 10,
+          amountCents: 3000000,
+          scheduledOn: "2026-09-01T15:00:00Z",
+          description: "Reparación",
+          status: "accepted",
+          createdOn: "2026-08-18T14:00:00Z",
+          counterpart: { id: 1, role: "provider", name: "Juan", surname: "Perez" },
+        }}
+        onOpenProposal={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /ver propuesta de servicio pendiente/i }),
+    ).not.toBeInTheDocument();
   });
 });

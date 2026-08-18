@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Auth0Provider } from "@auth0/nextjs-auth0/client";
 import { getAuthService } from "@/infrastructure/auth";
 import { WebSocketProvider } from "@/infrastructure/websocket";
+import { getCurrentUserAction } from "@/app/api/me/actions";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -21,7 +22,17 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const session = await getAuthService().getSession();
-  const rawRole = session?.user?.role;
+  let rawRole = session?.user?.role;
+
+  if (!rawRole && session?.user) {
+    try {
+      const currentUser = await getCurrentUserAction();
+      rawRole = currentUser.role;
+    } catch {
+      // Fallback
+    }
+  }
+
   const role = typeof rawRole === "string" ? rawRole : undefined;
 
   const apiUrl = process.env.API_URL || "http://localhost:8080";

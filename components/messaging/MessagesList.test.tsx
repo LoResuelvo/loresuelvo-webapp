@@ -294,4 +294,38 @@ describe("MessagesList - scroll preservation across conversations", () => {
       HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
     }
   });
+
+  it("renders service proposals in the timeline with messages", () => {
+    const handleOpenProposal = vi.fn();
+    const proposal = {
+      id: 99,
+      conversationId: 10,
+      amountCents: 1500000,
+      scheduledOn: "2026-09-01T15:00:00Z",
+      description: "Instalación",
+      status: "pending" as const,
+      createdOn: "2026-08-18T10:30:30Z",
+      counterpart: { id: 2, role: "provider" as const, name: "Juan", surname: "Pérez" },
+    };
+
+    render(
+      <MessagesList
+        messages={mockMessages}
+        expandedMessages={new Set()}
+        onToggleExpand={vi.fn()}
+        messagesEndRef={{ current: null }}
+        showPendingBanner={false}
+        myUserId="consumer-001"
+        serviceProposal={proposal}
+        onOpenProposal={handleOpenProposal}
+      />,
+    );
+
+    expect(screen.getByTestId("service-proposal-panel")).toBeInTheDocument();
+    expect(screen.getByText("$ 15.000,00")).toBeInTheDocument();
+
+    const ctaButton = screen.getByRole("button", { name: /revisar y pagar seña/i });
+    fireEvent.click(ctaButton);
+    expect(handleOpenProposal).toHaveBeenCalledWith(proposal);
+  });
 });

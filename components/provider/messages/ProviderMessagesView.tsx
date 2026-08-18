@@ -104,6 +104,7 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
           onRemoveFile={onRemoveFile}
           onOpenServiceProposal={onOpenServiceProposal}
           serviceProposal={activeServiceProposal}
+          isProvider={true}
         />
       </div>
     </main>

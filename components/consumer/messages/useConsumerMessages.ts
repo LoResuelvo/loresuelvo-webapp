@@ -131,11 +131,9 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
     getConversationDetail(effectiveConversationId)
       .then((data) => {
         const messages: Message[] = data.messages.map(msg => ({
+          ...msg,
           id: String(msg.id),
-          content: msg.content,
           senderId: msg.senderId === "consumer" ? myUserId : String(data.counterpart.id),
-          sentAt: msg.sentAt,
-          images: msg.images,
         }));
         
         const pendingMessages = offlineQueueRepo.loadPendingMessages(effectiveConversationId);
@@ -242,6 +240,7 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
       content: messageContent,
       senderId: session?.user?.id ?? myUserId,
       sentAt: "Ahora",
+      createdOn: new Date().toISOString(),
       images: currentFiles.map(file => ({
         id: `temp-img-${Math.random()}`,
         url: URL.createObjectURL(file),
@@ -317,13 +316,7 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
     router.push(`${ROUTES.consumer.messages}?provider_id=${providerId}`);
   };
 
-  const viewMessages = allMessages.map(msg => ({
-    id: msg.id,
-    content: msg.content,
-    sentAt: msg.sentAt,
-    senderId: msg.senderId,
-    images: msg.images,
-  }));
+  const viewMessages = allMessages.map(msg => ({ ...msg }));
 
   const contactsWithUnread = localContacts.map((c) => ({
     ...c,

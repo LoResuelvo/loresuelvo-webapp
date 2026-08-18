@@ -23,6 +23,14 @@ export function formatScheduledOn(isoDate: string): string {
   return `${formattedDate} - ${formattedTime} hs`;
 }
 
+export function formatProposalTime(isoDate: string): string {
+  const date = new Date(isoDate);
+  return new Intl.DateTimeFormat("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 type StatusVariant = "default" | "secondary" | "destructive" | "outline" | "success" | "warning";
 
 export function getStatusBadge(status: string): { label: string; variant: StatusVariant } {

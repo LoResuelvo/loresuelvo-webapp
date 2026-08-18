@@ -148,6 +148,13 @@ export const t = {
       confirmTitle: "Confirmar propuesta",
       confirmDescription: "¿Estás seguro de enviar esta propuesta de servicio?",
       confirmSubmit: "Sí, enviar propuesta",
+      reviewAndPayCTA: "Revisar y pagar seña",
+      viewSentCTA: "Ver propuesta enviada",
+      viewAcceptedCTA: "Ver propuesta aceptada",
+      viewRejectedCTA: "Ver propuesta rechazada",
+      headerPendingChip: "Propuesta pendiente:",
+      headerPendingProviderChip: "Propuesta enviada:",
+      headerReviewAction: "Revisar",
     },
   },
   serviceProposals: {

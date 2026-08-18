@@ -1,19 +1,17 @@
 # Usage: make help | make dev | make test | make test-e2e
+#        make test-e2e-file FILE=features/login.feature
 #        make docker-dev | make docker-dev-d | make docker-dev-down
 
 .DEFAULT_GOAL := help
 
 COMPOSE_DEV  ?= compose.dev.yml
-BASE_URL     ?= http://localhost:3000
 LOCAL_NODE_BIN := $(CURDIR)/.tools/node/bin
-
-export BASE_URL
 
 ifneq ($(wildcard $(LOCAL_NODE_BIN)/node),)
 export PATH := $(LOCAL_NODE_BIN):$(PATH)
 endif
 
-.PHONY: help install dev build start lint test test-e2e test-e2e-wip test-e2e-report \
+.PHONY: help install dev build start lint test test-e2e test-e2e-file test-e2e-wip test-e2e-report test-all-once \
 	docker-dev docker-dev-d docker-dev-down docker-build docker-sh docker-lint docker-test
 
 help:
@@ -28,8 +26,10 @@ help:
 	@echo ""
 	@echo "  Tests"
 	@echo "    make test             Unitarios con Vitest (npm run test)"
-	@echo "    make test-e2e         Gherkin + Playwright"
-	@echo "    make test-e2e-report  Same as test-e2e but with HTML report in reports/"
+	@echo "    make test-e2e         Gherkin + Playwright (toda la suite)"
+	@echo "    make test-e2e-file    Gherkin de un solo archivo (ej: make test-e2e-file FILE=features/login.feature)"
+	@echo "    make test-e2e-wip     Gherkin con tag @wip"
+	@echo "    make test-e2e-report  Gherkin con reporte HTML en reports/"
 	@echo ""
 	@echo "  Docker (Desarrollo containerizado)"
 	@echo "    make docker-dev       Iniciar app en Docker con logs y hot reload"
@@ -59,29 +59,17 @@ test:
 	npm run test
 
 test-e2e:
-	@if curl -fsS "$(BASE_URL)" >/dev/null 2>&1; then \
-		npm run test:e2e; \
-	else \
-		log_file="/tmp/loresuelvo-webapp-e2e-server.log"; \
-		npm run dev > "$$log_file" 2>&1 & \
-		server_pid=$$!; \
-		trap 'kill $$server_pid 2>/dev/null || true' EXIT INT TERM; \
-		for _ in $$(seq 1 60); do \
-			if curl -fsS "$(BASE_URL)" >/dev/null 2>&1; then \
-				break; \
-			fi; \
-			if ! kill -0 $$server_pid 2>/dev/null; then \
-				cat "$$log_file"; \
-				exit 1; \
-			fi; \
-			sleep 1; \
-		done; \
-		if ! curl -fsS "$(BASE_URL)" >/dev/null 2>&1; then \
-			cat "$$log_file"; \
-			exit 1; \
-		fi; \
-		npm run test:e2e; \
+	npm run test:e2e
+
+test-e2e-file:
+	@if [ -z "$(FILE)" ]; then \
+		echo "Uso: make test-e2e-file FILE=features/login.feature"; \
+		exit 1; \
 	fi
+	NEXT_PUBLIC_USE_MOCK_ASSISTANT=true TS_NODE_PROJECT=tsconfig.cucumber.json npx cucumber-js $(FILE)
+
+test-e2e-wip:
+	npm run test:e2e:wip
 
 test-e2e-report:
 	npm run test:e2e:report

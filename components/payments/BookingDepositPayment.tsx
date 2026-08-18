@@ -2,12 +2,13 @@
 
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { ActivePayment, PaymentPricing } from "@/domain/payment/types";
+import type { ActivePayment, BookingTerms, PaymentPricing } from "@/domain/payment/types";
 import {
   createBookingDepositCheckoutAction,
   type CreateBookingDepositCheckoutResult,
 } from "@/app/consumidor/pagos/actions";
 import { t } from "@/infrastructure/i18n/translations";
+import { ShieldCheck } from "lucide-react";
 
 interface PaymentStorage {
   setItem(key: string, value: string): void;
@@ -19,6 +20,7 @@ interface BookingDepositPaymentProps {
   createCheckout?: (serviceProposalId: number) => Promise<CreateBookingDepositCheckoutResult>;
   storage?: PaymentStorage;
   redirect?: (url: string) => void;
+  bookingTerms?: BookingTerms;
 }
 
 function formatCurrencyCents(amountCents: number, currency: string): string {
@@ -52,10 +54,15 @@ export function BookingDepositPayment({
   createCheckout = createBookingDepositCheckoutAction,
   storage,
   redirect,
+  bookingTerms,
 }: BookingDepositPaymentProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const requestInProgress = useRef(false);
+
+  const remainingBalanceCents = bookingTerms
+    ? bookingTerms.remainingServiceBalanceCents ?? (bookingTerms.remainingAmountDueCents - bookingTerms.remainingPlatformFeeCents)
+    : 0;
 
   async function handlePayment(): Promise<void> {
     if (requestInProgress.current) return;
@@ -94,7 +101,7 @@ export function BookingDepositPayment({
   }
 
   return (
-    <section className="space-y-4 border-t border-slate-200 pt-5" aria-labelledby="booking-deposit-title">
+    <section className="space-y-4 border-t border-slate-100 pt-5" aria-labelledby="booking-deposit-title">
       <div>
         <h3 id="booking-deposit-title" className="text-base font-semibold text-slate-800">
           {t.payments.checkout.title}
@@ -104,45 +111,67 @@ export function BookingDepositPayment({
         </p>
       </div>
 
-      <dl className="space-y-2 rounded-xl bg-slate-50 p-4 text-sm">
-        <div className="flex items-center justify-between gap-4">
-          <dt className="text-slate-600">{t.payments.checkout.depositLabel}</dt>
-          <dd className="font-medium text-slate-800">
-            {formatCurrencyCents(pricing.depositCents, pricing.currency)}
-          </dd>
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <dt className="text-slate-600">{t.payments.checkout.feeLabel}</dt>
-          <dd className="font-medium text-slate-800">
-            {formatCurrencyCents(pricing.platformFeeDueNowCents, pricing.currency)}
-          </dd>
-        </div>
-        <div className="flex items-center justify-between gap-4 border-t border-slate-200 pt-2">
-          <dt className="font-semibold text-slate-800">{t.payments.checkout.totalLabel}</dt>
-          <dd className="font-bold text-brand-primary">
-            {formatCurrencyCents(pricing.amountDueNowCents, pricing.currency)}
-          </dd>
-        </div>
-      </dl>
+      <div className="rounded-xl border border-slate-200/70 bg-slate-50/80 p-4 space-y-3">
+        <dl className="space-y-2 text-sm">
+          <div className="flex items-center justify-between gap-4">
+            <dt className="text-slate-600">{t.payments.checkout.depositLabel}</dt>
+            <dd className="font-medium text-slate-800">
+              {formatCurrencyCents(pricing.depositCents, pricing.currency)}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <dt className="text-slate-600">{t.payments.checkout.feeLabel}</dt>
+            <dd className="font-medium text-slate-800">
+              {formatCurrencyCents(pricing.platformFeeDueNowCents, pricing.currency)}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-4 border-t border-slate-200/80 pt-2.5">
+            <dt className="font-semibold text-slate-800">{t.payments.checkout.totalLabel}</dt>
+            <dd className="text-[17px] font-bold text-brand-primary">
+              {formatCurrencyCents(pricing.amountDueNowCents, pricing.currency)}
+            </dd>
+          </div>
+        </dl>
+
+        {remainingBalanceCents > 0 && (
+          <div className="mt-2.5 pt-2.5 border-t border-slate-200/60 bg-white/70 rounded-lg p-2.5 space-y-1">
+            <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
+              <span>{t.payments.checkout.remainingBalanceLabel}</span>
+              <span>{formatCurrencyCents(remainingBalanceCents, pricing.currency)}</span>
+            </div>
+            <p className="text-[11px] text-slate-500 leading-normal">
+              {t.payments.checkout.remainingBalanceHelp}
+            </p>
+          </div>
+        )}
+      </div>
 
       {errorMessage && (
-        <p role="alert" className="text-sm text-brand-danger">
+        <p role="alert" className="text-sm text-brand-danger bg-red-50 border border-red-200 rounded-lg p-3">
           {errorMessage}
         </p>
       )}
 
-      <Button
-        type="button"
-        variant="brand"
-        size="action"
-        disabled={isSubmitting}
-        aria-busy={isSubmitting}
-        onClick={handlePayment}
-      >
-        {isSubmitting
-          ? t.payments.checkout.submittingButton
-          : t.payments.checkout.submitButton}
-      </Button>
+      <div className="space-y-2.5 pt-1">
+        <Button
+          type="button"
+          variant="brand"
+          size="action"
+          disabled={isSubmitting}
+          aria-busy={isSubmitting}
+          onClick={handlePayment}
+          className="shadow-2xs hover:shadow-xs transition-all cursor-pointer font-semibold"
+        >
+          {isSubmitting
+            ? t.payments.checkout.submittingButton
+            : t.payments.checkout.submitButton}
+        </Button>
+
+        <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium">
+          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{t.payments.checkout.securePaymentNote}</span>
+        </div>
+      </div>
     </section>
   );
 }

@@ -6,6 +6,9 @@ export const t = {
       depositLabel: "Reserva",
       feeLabel: "Comisión de la plataforma",
       totalLabel: "Total a pagar",
+      remainingBalanceLabel: "Saldo restante (a abonar al finalizar)",
+      remainingBalanceHelp: "El saldo pendiente se abona directamente al profesional tras finalizar el trabajo.",
+      securePaymentNote: "Pago seguro procesado por Mercado Pago",
       submitButton: "Pagar reserva",
       submittingButton: "Preparando pago…",
     },
@@ -172,7 +175,7 @@ export const t = {
     },
     chatPanel: {
       title: "Propuesta de Servicio",
-      amountLabel: "Monto",
+      amountLabel: "Presupuesto total",
       dateLabel: "Fecha y hora",
       descriptionLabel: "Descripción",
       statusLabel: "Estado",

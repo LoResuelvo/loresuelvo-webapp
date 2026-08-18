@@ -37,7 +37,7 @@ export function ServiceProposalPanel({ proposal }: ServiceProposalPanelProps) {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 mt-1">
             <div className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-emerald-500 shrink-0" />
+              <DollarSign className="w-4 h-4 text-brand-primary shrink-0" />
               <div className="flex flex-col">
                 <span className="text-[10px] text-slate-400 font-medium">
                   {t.serviceProposals.chatPanel.amountLabel}
@@ -49,7 +49,7 @@ export function ServiceProposalPanel({ proposal }: ServiceProposalPanelProps) {
             </div>
 
             <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-blue-500 shrink-0" />
+              <Calendar className="w-4 h-4 text-brand-primary shrink-0" />
               <div className="flex flex-col">
                 <span className="text-[10px] text-slate-400 font-medium">
                   {t.serviceProposals.chatPanel.dateLabel}
@@ -62,7 +62,7 @@ export function ServiceProposalPanel({ proposal }: ServiceProposalPanelProps) {
 
             {proposal.description && (
               <div className="flex items-start gap-2 col-span-1 md:col-span-1">
-                <FileText className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <FileText className="w-4 h-4 text-brand-primary shrink-0 mt-0.5" />
                 <div className="flex flex-col min-w-0">
                   <span className="text-[10px] text-slate-400 font-medium">
                     {t.serviceProposals.chatPanel.descriptionLabel}

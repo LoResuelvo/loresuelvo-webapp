@@ -408,9 +408,17 @@ Given("que estoy en la vista histórica de propuestas como consumidor con una pr
 When("hago clic en la tarjeta de la propuesta para ver el detalle", async () => {
   const card = page.getByTestId("proposal-card").first();
   await card.waitFor({ state: "visible" });
-  await card.click();
   const modal = page.getByTestId("service-proposal-detail-modal");
-  await modal.waitFor({ state: "visible" });
+
+  // Reintento resiliente para compensar la hidratación de Next.js
+  for (let i = 0; i < 10; i++) {
+    await card.click();
+    const isModalVisible = await modal.isVisible().catch(() => false);
+    if (isModalVisible) break;
+    await page.waitForTimeout(300);
+  }
+
+  await modal.waitFor({ state: "visible", timeout: 10000 });
 });
 
 Then("se abre el chat asociado a esa propuesta", async () => {

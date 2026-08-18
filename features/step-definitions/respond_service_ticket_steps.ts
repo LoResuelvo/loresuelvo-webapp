@@ -1,10 +1,9 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
-import { page } from "./landing_page_visualization_steps";
+import { CustomWorld } from "../support/world";
 import { ROUTES } from "../../lib/routes";
 import { AuthSession } from "../../infrastructure/auth/types";
 import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
-import { addApiStub } from "./stubs-helper";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
@@ -31,7 +30,7 @@ const mockJobRequests = [
   },
 ];
 
-async function setProviderSession() {
+async function setProviderSession(world: CustomWorld) {
   const session: AuthSession = {
     user: {
       id: "provider-001",
@@ -44,18 +43,20 @@ async function setProviderSession() {
     accessToken: "mock-access-token",
   };
 
-  await page.context().addCookies([{
-    name: MOCK_SESSION_COOKIE,
-    value: encodeURIComponent(JSON.stringify(session)),
-    domain: "localhost",
-    path: "/",
-  }]);
+  await world.page.context().addCookies([
+    {
+      name: MOCK_SESSION_COOKIE,
+      value: encodeURIComponent(JSON.stringify(session)),
+      domain: "localhost",
+      path: "/",
+    },
+  ]);
 }
 
-Given("que existen solicitudes de trabajo pendientes para mí", async () => {
-  await setProviderSession();
+Given("que existen solicitudes de trabajo pendientes para mí", async function (this: CustomWorld) {
+  await setProviderSession(this);
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/job-requests",
     status: 200,
@@ -63,46 +64,46 @@ Given("que existen solicitudes de trabajo pendientes para mí", async () => {
   });
 });
 
-When("accedo al dashboard de prestador", async () => {
-  await page.goto(APP_URL + ROUTES.provider.home);
-  await page.waitForLoadState("networkidle");
+When("accedo al dashboard de prestador", async function (this: CustomWorld) {
+  await this.page.goto(APP_URL + ROUTES.provider.home);
+  await this.page.waitForLoadState("networkidle");
 });
 
-Then("visualizo las solicitudes pendientes en la sección {string}", async (sectionName: string) => {
-  const section = page.getByRole("region", { name: sectionName });
+Then("visualizo las solicitudes pendientes en la sección {string}", async function (this: CustomWorld, sectionName: string) {
+  const section = this.page.getByRole("region", { name: sectionName });
   await section.waitFor({ state: "visible" });
   assert.ok(await section.isVisible(), `No se visualiza la sección "${sectionName}"`);
 });
 
-Given("que visualizo una solicitud pendiente", async () => {
-  await setProviderSession();
+Given("que visualizo una solicitud pendiente", async function (this: CustomWorld) {
+  await setProviderSession(this);
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/job-requests",
     status: 200,
     body: mockJobRequests,
   });
 
-  await page.goto(APP_URL + ROUTES.provider.home);
-  await page.waitForLoadState("networkidle");
+  await this.page.goto(APP_URL + ROUTES.provider.home);
+  await this.page.waitForLoadState("networkidle");
 });
 
-When("hago clic en {string}", async (buttonName: string) => {
-  const button = page.getByRole("button", { name: new RegExp(buttonName, "i") }).first();
+When("hago clic en {string}", async function (this: CustomWorld, buttonName: string) {
+  const button = this.page.getByRole("button", { name: new RegExp(buttonName, "i") }).first();
   await button.waitFor({ state: "visible" });
   await button.click();
 });
 
-Then("se muestra el detalle de la solicitud", async () => {
-  const modal = page.getByRole("dialog", { name: "Detalle de Solicitud" });
+Then("se muestra el detalle de la solicitud", async function (this: CustomWorld) {
+  const modal = this.page.getByRole("dialog", { name: "Detalle de Solicitud" });
   await modal.waitFor({ state: "visible" });
   assert.ok(await modal.isVisible(), "No se muestra el modal de detalle");
 });
 
-Then("visualizo:", async (dataTable: { raw: () => string[][] }) => {
-  const fields = dataTable.raw().map(row => row[0]);
-  const modal = page.getByRole("dialog", { name: "Detalle de Solicitud" });
+Then("visualizo:", async function (this: CustomWorld, dataTable: { raw: () => string[][] }) {
+  const fields = dataTable.raw().map((row) => row[0]);
+  const modal = this.page.getByRole("dialog", { name: "Detalle de Solicitud" });
 
   for (const field of fields) {
     switch (field) {
@@ -122,24 +123,24 @@ Then("visualizo:", async (dataTable: { raw: () => string[][] }) => {
   }
 });
 
-Given("que me encuentro visualizando el detalle de una solicitud pendiente", async () => {
-  await setProviderSession();
+Given("que me encuentro visualizando el detalle de una solicitud pendiente", async function (this: CustomWorld) {
+  await setProviderSession(this);
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/job-requests",
     status: 200,
     body: mockJobRequests,
   });
 
-  await addApiStub({
+  await this.addApiStub({
     method: "POST",
     endpoint: "/job-requests/1/accept",
     status: 200,
     body: {},
   });
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations/1",
     status: 200,
@@ -154,7 +155,7 @@ Given("que me encuentro visualizando el detalle de una solicitud pendiente", asy
     },
   });
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations",
     status: 200,
@@ -169,63 +170,63 @@ Given("que me encuentro visualizando el detalle de una solicitud pendiente", asy
     ],
   });
 
-  await page.goto(APP_URL + ROUTES.provider.home);
-  await page.waitForLoadState("networkidle");
+  await this.page.goto(APP_URL + ROUTES.provider.home);
+  await this.page.waitForLoadState("networkidle");
 
-  const viewButton = page.getByRole("button", { name: /Ver Solicitud/i }).first();
+  const viewButton = this.page.getByRole("button", { name: /Ver Solicitud/i }).first();
   await viewButton.waitFor({ state: "visible" });
   await viewButton.click();
 
-  const modal = page.getByRole("dialog", { name: "Detalle de Solicitud" });
+  const modal = this.page.getByRole("dialog", { name: "Detalle de Solicitud" });
   await modal.waitFor({ state: "visible" });
 });
 
-Then("la solicitud cambia a estado aceptada", async () => {
-  await page.waitForSelector('button:has-text("Continuar conversación")', { state: "hidden", timeout: 5000 }).catch(() => {});
+Then("la solicitud cambia a estado aceptada", async function (this: CustomWorld) {
+  await this.page.waitForSelector('button:has-text("Continuar conversación")', { state: "hidden", timeout: 5000 }).catch(() => {});
 });
 
-Then("la solicitud cambia a estado rechazada", async () => {
-  await page.waitForSelector('button:has-text("Rechazar Solicitud")', { state: "hidden", timeout: 5000 }).catch(() => {});
+Then("la solicitud cambia a estado rechazada", async function (this: CustomWorld) {
+  await this.page.waitForSelector('button:has-text("Rechazar Solicitud")', { state: "hidden", timeout: 5000 }).catch(() => {});
 });
 
-Then("deja de aparecer en la lista de solicitudes pendientes", async () => {
-  const requestCard = page.locator("[data-field='problem-title']").filter({ hasText: "Reparación de fuga" });
+Then("deja de aparecer en la lista de solicitudes pendientes", async function (this: CustomWorld) {
+  const requestCard = this.page.locator("[data-field='problem-title']").filter({ hasText: "Reparación de fuga" });
   await requestCard.waitFor({ state: "hidden", timeout: 5000 }).catch(() => {});
 });
 
-Given("que estoy visualizando el detalle de una solicitud", async () => {
-  await setProviderSession();
+Given("que estoy visualizando el detalle de una solicitud", async function (this: CustomWorld) {
+  await setProviderSession(this);
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/job-requests",
     status: 200,
     body: mockJobRequests,
   });
 
-  await page.goto(APP_URL + ROUTES.provider.home);
-  await page.waitForLoadState("networkidle");
+  await this.page.goto(APP_URL + ROUTES.provider.home);
+  await this.page.waitForLoadState("networkidle");
 
-  const viewButton = page.getByRole("button", { name: /Ver Solicitud/i }).first();
+  const viewButton = this.page.getByRole("button", { name: /Ver Solicitud/i }).first();
   await viewButton.waitFor({ state: "visible" });
   await viewButton.click();
 
-  const modal = page.getByRole("dialog", { name: "Detalle de Solicitud" });
+  const modal = this.page.getByRole("dialog", { name: "Detalle de Solicitud" });
   await modal.waitFor({ state: "visible" });
 });
 
-When("cierro la ventana de detalle", async () => {
-  const closeButton = page.getByRole("button", { name: /Cerrar/i });
+When("cierro la ventana de detalle", async function (this: CustomWorld) {
+  const closeButton = this.page.getByRole("button", { name: /Cerrar/i });
   await closeButton.waitFor({ state: "visible" });
   await closeButton.click();
 });
 
-Then("regreso al dashboard de prestador", async () => {
-  const section = page.getByRole("region", { name: "Solicitudes de Trabajo" });
+Then("regreso al dashboard de prestador", async function (this: CustomWorld) {
+  const section = this.page.getByRole("region", { name: "Solicitudes de Trabajo" });
   await section.waitFor({ state: "visible" });
 });
 
-Then("continúo visualizando la lista de solicitudes pendientes", async () => {
-  const list = page.getByRole("list", { name: "Lista de solicitudes de trabajo" });
+Then("continúo visualizando la lista de solicitudes pendientes", async function (this: CustomWorld) {
+  const list = this.page.getByRole("list", { name: "Lista de solicitudes de trabajo" });
   await list.waitFor({ state: "visible" });
 });

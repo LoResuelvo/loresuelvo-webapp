@@ -1,10 +1,9 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
-import { page } from "./landing_page_visualization_steps";
+import { CustomWorld } from "../support/world";
 import { ROUTES } from "../../lib/routes";
 import { AuthSession } from "../../infrastructure/auth/types";
 import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
-import { addApiStub } from "./stubs-helper";
 import { setConsumerSession } from "./initiate_chat_with_provider_steps";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
@@ -14,7 +13,7 @@ let providerContacts: any[] = [];
 let originalContactsWidth = 0;
 let savedScrollTop = 0;
 
-async function setProviderSession() {
+async function setProviderSession(world: CustomWorld) {
   const session: AuthSession = {
     user: {
       id: "provider-001",
@@ -27,12 +26,14 @@ async function setProviderSession() {
     accessToken: "mock-access-token",
   };
 
-  await page.context().addCookies([{
-    name: MOCK_SESSION_COOKIE,
-    value: encodeURIComponent(JSON.stringify(session)),
-    domain: "localhost",
-    path: "/",
-  }]);
+  await world.page.context().addCookies([
+    {
+      name: MOCK_SESSION_COOKIE,
+      value: encodeURIComponent(JSON.stringify(session)),
+      domain: "localhost",
+      path: "/",
+    },
+  ]);
 }
 
 function buildConsumerContacts() {
@@ -90,15 +91,15 @@ function buildManyMessages(conversationId: number, counterpartId: string, counte
   }));
 }
 
-Given("que estoy en la pantalla de mensajes como consumidor con conversaciones", async () => {
-  await setConsumerSession();
+Given("que estoy en la pantalla de mensajes como consumidor con conversaciones", async function (this: CustomWorld) {
+  await setConsumerSession(this);
 
   consumerContacts = buildConsumerContacts();
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations",
     status: 200,
-    body: consumerContacts.map(c => ({
+    body: consumerContacts.map((c) => ({
       id: c.id.replace("conv-", ""),
       status: "accepted",
       counterpart: {
@@ -118,20 +119,20 @@ Given("que estoy en la pantalla de mensajes como consumidor con conversaciones",
     })),
   });
 
-  await page.goto(APP_URL + ROUTES.consumer.messages, { waitUntil: "networkidle" });
-  const list = page.getByRole("list", { name: "Lista de conversaciones" });
+  await this.page.goto(APP_URL + ROUTES.consumer.messages, { waitUntil: "networkidle" });
+  const list = this.page.getByRole("list", { name: "Lista de conversaciones" });
   await list.waitFor({ state: "visible", timeout: 10000 });
 });
 
-Given("que estoy en la pantalla de mensajes como prestador con conversaciones", async () => {
-  await setProviderSession();
+Given("que estoy en la pantalla de mensajes como prestador con conversaciones", async function (this: CustomWorld) {
+  await setProviderSession(this);
 
   providerContacts = buildProviderContacts();
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations",
     status: 200,
-    body: providerContacts.map(c => ({
+    body: providerContacts.map((c) => ({
       id: c.id.replace("conv-", ""),
       status: "accepted",
       counterpart: {
@@ -151,127 +152,140 @@ Given("que estoy en la pantalla de mensajes como prestador con conversaciones", 
     })),
   });
 
-  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
-  const list = page.getByRole("list", { name: "Lista de conversaciones" });
+  await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+  const list = this.page.getByRole("list", { name: "Lista de conversaciones" });
   await list.waitFor({ state: "visible", timeout: 10000 });
 });
 
-Given("que estoy chateando con un prestador con varios mensajes en la conversación", async () => {
-  await setConsumerSession();
+Given(
+  "que estoy chateando con un prestador con varios mensajes en la conversación",
+  async function (this: CustomWorld) {
+    await setConsumerSession(this);
 
-  consumerContacts = buildConsumerContacts();
-  await addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: consumerContacts.map(c => ({
-      id: c.id.replace("conv-", ""),
-      status: "accepted",
-      counterpart: {
-        id: c.providerId,
-        role: "provider",
-        name: c.providerName,
-        surname: c.providerSurname,
-        category_name: "Plomería",
+    consumerContacts = buildConsumerContacts();
+    await this.addApiStub({
+      method: "GET",
+      endpoint: "/conversations",
+      status: 200,
+      body: consumerContacts.map((c) => ({
+        id: c.id.replace("conv-", ""),
+        status: "accepted",
+        counterpart: {
+          id: c.providerId,
+          role: "provider",
+          name: c.providerName,
+          surname: c.providerSurname,
+          category_name: "Plomería",
+        },
+        last_message: {
+          id: 1,
+          sender_role: "consumer",
+          content: c.lastMessage,
+          created_on: c.lastMessageAt,
+        },
+        updated_on: c.lastMessageAt,
+      })),
+    });
+
+    const firstContact = consumerContacts[0];
+    const firstConvId = firstContact.id.replace("conv-", "");
+    await this.addApiStub({
+      method: "GET",
+      endpoint: `/conversations/${firstConvId}`,
+      status: 200,
+      body: {
+        id: Number(firstConvId),
+        status: "accepted",
+        counterpart: {
+          id: firstContact.providerId,
+          role: "provider",
+          name: firstContact.providerName,
+          surname: firstContact.providerSurname,
+          category_name: "Plomería",
+        },
+        messages: buildManyMessages(Number(firstConvId), firstContact.providerId, "provider"),
+        updated_on: new Date().toISOString(),
       },
-      last_message: {
-        id: 1,
-        sender_role: "consumer",
-        content: c.lastMessage,
-        created_on: c.lastMessageAt,
+    });
+
+    await this.page.goto(
+      APP_URL +
+        ROUTES.consumer.messages +
+        `?provider_id=${firstContact.providerId}&name=${firstContact.providerName}&surname=${firstContact.providerSurname}`,
+      { waitUntil: "networkidle" }
+    );
+
+    const messagesList = this.page.locator("[data-testid='messages-list']");
+    await messagesList.waitFor({ state: "visible", timeout: 10000 });
+  }
+);
+
+Given(
+  "que estoy chateando con un consumidor con varios mensajes en la conversación",
+  async function (this: CustomWorld) {
+    await setProviderSession(this);
+
+    providerContacts = buildProviderContacts();
+    await this.addApiStub({
+      method: "GET",
+      endpoint: "/conversations",
+      status: 200,
+      body: providerContacts.map((c) => ({
+        id: c.id.replace("conv-", ""),
+        status: "accepted",
+        counterpart: {
+          id: c.consumerId,
+          role: "consumer",
+          name: c.consumerName,
+          surname: c.consumerSurname,
+          category_name: "Plomería",
+        },
+        last_message: {
+          id: 1,
+          sender_role: "consumer",
+          content: c.lastMessage,
+          created_on: c.lastMessageAt,
+        },
+        updated_on: c.lastMessageAt,
+      })),
+    });
+
+    const firstContact = providerContacts[0];
+    const firstConvId = firstContact.id.replace("conv-", "");
+    await this.addApiStub({
+      method: "GET",
+      endpoint: `/conversations/${firstConvId}`,
+      status: 200,
+      body: {
+        id: Number(firstConvId),
+        status: "accepted",
+        counterpart: {
+          id: firstContact.consumerId,
+          role: "consumer",
+          name: firstContact.consumerName,
+          surname: firstContact.consumerSurname,
+          category_name: "Plomería",
+        },
+        messages: buildManyMessages(Number(firstConvId), firstContact.consumerId, "consumer"),
+        updated_on: new Date().toISOString(),
       },
-      updated_on: c.lastMessageAt,
-    })),
-  });
+    });
 
-  const firstContact = consumerContacts[0];
-  const firstConvId = firstContact.id.replace("conv-", "");
-  await addApiStub({
-    method: "GET",
-    endpoint: `/conversations/${firstConvId}`,
-    status: 200,
-    body: {
-      id: Number(firstConvId),
-      status: "accepted",
-      counterpart: {
-        id: firstContact.providerId,
-        role: "provider",
-        name: firstContact.providerName,
-        surname: firstContact.providerSurname,
-        category_name: "Plomería",
-      },
-      messages: buildManyMessages(Number(firstConvId), firstContact.providerId, "provider"),
-      updated_on: new Date().toISOString(),
-    },
-  });
+    await this.page.goto(APP_URL + ROUTES.provider.messages + `?consumer_id=${firstContact.consumerId}`, {
+      waitUntil: "networkidle",
+    });
 
-  await page.goto(APP_URL + ROUTES.consumer.messages + `?provider_id=${firstContact.providerId}&name=${firstContact.providerName}&surname=${firstContact.providerSurname}`, { waitUntil: "networkidle" });
+    const messagesList = this.page.locator("[data-testid='messages-list']");
+    await messagesList.waitFor({ state: "visible", timeout: 10000 });
+  }
+);
 
-  const messagesList = page.locator("[data-testid='messages-list']");
+Given("hice scroll en la conversación", async function (this: CustomWorld) {
+  const messagesList = this.page.locator("[data-testid='messages-list']");
   await messagesList.waitFor({ state: "visible", timeout: 10000 });
-});
 
-Given("que estoy chateando con un consumidor con varios mensajes en la conversación", async () => {
-  await setProviderSession();
-
-  providerContacts = buildProviderContacts();
-  await addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: providerContacts.map(c => ({
-      id: c.id.replace("conv-", ""),
-      status: "accepted",
-      counterpart: {
-        id: c.consumerId,
-        role: "consumer",
-        name: c.consumerName,
-        surname: c.consumerSurname,
-        category_name: "Plomería",
-      },
-      last_message: {
-        id: 1,
-        sender_role: "consumer",
-        content: c.lastMessage,
-        created_on: c.lastMessageAt,
-      },
-      updated_on: c.lastMessageAt,
-    })),
-  });
-
-  const firstContact = providerContacts[0];
-  const firstConvId = firstContact.id.replace("conv-", "");
-  await addApiStub({
-    method: "GET",
-    endpoint: `/conversations/${firstConvId}`,
-    status: 200,
-    body: {
-      id: Number(firstConvId),
-      status: "accepted",
-      counterpart: {
-        id: firstContact.consumerId,
-        role: "consumer",
-        name: firstContact.consumerName,
-        surname: firstContact.consumerSurname,
-        category_name: "Plomería",
-      },
-      messages: buildManyMessages(Number(firstConvId), firstContact.consumerId, "consumer"),
-      updated_on: new Date().toISOString(),
-    },
-  });
-
-  await page.goto(APP_URL + ROUTES.provider.messages + `?consumer_id=${firstContact.consumerId}`, { waitUntil: "networkidle" });
-
-  const messagesList = page.locator("[data-testid='messages-list']");
-  await messagesList.waitFor({ state: "visible", timeout: 10000 });
-});
-
-Given("hice scroll en la conversación", async () => {
-  const messagesList = page.locator("[data-testid='messages-list']");
-  await messagesList.waitFor({ state: "visible", timeout: 10000 });
-
-  const scrollHeight = await messagesList.evaluate(el => el.scrollHeight);
-  const clientHeight = await messagesList.evaluate(el => el.clientHeight);
+  const scrollHeight = await messagesList.evaluate((el) => el.scrollHeight);
+  const clientHeight = await messagesList.evaluate((el) => el.clientHeight);
 
   const targetScrollTop = Math.max(0, Math.floor((scrollHeight - clientHeight) / 2));
 
@@ -280,21 +294,21 @@ Given("hice scroll en la conversación", async () => {
     el.dispatchEvent(new Event("scroll"));
   }, targetScrollTop);
 
-  await page.waitForTimeout(200);
+  await this.page.waitForTimeout(200);
 
-  savedScrollTop = await messagesList.evaluate(el => el.scrollTop);
+  savedScrollTop = await messagesList.evaluate((el) => el.scrollTop);
   assert.ok(scrollHeight > clientHeight, "La lista de mensajes no es lo suficientemente larga como para hacer scroll");
   assert.ok(savedScrollTop > 0, "El scroll no se aplicó a la conversación");
 });
 
-When("arrastro el separador de la lista de contactos para reducir su ancho", async () => {
-  const sidebar = page.getByRole("region", { name: "Mensajes" });
+When("arrastro el separador de la lista de contactos para reducir su ancho", async function (this: CustomWorld) {
+  const sidebar = this.page.getByRole("region", { name: "Mensajes" });
   await sidebar.waitFor({ state: "visible", timeout: 10000 });
 
   const sidebarBox = await sidebar.boundingBox();
   originalContactsWidth = sidebarBox?.width ?? 0;
 
-  const handle = page.getByRole("separator", { name: /redimensionar lista/i });
+  const handle = this.page.getByRole("separator", { name: /redimensionar lista/i });
   await handle.waitFor({ state: "visible", timeout: 10000 });
 
   const handleBox = await handle.boundingBox();
@@ -303,21 +317,21 @@ When("arrastro el separador de la lista de contactos para reducir su ancho", asy
   const startX = handleBox.x + handleBox.width / 2;
   const startY = handleBox.y + handleBox.height / 2;
 
-  await page.mouse.move(startX, startY);
-  await page.mouse.down();
-  await page.mouse.move(startX - 120, startY, { steps: 10 });
-  await page.mouse.up();
-  await page.waitForTimeout(200);
+  await this.page.mouse.move(startX, startY);
+  await this.page.mouse.down();
+  await this.page.mouse.move(startX - 120, startY, { steps: 10 });
+  await this.page.mouse.up();
+  await this.page.waitForTimeout(200);
 });
 
-When("arrastro el separador de la lista de conversaciones para ampliar su ancho", async () => {
-  const sidebar = page.getByRole("region", { name: "Mensajes" });
+When("arrastro el separador de la lista de conversaciones para ampliar su ancho", async function (this: CustomWorld) {
+  const sidebar = this.page.getByRole("region", { name: "Mensajes" });
   await sidebar.waitFor({ state: "visible", timeout: 10000 });
 
   const sidebarBox = await sidebar.boundingBox();
   originalContactsWidth = sidebarBox?.width ?? 0;
 
-  const handle = page.getByRole("separator", { name: /redimensionar lista/i });
+  const handle = this.page.getByRole("separator", { name: /redimensionar lista/i });
   await handle.waitFor({ state: "visible", timeout: 10000 });
 
   const handleBox = await handle.boundingBox();
@@ -326,35 +340,41 @@ When("arrastro el separador de la lista de conversaciones para ampliar su ancho"
   const startX = handleBox.x + handleBox.width / 2;
   const startY = handleBox.y + handleBox.height / 2;
 
-  await page.mouse.move(startX, startY);
-  await page.mouse.down();
-  await page.mouse.move(startX + 120, startY, { steps: 10 });
-  await page.mouse.up();
-  await page.waitForTimeout(200);
+  await this.page.mouse.move(startX, startY);
+  await this.page.mouse.down();
+  await this.page.mouse.move(startX + 120, startY, { steps: 10 });
+  await this.page.mouse.up();
+  await this.page.waitForTimeout(200);
 });
 
-Then("el ancho de la lista de contactos es menor al inicial", async () => {
-  const sidebar = page.getByRole("region", { name: "Mensajes" });
+Then("el ancho de la lista de contactos es menor al inicial", async function (this: CustomWorld) {
+  const sidebar = this.page.getByRole("region", { name: "Mensajes" });
   await sidebar.waitFor({ state: "visible", timeout: 10000 });
 
   const sidebarBox = await sidebar.boundingBox();
   const newWidth = sidebarBox?.width ?? 0;
 
-  assert.ok(newWidth < originalContactsWidth, `Se esperaba que el ancho sea menor. Inicial: ${originalContactsWidth}, actual: ${newWidth}`);
+  assert.ok(
+    newWidth < originalContactsWidth,
+    `Se esperaba que el ancho sea menor. Inicial: ${originalContactsWidth}, actual: ${newWidth}`
+  );
 });
 
-Then("el ancho de la lista de conversaciones es mayor al inicial", async () => {
-  const sidebar = page.getByRole("region", { name: "Mensajes" });
+Then("el ancho de la lista de conversaciones es mayor al inicial", async function (this: CustomWorld) {
+  const sidebar = this.page.getByRole("region", { name: "Mensajes" });
   await sidebar.waitFor({ state: "visible", timeout: 10000 });
 
   const sidebarBox = await sidebar.boundingBox();
   const newWidth = sidebarBox?.width ?? 0;
 
-  assert.ok(newWidth > originalContactsWidth, `Se esperaba que el ancho sea mayor. Inicial: ${originalContactsWidth}, actual: ${newWidth}`);
+  assert.ok(
+    newWidth > originalContactsWidth,
+    `Se esperaba que el ancho sea mayor. Inicial: ${originalContactsWidth}, actual: ${newWidth}`
+  );
 });
 
-When("arrastro el separador más allá del ancho mínimo permitido", async () => {
-  const handle = page.getByRole("separator", { name: /redimensionar lista/i });
+When("arrastro el separador más allá del ancho mínimo permitido", async function (this: CustomWorld) {
+  const handle = this.page.getByRole("separator", { name: /redimensionar lista/i });
   await handle.waitFor({ state: "visible", timeout: 10000 });
 
   const handleBox = await handle.boundingBox();
@@ -363,15 +383,15 @@ When("arrastro el separador más allá del ancho mínimo permitido", async () =>
   const startX = handleBox.x + handleBox.width / 2;
   const startY = handleBox.y + handleBox.height / 2;
 
-  await page.mouse.move(startX, startY);
-  await page.mouse.down();
-  await page.mouse.move(startX - 9999, startY, { steps: 20 });
-  await page.mouse.up();
-  await page.waitForTimeout(200);
+  await this.page.mouse.move(startX, startY);
+  await this.page.mouse.down();
+  await this.page.mouse.move(startX - 9999, startY, { steps: 20 });
+  await this.page.mouse.up();
+  await this.page.waitForTimeout(200);
 });
 
-Then("la lista de contactos mantiene el ancho mínimo", async () => {
-  const sidebar = page.locator("[data-testid='resizable-contacts-sidebar']");
+Then("la lista de contactos mantiene el ancho mínimo", async function (this: CustomWorld) {
+  const sidebar = this.page.locator("[data-testid='resizable-contacts-sidebar']");
   await sidebar.waitFor({ state: "visible", timeout: 10000 });
 
   const sidebarBox = await sidebar.boundingBox();
@@ -380,52 +400,54 @@ Then("la lista de contactos mantiene el ancho mínimo", async () => {
   assert.ok(newWidth >= 220, `Se esperaba que el ancho sea al menos 220px (mínimo), pero es ${newWidth}px`);
 });
 
-When("escribo el mensaje {string} en la caja de texto", async (texto: string) => {
-  const input = page.getByRole("textbox", { name: /escribe un mensaje/i });
+When("escribo el mensaje {string} en la caja de texto", async function (this: CustomWorld, texto: string) {
+  const input = this.page.getByRole("textbox", { name: /escribe un mensaje/i });
   await input.waitFor({ state: "visible", timeout: 10000 });
   await input.fill(texto);
-  await page.waitForTimeout(200);
+  await this.page.waitForTimeout(200);
 });
 
-When("que escribí el mensaje {string} en la caja de texto", async (texto: string) => {
-  const input = page.getByRole("textbox", { name: /escribe un mensaje/i });
+When("que escribí el mensaje {string} en la caja de texto", async function (this: CustomWorld, texto: string) {
+  const input = this.page.getByRole("textbox", { name: /escribe un mensaje/i });
   await input.waitFor({ state: "visible", timeout: 10000 });
   await input.fill(texto);
-  await page.waitForTimeout(200);
+  await this.page.waitForTimeout(200);
 });
 
-When("navego a inicio durante el borrador", async () => {
-  await page.goto(APP_URL + ROUTES.consumer.home, { waitUntil: "networkidle" });
+When("navego a inicio durante el borrador", async function (this: CustomWorld) {
+  await this.page.goto(APP_URL + ROUTES.consumer.home, { waitUntil: "networkidle" });
 });
 
-When("vuelvo a la conversación con el prestador", async () => {
+When("vuelvo a la conversación con el prestador", async function (this: CustomWorld) {
   const firstContact = consumerContacts[0];
-  await page.goto(
-    APP_URL + ROUTES.consumer.messages + `?provider_id=${firstContact.providerId}&name=${firstContact.providerName}&surname=${firstContact.providerSurname}`,
+  await this.page.goto(
+    APP_URL +
+      ROUTES.consumer.messages +
+      `?provider_id=${firstContact.providerId}&name=${firstContact.providerName}&surname=${firstContact.providerSurname}`,
     { waitUntil: "networkidle" }
   );
-  const messagesList = page.locator("[data-testid='messages-list']");
+  const messagesList = this.page.locator("[data-testid='messages-list']");
   await messagesList.waitFor({ state: "visible", timeout: 10000 });
 });
 
-Then("veo el mensaje {string} en la caja de texto", async (texto: string) => {
-  const input = page.getByRole("textbox", { name: /escribe un mensaje/i });
+Then("veo el mensaje {string} en la caja de texto", async function (this: CustomWorld, texto: string) {
+  const input = this.page.getByRole("textbox", { name: /escribe un mensaje/i });
   await input.waitFor({ state: "visible", timeout: 10000 });
-  await page.waitForTimeout(300);
+  await this.page.waitForTimeout(300);
   const value = await input.inputValue();
   assert.strictEqual(value, texto, `Se esperaba que la caja contenga "${texto}" pero contiene "${value}"`);
 });
 
-Then("la imagen {string} continúa adjunta al mensaje", async (imagen: string) => {
-  const thumbnail = page.locator(`img[alt*="${imagen}"]`).first();
+Then("la imagen {string} continúa adjunta al mensaje", async function (this: CustomWorld, imagen: string) {
+  const thumbnail = this.page.locator(`img[alt*="${imagen}"]`).first();
   await thumbnail.waitFor({ state: "attached", timeout: 10000 });
 });
 
-When("envío el mensaje de borrador {string}", async (texto: string) => {
-  const input = page.getByRole("textbox", { name: /escribe un mensaje/i });
+When("envío el mensaje de borrador {string}", async function (this: CustomWorld, texto: string) {
+  const input = this.page.getByRole("textbox", { name: /escribe un mensaje/i });
   await input.waitFor({ state: "visible", timeout: 10000 });
 
-  await addApiStub({
+  await this.addApiStub({
     method: "POST",
     endpoint: "/conversations/1/messages",
     status: 201,
@@ -439,38 +461,40 @@ When("envío el mensaje de borrador {string}", async (texto: string) => {
   });
 
   await input.fill(texto);
-  const sendButton = page.getByRole("button", { name: /enviar/i });
+  const sendButton = this.page.getByRole("button", { name: /enviar/i });
   await sendButton.click();
-  await page.waitForTimeout(500);
+  await this.page.waitForTimeout(500);
 });
 
-Then("la caja de texto queda vacía", async () => {
-  const input = page.getByRole("textbox", { name: /escribe un mensaje/i });
+Then("la caja de texto queda vacía", async function (this: CustomWorld) {
+  const input = this.page.getByRole("textbox", { name: /escribe un mensaje/i });
   await input.waitFor({ state: "visible", timeout: 10000 });
-  await page.waitForTimeout(300);
+  await this.page.waitForTimeout(300);
   const value = await input.inputValue();
   assert.strictEqual(value, "", `Se esperaba que la caja esté vacía pero contiene "${value}"`);
 });
 
-Then("si navego a la página de inicio y vuelvo, la caja de texto sigue vacía", async () => {
-  await page.goto(APP_URL + ROUTES.consumer.home, { waitUntil: "networkidle" });
+Then("si navego a la página de inicio y vuelvo, la caja de texto sigue vacía", async function (this: CustomWorld) {
+  await this.page.goto(APP_URL + ROUTES.consumer.home, { waitUntil: "networkidle" });
 
   const firstContact = consumerContacts[0];
-  await page.goto(
-    APP_URL + ROUTES.consumer.messages + `?provider_id=${firstContact.providerId}&name=${firstContact.providerName}&surname=${firstContact.providerSurname}`,
+  await this.page.goto(
+    APP_URL +
+      ROUTES.consumer.messages +
+      `?provider_id=${firstContact.providerId}&name=${firstContact.providerName}&surname=${firstContact.providerSurname}`,
     { waitUntil: "networkidle" }
   );
 
-  const input = page.getByRole("textbox", { name: /escribe un mensaje/i });
+  const input = this.page.getByRole("textbox", { name: /escribe un mensaje/i });
   await input.waitFor({ state: "visible", timeout: 10000 });
-  await page.waitForTimeout(300);
+  await this.page.waitForTimeout(300);
   const value = await input.inputValue();
   assert.strictEqual(value, "", `Se esperaba que la caja esté vacía tras navegar pero contiene "${value}"`);
 });
 
-When("cambio a otra conversación y vuelvo a abrir la conversación original", async () => {
-  const messagesList = page.locator("[data-testid='messages-list']");
-  const url = page.url();
+When("cambio a otra conversación y vuelvo a abrir la conversación original", async function (this: CustomWorld) {
+  const messagesList = this.page.locator("[data-testid='messages-list']");
+  const url = this.page.url();
   const isConsumer = url.includes(ROUTES.consumer.messages);
   const contacts = isConsumer ? consumerContacts : providerContacts;
   const secondContact = contacts[1];
@@ -478,31 +502,31 @@ When("cambio a otra conversación y vuelvo a abrir la conversación original", a
   const otherFullName = `${secondContact.providerName ?? secondContact.consumerName} ${secondContact.providerSurname ?? secondContact.consumerSurname}`;
   const firstFullName = `${firstContact.providerName ?? firstContact.consumerName} ${firstContact.providerSurname ?? firstContact.consumerSurname}`;
 
-  const list = page.getByRole("list", { name: "Lista de conversaciones" });
+  const list = this.page.getByRole("list", { name: "Lista de conversaciones" });
   await list.waitFor({ state: "visible", timeout: 10000 });
 
   const otherContact = list.getByRole("listitem").filter({ hasText: otherFullName }).first();
   await otherContact.click();
-  await page.waitForTimeout(500);
+  await this.page.waitForTimeout(500);
 
   await messagesList.waitFor({ state: "visible", timeout: 10000 });
 
-  await page.waitForTimeout(300);
+  await this.page.waitForTimeout(300);
 
   const firstContactItem = list.getByRole("listitem").filter({ hasText: firstFullName }).first();
   await firstContactItem.click();
-  await page.waitForTimeout(500);
+  await this.page.waitForTimeout(500);
 
   await messagesList.waitFor({ state: "visible", timeout: 10000 });
 });
 
-Then("la conversación se muestra en la misma posición de scroll que dejé", async () => {
-  const messagesList = page.locator("[data-testid='messages-list']");
+Then("la conversación se muestra en la misma posición de scroll que dejé", async function (this: CustomWorld) {
+  const messagesList = this.page.locator("[data-testid='messages-list']");
   await messagesList.waitFor({ state: "visible", timeout: 10000 });
 
-  await page.waitForTimeout(500);
+  await this.page.waitForTimeout(500);
 
-  const currentScrollTop = await messagesList.evaluate(el => el.scrollTop);
+  const currentScrollTop = await messagesList.evaluate((el) => el.scrollTop);
 
   assert.ok(
     Math.abs(currentScrollTop - savedScrollTop) < 5,

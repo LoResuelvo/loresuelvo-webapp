@@ -1,14 +1,13 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
-import { page } from "./landing_page_visualization_steps";
+import { CustomWorld } from "../support/world";
 import { ROUTES } from "../../lib/routes";
 import { AuthSession } from "../../infrastructure/auth/types";
 import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
-import { addApiStub } from "./stubs-helper";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
-async function setProviderSession() {
+async function setProviderSession(world: CustomWorld) {
   const session: AuthSession = {
     user: {
       id: "provider-001",
@@ -21,12 +20,14 @@ async function setProviderSession() {
     accessToken: "mock-access-token",
   };
 
-  await page.context().addCookies([{
-    name: MOCK_SESSION_COOKIE,
-    value: encodeURIComponent(JSON.stringify(session)),
-    domain: "localhost",
-    path: "/",
-  }]);
+  await world.page.context().addCookies([
+    {
+      name: MOCK_SESSION_COOKIE,
+      value: encodeURIComponent(JSON.stringify(session)),
+      domain: "localhost",
+      path: "/",
+    },
+  ]);
 }
 
 const mockConversations = [
@@ -68,103 +69,103 @@ const mockConversations = [
   },
 ];
 
-Given("que estoy en el dashboard de prestador", async () => {
-  await setProviderSession();
-  await page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "networkidle" });
+Given("que estoy en el dashboard de prestador", async function (this: CustomWorld) {
+  await setProviderSession(this);
+  await this.page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "networkidle" });
 });
 
-When("navego a la sección de mensajes del dashboard", async () => {
-  await addApiStub({
+When("navego a la sección de mensajes del dashboard", async function (this: CustomWorld) {
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations",
     status: 200,
     body: mockConversations,
   });
-  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+  await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
 
-When("accedo a la sección de mensajes", async () => {
-  await addApiStub({
+When("accedo a la sección de mensajes", async function (this: CustomWorld) {
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations",
     status: 200,
     body: mockConversations,
   });
-  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+  await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
 
-When("visualizo la lista de mensajes", async () => {
-  await addApiStub({
+When("visualizo la lista de mensajes", async function (this: CustomWorld) {
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations",
     status: 200,
     body: mockConversations,
   });
-  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+  await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
 
-Given("visualizo la lista de conversaciones", async () => {
+Given("visualizo la lista de conversaciones", async function (this: CustomWorld) {
   // Already navigated in Given step
 });
 
-Given("que visualizo la lista de conversaciones", async () => {
-  await setProviderSession();
+Given("que visualizo la lista de conversaciones", async function (this: CustomWorld) {
+  await setProviderSession(this);
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations",
     status: 200,
     body: mockConversations,
   });
 
-  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
-  const section = page.getByRole("region", { name: "Mensajes" });
+  await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+  const section = this.page.getByRole("region", { name: "Mensajes" });
   await section.waitFor({ state: "visible" });
 });
 
-Then("visualizo una lista de conversaciones", async () => {
-  const section = page.getByRole("region", { name: "Mensajes" });
+Then("visualizo una lista de conversaciones", async function (this: CustomWorld) {
+  const section = this.page.getByRole("region", { name: "Mensajes" });
   await section.waitFor({ state: "visible" });
   const list = section.getByRole("list", { name: "Lista de conversaciones" });
   await list.waitFor({ state: "visible" });
   assert.ok(await list.isVisible(), "No se visualiza la lista de conversaciones");
 });
 
-Given("que tengo conversaciones asociadas a mi cuenta de prestador", async () => {
-  await setProviderSession();
+Given("que tengo conversaciones asociadas a mi cuenta de prestador", async function (this: CustomWorld) {
+  await setProviderSession(this);
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations",
     status: 200,
     body: mockConversations,
   });
 
-  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+  await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
 
-Then("veo todas las conversaciones asociadas a mi cuenta", async () => {
-  const list = page.getByRole("list", { name: "Lista de conversaciones" });
+Then("veo todas las conversaciones asociadas a mi cuenta", async function (this: CustomWorld) {
+  const list = this.page.getByRole("list", { name: "Lista de conversaciones" });
   await list.waitFor({ state: "visible" });
   const itemsCount = await list.getByRole("listitem").count();
   assert.ok(itemsCount > 0, "No se visualiza ninguna conversación");
 });
 
-Given("que tengo conversaciones pendientes y aceptadas", async () => {
-  await setProviderSession();
+Given("que tengo conversaciones pendientes y aceptadas", async function (this: CustomWorld) {
+  await setProviderSession(this);
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations",
     status: 200,
     body: mockConversations,
   });
 
-  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+  await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
 
-Then("cada conversación muestra el nombre del consumidor", async () => {
-  const list = page.getByRole("list", { name: "Lista de conversaciones" });
+Then("cada conversación muestra el nombre del consumidor", async function (this: CustomWorld) {
+  const list = this.page.getByRole("list", { name: "Lista de conversaciones" });
   const items = list.getByRole("listitem");
   const count = await items.count();
   assert.ok(count > 0, "No se visualiza ninguna conversación");
@@ -176,51 +177,51 @@ Then("cada conversación muestra el nombre del consumidor", async () => {
   }
 });
 
-Given("que tengo conversaciones con mensajes", async () => {
-  await setProviderSession();
+Given("que tengo conversaciones con mensajes", async function (this: CustomWorld) {
+  await setProviderSession(this);
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations",
     status: 200,
     body: mockConversations,
   });
 
-  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+  await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
 
-Given("que tengo conversaciones pendientes de aceptación", async () => {
-  await setProviderSession();
+Given("que tengo conversaciones pendientes de aceptación", async function (this: CustomWorld) {
+  await setProviderSession(this);
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations",
     status: 200,
     body: mockConversations,
   });
 
-  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+  await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
 
-Given("me encuentro visualizando la lista de conversaciones", async () => {
+Given("me encuentro visualizando la lista de conversaciones", async function (this: CustomWorld) {
   // Already navigated in Given step
 });
 
-Given("me encuentro visualizando el detalle de una solicitud pendiente", async () => {
-  await setProviderSession();
+Given("me encuentro visualizando el detalle de una solicitud pendiente", async function (this: CustomWorld) {
+  await setProviderSession(this);
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations",
     status: 200,
     body: mockConversations,
   });
 
-  await page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
+  await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
 
-Then("cada conversación muestra el último mensaje intercambiado", async () => {
-  const list = page.getByRole("list", { name: "Lista de conversaciones" });
+Then("cada conversación muestra el último mensaje intercambiado", async function (this: CustomWorld) {
+  const list = this.page.getByRole("list", { name: "Lista de conversaciones" });
   const items = list.getByRole("listitem");
   const count = await items.count();
   assert.ok(count > 0, "No se visualiza ninguna conversación");
@@ -232,8 +233,8 @@ Then("cada conversación muestra el último mensaje intercambiado", async () => 
   }
 });
 
-Then("cada conversación muestra la fecha u hora del último mensaje", async () => {
-  const list = page.getByRole("list", { name: "Lista de conversaciones" });
+Then("cada conversación muestra la fecha u hora del último mensaje", async function (this: CustomWorld) {
+  const list = this.page.getByRole("list", { name: "Lista de conversaciones" });
   const items = list.getByRole("listitem");
   const count = await items.count();
   assert.ok(count > 0, "No se visualiza ninguna conversación");
@@ -245,31 +246,31 @@ Then("cada conversación muestra la fecha u hora del último mensaje", async () 
   }
 });
 
-Then("las conversaciones pendientes se identifican visualmente de manera distintiva", async () => {
-  const pendingItems = page.locator("[data-status='pending']");
+Then("las conversaciones pendientes se identifican visualmente de manera distintiva", async function (this: CustomWorld) {
+  const pendingItems = this.page.locator("[data-status='pending']");
   const count = await pendingItems.count();
   assert.ok(count > 0, "No se visualizan conversaciones pendientes");
 });
 
-When("hago clic en una conversación", async () => {
-  const firstConversation = page.getByRole("list", { name: "Lista de conversaciones" }).getByRole("listitem").first();
+When("hago clic en una conversación", async function (this: CustomWorld) {
+  const firstConversation = this.page.getByRole("list", { name: "Lista de conversaciones" }).getByRole("listitem").first();
   await firstConversation.click();
-  await page.waitForLoadState("networkidle");
+  await this.page.waitForLoadState("networkidle");
 });
 
-Then("se muestra el contenido completo de la conversación", async () => {
-  const messagesSection = page.getByRole("region", { name: "Detalle de conversación" });
+Then("se muestra el contenido completo de la conversación", async function (this: CustomWorld) {
+  const messagesSection = this.page.getByRole("region", { name: "Detalle de conversación" });
   await messagesSection.waitFor({ state: "visible" });
   assert.ok(await messagesSection.isVisible(), "No se muestra el contenido de la conversación");
 });
 
-Then("se abre el chat con el consumidor para iniciar la comunicación", async () => {
-  await page.waitForURL((url) => url.searchParams.has("consumer_id") || url.toString().includes("consumer_id"), { timeout: 10_000 });
-  const currentUrl = page.url();
+Then("se abre el chat con el consumidor para iniciar la comunicación", async function (this: CustomWorld) {
+  await this.page.waitForURL((url) => url.searchParams.has("consumer_id") || url.toString().includes("consumer_id"), { timeout: 10_000 });
+  const currentUrl = this.page.url();
   assert.ok(currentUrl.includes("consumer_id"), `Expected URL to contain consumer_id but got: ${currentUrl}`);
   
-  await page.waitForLoadState("networkidle");
+  await this.page.waitForLoadState("networkidle");
   
-  const chatPanel = page.locator("[data-testid='chat-panel']");
+  const chatPanel = this.page.locator("[data-testid='chat-panel']");
   await chatPanel.waitFor({ state: "attached", timeout: 15000 });
 });

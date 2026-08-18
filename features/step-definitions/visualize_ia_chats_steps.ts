@@ -1,17 +1,16 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
-import { page } from "./landing_page_visualization_steps";
+import { CustomWorld } from "../support/world";
 import { setConsumerSession } from "./initiate_chat_with_provider_steps";
 import { ROUTES } from "../../lib/routes";
-import { addApiStub, hasApiStub } from "./stubs-helper";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
-When("visualizo el sidebar", async () => {
-  await setConsumerSession();
+When("visualizo el sidebar", async function (this: CustomWorld) {
+  await setConsumerSession(this);
 
-  if (!await hasApiStub("GET", "/categories")) {
-    await addApiStub({
+  if (!(await this.hasApiStub("GET", "/categories"))) {
+    await this.addApiStub({
       method: "GET",
       endpoint: "/categories",
       status: 200,
@@ -22,27 +21,27 @@ When("visualizo el sidebar", async () => {
     });
   }
 
-  await page.goto(`${APP_URL}${ROUTES.consumer.home}`, { waitUntil: "networkidle", timeout: 15000 });
+  await this.page.goto(`${APP_URL}${ROUTES.consumer.home}`, { waitUntil: "networkidle", timeout: 15000 });
 
-  const sidebar = page.getByRole("navigation", {
+  const sidebar = this.page.getByRole("navigation", {
     name: "Navegación del consumidor",
   });
   await sidebar.waitFor({ state: "visible", timeout: 15000 });
   assert.ok(await sidebar.isVisible(), "No se visualiza el sidebar");
 });
 
-Then("veo el apartado Chat con IA", async () => {
-  const option = page
+Then("veo el apartado Chat con IA", async function (this: CustomWorld) {
+  const option = this.page
     .getByRole("navigation", { name: "Navegación del consumidor" })
     .getByRole("link", { name: "Chat con IA" });
   await option.waitFor({ state: "visible" });
   assert.ok(await option.isVisible(), `No se visualiza la opción "Chat con IA"`);
 });
 
-Given("ingreso a la sección Chat con IA", async()=> {
-  await setConsumerSession();
+Given("ingreso a la sección Chat con IA", async function (this: CustomWorld) {
+  await setConsumerSession(this);
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/chatbot/conversations",
     status: 200,
@@ -74,7 +73,7 @@ Given("ingreso a la sección Chat con IA", async()=> {
     ],
   });
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations/1",
     status: 200,
@@ -108,48 +107,48 @@ Given("ingreso a la sección Chat con IA", async()=> {
     },
   });
 
-  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}`);
-  await page.waitForLoadState("domcontentloaded");
+  await this.page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}`);
+  await this.page.waitForLoadState("domcontentloaded");
 });
 
-Then("veo mis conversaciones anteriores con la IA", async () => {
-  const conversation = page.getByText("Pérdida de agua en la cocina");
+Then("veo mis conversaciones anteriores con la IA", async function (this: CustomWorld) {
+  const conversation = this.page.getByText("Pérdida de agua en la cocina");
   await conversation.waitFor({ state: "visible", timeout: 5000 });
   assert.ok(await conversation.isVisible(), "No se ve la conversación");
 });
 
-Then("cada conversación muestra un título", async () => {
-  const title = page.getByText("Pérdida de agua en la cocina");
+Then("cada conversación muestra un título", async function (this: CustomWorld) {
+  const title = this.page.getByText("Pérdida de agua en la cocina");
   await title.waitFor({ state: "visible", timeout: 5000 });
   assert.ok(await title.isVisible(), "No se ve el título de la conversación");
 });
 
-Then("cada conversación muestra una preview del último mensaje intercambiado", async () => {
-  const preview = page.getByText("Revisá si el agua sale desde la rosca del sifón.");
+Then("cada conversación muestra una preview del último mensaje intercambiado", async function (this: CustomWorld) {
+  const preview = this.page.getByText("Revisá si el agua sale desde la rosca del sifón.");
   await preview.waitFor({ state: "visible", timeout: 5000 });
   assert.ok(await preview.isVisible(), "No se ve la preview del mensaje");
 });
 
-When("selecciono una conversación existente", async () => {
-  await page.getByText("Pérdida de agua en la cocina").click();
-  await page.waitForLoadState("domcontentloaded");
+When("selecciono una conversación existente", async function (this: CustomWorld) {
+  await this.page.getByText("Pérdida de agua en la cocina").click();
+  await this.page.waitForLoadState("domcontentloaded");
 });
 
-Then("veo el historial completo de mensajes de esa conversación", async () => {
-  const userMessage = page.getByTestId("message-bubble-1");
+Then("veo el historial completo de mensajes de esa conversación", async function (this: CustomWorld) {
+  const userMessage = this.page.getByTestId("message-bubble-1");
   await userMessage.waitFor({ state: "visible", timeout: 5000 });
   assert.ok(await userMessage.isVisible(), "No se ve el mensaje del usuario");
 
-  const assistantMessage = page.getByTestId("message-bubble-2");
+  const assistantMessage = this.page.getByTestId("message-bubble-2");
   await assistantMessage.waitFor({ state: "visible", timeout: 5000 });
   assert.ok(await assistantMessage.isVisible(), "No se ve la respuesta del asistente");
 });
 
-When("selecciono nuevo chat", async () => {
-  const button = page.getByRole("button", { name: "Nuevo chat", exact: true });
+When("selecciono nuevo chat", async function (this: CustomWorld) {
+  const button = this.page.getByRole("button", { name: "Nuevo chat", exact: true });
   await button.waitFor({ state: "visible", timeout: 5000 });
-  
-  await addApiStub({
+
+  await this.addApiStub({
     method: "POST",
     endpoint: "/chatbot/conversations",
     status: 201,
@@ -171,7 +170,7 @@ When("selecciono nuevo chat", async () => {
           sender_role: "chatbot",
           content: "Por favor, describime el problema con más detalle.",
           created_on: "2026-06-18T10:10:05Z",
-        }
+        },
       ],
       response: {
         id: 6,
@@ -186,29 +185,29 @@ When("selecciono nuevo chat", async () => {
   await button.click();
 });
 
-Then("se crea una nueva conversación", async () => {
-  const emptyTitle = page.getByRole("heading", { name: "Chat con IA", exact: true });
+Then("se crea una nueva conversación", async function (this: CustomWorld) {
+  const emptyTitle = this.page.getByRole("heading", { name: "Chat con IA", exact: true });
   await emptyTitle.waitFor({ state: "visible", timeout: 5000 });
   assert.ok(await emptyTitle.isVisible(), "No se muestra la pantalla de nueva conversación");
 });
 
-Then("puedo comenzar a enviar mensajes", async () => {
-  const input = page.getByPlaceholder("Escribe un mensaje...");
+Then("puedo comenzar a enviar mensajes", async function (this: CustomWorld) {
+  const input = this.page.getByPlaceholder("Escribe un mensaje...");
   await input.waitFor({ state: "visible", timeout: 5000 });
   assert.ok(await input.isVisible(), "No se muestra el input para enviar mensajes");
-  
+
   await input.fill("Tengo un problema nuevo");
-  const sendButton = page.getByRole("button", { name: "Enviar mensaje" });
+  const sendButton = this.page.getByRole("button", { name: "Enviar mensaje" });
   await sendButton.click();
-  
-  const newResponse = page.getByText("Por favor, describime el problema con más detalle.");
+
+  const newResponse = this.page.getByText("Por favor, describime el problema con más detalle.");
   await newResponse.waitFor({ state: "visible", timeout: 5000 });
 });
 
-Given("existe una conversación con la IA", async () => {
-  await setConsumerSession();
-  
-  await addApiStub({
+Given("existe una conversación con la IA", async function (this: CustomWorld) {
+  await setConsumerSession(this);
+
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations/1",
     status: 200,
@@ -242,12 +241,12 @@ Given("existe una conversación con la IA", async () => {
     },
   });
 
-  await page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);
-  await page.waitForLoadState("domcontentloaded");
+  await this.page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);
+  await this.page.waitForLoadState("domcontentloaded");
 });
 
-When("recibo una nueva respuesta del asistente", async () => {
-  await addApiStub({
+When("recibo una nueva respuesta del asistente", async function (this: CustomWorld) {
+  await this.addApiStub({
     method: "POST",
     endpoint: "/chatbot/conversations/1/messages",
     status: 201,
@@ -281,7 +280,7 @@ When("recibo una nueva respuesta del asistente", async () => {
           sender_role: "chatbot",
           content: "Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?",
           created_on: "2026-06-18T10:05:05Z",
-        }
+        },
       ],
       response: {
         id: 4,
@@ -293,7 +292,7 @@ When("recibo una nueva respuesta del asistente", async () => {
     },
   });
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/chatbot/conversations",
     status: 200,
@@ -325,7 +324,7 @@ When("recibo una nueva respuesta del asistente", async () => {
     ],
   });
 
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: "/conversations/1",
     status: 200,
@@ -359,7 +358,7 @@ When("recibo una nueva respuesta del asistente", async () => {
           sender_role: "chatbot",
           content: "Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?",
           created_on: "2026-06-18T10:05:05Z",
-        }
+        },
       ],
       response: {
         id: 4,
@@ -371,26 +370,26 @@ When("recibo una nueva respuesta del asistente", async () => {
     },
   });
 
-  const input = page.getByPlaceholder("Escribe un mensaje...");
+  const input = this.page.getByPlaceholder("Escribe un mensaje...");
   await input.fill("Ya revisé y no es eso.");
-  
-  const sendButton = page.getByRole("button", { name: "Enviar mensaje" });
+
+  const sendButton = this.page.getByRole("button", { name: "Enviar mensaje" });
   await sendButton.click();
-  
-  const chatArea = page.getByRole("region", { name: "Chat con el asistente de diagnóstico" });
+
+  const chatArea = this.page.getByRole("region", { name: "Chat con el asistente de diagnóstico" });
   const newResponse = chatArea.getByText("Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?");
   await newResponse.waitFor({ state: "visible", timeout: 5000 });
 });
 
-Then("la preview de la conversación se actualiza", async () => {
-  const sidebar = page.getByRole("list", { name: "Conversaciones con IA" });
+Then("la preview de la conversación se actualiza", async function (this: CustomWorld) {
+  const sidebar = this.page.getByRole("list", { name: "Conversaciones con IA" });
   const updatedPreview = sidebar.getByText("Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?");
   await updatedPreview.waitFor({ state: "visible", timeout: 5000 });
   assert.ok(await updatedPreview.isVisible(), "La preview no se actualizó");
 });
 
-Then("muestra el último mensaje recibido", async () => {
-  const chatArea = page.getByRole("region", { name: "Chat con el asistente de diagnóstico" });
+Then("muestra el último mensaje recibido", async function (this: CustomWorld) {
+  const chatArea = this.page.getByRole("region", { name: "Chat con el asistente de diagnóstico" });
   const lastMessage = chatArea.getByText("Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?");
   assert.ok(await lastMessage.isVisible(), "El último mensaje no se muestra en el chat");
 });

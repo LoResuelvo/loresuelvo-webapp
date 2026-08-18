@@ -1,7 +1,10 @@
 {
   "default": {
     "paths": [],
-    "require": ["features/step-definitions/**/*.ts"],
+    "require": [
+      "features/support/**/*.ts",
+      "features/step-definitions/**/*.ts"
+    ],
     "requireModule": ["ts-node/register", "tsconfig-paths/register"],
     "format": [
       "progress-bar",
@@ -13,7 +16,10 @@
   },
   "wip": {
     "paths": [],
-    "require": ["features/step-definitions/**/*.ts"],
+    "require": [
+      "features/support/**/*.ts",
+      "features/step-definitions/**/*.ts"
+    ],
     "requireModule": ["ts-node/register", "tsconfig-paths/register"],
     "format": ["progress"],
     "publishQuiet": true,

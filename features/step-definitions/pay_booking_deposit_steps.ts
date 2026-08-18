@@ -4,8 +4,7 @@ import type { PaymentIntentStatus } from "../../domain/payment/types";
 import type { AuthSession } from "../../infrastructure/auth/types";
 import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
 import { ROUTES } from "../../lib/routes";
-import { page } from "./landing_page_visualization_steps";
-import { addApiStub } from "./stubs-helper";
+import { CustomWorld } from "../support/world";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 const PROPOSAL_ID = 42;
@@ -59,7 +58,7 @@ function proposalFixture(status: "pending" | "accepted" = "pending") {
   };
 }
 
-async function setConsumerSession(): Promise<void> {
+async function setConsumerSession(world: CustomWorld): Promise<void> {
   const session: AuthSession = {
     user: {
       id: "consumer-e2e",
@@ -72,34 +71,38 @@ async function setConsumerSession(): Promise<void> {
     accessToken: "mock-access-token",
   };
 
-  await page.context().addCookies([{
-    name: MOCK_SESSION_COOKIE,
-    value: encodeURIComponent(JSON.stringify(session)),
-    domain: "localhost",
-    path: "/",
-  }]);
+  await world.page.context().addCookies([
+    {
+      name: MOCK_SESSION_COOKIE,
+      value: encodeURIComponent(JSON.stringify(session)),
+      domain: "localhost",
+      path: "/",
+    },
+  ]);
 }
 
-async function stubPendingProposal(): Promise<void> {
-  await addApiStub({
+async function stubPendingProposal(world: CustomWorld): Promise<void> {
+  await world.addApiStub({
     method: "GET",
     endpoint: "/conversations",
     status: 200,
-    body: [{
-      id: 1,
-      status: "accepted",
-      counterpart: {
-        id: PROVIDER_ID,
-        role: "provider",
-        name: "Juan",
-        surname: "Pérez",
-        category_name: "Plomería",
+    body: [
+      {
+        id: 1,
+        status: "accepted",
+        counterpart: {
+          id: PROVIDER_ID,
+          role: "provider",
+          name: "Juan",
+          surname: "Pérez",
+          category_name: "Plomería",
+        },
+        last_message: null,
+        updated_on: "2026-08-11T12:00:00Z",
       },
-      last_message: null,
-      updated_on: "2026-08-11T12:00:00Z",
-    }],
+    ],
   });
-  await addApiStub({
+  await world.addApiStub({
     method: "GET",
     endpoint: "/conversations/1",
     status: 200,
@@ -119,8 +122,8 @@ async function stubPendingProposal(): Promise<void> {
       updated_on: "2026-08-11T12:00:00Z",
     },
   });
-  await addApiStub({ method: "GET", endpoint: "/job-requests", status: 200, body: [] });
-  await addApiStub({
+  await world.addApiStub({ method: "GET", endpoint: "/job-requests", status: 200, body: [] });
+  await world.addApiStub({
     method: "GET",
     endpoint: "/service-proposals",
     status: 200,
@@ -128,16 +131,16 @@ async function stubPendingProposal(): Promise<void> {
   });
 }
 
-async function openProposalDetail(): Promise<void> {
-  await page.goto(`${APP_URL}${ROUTES.consumer.messages}?provider_id=${PROVIDER_ID}`);
-  const panel = page.getByTestId("service-proposal-panel");
+async function openProposalDetail(world: CustomWorld): Promise<void> {
+  await world.page.goto(`${APP_URL}${ROUTES.consumer.messages}?provider_id=${PROVIDER_ID}`);
+  const panel = world.page.getByTestId("service-proposal-panel");
   await panel.waitFor({ state: "visible", timeout: 15_000 });
   await panel.click();
-  await page.getByRole("dialog", { name: "Propuesta de Servicio" }).waitFor({ state: "visible" });
+  await world.page.getByRole("dialog", { name: "Propuesta de Servicio" }).waitFor({ state: "visible" });
 }
 
-async function stubCheckout(status: number): Promise<void> {
-  await addApiStub({
+async function stubCheckout(world: CustomWorld, status: number): Promise<void> {
+  await world.addApiStub({
     method: "POST",
     endpoint: `/service-proposals/${PROPOSAL_ID}/checkout-sessions`,
     status,
@@ -149,25 +152,31 @@ async function stubCheckout(status: number): Promise<void> {
       pricing,
     },
   });
-  await page.route(CHECKOUT_URL, async (route) => {
+  await world.page.route(CHECKOUT_URL, async (route) => {
     await route.fulfill({ status: 200, contentType: "text/html", body: "<title>Checkout</title>" });
   });
 }
 
-async function storeActivePayment(): Promise<void> {
-  await page.goto(APP_URL);
-  await page.evaluate(({ paymentIntentId, serviceProposalId }) => {
-    sessionStorage.setItem("activePayment", JSON.stringify({
-      purpose: "booking_deposit",
-      paymentIntentId,
-      serviceProposalId,
-      expiresOn: "2026-08-11T20:30:00Z",
-    }));
-  }, { paymentIntentId: PAYMENT_INTENT_ID, serviceProposalId: PROPOSAL_ID });
+async function storeActivePayment(world: CustomWorld): Promise<void> {
+  await world.page.goto(APP_URL);
+  await world.page.evaluate(
+    ({ paymentIntentId, serviceProposalId }) => {
+      sessionStorage.setItem(
+        "activePayment",
+        JSON.stringify({
+          purpose: "booking_deposit",
+          paymentIntentId,
+          serviceProposalId,
+          expiresOn: "2026-08-11T20:30:00Z",
+        })
+      );
+    },
+    { paymentIntentId: PAYMENT_INTENT_ID, serviceProposalId: PROPOSAL_ID }
+  );
 }
 
-async function stubPaymentIntent(status: PaymentIntentStatus): Promise<void> {
-  await addApiStub({
+async function stubPaymentIntent(world: CustomWorld, status: PaymentIntentStatus): Promise<void> {
+  await world.addApiStub({
     method: "GET",
     endpoint: `/payment-intents/${PAYMENT_INTENT_ID}`,
     status: 200,
@@ -184,54 +193,54 @@ function normalizeText(value: string | null): string {
   return (value ?? "").replace(/\s+/g, "");
 }
 
-Given("que soy un consumidor autenticado con una propuesta de servicio pendiente", async () => {
+Given("que soy un consumidor autenticado con una propuesta de servicio pendiente", async function (this: CustomWorld) {
   returnPath = "";
   transition = null;
   observedCheckoutUrl = "";
   checkoutRequestCount = 0;
   pollingRequestCount = 0;
   requestCountAfterTimeout = 0;
-  await setConsumerSession();
-  await stubPendingProposal();
+  await setConsumerSession(this);
+  await stubPendingProposal(this);
 });
 
-When("consulto el detalle de la propuesta", async () => {
-  await openProposalDetail();
+When("consulto el detalle de la propuesta", async function (this: CustomWorld) {
+  await openProposalDetail(this);
 });
 
-Then("veo una reserva de {string}", async (amount: string) => {
-  const row = page.getByText("Reserva", { exact: true }).locator("..");
+Then("veo una reserva de {string}", async function (this: CustomWorld, amount: string) {
+  const row = this.page.getByText("Reserva", { exact: true }).locator("..");
   assert.ok(normalizeText(await row.textContent()).includes(normalizeText(amount)));
 });
 
-Then("veo una comisión de {string}", async (amount: string) => {
-  const row = page.getByText("Comisión de la plataforma", { exact: true }).locator("..");
+Then("veo una comisión de {string}", async function (this: CustomWorld, amount: string) {
+  const row = this.page.getByText("Comisión de la plataforma", { exact: true }).locator("..");
   assert.ok(normalizeText(await row.textContent()).includes(normalizeText(amount)));
 });
 
-Then("veo un total a pagar de {string}", async (amount: string) => {
-  const row = page.getByText("Total a pagar", { exact: true }).locator("..");
+Then("veo un total a pagar de {string}", async function (this: CustomWorld, amount: string) {
+  const row = this.page.getByText("Total a pagar", { exact: true }).locator("..");
   assert.ok(normalizeText(await row.textContent()).includes(normalizeText(amount)));
 });
 
-Then("veo la acción {string}", async (actionName: string) => {
-  assert.ok(await page.getByRole("button", { name: actionName }).isVisible());
+Then("veo la acción {string}", async function (this: CustomWorld, actionName: string) {
+  assert.ok(await this.page.getByRole("button", { name: actionName }).isVisible());
 });
 
-Given("que el checkout de la propuesta responde con estado HTTP {int}", async (status: number) => {
-  await stubCheckout(status);
+Given("que el checkout de la propuesta responde con estado HTTP {int}", async function (this: CustomWorld, status: number) {
+  await stubCheckout(this, status);
 });
 
-When("elijo pagar la reserva", async () => {
-  await openProposalDetail();
-  await page.getByRole("button", { name: "Pagar reserva" }).click();
-  await page.waitForURL(CHECKOUT_URL, { timeout: 10_000 });
-  observedCheckoutUrl = page.url();
-  await page.goto(APP_URL);
+When("elijo pagar la reserva", async function (this: CustomWorld) {
+  await openProposalDetail(this);
+  await this.page.getByRole("button", { name: "Pagar reserva" }).click();
+  await this.page.waitForURL(CHECKOUT_URL, { timeout: 10_000 });
+  observedCheckoutUrl = this.page.url();
+  await this.page.goto(APP_URL);
 });
 
-Then("se conserva el contexto del pago de reserva en esta sesión", async () => {
-  const activePayment = await page.evaluate(() => sessionStorage.getItem("activePayment"));
+Then("se conserva el contexto del pago de reserva en esta sesión", async function (this: CustomWorld) {
+  const activePayment = await this.page.evaluate(() => sessionStorage.getItem("activePayment"));
   assert.deepStrictEqual(JSON.parse(activePayment ?? "null"), {
     purpose: "booking_deposit",
     paymentIntentId: PAYMENT_INTENT_ID,
@@ -240,13 +249,13 @@ Then("se conserva el contexto del pago de reserva en esta sesión", async () => 
   });
 });
 
-Then("soy redirigido exactamente a la URL de checkout informada por el servicio", () => {
+Then("soy redirigido exactamente a la URL de checkout informada por el servicio", function (this: CustomWorld) {
   assert.strictEqual(observedCheckoutUrl, CHECKOUT_URL);
 });
 
-Given("que la creación del checkout está en curso", async () => {
-  await stubCheckout(201);
-  await page.route(`**/consumidor/mensajes?provider_id=${PROVIDER_ID}`, async (route) => {
+Given("que la creación del checkout está en curso", async function (this: CustomWorld) {
+  await stubCheckout(this, 201);
+  await this.page.route(`**/consumidor/mensajes?provider_id=${PROVIDER_ID}`, async (route) => {
     if (route.request().method() !== "POST") {
       await route.continue();
       return;
@@ -258,162 +267,168 @@ Given("que la creación del checkout está en curso", async () => {
   });
 });
 
-When("intento pagar la reserva dos veces", async () => {
-  await openProposalDetail();
+When("intento pagar la reserva dos veces", async function (this: CustomWorld) {
+  await openProposalDetail(this);
   checkoutRequestCount = 0;
-  const button = page.getByRole("button", { name: "Pagar reserva" });
+  const button = this.page.getByRole("button", { name: "Pagar reserva" });
   await button.evaluate((element: HTMLButtonElement) => {
     element.click();
     element.click();
   });
 });
 
-Then("la acción de pago permanece deshabilitada durante la solicitud", async () => {
-  await page.getByRole("button", { name: "Preparando pago…" }).waitFor({ state: "visible" });
-  assert.ok(await page.getByRole("button", { name: "Preparando pago…" }).isDisabled());
+Then("la acción de pago permanece deshabilitada durante la solicitud", async function (this: CustomWorld) {
+  await this.page.getByRole("button", { name: "Preparando pago…" }).waitFor({ state: "visible" });
+  assert.ok(await this.page.getByRole("button", { name: "Preparando pago…" }).isDisabled());
 });
 
-Then("se solicita un único checkout para la propuesta", async () => {
-  await page.waitForURL(CHECKOUT_URL, { timeout: 10_000 });
+Then("se solicita un único checkout para la propuesta", async function (this: CustomWorld) {
+  await this.page.waitForURL(CHECKOUT_URL, { timeout: 10_000 });
   assert.strictEqual(checkoutRequestCount, 1);
 });
 
-Given("que regreso por la ruta de pago exitoso con la referencia externa del pago", async () => {
+Given("que regreso por la ruta de pago exitoso con la referencia externa del pago", async function (this: CustomWorld) {
   returnPath = paymentReturnPath("success");
-  await storeActivePayment();
+  await storeActivePayment(this);
 });
 
-Given("el estado verificado cambia de {string} a {string}", async (from: PaymentIntentStatus, to: PaymentIntentStatus) => {
-  transition = { from, to };
-  await stubPaymentIntent(from);
-});
+Given(
+  "el estado verificado cambia de {string} a {string}",
+  async function (this: CustomWorld, from: PaymentIntentStatus, to: PaymentIntentStatus) {
+    transition = { from, to };
+    await stubPaymentIntent(this, from);
+  }
+);
 
-When("se consulta el resultado del pago", async () => {
+When("se consulta el resultado del pago", async function (this: CustomWorld) {
   assert.ok(returnPath, "No se configuró una ruta de retorno");
-  const response = await page.goto(`${APP_URL}${returnPath}`);
+  const response = await this.page.goto(`${APP_URL}${returnPath}`);
   assert.strictEqual(response?.status(), 200, "La ruta de retorno no respondió HTTP 200");
 
   if (transition) {
     const initialHeading = transition.from === "processing" ? "Pago en proceso" : "Esperando confirmación";
-    await page.getByRole("heading", { name: initialHeading }).waitFor({ state: "visible", timeout: 10_000 });
-    await stubPaymentIntent(transition.to);
-    await page.getByRole("heading", { name: "Pago de reserva confirmado" }).waitFor({ state: "visible", timeout: 10_000 });
+    await this.page.getByRole("heading", { name: initialHeading }).waitFor({ state: "visible", timeout: 10_000 });
+    await stubPaymentIntent(this, transition.to);
+    await this.page.getByRole("heading", { name: "Pago de reserva confirmado" }).waitFor({ state: "visible", timeout: 10_000 });
     return;
   }
 
-  await page.getByRole("heading").first().waitFor({ state: "visible" });
+  await this.page.getByRole("heading").first().waitFor({ state: "visible" });
 });
 
-Then("la propuesta y los listados relacionados reflejan la confirmación", async () => {
-  assert.strictEqual(await page.evaluate(() => sessionStorage.getItem("activePayment")), null);
-  await addApiStub({
+Then("la propuesta y los listados relacionados reflejan la confirmación", async function (this: CustomWorld) {
+  assert.strictEqual(await this.page.evaluate(() => sessionStorage.getItem("activePayment")), null);
+  await this.addApiStub({
     method: "GET",
     endpoint: "/service-proposals",
     status: 200,
     body: [proposalFixture("accepted")],
   });
-  await page.getByRole("link", { name: "Volver a mis propuestas" }).click();
-  await page.waitForURL(`${APP_URL}${ROUTES.consumer.services}`);
-  await page.getByRole("tab", { name: "Aceptadas" }).click();
-  await page.getByText("Aceptada", { exact: true }).waitFor({ state: "visible" });
+  await this.page.getByRole("link", { name: "Volver a mis propuestas" }).click();
+  await this.page.waitForURL(`${APP_URL}${ROUTES.consumer.services}`);
+  await this.page.getByRole("tab", { name: "Aceptadas" }).click();
+  await this.page.getByText("Aceptada", { exact: true }).waitFor({ state: "visible" });
 });
 
-Then("puedo volver a mis propuestas", async () => {
-  if (page.url() === `${APP_URL}${ROUTES.consumer.services}`) return;
-  assert.ok(await page.getByRole("link", { name: "Volver a mis propuestas" }).isVisible());
+Then("puedo volver a mis propuestas", async function (this: CustomWorld) {
+  if (this.page.url() === `${APP_URL}${ROUTES.consumer.services}`) return;
+  assert.ok(await this.page.getByRole("link", { name: "Volver a mis propuestas" }).isVisible());
 });
 
-Given("que regreso por la ruta de pago pendiente sin referencia externa", () => {
+Given("que regreso por la ruta de pago pendiente sin referencia externa", function (this: CustomWorld) {
   returnPath = paymentReturnPath("pending", "");
 });
 
-Given("existe un pago de reserva activo guardado en esta sesión", async () => {
-  await storeActivePayment();
+Given("existe un pago de reserva activo guardado en esta sesión", async function (this: CustomWorld) {
+  await storeActivePayment(this);
 });
 
-Given("que regreso desde Mercado Pago por la ruta de pago {word}", async (kind: string) => {
+Given("que regreso desde Mercado Pago por la ruta de pago {word}", async function (this: CustomWorld, kind: string) {
   returnPath = paymentReturnPath(kind);
-  await storeActivePayment();
+  await storeActivePayment(this);
 });
 
-Given("el backend informa que el pago está {string}", async (status: PaymentIntentStatus) => {
-  await stubPaymentIntent(status);
+Given("el backend informa que el pago está {string}", async function (this: CustomWorld, status: PaymentIntentStatus) {
+  await stubPaymentIntent(this, status);
 });
 
-Then("veo el resultado {string}", async (message: string) => {
-  const heading = page.getByRole("heading", { name: message });
+Then("veo el resultado {string}", async function (this: CustomWorld, message: string) {
+  const heading = this.page.getByRole("heading", { name: message });
   await heading.waitFor({ state: "visible", timeout: 10_000 });
   assert.ok(await heading.isVisible());
 });
 
-Then("puedo volver a la propuesta para iniciar un nuevo pago", async () => {
-  assert.ok(await page.getByRole("link", { name: "Volver a la propuesta" }).isVisible());
+Then("puedo volver a la propuesta para iniciar un nuevo pago", async function (this: CustomWorld) {
+  assert.ok(await this.page.getByRole("link", { name: "Volver a la propuesta" }).isVisible());
 });
 
-Given("que regreso por la ruta de pago exitoso con el parámetro {string}", (parameter: string) => {
+Given("que regreso por la ruta de pago exitoso con el parámetro {string}", function (this: CustomWorld, parameter: string) {
   returnPath = paymentReturnPath("success", `external_reference=${PAYMENT_INTENT_ID}&${parameter}`);
 });
 
-Then("veo que el pago continúa en proceso", async () => {
-  const heading = page.getByRole("heading", { name: "Pago en proceso" });
+Then("veo que el pago continúa en proceso", async function (this: CustomWorld) {
+  const heading = this.page.getByRole("heading", { name: "Pago en proceso" });
   await heading.waitFor({ state: "visible", timeout: 10_000 });
   assert.ok(await heading.isVisible());
 });
 
-Then("no veo el mensaje {string}", async (message: string) => {
-  assert.strictEqual(await page.getByText(message, { exact: true }).count(), 0);
+Then("no veo el mensaje {string}", async function (this: CustomWorld, message: string) {
+  assert.strictEqual(await this.page.getByText(message, { exact: true }).count(), 0);
 });
 
-Given("que el backend mantiene el pago en estado {string}", async (status: PaymentIntentStatus) => {
+Given("que el backend mantiene el pago en estado {string}", async function (this: CustomWorld, status: PaymentIntentStatus) {
   returnPath = paymentReturnPath("pending");
-  await stubPaymentIntent(status);
-  page.on("request", (request) => {
+  await stubPaymentIntent(this, status);
+  this.page.on("request", (request) => {
     if (request.method() === "POST" && request.url().includes("/payments/pending")) {
       pollingRequestCount += 1;
     }
   });
 });
 
-When("transcurren treinta segundos desde la primera consulta", { timeout: 40_000 }, async () => {
-  const response = await page.goto(`${APP_URL}${returnPath}`);
+When("transcurren treinta segundos desde la primera consulta", { timeout: 40_000 }, async function (this: CustomWorld) {
+  const response = await this.page.goto(`${APP_URL}${returnPath}`);
   assert.strictEqual(response?.status(), 200, "La ruta de retorno no respondió HTTP 200");
-  await page.getByRole("heading", { name: "Pago en proceso" }).waitFor({ state: "visible" });
-  await page.waitForTimeout(30_500);
+  await this.page.getByRole("heading", { name: "Pago en proceso" }).waitFor({ state: "visible" });
+  await this.page.waitForTimeout(30_500);
   requestCountAfterTimeout = pollingRequestCount;
 });
 
-Then("no se realizan más consultas automáticas", async () => {
-  await page.waitForTimeout(3_000);
+Then("no se realizan más consultas automáticas", async function (this: CustomWorld) {
+  await this.page.waitForTimeout(3_000);
   assert.strictEqual(pollingRequestCount, requestCountAfterTimeout);
 });
 
-Then("puedo consultar nuevamente el estado del pago", async () => {
-  assert.ok(await page.getByRole("button", { name: "Consultar nuevamente" }).isVisible());
+Then("puedo consultar nuevamente el estado del pago", async function (this: CustomWorld) {
+  assert.ok(await this.page.getByRole("button", { name: "Consultar nuevamente" }).isVisible());
 });
 
-Given("que regreso desde Mercado Pago sin referencia externa ni un pago activo guardado", async () => {
-  returnPath = paymentReturnPath("failure", "status=rejected&payment_id=123");
-  await page.goto(APP_URL);
-  await page.evaluate(() => sessionStorage.removeItem("activePayment"));
-});
+Given(
+  "que regreso desde Mercado Pago sin referencia externa ni un pago activo guardado",
+  async function (this: CustomWorld) {
+    returnPath = paymentReturnPath("failure", "status=rejected&payment_id=123");
+    await this.page.goto(APP_URL);
+    await this.page.evaluate(() => sessionStorage.removeItem("activePayment"));
+  }
+);
 
-When("se intenta consultar el resultado del pago", async () => {
-  const response = await page.goto(`${APP_URL}${returnPath}`);
+When("se intenta consultar el resultado del pago", async function (this: CustomWorld) {
+  const response = await this.page.goto(`${APP_URL}${returnPath}`);
   assert.strictEqual(response?.status(), 200, "La ruta de retorno no respondió HTTP 200");
-  await page.getByRole("heading", { name: "No pudimos identificar el pago" }).waitFor({ state: "visible" });
+  await this.page.getByRole("heading", { name: "No pudimos identificar el pago" }).waitFor({ state: "visible" });
 });
 
-Then("veo un mensaje neutral que no afirma que el pago fue rechazado", async () => {
-  assert.ok(await page.getByRole("heading", { name: "No pudimos identificar el pago" }).isVisible());
-  assert.strictEqual(await page.getByText(/fue rechazado/i).count(), 0);
+Then("veo un mensaje neutral que no afirma que el pago fue rechazado", async function (this: CustomWorld) {
+  assert.ok(await this.page.getByRole("heading", { name: "No pudimos identificar el pago" }).isVisible());
+  assert.strictEqual(await this.page.getByText(/fue rechazado/i).count(), 0);
 });
 
-Given("que regreso desde Mercado Pago con un pago identificable", () => {
+Given("que regreso desde Mercado Pago con un pago identificable", function (this: CustomWorld) {
   returnPath = paymentReturnPath("success");
 });
 
-Given("mi sesión vence antes de verificar el resultado", async () => {
-  await addApiStub({
+Given("mi sesión vence antes de verificar el resultado", async function (this: CustomWorld) {
+  await this.addApiStub({
     method: "GET",
     endpoint: `/payment-intents/${PAYMENT_INTENT_ID}`,
     status: 401,
@@ -421,20 +436,20 @@ Given("mi sesión vence antes de verificar el resultado", async () => {
   });
 });
 
-Then("se me solicita iniciar sesión nuevamente", async () => {
-  const heading = page.getByRole("heading", { name: "Necesitás iniciar sesión nuevamente" });
+Then("se me solicita iniciar sesión nuevamente", async function (this: CustomWorld) {
+  const heading = this.page.getByRole("heading", { name: "Necesitás iniciar sesión nuevamente" });
   await heading.waitFor({ state: "visible", timeout: 10_000 });
   assert.ok(await heading.isVisible());
-  assert.ok(await page.getByRole("link", { name: "Iniciar sesión" }).isVisible());
+  assert.ok(await this.page.getByRole("link", { name: "Iniciar sesión" }).isVisible());
 });
 
-Then("no veo un mensaje que afirme que el pago falló", async () => {
-  assert.strictEqual(await page.getByText(/el pago falló/i).count(), 0);
+Then("no veo un mensaje que afirme que el pago falló", async function (this: CustomWorld) {
+  assert.strictEqual(await this.page.getByText(/el pago falló/i).count(), 0);
 });
 
-Given("que el servicio de pagos responde con estado HTTP {int}", async (status: number) => {
+Given("que el servicio de pagos responde con estado HTTP {int}", async function (this: CustomWorld, status: number) {
   returnPath = paymentReturnPath("pending");
-  await addApiStub({
+  await this.addApiStub({
     method: "GET",
     endpoint: `/payment-intents/${PAYMENT_INTENT_ID}`,
     status,
@@ -442,18 +457,18 @@ Given("que el servicio de pagos responde con estado HTTP {int}", async (status: 
   });
 });
 
-When("intento continuar con el pago de reserva", async () => {
-  const response = await page.goto(`${APP_URL}${returnPath}`);
+When("intento continuar con el pago de reserva", async function (this: CustomWorld) {
+  const response = await this.page.goto(`${APP_URL}${returnPath}`);
   assert.strictEqual(response?.status(), 200, "La ruta de retorno no respondió HTTP 200");
-  await page.getByRole("heading").first().waitFor({ state: "visible" });
+  await this.page.getByRole("heading").first().waitFor({ state: "visible" });
 });
 
-Then("veo el mensaje de pago {string}", async (message: string) => {
-  const messageElement = page.getByText(message, { exact: true });
+Then("veo el mensaje de pago {string}", async function (this: CustomWorld, message: string) {
+  const messageElement = this.page.getByText(message, { exact: true });
   await messageElement.waitFor({ state: "visible", timeout: 10_000 });
   assert.ok(await messageElement.isVisible());
 });
 
-Then("puedo reintentar la operación", async () => {
-  assert.ok(await page.getByRole("button", { name: "Consultar nuevamente" }).isVisible());
+Then("puedo reintentar la operación", async function (this: CustomWorld) {
+  assert.ok(await this.page.getByRole("button", { name: "Consultar nuevamente" }).isVisible());
 });

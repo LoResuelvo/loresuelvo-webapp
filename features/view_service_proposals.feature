@@ -11,7 +11,6 @@ Feature: US-54 Visualizar propuestas de servicio
     And la tarjeta muestra la fecha "05/07/2026"
     And la tarjeta muestra la descripción de la propuesta
     And la tarjeta muestra un badge de estado "Pendiente" en color amarillo
-    And la tarjeta incluye un botón "Ver conversación"
 
   Scenario: 02-VPS Visualizar tarjeta de propuesta con datos del consumidor
     Given que estoy en la vista de propuestas como prestador con una propuesta pendiente para "Ana Pérez"
@@ -62,7 +61,8 @@ Feature: US-54 Visualizar propuestas de servicio
 
   Scenario: 10-VPS Navegar al chat desde la tarjeta de propuesta
     Given que estoy en la vista histórica de propuestas como consumidor con una propuesta
-    When hago clic en el botón "Ver conversación"
+    When hago clic en la tarjeta de la propuesta para ver el detalle
+    And hago clic en el botón "Ver conversación"
     Then se abre el chat asociado a esa propuesta
 
   Scenario: 11-VPS Redirigir a la página de inicio si la sesión no es válida

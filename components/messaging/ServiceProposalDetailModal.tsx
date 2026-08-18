@@ -5,7 +5,8 @@ import { formatAmountCents, formatScheduledOn, getStatusBadge } from "@/lib/prop
 import { Modal } from "@/components/ui/modal";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, DollarSign, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar, DollarSign, FileText, MessageCircle } from "lucide-react";
 import { t } from "@/infrastructure/i18n/translations";
 import { getInitials } from "@/lib/text-utils";
 import { BookingDepositPayment } from "@/components/payments/BookingDepositPayment";
@@ -13,9 +14,14 @@ import { BookingDepositPayment } from "@/components/payments/BookingDepositPayme
 interface ServiceProposalDetailModalProps {
   proposal: ServiceProposalSummary;
   onClose: () => void;
+  onViewConversation?: (conversationId: number) => void;
 }
 
-export default function ServiceProposalDetailModal({ proposal, onClose }: ServiceProposalDetailModalProps) {
+export default function ServiceProposalDetailModal({ 
+  proposal, 
+  onClose,
+  onViewConversation,
+}: ServiceProposalDetailModalProps) {
   const { counterpart } = proposal;
   const displayName = `${counterpart.name} ${counterpart.surname}`.trim() || "Usuario";
   const initials = getInitials(displayName);
@@ -30,22 +36,39 @@ export default function ServiceProposalDetailModal({ proposal, onClose }: Servic
     >
       <div className="p-6 space-y-5" data-testid="service-proposal-detail-modal">
         {/* Counterpart info */}
-        <div className="flex items-start gap-4 pb-5 border-b border-slate-100">
-          <Avatar
-            src={counterpart.profilePhotoUrl}
-            initials={initials}
-            alt={`${t.messaging.photoAlt} ${displayName}`}
-            size="lg"
-          />
-          <div className="flex-1 min-w-0 pt-1">
-            <p className="text-[18px] font-semibold text-slate-800">{displayName}</p>
-            {counterpart.categoryName && (
-              <p className="text-[14px] text-slate-500 mt-1">{counterpart.categoryName}</p>
+        <div className="flex items-start justify-between gap-4 pb-5 border-b border-slate-100">
+          <div className="flex items-center gap-4 min-w-0">
+            <Avatar
+              src={counterpart.profilePhotoUrl}
+              initials={initials}
+              alt={`${t.messaging.photoAlt} ${displayName}`}
+              size="lg"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-[18px] font-semibold text-slate-800 leading-tight">{displayName}</p>
+              {counterpart.categoryName && (
+                <p className="text-[14px] text-slate-500 mt-1">{counterpart.categoryName}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <Badge variant={statusBadge.variant}>
+              {statusBadge.label}
+            </Badge>
+
+            {onViewConversation && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs text-brand-primary h-8 px-2.5 font-medium cursor-pointer shadow-2xs hover:bg-slate-50 hover:text-brand-primary"
+                onClick={() => onViewConversation(proposal.conversationId)}
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                {t.serviceProposals.viewConversation}
+              </Button>
             )}
           </div>
-          <Badge variant={statusBadge.variant} className="shrink-0 mt-1">
-            {statusBadge.label}
-          </Badge>
         </div>
 
         {/* Detail fields */}

@@ -60,4 +60,31 @@ describe("ServiceProposalDetailModal payment action", () => {
 
     expect(screen.queryByRole("button", { name: "Pagar reserva" })).not.toBeInTheDocument();
   });
+
+  it("renders 'Ver conversación' button when onViewConversation prop is provided", () => {
+    const handleViewConversation = vi.fn();
+    render(
+      <ServiceProposalDetailModal
+        proposal={proposal}
+        onClose={vi.fn()}
+        onViewConversation={handleViewConversation}
+      />
+    );
+
+    const button = screen.getByRole("button", { name: /ver conversación/i });
+    expect(button).toBeInTheDocument();
+    button.click();
+    expect(handleViewConversation).toHaveBeenCalledWith(10);
+  });
+
+  it("does not render 'Ver conversación' button when onViewConversation is not provided", () => {
+    render(
+      <ServiceProposalDetailModal
+        proposal={proposal}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: /ver conversación/i })).not.toBeInTheDocument();
+  });
 });

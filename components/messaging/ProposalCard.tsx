@@ -3,34 +3,45 @@ import { ServiceProposalSummary } from "@/domain/messaging/types";
 import { formatAmountCents, formatScheduledOn, getStatusBadge } from "@/lib/proposal-utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { MessageCircle } from "lucide-react";
 import { getInitials } from "@/lib/text-utils";
 import { cn } from "@/lib/utils";
 
 interface ProposalCardProps {
   proposal: ServiceProposalSummary;
-  onViewConversation?: (conversationId: number) => void;
+  onClick?: () => void;
   isProvider: boolean;
   className?: string;
 }
 
-export function ProposalCard({ proposal, onViewConversation, isProvider, className }: ProposalCardProps) {
+export function ProposalCard({ proposal, onClick, isProvider, className }: ProposalCardProps) {
   const { counterpart } = proposal;
   const statusBadge = getStatusBadge(proposal.status);
   
-  // Si el que mira la tarjeta es el consumidor, el counterpart es el prestador, y viceversa
+  // If the one who looks at the card is the consumer, the counterpart is the provider, and vice versa
   const displayName = `${counterpart.name} ${counterpart.surname}`.trim() || "Usuario";
   const initials = getInitials(displayName);
   const displayCategory = !isProvider && counterpart.categoryName ? counterpart.categoryName : null;
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (onClick && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
   return (
     <div 
       className={cn(
-        "bg-card flex flex-col justify-between gap-4 rounded-xl border p-5 shadow-sm transition-shadow hover:shadow-md",
+        "bg-card flex flex-col justify-between gap-4 rounded-xl border p-5 shadow-sm transition-shadow",
+        onClick && "cursor-pointer hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
         className
       )}
       data-testid="proposal-card"
+      onClick={onClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={onClick ? 0 : undefined}
+      role={onClick ? "button" : undefined}
+      aria-label={onClick ? `Ver detalles de propuesta de ${displayName}` : undefined}
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4">
@@ -91,19 +102,6 @@ export function ProposalCard({ proposal, onViewConversation, isProvider, classNa
           </div>
         )}
       </div>
-
-      {onViewConversation && (
-        <div className="mt-1 flex w-full pt-1">
-          <Button 
-            variant="outline" 
-            className="w-full gap-2 font-medium cursor-pointer"
-            onClick={() => onViewConversation(proposal.conversationId)}
-          >
-            <MessageCircle className="h-4 w-4" />
-            Ver conversación
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

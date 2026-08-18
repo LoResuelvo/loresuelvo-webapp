@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 import { ProposalCard } from "@/components/messaging/ProposalCard";
+import ServiceProposalDetailModal from "@/components/messaging/ServiceProposalDetailModal";
 import { t } from "@/infrastructure/i18n/translations";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -16,6 +17,7 @@ type TabType = "pending" | "accepted" | "rejected";
 
 export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryViewProps) {
   const [activeTab, setActiveTab] = useState<TabType>("pending");
+  const [selectedProposal, setSelectedProposal] = useState<ServiceProposalSummary | null>(null);
   const router = useRouter();
 
   const filteredProposals = useMemo(() => {
@@ -61,19 +63,29 @@ export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryVi
                 <ProposalCard 
                   proposal={proposal} 
                   isProvider={isProvider} 
-                  onViewConversation={() => {
-                    if (isProvider) {
-                      router.push(`/prestador/mensajes?consumer_id=${proposal.counterpart.id}`);
-                    } else {
-                      router.push(`/consumidor/mensajes?provider_id=${proposal.counterpart.id}`);
-                    }
-                  }}
+                  onClick={() => setSelectedProposal(proposal)}
                 />
               </div>
             ))
           )}
         </div>
       </div>
+
+      {selectedProposal && (
+        <ServiceProposalDetailModal
+          proposal={selectedProposal}
+          onClose={() => setSelectedProposal(null)}
+          onViewConversation={() => {
+            const counterpartId = selectedProposal.counterpart.id;
+            setSelectedProposal(null);
+            if (isProvider) {
+              router.push(`/prestador/mensajes?consumer_id=${counterpartId}`);
+            } else {
+              router.push(`/consumidor/mensajes?provider_id=${counterpartId}`);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -54,4 +54,14 @@ describe("ProposalHistoryView", () => {
     expect(screen.queryByText("Juan Gómez")).not.toBeInTheDocument();
     expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
   });
+
+  it("opens proposal detail modal when clicking a proposal card", () => {
+    render(<ProposalHistoryView proposals={mockProposals} isProvider={true} />);
+    
+    const card = screen.getByTestId("proposal-card");
+    fireEvent.click(card);
+
+    expect(screen.getByTestId("service-proposal-detail-modal")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ver conversación/i })).toBeInTheDocument();
+  });
 });

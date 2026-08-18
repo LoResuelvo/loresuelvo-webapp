@@ -115,4 +115,30 @@ describe("ProposalCarousel", () => {
 
     expect(screen.getByText("2/2")).toBeInTheDocument();
   });
+
+  it("opens detail modal when clicking a proposal card and can trigger onViewConversation", () => {
+    const handleViewConversation = vi.fn();
+    render(
+      <ProposalCarousel
+        title="Propuestas Pendientes"
+        titleId="pending-title"
+        icon={Clock}
+        proposals={mockProposals}
+        emptyMessage="No tenés propuestas pendientes"
+        prevLabel="Propuesta anterior"
+        nextLabel="Siguiente propuesta"
+        onViewConversation={handleViewConversation}
+      />
+    );
+
+    const firstCard = screen.getAllByTestId("proposal-card")[0];
+    fireEvent.click(firstCard);
+
+    expect(screen.getByTestId("service-proposal-detail-modal")).toBeInTheDocument();
+    
+    const conversationBtn = screen.getByRole("button", { name: /ver conversación/i });
+    fireEvent.click(conversationBtn);
+
+    expect(handleViewConversation).toHaveBeenCalledWith(mockProposals[0]);
+  });
 });

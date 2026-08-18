@@ -405,6 +405,13 @@ Given("que estoy en la vista histórica de propuestas como consumidor con una pr
   await page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "domcontentloaded" });
 });
 
+When("hago clic en la tarjeta de la propuesta para ver el detalle", async () => {
+  const card = page.getByTestId("proposal-card").first();
+  await card.waitFor({ state: "visible" });
+  await card.click();
+  const modal = page.getByTestId("service-proposal-detail-modal");
+  await modal.waitFor({ state: "visible" });
+});
 
 Then("se abre el chat asociado a esa propuesta", async () => {
   await page.waitForURL(/\/consumidor\/mensajes\?provider_id=2/);

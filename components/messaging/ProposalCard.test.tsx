@@ -59,23 +59,41 @@ describe("ProposalCard", () => {
     expect(screen.getByText("$ 5.000,00")).toBeDefined();
   });
 
-  it("calls onViewConversation when the button is clicked", () => {
-    const handleView = vi.fn();
+  it("calls onClick when the card is clicked", () => {
+    const handleClick = vi.fn();
     render(
       <ProposalCard 
         proposal={mockConsumerLookingAtProvider} 
         isProvider={false} 
-        onViewConversation={handleView} 
+        onClick={handleClick} 
       />
     );
     
-    const button = screen.getByRole("button", { name: /ver conversación/i });
-    fireEvent.click(button);
+    const card = screen.getByTestId("proposal-card");
+    fireEvent.click(card);
     
-    expect(handleView).toHaveBeenCalledWith(42);
+    expect(handleClick).toHaveBeenCalledTimes(1);
   });
 
-  it("does not render the button if onViewConversation is not provided", () => {
+  it("calls onClick when Enter or Space is pressed on focused card", () => {
+    const handleClick = vi.fn();
+    render(
+      <ProposalCard 
+        proposal={mockConsumerLookingAtProvider} 
+        isProvider={false} 
+        onClick={handleClick} 
+      />
+    );
+    
+    const card = screen.getByTestId("proposal-card");
+    fireEvent.keyDown(card, { key: "Enter" });
+    expect(handleClick).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(card, { key: " " });
+    expect(handleClick).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not render external 'ver conversación' button on the card", () => {
     render(<ProposalCard proposal={mockConsumerLookingAtProvider} isProvider={false} />);
     expect(screen.queryByRole("button", { name: /ver conversación/i })).toBeNull();
   });

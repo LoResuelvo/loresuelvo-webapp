@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import ScheduledJobsSection from "./ScheduledJobsSection";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
@@ -58,5 +58,15 @@ describe("ScheduledJobsSection", () => {
     expect(within(firstJob).getByText("Carlos Méndez")).toBeInTheDocument();
     expect(within(firstJob).getByText("$ 45.000,00")).toBeInTheDocument();
     expect(within(firstJob).getByText("Aceptada")).toBeInTheDocument();
+  });
+
+  it("opens proposal detail modal when clicking a scheduled job card", () => {
+    render(<ScheduledJobsSection jobs={mockScheduledJobs} />);
+    
+    const cards = screen.getAllByTestId("proposal-card");
+    fireEvent.click(cards[0]);
+
+    expect(screen.getByTestId("service-proposal-detail-modal")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ver conversación/i })).toBeInTheDocument();
   });
 });

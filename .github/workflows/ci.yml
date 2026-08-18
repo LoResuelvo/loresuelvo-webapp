@@ -7,8 +7,8 @@ on:
     branches: ["main"]
 
 jobs:
-  build:
-    name: Build y Verificar
+  lint-and-unit-tests:
+    name: Lint & Unit Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -24,25 +24,71 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Instalar browsers de Playwright
-        run: npx playwright install --with-deps
+      - name: Ejecutar Linter
+        run: npm run lint
+
+      - name: Ejecutar Tests Unitarios (Vitest)
+        run: npm run test
+
+  e2e-tests:
+    name: E2E Acceptance Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Obtener versión de Playwright
+        id: playwright-version
+        run: echo "version=$(npx playwright --version | awk '{print $2}')" >> $GITHUB_OUTPUT
+
+      - name: Cachear binarios de Playwright
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
+
+      - name: Instalar Chromium y dependencias del sistema
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Instalar dependencias del sistema de Chromium (en cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
 
       - name: Preparar variables de entorno
         run: cp .env.example .env
 
+      - name: Construir Next.js
+        run: npm run build
+
       - name: Levantar servidor Next.js en background
-        run: npm run dev &
+        run: npm run start &
 
       - name: Esperar que el servidor esté disponible
         run: npx wait-on http://localhost:3000 --timeout 60000
 
-      - name: Ejecutar Linter y Pruebas
-        run: |
-          make lint
-          make test-all-once
+      - name: Ejecutar Tests E2E (Cucumber)
+        run: npm run test:e2e
 
-      - name: Construir Next.js
-        run: make build
+  docker-build:
+    name: Validar Imagen Docker
+    needs: [lint-and-unit-tests, e2e-tests]
+    runs-on: ubuntu-latest
 
-      - name: Construir la imagen de producción
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Construir imagen de producción
         run: docker build -t loresuelvo-webapp-ci .

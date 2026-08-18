@@ -12,6 +12,7 @@ export interface Message {
   images?: MessageImage[];
   senderId?: string;
   sentAt: string;
+  createdOn?: string;
 }
 
 export interface JobRequestInfo {

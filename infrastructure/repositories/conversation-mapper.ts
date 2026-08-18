@@ -34,6 +34,7 @@ export function transformApiMessageToDomain(
       originalName: (img as any).originalName || img.original_name,
     })) : undefined,
     sentAt: formatToLocalTime(apiMsg.created_on),
+    createdOn: apiMsg.created_on,
   };
 }
 
@@ -98,6 +99,7 @@ export function transformApiToConversationDetail(api: ApiConversationDetail): Co
         originalName: img.original_name,
       })) : undefined,
       sentAt: formatToLocalTime(m.created_on),
+      createdOn: m.created_on,
     })) : [],
     updatedOn: api.updated_on,
   };

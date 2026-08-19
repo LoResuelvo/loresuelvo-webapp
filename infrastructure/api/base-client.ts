@@ -41,6 +41,7 @@ export class ApiClient {
   }
 
   private async resolveE2EStub<T>(method: string, endpoint: string): Promise<T | null> {
+    if (process.env.APP_ENV === "production") return null;
     try {
       const { cookies } = await import("next/headers");
       const cookieStore = await cookies();

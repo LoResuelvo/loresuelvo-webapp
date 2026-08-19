@@ -69,8 +69,11 @@ jobs:
       - name: Preparar variables de entorno
         run: cp .env.example .env
 
-      - name: Levantar servidor Next.js en background
-        run: npm run dev &
+      - name: Compilar aplicación Next.js
+        run: npm run build
+
+      - name: Iniciar servidor Next.js en background
+        run: npm run start &
 
       - name: Esperar que el servidor esté disponible
         run: npx wait-on http://localhost:3000 --timeout 60000

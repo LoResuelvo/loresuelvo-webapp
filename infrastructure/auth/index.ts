@@ -4,12 +4,12 @@ import { AuthService } from "./types";
 
 /**
  * Devuelve el AuthService apropiado según el entorno:
- * - production: Auth0Adapter (auth real, sin fallback a mock)
- * - development/test: DevAuthAdapter (auto-detecta cookie de mock, cae en Auth0 si no hay)
- *
- * En desarrollo no se necesita ninguna variable de entorno para usar el mock.
- * Playwright simplemente setea la cookie __e2e_session antes de navegar.
+ * - APP_ENV === "production": Auth0Adapter estricto (ignora cookies de mock, fuerza Auth0 real en la nube).
+ * - Default (development, test, staging): DevAuthAdapter (detecta cookies de mock dinámicas en tests y delega a Auth0 si no hay cookies).
  */
 export const getAuthService = (): AuthService => {
+  if (process.env.APP_ENV === "production") {
+    return new Auth0Adapter();
+  }
   return new DevAuthAdapter();
 };

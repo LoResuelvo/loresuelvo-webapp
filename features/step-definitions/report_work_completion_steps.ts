@@ -114,7 +114,7 @@ async function setupWorkOrderStubs(
     },
   });
 
-  await world.page.route("https://mock-upload.test/completion-upload", async (route) => {
+  await world.page.route("https://mock-upload.test/completion-upload*", async (route) => {
     await route.fulfill({ status: 204 });
   });
 
@@ -150,19 +150,42 @@ async function setupWorkOrderStubs(
       created_on: new Date().toISOString(),
     },
   });
+
+  await world.addApiStub({
+    method: "POST",
+    endpoint: "/work-orders/42/completion-report",
+    status: 201,
+    body: {
+      id: 1,
+      work_order_id: 10,
+      description: "Trabajo finalizado exitosamente.",
+      image_file_ids: ["mock-completion-file-id"],
+      created_on: new Date().toISOString(),
+    },
+  });
+}
+
+async function selectAcceptedTab(world: CustomWorld) {
+  const tabAceptadas = world.page.getByRole("tab", { name: /aceptadas/i });
+  await tabAceptadas.waitFor({ state: "visible", timeout: 10000 });
+
+  for (let i = 0; i < 10; i++) {
+    await tabAceptadas.click();
+    await world.page.waitForTimeout(200);
+    const isSelected = await tabAceptadas.getAttribute("aria-selected");
+    if (isSelected === "true") break;
+    await world.page.waitForTimeout(300);
+  }
 }
 
 async function openProposalDetail(world: CustomWorld) {
   await world.page.goto(APP_URL + ROUTES.provider.jobs, { waitUntil: "domcontentloaded" });
+  await world.page.waitForLoadState("networkidle").catch(() => {});
 
-  const tabAceptadas = world.page.getByRole("tab", { name: "Aceptadas" });
-  if (await tabAceptadas.isVisible()) {
-    await tabAceptadas.click();
-    await world.page.waitForTimeout(200);
-  }
+  await selectAcceptedTab(world);
 
   const card = world.page.getByTestId("proposal-card").first();
-  await card.waitFor({ state: "visible" });
+  await card.waitFor({ state: "visible", timeout: 10000 });
 
   const detailModal = world.page.getByTestId("service-proposal-detail-modal");
   for (let i = 0; i < 5; i++) {
@@ -171,25 +194,27 @@ async function openProposalDetail(world: CustomWorld) {
     if (isModalVisible) break;
     await world.page.waitForTimeout(300);
   }
-  await detailModal.waitFor({ state: "visible" });
+  await detailModal.waitFor({ state: "visible", timeout: 10000 });
 }
 
 async function openCompletionReportModal(world: CustomWorld) {
-  await setupWorkOrderStubs(world, "2026-08-10T10:00:00Z");
+  const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  await setupWorkOrderStubs(world, pastDate);
   await openProposalDetail(world);
 
   const reportBtn = world.page.getByRole("button", { name: "Informar finalización" });
-  await reportBtn.waitFor({ state: "visible" });
+  await reportBtn.waitFor({ state: "visible", timeout: 10000 });
   await reportBtn.click();
 
-  const completionModal = world.page.getByRole("dialog", { name: /reporte de finalización/i });
-  await completionModal.waitFor({ state: "visible" });
+  const completionModal = world.page.getByTestId("report-work-completion-modal");
+  await completionModal.waitFor({ state: "visible", timeout: 10000 });
 }
 
 Given(
   "que soy un prestador autenticado con una propuesta de servicio aceptada",
   async function (this: CustomWorld) {
-    await setupWorkOrderStubs(this);
+    const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    await setupWorkOrderStubs(this, pastDate);
   }
 );
 
@@ -254,12 +279,12 @@ When(
 Then(
   "veo los campos {string} y {string}",
   async function (this: CustomWorld, campo1: string, campo2: string) {
-    const modal = this.page.getByRole("dialog", { name: /reporte de finalización/i });
-    const label1 = modal.getByText(new RegExp(campo1, "i"));
-    const label2 = modal.getByText(new RegExp(campo2, "i"));
+    const modal = this.page.getByTestId("report-work-completion-modal");
+    const label1 = modal.locator("label").filter({ hasText: new RegExp(campo1, "i") }).first();
+    const label2 = modal.locator("label").filter({ hasText: new RegExp(campo2, "i") }).first();
 
-    await label1.waitFor({ state: "visible" });
-    await label2.waitFor({ state: "visible" });
+    await label1.waitFor({ state: "visible", timeout: 5000 });
+    await label2.waitFor({ state: "visible", timeout: 5000 });
 
     assert.ok(await label1.isVisible(), `No se visualiza el campo "${campo1}"`);
     assert.ok(await label2.isVisible(), `No se visualiza el campo "${campo2}"`);
@@ -277,7 +302,7 @@ Given(
   /^adjunto (\d+) foto(?:s)? de evidencia$/,
   async function (this: CustomWorld, countStr: string) {
     const count = parseInt(countStr, 10);
-    const modal = this.page.getByRole("dialog", { name: /reporte de finalización/i });
+    const modal = this.page.getByTestId("report-work-completion-modal");
 
     for (let i = 1; i <= count; i++) {
       const fileId = `mock-completion-file-${i}`;
@@ -341,7 +366,7 @@ Given(
 Given(
   "completo la descripción con {string}",
   async function (this: CustomWorld, description: string) {
-    const modal = this.page.getByRole("dialog", { name: /reporte de finalización/i });
+    const modal = this.page.getByTestId("report-work-completion-modal");
     const textarea = modal.getByRole("textbox", { name: /descripción/i }).or(modal.locator("textarea"));
     await textarea.fill(description);
   }
@@ -350,7 +375,7 @@ Given(
 When(
   "confirmo el reporte de finalización",
   async function (this: CustomWorld) {
-    const modal = this.page.getByRole("dialog", { name: /reporte de finalización/i });
+    const modal = this.page.getByTestId("report-work-completion-modal");
     const submitBtn = modal.getByRole("button", { name: /enviar reporte|confirmar|informar finalización/i });
     await submitBtn.waitFor({ state: "visible" });
     await submitBtn.click();
@@ -360,8 +385,8 @@ When(
 Then(
   "veo un mensaje de éxito indicando que el reporte fue enviado",
   async function (this: CustomWorld) {
-    const successMsg = this.page.getByText(/reporte enviado exitosamente|finalización informada|reporte enviado/i);
-    await successMsg.waitFor({ state: "visible" });
+    const successMsg = this.page.getByText(/reporte de finalización enviado exitosamente|finalización informada|reporte enviado/i);
+    await successMsg.waitFor({ state: "visible", timeout: 10000 });
     assert.ok(await successMsg.isVisible(), "No se muestra el mensaje de éxito");
   }
 );
@@ -369,7 +394,7 @@ Then(
 When(
   "visualizo el formulario vacío",
   async function (this: CustomWorld) {
-    const modal = this.page.getByRole("dialog", { name: /reporte de finalización/i });
+    const modal = this.page.getByTestId("report-work-completion-modal");
     await modal.waitFor({ state: "visible" });
   }
 );
@@ -377,7 +402,7 @@ When(
 When(
   "visualizo el estado del formulario",
   async function (this: CustomWorld) {
-    const modal = this.page.getByRole("dialog", { name: /reporte de finalización/i });
+    const modal = this.page.getByTestId("report-work-completion-modal");
     await modal.waitFor({ state: "visible" });
   }
 );
@@ -385,7 +410,7 @@ When(
 Then(
   "el botón de confirmar reporte permanece deshabilitado",
   async function (this: CustomWorld) {
-    const modal = this.page.getByRole("dialog", { name: /reporte de finalización/i });
+    const modal = this.page.getByTestId("report-work-completion-modal");
     const submitBtn = modal.getByRole("button", { name: /enviar reporte|confirmar|informar finalización/i });
     const isDisabled = await submitBtn.isDisabled();
     assert.ok(isDisabled, "El botón de confirmar reporte debería estar deshabilitado");
@@ -395,7 +420,7 @@ Then(
 Then(
   "el botón de confirmar reporte se habilita",
   async function (this: CustomWorld) {
-    const modal = this.page.getByRole("dialog", { name: /reporte de finalización/i });
+    const modal = this.page.getByTestId("report-work-completion-modal");
     const submitBtn = modal.getByRole("button", { name: /enviar reporte|confirmar|informar finalización/i });
     const isEnabled = await submitBtn.isEnabled();
     assert.ok(isEnabled, "El botón de confirmar reporte debería estar habilitado");
@@ -413,15 +438,23 @@ Given(
         error: "La orden de trabajo ya fue reportada previamente.",
       },
     });
+    await this.addApiStub({
+      method: "POST",
+      endpoint: "/work-orders/42/completion-report",
+      status: 409,
+      body: {
+        error: "La orden de trabajo ya fue reportada previamente.",
+      },
+    });
   }
 );
 
 Then(
   "veo un mensaje de error indicando que la orden ya fue reportada",
   async function (this: CustomWorld) {
-    const modal = this.page.getByRole("dialog", { name: /reporte de finalización/i });
+    const modal = this.page.getByTestId("report-work-completion-modal");
     const errorMsg = modal.getByText(/ya fue reportada|ya tiene un reporte/i);
-    await errorMsg.waitFor({ state: "visible" });
+    await errorMsg.waitFor({ state: "visible", timeout: 10000 });
     assert.ok(await errorMsg.isVisible(), "No se visualiza el error de orden ya reportada");
   }
 );

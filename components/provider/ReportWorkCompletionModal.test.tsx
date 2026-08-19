@@ -68,7 +68,7 @@ describe("ReportWorkCompletionModal", () => {
     await user.upload(fileInput, file);
 
     const textarea = screen.getByRole("textbox", {
-      name: /descripción de entrega/i,
+      name: /descripción de trabajo realizado/i,
     });
     await user.type(textarea, "Trabajo finalizado con éxito.");
 
@@ -141,7 +141,7 @@ describe("ReportWorkCompletionModal", () => {
     await user.upload(fileInput, new File(["dummy"], "foto1.jpg", { type: "image/jpeg" }));
 
     const textarea = screen.getByRole("textbox", {
-      name: /descripción de entrega/i,
+      name: /descripción de trabajo realizado/i,
     });
     await user.type(textarea, "Trabajo finalizado.");
 
@@ -181,7 +181,7 @@ describe("ReportWorkCompletionModal", () => {
     await user.upload(fileInput, new File(["dummy"], "foto1.jpg", { type: "image/jpeg" }));
 
     const textarea = screen.getByRole("textbox", {
-      name: /descripción de entrega/i,
+      name: /descripción de trabajo realizado/i,
     });
     await user.type(textarea, "Segundo reporte.");
 
@@ -214,7 +214,7 @@ describe("ReportWorkCompletionModal", () => {
     await user.upload(fileInput, new File(["dummy"], "foto1.jpg", { type: "image/jpeg" }));
 
     const textarea = screen.getByRole("textbox", {
-      name: /descripción de entrega/i,
+      name: /descripción de trabajo realizado/i,
     });
     await user.type(textarea, "Reporte.");
 

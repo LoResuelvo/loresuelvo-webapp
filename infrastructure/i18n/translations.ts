@@ -392,7 +392,7 @@ export const t = {
     modalDescription: "Adjuntá fotos de evidencia y detallá el trabajo realizado para notificar al cliente.",
     evidenceImagesLabel: "Fotos de evidencia",
     evidenceImagesHelp: "Adjuntá entre 1 y 3 fotografías que demuestren el trabajo finalizado.",
-    descriptionLabel: "Descripción de entrega",
+    descriptionLabel: "Descripción de trabajo realizado",
     descriptionPlaceholder: "Describí detalladamente el trabajo realizado...",
     uploadButtonText: "Seleccionar fotos",
     removeImageText: "Eliminar foto",
@@ -405,7 +405,7 @@ export const t = {
     errors: {
       requiredImages: "Debes adjuntar al menos 1 fotografía de evidencia.",
       maxImages: "No puedes adjuntar más de 3 fotografías.",
-      requiredDescription: "La descripción de entrega es obligatoria.",
+      requiredDescription: "La descripción de trabajo realizado es obligatoria.",
       futureScheduledDate: "No se puede reportar la finalización antes de la fecha y hora pactadas.",
       alreadyReported: "La orden de trabajo ya fue reportada previamente.",
       unauthorized: "No tienes permiso para reportar la finalización de este trabajo.",

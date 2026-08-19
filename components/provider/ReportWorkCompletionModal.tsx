@@ -106,7 +106,6 @@ export default function ReportWorkCompletionModal({
       }
 
       setIsSuccess(true);
-      onSuccess?.();
     } catch (err: unknown) {
       setErrorMessage(
         err instanceof Error ? err.message : t.workOrderCompletion.errors.generic
@@ -120,6 +119,9 @@ export default function ReportWorkCompletionModal({
     setSelectedImages([]);
     setDescription("");
     setErrorMessage(null);
+    if (isSuccess) {
+      onSuccess?.();
+    }
     setIsSuccess(false);
     setIsSubmitting(false);
     onClose();
@@ -243,7 +245,7 @@ export default function ReportWorkCompletionModal({
               </p>
             </div>
 
-            {/* Descripción de entrega */}
+            {/* Descripción de trabajo realizado */}
             <div className="space-y-2">
               <label
                 htmlFor="completion-description"

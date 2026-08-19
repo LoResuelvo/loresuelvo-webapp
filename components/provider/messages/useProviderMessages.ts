@@ -12,6 +12,7 @@ import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/local
 import { sendMessageWithAttachments } from "@/application/messaging/send-message-with-attachments";
 import { transformApiMessageToDomain, formatToLocalShortDateTime } from "@/infrastructure/repositories/conversation-mapper";
 import { clearDraft, loadDraft, saveDraft, type DraftFileMeta } from "@/lib/message-drafts";
+import { useClock } from "@/hooks/useClock";
 
 function fileToMeta(file: File): DraftFileMeta {
   return { name: file.name, size: file.size, type: file.type };
@@ -28,6 +29,7 @@ const offlineQueueRepo = new LocalOfflineQueueRepository();
 let lastProviderConsumerId: string | null = null;
 
 export function useProviderMessages(session: AuthSession | null, contacts: ConversationContact[], myUserId: string) {
+  const { now } = useClock();
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlConsumerId = searchParams.get("consumer_id");
@@ -220,13 +222,13 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
     const messageContent = messageInput.trim() || undefined;
     const currentFiles = [...attachedFiles];
     
-    const tempId = `local-${Date.now()}`;
+    const tempId = `local-${now().getTime()}`;
     const optimisticMessage: Message = {
       id: tempId,
       content: messageContent,
       senderId: session?.user?.id ?? myUserId,
       sentAt: "Ahora",
-      createdOn: new Date().toISOString(),
+      createdOn: now().toISOString(),
       images: currentFiles.map(file => ({
         id: `temp-img-${Math.random()}`,
         url: URL.createObjectURL(file),

@@ -12,7 +12,7 @@ const SHIFT_PRESETS = [
   { unit: "1w", hours: 168, text: "1 semana" },
 ] as const;
 
-export function DevTimeTravelWidget() {
+export function TimeProviderWidget() {
   const { now, isSimulated, setTime, resetTime } = useClock();
   const [isOpen, setIsOpen] = useState(false);
   const [customDateTime, setCustomDateTime] = useState("");

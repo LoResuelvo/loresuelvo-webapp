@@ -180,7 +180,7 @@ export default function ReportWorkCompletionModal({
               </div>
             )}
 
-            {/* Subida de Fotos de Evidencia */}
+            {/* Evidence Images Upload */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-semibold text-slate-700">
@@ -192,7 +192,7 @@ export default function ReportWorkCompletionModal({
                 </span>
               </div>
 
-              {/* Grid de Previews */}
+              {/* Previews Grid */}
               <div className="grid grid-cols-3 gap-3">
                 {selectedImages.map((img, index) => (
                   <div
@@ -254,7 +254,7 @@ export default function ReportWorkCompletionModal({
               </p>
             </div>
 
-            {/* Descripción de trabajo realizado */}
+            {/* Work Done Description */}
             <div className="space-y-2">
               <label
                 htmlFor="completion-description"
@@ -277,7 +277,7 @@ export default function ReportWorkCompletionModal({
               />
             </div>
 
-            {/* Footer con Botones */}
+            {/* Footer Buttons */}
             <div className="flex items-center justify-end gap-3 pt-2">
               <Button
                 type="button"

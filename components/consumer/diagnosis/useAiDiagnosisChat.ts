@@ -12,6 +12,7 @@ import { t } from "@/infrastructure/i18n/translations";
 import { ClientFileRepository } from "@/infrastructure/repositories/client-repositories";
 import { formatToLocalShortDateTime } from "@/infrastructure/repositories/conversation-mapper";
 import { createAiJobRequest } from "@/application/ai-chat/create-ai-job-request";
+import { useClock } from "@/hooks/useClock";
 
 const fileRepository = new ClientFileRepository();
 
@@ -29,6 +30,7 @@ interface UseAiDiagnosisChatProps {
 export function useAiDiagnosisChat({ client, chatRepository, simulateError = false, conversationId, jobRequestFn }: UseAiDiagnosisChatProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { now } = useClock();
   const urlSimulateError = searchParams.get("simulate") === "error";
   const shouldSimulateError = simulateError || urlSimulateError;
   const effectiveConversationId = conversationId ?? searchParams.get("id");
@@ -42,7 +44,7 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
       id: `temp-${Date.now()}`,
       content: pending.text,
       senderId: USER_ID,
-      sentAt: formatToLocalShortDateTime(new Date().toISOString()),
+      sentAt: formatToLocalShortDateTime(now().toISOString()),
     }];
   });
   const [assistantReply, setAssistantReply] = useState<string | null>(null);
@@ -193,7 +195,7 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
             id: `msg-assistant-${Date.now()}`,
             content: reply,
             senderId: ASSISTANT_ID,
-            sentAt: formatToLocalShortDateTime(new Date().toISOString()),
+            sentAt: formatToLocalShortDateTime(now().toISOString()),
           };
           setMessages((prev) => [...prev, assistantMessage]);
         }
@@ -216,6 +218,7 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, assistantClient, isInitialized, effectiveConversationId, chatRepository, router]);
 
   const handleRetry = useCallback(() => {
@@ -299,7 +302,7 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
       content: trimmed,
       senderId: USER_ID,
       images: imagesToDisplay,
-      sentAt: formatToLocalShortDateTime(new Date().toISOString()),
+      sentAt: formatToLocalShortDateTime(now().toISOString()),
     };
 
     setMessages((prev) => [...prev, userMessage]);

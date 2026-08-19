@@ -14,6 +14,8 @@ import { BookingDepositPayment } from "@/components/payments/BookingDepositPayme
 import ReportWorkCompletionModal from "@/components/provider/ReportWorkCompletionModal";
 import { getWorkOrderByProposalAction } from "@/app/work-orders/actions";
 
+import { useClock } from "@/hooks/useClock";
+
 interface ServiceProposalDetailModalProps {
   proposal: ServiceProposalSummary;
   onClose: () => void;
@@ -29,6 +31,7 @@ export default function ServiceProposalDetailModal({
   const displayName = `${counterpart.name} ${counterpart.surname}`.trim() || "Usuario";
   const initials = getInitials(displayName);
   const statusBadge = getStatusBadge(proposal.status);
+  const { now } = useClock();
 
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
   const [workOrderId, setWorkOrderId] = useState<number | null>(null);
@@ -36,7 +39,7 @@ export default function ServiceProposalDetailModal({
   const isProvider = counterpart.role === "consumer";
   const isAccepted = proposal.status === "accepted";
   const scheduledTime = new Date(proposal.scheduledOn).getTime();
-  const isScheduledDateReached = !isNaN(scheduledTime) && Date.now() >= scheduledTime;
+  const isScheduledDateReached = !isNaN(scheduledTime) && now().getTime() >= scheduledTime;
 
   useEffect(() => {
     if (isAccepted && isProvider) {

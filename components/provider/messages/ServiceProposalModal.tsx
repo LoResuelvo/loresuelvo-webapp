@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useClock } from "@/hooks/useClock";
 
 const TIME_SLOTS = Array.from({ length: 48 }).map((_, i) => {
   const hours = Math.floor(i / 2).toString().padStart(2, '0');
@@ -97,11 +98,13 @@ export function ServiceProposalModal({
     }
   }, [amount]);
 
+  const { now } = useClock();
+
   useEffect(() => {
     if (scheduledDate && scheduledTime) {
       const selectedDate = new Date(`${scheduledDate}T${scheduledTime}`);
-      const now = new Date();
-      if (selectedDate <= now) {
+      const currentDate = now();
+      if (selectedDate <= currentDate) {
         setDateError(t.messaging.serviceProposal.errorDatePast);
       } else {
         setDateError("");
@@ -109,7 +112,7 @@ export function ServiceProposalModal({
     } else {
       setDateError("");
     }
-  }, [scheduledDate, scheduledTime]);
+  }, [scheduledDate, scheduledTime, now]);
 
   const hasValidationErrors = !!amountError || !!dateError;
   const isFormComplete = !!amount && !!scheduledDate && !!scheduledTime && !!description;

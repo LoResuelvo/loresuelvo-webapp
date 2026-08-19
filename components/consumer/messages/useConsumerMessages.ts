@@ -12,6 +12,7 @@ import { sendMessageWithAttachments } from "@/application/messaging/send-message
 import { transformApiMessageToDomain, formatToLocalShortDateTime } from "@/infrastructure/repositories/conversation-mapper";
 import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import { clearDraft, loadDraft, saveDraft, type DraftFileMeta } from "@/lib/message-drafts";
+import { useClock } from "@/hooks/useClock";
 
 function fileToMeta(file: File): DraftFileMeta {
   return { name: file.name, size: file.size, type: file.type };
@@ -226,6 +227,8 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
     return unsubscribe;
   }, [subscribe, resetUnread, myUserId]);
 
+  const { now } = useClock();
+
   const handleSendMessage = async () => {
     if ((!messageInput.trim() && attachedFiles.length === 0) || !selectedProviderId || isSending || isSendingRef.current) return;
     isSendingRef.current = true;
@@ -234,13 +237,13 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
     const messageContent = messageInput.trim() || undefined;
     const currentFiles = [...attachedFiles];
     
-    const tempId = `local-${Date.now()}`;
+    const tempId = `local-${now().getTime()}`;
     const optimisticMessage: Message = {
       id: tempId,
       content: messageContent,
       senderId: session?.user?.id ?? myUserId,
       sentAt: "Ahora",
-      createdOn: new Date().toISOString(),
+      createdOn: now().toISOString(),
       images: currentFiles.map(file => ({
         id: `temp-img-${Math.random()}`,
         url: URL.createObjectURL(file),

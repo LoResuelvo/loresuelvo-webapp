@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { Auth0Provider } from "@auth0/nextjs-auth0/client";
 import { getAuthService } from "@/infrastructure/auth";
 import { WebSocketProvider } from "@/infrastructure/websocket";
+import { ClockProvider } from "@/infrastructure/clock/ClockContext";
+import { TimeProviderWidget } from "@/components/dev/TimeProviderWidget";
 import { getCurrentUserAction } from "@/app/api/me/actions";
 import "./globals.css";
 
@@ -37,14 +39,18 @@ export default async function RootLayout({
 
   const apiUrl = process.env.API_URL || "http://localhost:8080";
   const wsUrl = apiUrl.replace(/^http/, "ws") + "/ws";
+  const isDevOrTest = process.env.NODE_ENV !== "production" || process.env.APP_ENV !== "production";
 
   return (
     <html lang="es-AR">
       <body className={manrope.className}>
         <Auth0Provider>
-          <WebSocketProvider wsUrl={wsUrl} role={role} enabled={!!role}>
-            {children}
-          </WebSocketProvider>
+          <ClockProvider>
+            <WebSocketProvider wsUrl={wsUrl} role={role} enabled={!!role}>
+              {children}
+              {isDevOrTest && <TimeProviderWidget />}
+            </WebSocketProvider>
+          </ClockProvider>
         </Auth0Provider>
       </body>
     </html>

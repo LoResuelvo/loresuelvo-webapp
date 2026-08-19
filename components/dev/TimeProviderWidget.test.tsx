@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { DevTimeTravelWidget } from "./DevTimeTravelWidget";
+import { TimeProviderWidget } from "./TimeProviderWidget";
 import { ClockProvider } from "@/infrastructure/clock/ClockContext";
 import * as testClockActions from "@/app/test-clock/actions";
 
@@ -10,7 +10,7 @@ vi.mock("@/app/test-clock/actions", () => ({
   clearApiClockAction: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
-describe("DevTimeTravelWidget", () => {
+describe("TimeProviderWidget", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -18,7 +18,7 @@ describe("DevTimeTravelWidget", () => {
   it("renders closed minimalist button", () => {
     render(
       <ClockProvider>
-        <DevTimeTravelWidget />
+        <TimeProviderWidget />
       </ClockProvider>
     );
 
@@ -31,7 +31,7 @@ describe("DevTimeTravelWidget", () => {
     const user = userEvent.setup();
     render(
       <ClockProvider>
-        <DevTimeTravelWidget />
+        <TimeProviderWidget />
       </ClockProvider>
     );
 
@@ -50,7 +50,7 @@ describe("DevTimeTravelWidget", () => {
     const user = userEvent.setup();
     render(
       <ClockProvider initialDate="2026-08-20T10:00:00.000Z">
-        <DevTimeTravelWidget />
+        <TimeProviderWidget />
       </ClockProvider>
     );
 
@@ -69,7 +69,7 @@ describe("DevTimeTravelWidget", () => {
     const user = userEvent.setup();
     render(
       <ClockProvider initialDate="2026-08-20T10:00:00.000Z">
-        <DevTimeTravelWidget />
+        <TimeProviderWidget />
       </ClockProvider>
     );
 

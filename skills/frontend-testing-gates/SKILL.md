@@ -24,10 +24,17 @@ npm run test:e2e
 También se puede usar Make:
 
 ```bash
-make test
-make lint
-make build
-make test-e2e
+make test                # Vitest unit/component
+make lint                # ESLint
+make build               # Build standalone
+
+# Flujos de E2E (por defecto contra puerto 3001 para no pisar make dev en 3000)
+make start-test          # Servidor compilado en puerto 3001
+make test-e2e            # E2E contra puerto 3001
+make test-e2e-file FILE=features/login.feature
+
+# Flujo E2E 100% containerizado en Docker
+make docker-test-e2e     # Levanta contenedor de prod en 3001, testea y apaga
 ```
 
 ## Política fail-fast

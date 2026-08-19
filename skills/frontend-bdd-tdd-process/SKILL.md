@@ -79,6 +79,18 @@ npm run test -- <patron>
 - Mantener datos de prueba explícitos y pequeños.
 - No depender de orden accidental si la UI no lo garantiza.
 
+## Buenas prácticas Cucumber Step Definitions (Crítico para Paralelización)
+
+- **`CustomWorld` obligatorio**: Todo step definition **DEBE** tipar su contexto con `this: CustomWorld` (importado de `../support/world`) y acceder al browser mediante `this.page`:
+  ```ts
+  Given("estoy en la página de inicio", async function (this: CustomWorld) {
+    await this.page.goto(APP_URL);
+  });
+  ```
+- **Prohibido `let page: Page` a nivel de módulo**: Nunca declarar variables de `page` globales o singletons en archivos de steps. Rompe el aislamiento en paralelo.
+- **Hooks centralizados**: Toda la inicialización y cierre de navegadores/contextos se maneja exclusivamente en `features/support/hooks.ts`. Nunca definir hooks locales en step files.
+- **Mocks dinámicos vía cookies**: Usar `addApiStub` y `setMockSession` que inyectan cookies `__e2e_*` por escenario de forma aislada.
+
 ## Buenas prácticas Testing Library
 
 - Consultar por rol, label, texto visible o placeholder cuando tenga sentido.

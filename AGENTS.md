@@ -185,6 +185,18 @@ skills/                      Skills locales para agentes de IA cargadas bajo dem
 - En código nuevo, respetar el idioma predominante del archivo y nombres existentes.
 - Tipos de dominio en camelCase; DTOs de la API en snake_case solo dentro de `infrastructure/`.
 
+### Testing y E2E (Reglas Críticas de Aislamiento y Paralelismo)
+
+- **`CustomWorld` obligatorio en Step Definitions**:
+  - Todo step de Cucumber **DEBE** tiparse con `async function (this: CustomWorld, ...)` y acceder al browser mediante `this.page`.
+  - **PROHIBIDO** declarar variables globales o de módulo como `let page: Page` o singletons compartidos. Rompe la ejecución en paralelo.
+- **Hooks centralizados**:
+  - Toda la inicialización y limpieza del ciclo de vida de Playwright (`browser`, `context`, `page`) se gestiona **exclusivamente en `features/support/hooks.ts`**. Nunca definir `BeforeAll`, `Before` o `After` en archivos de steps.
+- **Detección dinámica de entorno y Mocks**:
+  - Los tests E2E inyectan la sesión y los stubs dinámicamente por petición mediante cookies (`__e2e_session` y `__e2e_api_stubs_*`).
+  - No usar flags en tiempo de compilación (`NEXT_PUBLIC_*`) para alternar lógica de mock.
+  - La seguridad en la nube se gestiona con `APP_ENV=production` (configurado en `compose.prod.yml`), lo cual desactiva cualquier bypass de mocks para usuarios reales.
+
 ---
 
 ## Comandos de validación
@@ -198,20 +210,31 @@ npm run build
 npm run test:e2e
 ```
 
-Equivalentes Make:
+Equivalentes Make y flujos aislados:
 
 ```bash
-make test
-make lint
-make build
-make test-e2e
+# Desarrollo
+make dev                 # Dev server en puerto 3000
+make docker-dev          # Dev server en Docker (puerto 3000)
+
+# Calidad y Unitarios
+make test                # Vitest unit/component
+make lint                # ESLint
+
+# Tests E2E en Node local (por defecto corren contra http://localhost:3001)
+make build && make start-test
+make test-e2e            # Toda la suite contra http://localhost:3001
+make test-e2e-file FILE=features/login.feature
+
+# Tests E2E en Docker (paridad 100% con imagen de producción)
+make docker-test-e2e     # Levanta contenedor en 3001, corre tests y apaga
 ```
 
 Política:
 
 1. Durante iteración, ejecutar pruebas focalizadas cuando sea posible.
 2. Antes de handoff/PR/cierre robusto: `npm run test && npm run lint && npm run build`.
-3. Ejecutar `npm run test:e2e` si cambia un flujo cubierto en `features/` o si el usuario pide paridad E2E.
+3. Ejecutar `make test-e2e` (o `make docker-test-e2e`) si cambia un flujo cubierto en `features/` o si se pide paridad E2E.
 4. Fail-fast: detenerse en la primera falla, corregir y re-ejecutar.
 
 ---
@@ -219,7 +242,8 @@ Política:
 ## Checklist final para agentes
 
 1. Skill correcta cargada y aplicada.
-2. Diff revisado; sin archivos generados accidentales.
-3. Sin secretos ni logs sensibles.
-4. Pruebas/validaciones relevantes ejecutadas o razón explícita si no se ejecutaron.
-5. Resumen final conciso con archivos tocados, validación y riesgos residuales.
+2. Steps E2E usan `this.page` con `CustomWorld` (sin `let page` global).
+3. Diff revisado; sin archivos generados accidentales.
+4. Sin secretos ni logs sensibles.
+5. Pruebas/validaciones relevantes ejecutadas o razón explícita si no se ejecutaron.
+6. Resumen final conciso con archivos tocados, validación y riesgos residuales.

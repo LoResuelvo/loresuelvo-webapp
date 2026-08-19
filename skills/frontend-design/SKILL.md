@@ -7,22 +7,41 @@ description: "Guia para diseñar o rediseñar interfaces Next.js/React de Lo Res
 
 Usar esta skill cuando la tarea principal sea elevar la calidad visual o UX de una interfaz.
 
-## Norte de producto
+## Norte de producto y excelencia de diseño
 
-1. Resolver rapido: la UI debe reducir friccion entre consumidor y prestador.
-2. Inspirar confianza: servicios, perfiles, solicitudes y mensajes deben sentirse claros, seguros y profesionales.
-3. Comunicar estado: cada accion asincrona debe tener feedback visible.
-4. Mantener consistencia: reutilizar `components/ui`, layout existente y tokens Tailwind antes de inventar patrones.
+1. **Resolver rápido:** la UI debe reducir fricción entre consumidor y prestador.
+2. **Inspirar confianza:** servicios, perfiles, solicitudes y mensajes deben sentirse claros, seguros y profesionales.
+3. **Comunicar estado:** cada acción asíncrona debe tener feedback visible (loading, empty, error, disabled, success).
+4. **Mantener consistencia:** reutilizar `components/ui`, layout existente y tokens Tailwind antes de inventar patrones.
+5. **Legibilidad antes que optimización prematura (KISS):** priorizar código simple, declarativo y fácil de leer y testear por sobre sobre-ingeniería o micro-optimizaciones innecesarias.
+
+## Principios de Calidad Visual e Interacción (UI/UX)
+
+1. **Jerarquía Visual y Escaneo Rápido:**
+   - La pantalla debe entenderse en 3 segundos: *Título -> Dato clave destacado (monto/estado) -> Acción primaria (CTA).*
+   - Usar peso tipográfico (`font-semibold`, `font-bold`) y tonos de color antes que tamaños de fuente gigantes.
+2. **Restricción Semántica de Color (Anti-Rainbow):**
+   - Máximo 2 familias de color por bloque: 1 neutro/marca (`brand-primary`, `slate`) y 1 semántico para estados (`warning` ámbar, `success` verde, `destructive` rojo).
+   - No usar colores de estado en títulos o elementos neutrales.
+3. **Patrones de Chat y Mensajería (Conversational UX):**
+   - **Alineación por Rol:** Mensajes/tarjetas recibidos a la izquierda (`justify-start`, `rounded-tl-sm`), mensajes/tarjetas emitidos a la derecha (`justify-end`, `rounded-tr-sm`).
+   - **Truncamiento de texto:** Descripciones largas siempre con `line-clamp-2` o `line-clamp-3` y apertura de modal para ver detalle completo.
+   - **Hora obligatoria:** Todo mensaje o tarjeta de propuesta debe incluir la hora de emisión al pie.
+4. **Patrones Financieros y de Señas (Transparencia de Costos):**
+   - En flujos de pago o presupuestos, mostrar siempre el desglose claro: Total pactado, Seña a pagar online y Saldo restante en destino.
+   - Incorporar sellos o indicadores de confianza y seguridad (Mercado Pago, SSL).
+5. **Preservación de Contratos de Testing:**
+   - Al rediseñar o reemplazar componentes, **nunca eliminar `data-testid`, roles ARIA o textos clave** que consumen los escenarios de Cucumber o tests de Vitest.
 
 ## Flujo operativo
 
 1. Identificar usuario, objetivo principal y CTA primario de la pantalla.
-2. Auditar la UI existente: jerarquia, densidad, contraste, responsive, estados y microcopy.
-3. Definir una direccion visual concreta antes de codificar: tono, composicion, elemento memorable y estructura responsive.
-4. Implementar en componentes pequeños, con nombres descriptivos y cohesion alta.
+2. Auditar la UI existente: jerarquía, densidad, contraste, responsive, estados y microcopy.
+3. Definir una dirección visual concreta antes de codificar: tono, composición, elemento memorable y estructura responsive.
+4. Implementar en componentes pequeños, con nombres descriptivos y cohesión alta.
 5. Cubrir estados `loading`, `empty`, `error`, `disabled`, `success` y permisos/roles cuando apliquen.
 6. Validar desktop y mobile; combinar con `frontend-mobile-responsive` si hay breakpoints relevantes.
-7. Combinar con `frontend-accessibility-gates` si hay formularios, modales, menus, overlays o flujos por teclado.
+7. Combinar con `frontend-accessibility-gates` si hay formularios, modales, menús, overlays o flujos por teclado.
 
 ## Design System — Primitivas disponibles
 

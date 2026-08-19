@@ -29,7 +29,7 @@ export function ProposalCarousel({
   titleId,
   icon: Icon,
   iconColor = "text-brand-primary",
-  badgeClass = "bg-slate-100 text-slate-800",
+  badgeClass: _badgeClass = "bg-slate-100 text-slate-800",
   proposals,
   emptyMessage,
   prevLabel,

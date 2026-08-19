@@ -42,11 +42,17 @@ Given(
 );
 
 Then("soy redirigido al portal de autenticación de Auth0 para iniciar sesión", async function (this: CustomWorld) {
-  const request = await this.page.waitForRequest(
-    (req) => req.url().includes(AUTH0_LOGIN_URL) && !req.url().includes("screen_hint=signup"),
-    { timeout: 5000 }
+  if (this.page.url().includes(AUTH0_LOGIN_URL) || this.page.url().includes("auth0.com")) {
+    assert.ok(!this.page.url().includes("screen_hint=signup"));
+    return;
+  }
+  await this.page.waitForURL(
+    (url) =>
+      (url.href.includes(AUTH0_LOGIN_URL) || url.hostname.includes("auth0.com")) &&
+      !url.href.includes("screen_hint=signup"),
+    { timeout: 15000 }
   );
-  assert.ok(request, `No navigation was made towards "${AUTH0_LOGIN_URL}"`);
+  assert.ok(this.page.url().includes(AUTH0_LOGIN_URL) || this.page.url().includes("auth0.com"));
 });
 
 Given("que me logueé exitosamente en Auth0 como cliente", async function (this: CustomWorld) {

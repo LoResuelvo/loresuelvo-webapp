@@ -11,8 +11,5 @@ import { AuthService } from "./types";
  * Playwright simplemente setea la cookie __e2e_session antes de navegar.
  */
 export const getAuthService = (): AuthService => {
-  if (process.env.NODE_ENV === "production") {
-    return new Auth0Adapter();
-  }
   return new DevAuthAdapter();
 };

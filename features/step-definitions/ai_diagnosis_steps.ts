@@ -283,46 +283,13 @@ Given("estoy en una conversación con el asistente", async function (this: Custo
 });
 
 When("envío un nuevo mensaje y la respuesta tarda en llegar", async function (this: CustomWorld) {
-  await this.page.route("**/chatbot/conversations/1/messages", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    await route.fulfill({
-      status: 201,
-      contentType: "application/json",
-      body: JSON.stringify({
-        id: 1,
-        conversation_id: 1,
-        status: "active",
-        title: "Pérdida de agua",
-        response_status: "answered",
-        messages: [
-          {
-            id: 1,
-            sender_role: "consumer",
-            content: "Se está filtrando agua debajo de la bacha",
-            created_on: "2026-06-18T10:00:00Z",
-          },
-          {
-            id: 2,
-            sender_role: "consumer",
-            content: "Sigue perdiendo agua",
-            created_on: "2026-06-18T10:05:00Z",
-          },
-          {
-            id: 3,
-            sender_role: "chatbot",
-            content: "Podría ser la manguera de desagüe.",
-            created_on: "2026-06-18T10:05:05Z",
-          },
-        ],
-        response: {
-          id: 3,
-          sender_role: "chatbot",
-          content: "Podría ser la manguera de desagüe.",
-          created_on: "2026-06-18T10:05:05Z",
-        },
-        recommended_providers: [],
-      }),
-    });
+  let delayed = false;
+  await this.page.route("**/consumidor/mensajes-ia*", async (route) => {
+    if (route.request().method() === "POST" && !delayed) {
+      delayed = true;
+      await new Promise((resolve) => setTimeout(resolve, 7000));
+    }
+    await route.fallback();
   });
 
   const input = this.page.getByPlaceholder(/escribe un mensaje/i);

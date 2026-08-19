@@ -331,12 +331,19 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
 
   const handleContactProvider = useCallback(
     async (providerId: number) => {
+      let result: unknown;
       if (jobRequestFn) {
-        await jobRequestFn(effectiveConversationId ?? "", providerId);
+        result = await jobRequestFn(effectiveConversationId ?? "", providerId);
       } else if (chatRepository && effectiveConversationId) {
-        await createAiJobRequest(chatRepository, effectiveConversationId, providerId);
+        result = await createAiJobRequest(chatRepository, effectiveConversationId, providerId);
       } else {
         throw new Error("No repository or jobRequestFn provided");
+      }
+      const resObj = result && typeof result === "object" ? (result as Record<string, unknown>) : null;
+      if (resObj && resObj.status === 409) {
+        const err = new Error("409: Ya existe una solicitud de trabajo abierta") as Error & { status?: number };
+        err.status = 409;
+        throw err;
       }
       router.push(`${ROUTES.consumer.messages}?provider_id=${providerId}`);
     },

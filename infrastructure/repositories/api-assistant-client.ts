@@ -1,28 +1,24 @@
 import { AssistantClient } from "@/ports/assistant-client";
 import type { ApiStub } from "@/infrastructure/api/types";
 
-const E2E_API_STUBS_COOKIE = "__e2e_api_stubs";
-const E2E_SESSION_COOKIE = "__e2e_session";
+import { parseE2EStubsFromCookies, E2E_SESSION_COOKIE } from "@/infrastructure/api/e2e-stubs-utils";
 
 function getE2EStub(method: string, endpoint: string): ApiStub | null {
   if (typeof document === "undefined") return null;
 
-  const cookies = document.cookie.split(";").map((c) => c.trim());
-  const stubsCookie = cookies.find((c) => c.startsWith(`${E2E_API_STUBS_COOKIE}=`));
-  if (!stubsCookie) return null;
+  const cookieStrings = document.cookie.split(";").map((c) => c.trim());
+  const cookies = cookieStrings.map((c) => {
+    const [name, ...rest] = c.split("=");
+    return { name, value: rest.join("=") };
+  });
 
-  const hasSession = cookies.some((c) => c.startsWith(`${E2E_SESSION_COOKIE}=`));
+  const hasSession = cookies.some((c) => c.name === E2E_SESSION_COOKIE);
   if (!hasSession) return null;
 
-  try {
-    const stubsValue = stubsCookie.split("=")[1];
-    const stubs = JSON.parse(decodeURIComponent(stubsValue)) as ApiStub[];
-    return stubs.find(
-      (s) => s.method.toUpperCase() === method.toUpperCase() && s.endpoint === endpoint
-    ) ?? null;
-  } catch {
-    return null;
-  }
+  const stubs = parseE2EStubsFromCookies(cookies);
+  return stubs.find(
+    (s) => s.method.toUpperCase() === method.toUpperCase() && s.endpoint === endpoint
+  ) ?? null;
 }
 
 export function createApiAssistantClient(accessToken?: string): AssistantClient {

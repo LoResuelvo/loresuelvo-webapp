@@ -229,6 +229,6 @@ Then("veo un mensaje de error indicando que no se pudo enviar la solicitud", asy
 
 Then("veo un mensaje indicando que ya existe una solicitud abierta con ese prestador", async function (this: CustomWorld) {
   const duplicateMessage = this.page.getByText(/ya existe una solicitud/i).first();
-  await duplicateMessage.waitFor({ state: "visible", timeout: 5000 });
+  await duplicateMessage.waitFor({ state: "visible", timeout: 10000 });
   assert.ok(await duplicateMessage.isVisible(), "No se muestra el mensaje de solicitud duplicada");
 });

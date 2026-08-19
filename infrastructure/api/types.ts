@@ -257,3 +257,26 @@ export type ApiConsumerCurrentUserResponse = ApiCurrentUserResponse;
 export interface ApiProviderCurrentUserResponse extends ApiCurrentUserResponse {
   category: ApiCurrentUserCategory;
 }
+
+export interface ApiWorkOrder {
+  id: number;
+  service_proposal_id: number;
+  status: "scheduled" | "awaiting_payment" | "paid";
+  amount_cents: number;
+  scheduled_on: string;
+  description: string;
+  accepted_on: string;
+}
+
+export interface ApiCompletionReportInput {
+  description: string;
+  image_file_ids: string[];
+}
+
+export interface ApiCompletionReport {
+  id: number;
+  work_order_id: number;
+  description: string;
+  image_file_ids: string[];
+  created_on: string;
+}

@@ -13,7 +13,8 @@ export default defineConfig({
       "domain/**/*.test.{ts,tsx}",
       "application/**/*.test.{ts,tsx}",
       "infrastructure/**/*.test.{ts,tsx}",
-      "app/**/*.test.{ts,tsx}"
+      "app/**/*.test.{ts,tsx}",
+      "hooks/**/*.test.{ts,tsx}"
     ],
   },
   resolve: {

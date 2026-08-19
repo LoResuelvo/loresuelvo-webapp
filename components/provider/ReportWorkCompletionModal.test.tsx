@@ -197,6 +197,74 @@ describe("ReportWorkCompletionModal", () => {
     });
   });
 
+  it("displays futureScheduledDate error when API returns 409 not ready", async () => {
+    const user = userEvent.setup();
+    mockUploadMultipleFiles.mockResolvedValue([
+      { fileId: "file-id-1", url: "https://url1", originalName: "foto1.jpg" },
+    ]);
+
+    vi.mocked(actions.reportWorkCompletionAction).mockResolvedValue({
+      ok: false,
+      status: 409,
+      message: "work order is not ready for completion",
+    });
+
+    render(<ReportWorkCompletionModal {...defaultProps} />);
+
+    const fileInput = screen.getByTestId("completion-file-input");
+    await user.upload(fileInput, new File(["dummy"], "foto1.jpg", { type: "image/jpeg" }));
+
+    const textarea = screen.getByRole("textbox", {
+      name: /descripción de trabajo realizado/i,
+    });
+    await user.type(textarea, "Reporte antes de fecha.");
+
+    const submitBtn = screen.getByRole("button", {
+      name: t.workOrderCompletion.submitButton,
+    });
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(t.workOrderCompletion.errors.futureScheduledDate)
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("displays unauthorized error when API returns 403", async () => {
+    const user = userEvent.setup();
+    mockUploadMultipleFiles.mockResolvedValue([
+      { fileId: "file-id-1", url: "https://url1", originalName: "foto1.jpg" },
+    ]);
+
+    vi.mocked(actions.reportWorkCompletionAction).mockResolvedValue({
+      ok: false,
+      status: 403,
+      message: "only the assigned provider can report work completion",
+    });
+
+    render(<ReportWorkCompletionModal {...defaultProps} />);
+
+    const fileInput = screen.getByTestId("completion-file-input");
+    await user.upload(fileInput, new File(["dummy"], "foto1.jpg", { type: "image/jpeg" }));
+
+    const textarea = screen.getByRole("textbox", {
+      name: /descripción de trabajo realizado/i,
+    });
+    await user.type(textarea, "Reporte.");
+
+    const submitBtn = screen.getByRole("button", {
+      name: t.workOrderCompletion.submitButton,
+    });
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(t.workOrderCompletion.errors.unauthorized)
+      ).toBeInTheDocument();
+    });
+  });
+
   it("displays generic error message on unexpected failure", async () => {
     const user = userEvent.setup();
     mockUploadMultipleFiles.mockResolvedValue([

@@ -40,7 +40,7 @@ export class ApiWorkOrderRepository implements WorkOrderRepository {
     };
 
     const res = await api.post<ApiCompletionReport>(
-      `/work-orders/${workOrderId}/completion-report`,
+      `/work-orders/${workOrderId}/completion-reports`,
       payload
     );
 

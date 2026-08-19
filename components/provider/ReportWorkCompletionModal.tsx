@@ -92,10 +92,19 @@ export default function ReportWorkCompletionModal({
       const result = await reportWorkCompletionAction(workOrderId, description.trim(), imageFileIds);
 
       if (!result.ok) {
+        const msg = (result.message || "").toLowerCase();
         if (result.status === 409) {
-          setErrorMessage(t.workOrderCompletion.errors.alreadyReported);
+          if (msg.includes("not ready") || msg.includes("scheduled") || msg.includes("fecha")) {
+            setErrorMessage(t.workOrderCompletion.errors.futureScheduledDate);
+          } else {
+            setErrorMessage(t.workOrderCompletion.errors.alreadyReported);
+          }
         } else if (result.status === 400) {
-          setErrorMessage(t.workOrderCompletion.errors.requiredImages);
+          if (msg.includes("description") || msg.includes("descripción")) {
+            setErrorMessage(t.workOrderCompletion.errors.requiredDescription);
+          } else {
+            setErrorMessage(t.workOrderCompletion.errors.requiredImages);
+          }
         } else if (result.status === 403) {
           setErrorMessage(t.workOrderCompletion.errors.unauthorized);
         } else {

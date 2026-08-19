@@ -129,7 +129,7 @@ describe("ApiWorkOrderRepository", () => {
         imageFileIds: ["file-1", "file-2"],
       });
 
-      expect(baseClient.api.post).toHaveBeenCalledWith("/work-orders/10/completion-report", {
+      expect(baseClient.api.post).toHaveBeenCalledWith("/work-orders/10/completion-reports", {
         description: "Se finalizó el trabajo correctamente con cambio de caños.",
         image_file_ids: ["file-1", "file-2"],
       });

@@ -12,7 +12,7 @@ export type GetWorkOrderResult =
 
 export type ReportWorkCompletionResult =
   | { ok: true; report: CompletionReport }
-  | { ok: false; status: number | null };
+  | { ok: false; status: number | null; message?: string | null };
 
 export async function getWorkOrderByProposalAction(
   serviceProposalId: number
@@ -47,6 +47,7 @@ export async function reportWorkCompletionAction(
     return {
       ok: false,
       status: error instanceof ApiClientError ? error.status : null,
+      message: error instanceof ApiClientError ? error.message : null,
     };
   }
 }

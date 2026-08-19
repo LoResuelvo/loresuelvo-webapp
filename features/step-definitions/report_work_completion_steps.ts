@@ -140,7 +140,7 @@ async function setupWorkOrderStubs(
 
   await world.addApiStub({
     method: "POST",
-    endpoint: "/work-orders/10/completion-report",
+    endpoint: "/work-orders/10/completion-reports",
     status: 201,
     body: {
       id: 1,
@@ -153,7 +153,7 @@ async function setupWorkOrderStubs(
 
   await world.addApiStub({
     method: "POST",
-    endpoint: "/work-orders/42/completion-report",
+    endpoint: "/work-orders/42/completion-reports",
     status: 201,
     body: {
       id: 1,
@@ -432,7 +432,7 @@ Given(
   async function (this: CustomWorld) {
     await this.addApiStub({
       method: "POST",
-      endpoint: "/work-orders/10/completion-report",
+      endpoint: "/work-orders/10/completion-reports",
       status: 409,
       body: {
         error: "La orden de trabajo ya fue reportada previamente.",
@@ -440,7 +440,7 @@ Given(
     });
     await this.addApiStub({
       method: "POST",
-      endpoint: "/work-orders/42/completion-report",
+      endpoint: "/work-orders/42/completion-reports",
       status: 409,
       body: {
         error: "La orden de trabajo ya fue reportada previamente.",

@@ -98,7 +98,7 @@ describe("reportWorkCompletionAction", () => {
     });
   });
 
-  it("returns ok: false with HTTP status 409 when order already has a report", async () => {
+  it("returns ok: false with HTTP status 409 and message when order already has a report", async () => {
     vi.mocked(reportWorkCompletion).mockRejectedValue(
       new ApiClientError(409, "Conflict", "Order already reported")
     );
@@ -108,10 +108,11 @@ describe("reportWorkCompletionAction", () => {
     expect(result).toEqual({
       ok: false,
       status: 409,
+      message: "Order already reported",
     });
   });
 
-  it("returns ok: false with HTTP status 400 when input validation fails in backend", async () => {
+  it("returns ok: false with HTTP status 400 and message when input validation fails in backend", async () => {
     vi.mocked(reportWorkCompletion).mockRejectedValue(
       new ApiClientError(400, "Bad Request", "Missing description or invalid images")
     );
@@ -121,10 +122,11 @@ describe("reportWorkCompletionAction", () => {
     expect(result).toEqual({
       ok: false,
       status: 400,
+      message: "Missing description or invalid images",
     });
   });
 
-  it("returns ok: false with status null when unexpected error occurs", async () => {
+  it("returns ok: false with status null and message null when unexpected error occurs", async () => {
     vi.mocked(reportWorkCompletion).mockRejectedValue(new Error("Network failure"));
 
     const result = await reportWorkCompletionAction(10, "Trabajo terminado", ["file-1"]);
@@ -132,6 +134,7 @@ describe("reportWorkCompletionAction", () => {
     expect(result).toEqual({
       ok: false,
       status: null,
+      message: null,
     });
   });
 });

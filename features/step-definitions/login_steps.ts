@@ -1,11 +1,10 @@
 import { Given, Then, When } from "@cucumber/cucumber";
-import { CustomWorld } from "../support/world";
+import { CustomWorld, APP_URL } from "../support/world";
 import { AuthSession } from "../../infrastructure/auth/types";
 import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 
-const APP_URL = process.env.APP_URL || "http://localhost:3000";
 const AUTH0_LOGIN_URL = ROUTES.auth.login;
 const CONSUMER_URL = APP_URL + ROUTES.consumer.home;
 

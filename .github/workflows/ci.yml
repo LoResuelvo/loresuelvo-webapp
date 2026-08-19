@@ -73,10 +73,10 @@ jobs:
         run: npm run build
 
       - name: Iniciar servidor Next.js en background
-        run: npm run start &
+        run: PORT=3001 npm run start &
 
       - name: Esperar que el servidor esté disponible
-        run: npx wait-on http://localhost:3000 --timeout 60000
+        run: npx wait-on http://localhost:3001 --timeout 60000
 
       - name: Ejecutar Tests E2E (Cucumber)
         run: npm run test:e2e

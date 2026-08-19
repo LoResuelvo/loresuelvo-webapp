@@ -1,10 +1,9 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
-import { CustomWorld } from "../support/world";
+import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
 import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
 
-const APP_URL = process.env.APP_URL || "http://localhost:3000";
 let currentJobRequestAttachedImages: string[] = [];
 
 async function stubFileUpload(world: CustomWorld, fileName: string, fileId: string = "mock-file-123") {

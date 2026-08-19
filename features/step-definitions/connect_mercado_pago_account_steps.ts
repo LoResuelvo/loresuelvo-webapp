@@ -1,9 +1,8 @@
 import { Given, When, Then } from "@cucumber/cucumber";
-import { CustomWorld } from "../support/world";
+import { CustomWorld, APP_URL } from "../support/world";
 import assert from "assert";
 import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
 
-const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
 When("finalizo el registro como prestador", async function (this: CustomWorld) {
   // Mock external MercadoPago authorization page navigation
@@ -21,7 +20,7 @@ When("finalizo el registro como prestador", async function (this: CustomWorld) {
     status: 201,
     body: {
       id: "mock-provider-001",
-      profile_photo_url: "http://localhost:3000/mock-s3-url/avatar.png",
+      profile_photo_url: "http://localhost:3001/mock-s3-url/avatar.png",
     },
   });
 
@@ -83,7 +82,7 @@ Given(
       status: 201,
       body: {
         id: "mock-provider-001",
-        profile_photo_url: "http://localhost:3000/mock-s3-url/avatar.png",
+        profile_photo_url: "http://localhost:3001/mock-s3-url/avatar.png",
       },
     });
 

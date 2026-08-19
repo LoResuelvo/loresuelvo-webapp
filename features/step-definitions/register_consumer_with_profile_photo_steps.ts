@@ -12,7 +12,7 @@ Given(
       body: {
         file_id: "test-file-id",
         key: "test-key",
-        upload_url: "http://localhost:3000/mock-s3-upload",
+        upload_url: "http://localhost:3001/mock-s3-upload",
         headers: {},
       },
     });
@@ -23,7 +23,7 @@ Given(
       status: 200,
       body: {
         id: "test-file-id",
-        url: "http://localhost:3000/mock-s3-url/avatar.png",
+        url: "http://localhost:3001/mock-s3-url/avatar.png",
         original_name: "avatar.png",
       },
     });
@@ -36,7 +36,7 @@ Given(
         id: 1,
         name: "Ana",
         surname: "Pérez",
-        profile_photo_url: "http://localhost:3000/mock-s3-url/avatar.png",
+        profile_photo_url: "http://localhost:3001/mock-s3-url/avatar.png",
       },
     });
 

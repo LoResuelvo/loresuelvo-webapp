@@ -1,11 +1,10 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
-import { CustomWorld } from "../support/world";
+import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
 import { AuthSession } from "../../infrastructure/auth/types";
 import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
 
-const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
 async function setProviderSession(world: CustomWorld) {
   const session: AuthSession = {

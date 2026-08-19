@@ -4,9 +4,8 @@ import type { PaymentIntentStatus } from "../../domain/payment/types";
 import type { AuthSession } from "../../infrastructure/auth/types";
 import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
 import { ROUTES } from "../../lib/routes";
-import { CustomWorld } from "../support/world";
+import { CustomWorld, APP_URL } from "../support/world";
 
-const APP_URL = process.env.APP_URL || "http://localhost:3000";
 const PROPOSAL_ID = 42;
 const PROVIDER_ID = 20;
 const PAYMENT_INTENT_ID = "intent-e2e-123";

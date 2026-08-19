@@ -1,8 +1,7 @@
 import { Given, When, Then } from "@cucumber/cucumber";
-import { CustomWorld } from "../support/world";
+import { CustomWorld, APP_URL } from "../support/world";
 import assert from "assert";
 
-const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
 Given("no estoy logueado", async function (this: CustomWorld) {
   await this.page.context().clearCookies();

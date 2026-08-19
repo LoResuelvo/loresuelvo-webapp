@@ -1,9 +1,8 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
-import { CustomWorld } from "../support/world";
+import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
 
-const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
 let currentDiagnosisImages: string[] = [];
 

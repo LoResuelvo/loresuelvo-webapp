@@ -1,10 +1,9 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
-import { CustomWorld } from "../support/world";
+import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
 import { setConsumerSession } from "./initiate_chat_with_provider_steps";
 
-const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
 Given("estoy autenticado como consumidor", async function (this: CustomWorld) {
   await setConsumerSession(this);

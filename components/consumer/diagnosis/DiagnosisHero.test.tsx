@@ -17,8 +17,9 @@ Object.defineProperty(global, "sessionStorage", {
 
 Object.defineProperty(window, "location", {
   value: {
-    href: "",
-    set href(url: string) { mockAssign(url); },
+    _href: "",
+    get href() { return this._href; },
+    set href(url: string) { this._href = url; mockAssign(url); },
   },
   writable: true,
 });

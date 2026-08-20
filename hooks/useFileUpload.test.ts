@@ -111,7 +111,7 @@ describe("useFileUpload", () => {
     const file1 = new File(["dummy1"], "foto1.jpg", { type: "image/jpeg" });
     const file2 = new File(["dummy2"], "foto2.jpg", { type: "image/jpeg" });
 
-    let results;
+    let results: any;
     await act(async () => {
       results = await result.current.uploadMultipleFiles([file1, file2], {
         purpose: "work_order_completion_image",

@@ -63,6 +63,12 @@ Variantes CVA disponibles:
 - Props: `open`, `onClose`, `title`, `children`, `footer`, `className`, `closeLabel`.
 - **OBLIGATORIO**: Usar `Modal` para cualquier overlay/dialog. **Nunca crear modales caseros con `div fixed inset-0`.**
 
+### DetailField (`components/ui/detail-field.tsx`)
+- Componente atómico para mostrar pares clave-valor contractuales y metadatos con ícono (monto, fecha, rubro, estado).
+- **Variantes CVA**: `default` (caja neutra para metadatos), `highlight` (monto o dato principal), `compact` (versión densa).
+- **PROHIBIDO**: Duplicar bloques de 15 líneas de HTML (caja gris + ícono en cuadrado blanco + label uppercase + valor).
+- **OBLIGATORIO**: Usar `<DetailField icon={<DollarSign className="..." />} label={t.section.amountLabel} value={formattedValue} variant="highlight" />`.
+
 ### DetailPanel (`components/shared/DetailPanel.tsx`)
 - Componente reutilizable para vistas de detalle: avatar circular con iniciales + nombre + título + descripción.
 - Props: `initials`, `name`, `nameExtra`, `title`, `descriptionLabel`, `description`.
@@ -74,14 +80,28 @@ Variantes CVA disponibles:
 ### Otros: `Card`, `Badge`, `Input`, `Label`, `Textarea`, `Separator`
 - Todos usan CVA y `cn()` para mezclar clases.
 
+## 🔤 Escala Tipográfica Obligatoria (Prohibido `text-[...px]`)
+
+Para garantizar coherencia y evitar código espagueti visual, **está terminantemente prohibido usar clases arbitrarias con corchetes (ej. `text-[11px]`, `text-[15px]`, `text-[17px]`)**. Usar siempre los tokens semánticos configurados en `@theme` dentro de `app/globals.css`:
+
+- **`text-caption`** (11px, 0.6875rem): Labels en uppercase, timestamps, badges y micro-etiquetas.
+- **`text-small`** (12px, 0.75rem): Metadatos secundarios, helpers de inputs, subtítulos de tarjetas.
+- **`text-body-sm`** (13px, 0.8125rem): Cuerpo de texto compacto.
+- **`text-body`** (14px, 0.875rem): Cuerpo de texto por defecto, descripciones y campos de formulario.
+- **`text-body-lg`** (15px, 0.9375rem): Fechas programadas, valores enfatizados y montos intermedios.
+- **`text-subtitle`** (18px, 1.125rem): Subtítulos de sección y encabezados de tarjetas.
+- **`text-title`** (24px, 1.5rem): Títulos principales de modales y cabeceras de página.
+- **`text-heading`** (26px, 1.625rem): Encabezados de landing y héroes.
+
 ## Estandarización de Layout y Componentes (Clean UI)
 
 Al diseñar o refactorizar componentes, es obligatorio seguir estas reglas de estandarización:
 1. **Desacoplar Layout interno**: Los componentes de dominio o UI (como `RegistrationForm`, `ProviderCard`, `EmptyState`) NO deben dictar cómo se posicionan por fuera. No uses márgenes externos (`mt-X`, `mb-X`, `mx-auto`), anchos absolutos/máximos (`w-X`, `max-w-X`), ni forzados de alto (`min-h-screen`) dentro de ellos. Delega esa responsabilidad estructural a la página padre (`page.tsx`) o a un layout wrapper.
 2. **Propagación segura de className**: Todo componente debe aceptar una prop opcional `className?: string` y mezclarla en su contenedor raíz utilizando la utilidad `cn()` (Tailwind Merge + CLSX):
    `<div className={cn("bg-white rounded-2xl p-4 border...", className)}>`
-3. **Primitivas con cva y i18n**: Utiliza componentes de primitivas basados en `cva` para estandarizar variantes y evitar reescribir divs genéricos con sombras y bordes. Todo texto visible debe ir en `infrastructure/i18n/translations.ts`.
-4. **Un componente principal por archivo**: No exportar múltiples componentes complejos del mismo archivo.
+3. **Variantes con CVA**: Utilizar `cva` (`class-variance-authority`) para encapsular variantes de estado, tamaño y énfasis visual, en lugar de concatenar condicionales manuales con `className` sueltos.
+4. **Primitivas y i18n**: Usar las primitivas atómicas de `components/ui/` (`DetailField`, `Badge`, `Button`, `Modal`) para evitar reescribir divs genéricos. Todo texto visible debe ir en `infrastructure/i18n/translations.ts`.
+5. **Un componente principal por archivo**: No exportar múltiples componentes complejos del mismo archivo.
 
 ## i18n — Textos visibles
 

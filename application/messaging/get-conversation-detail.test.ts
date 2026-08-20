@@ -23,6 +23,7 @@ describe("get-conversation-detail", () => {
         name: "John",
         surname: "Doe",
       },
+      images: [],
     },
   ];
 

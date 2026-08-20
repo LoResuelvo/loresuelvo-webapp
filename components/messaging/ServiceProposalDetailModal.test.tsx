@@ -19,6 +19,7 @@ describe("ServiceProposalDetailModal", () => {
     scheduledOn: "2026-08-20T10:00:00Z",
     description: "Reparación de cañería de agua en cocina",
     status: "pending",
+    createdOn: "2026-08-01T10:00:00Z",
     counterpart: {
       id: 2,
       role: "provider",

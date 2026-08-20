@@ -78,19 +78,19 @@ export function ProposalTimelineCard({
         {/* Content Details */}
         <div className="bg-slate-50/90 rounded-xl p-3.5 border border-slate-150/60 space-y-2.5">
           <div className="flex flex-col">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+            <span className="text-caption font-semibold text-slate-400 uppercase tracking-wider">
               Monto
             </span>
-            <span className="text-lg font-bold text-slate-900 leading-tight">
+            <span className="text-subtitle font-bold text-slate-900 leading-tight">
               {formatAmountCents(proposal.amountCents)}
             </span>
           </div>
 
           <div className="flex flex-col gap-0.5 pt-1 border-t border-slate-200/60">
-            <span className="text-[10px] text-slate-400 font-medium">
+            <span className="text-caption text-slate-400 font-medium">
               Fecha y hora
             </span>
-            <div className="flex items-center gap-2 text-slate-600 text-xs font-medium">
+            <div className="flex items-center gap-2 text-slate-600 text-small font-medium">
               <Calendar className="w-3.5 h-3.5 text-brand-primary shrink-0" />
               <span className="truncate">{formatScheduledOn(proposal.scheduledOn)}</span>
             </div>
@@ -98,11 +98,11 @@ export function ProposalTimelineCard({
 
           {proposal.description && (
             <div className="flex flex-col gap-0.5 pt-1 border-t border-slate-200/60">
-              <span className="text-[10px] text-slate-400 font-medium">
+              <span className="text-caption text-slate-400 font-medium">
                 Descripción
               </span>
               <p
-                className="text-xs text-slate-600 line-clamp-2 leading-relaxed break-words"
+                className="text-small text-slate-600 line-clamp-2 leading-relaxed break-words"
                 title={proposal.description}
               >
                 {proposal.description}
@@ -121,7 +121,7 @@ export function ProposalTimelineCard({
             onClick();
           }}
           className={cn(
-            "w-full h-10 py-2 text-sm font-semibold rounded-xl cursor-pointer shadow-2xs gap-1.5",
+            "w-full h-10 py-2 text-body font-semibold rounded-xl cursor-pointer shadow-2xs gap-1.5",
             proposal.status === "pending" && !isProvider
               ? "bg-brand-primary text-white hover:bg-brand-primary/90"
               : "hover:bg-slate-50",
@@ -133,7 +133,7 @@ export function ProposalTimelineCard({
 
         {/* Timestamp */}
         {proposal.createdOn && (
-          <p className="text-[11px] text-slate-400 text-right pt-0.5">
+          <p className="text-caption text-slate-400 text-right pt-0.5">
             {formatProposalTime(proposal.createdOn)}
           </p>
         )}

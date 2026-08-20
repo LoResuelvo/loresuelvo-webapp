@@ -7,6 +7,7 @@ import { t } from "@/infrastructure/i18n/translations";
 import { DollarSign, Calendar, FileText, CheckCircle2, Loader2, AlertCircle, Star } from "lucide-react";
 import { formatAmountCents, formatScheduledOn } from "@/lib/proposal-utils";
 import { getWorkOrderDetailAction } from "@/app/work-orders/actions";
+import { DetailField } from "@/components/ui/detail-field";
 import { CompletionEvidenceSection } from "./CompletionEvidenceSection";
 import type { WorkOrderDetail } from "@/domain/work-order/types";
 
@@ -122,51 +123,31 @@ export function WorkOrderDetailModal({
             {/* Contractual details */}
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div className="flex items-center gap-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl p-3.5">
-                  <div className="w-10 h-10 rounded-lg bg-white border border-slate-200/70 shadow-2xs flex items-center justify-center text-brand-primary shrink-0">
-                    <DollarSign className="w-5 h-5" />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-caption font-semibold text-slate-400 uppercase tracking-wider">
-                      {t.workOrderDetail.amountLabel}
-                    </span>
-                    <span className="text-subtitle font-bold text-slate-800 truncate">
-                      {formatAmountCents(amountCents)}
-                    </span>
-                  </div>
-                </div>
+                <DetailField
+                  icon={<DollarSign className="w-5 h-5" />}
+                  label={t.workOrderDetail.amountLabel}
+                  value={formatAmountCents(amountCents)}
+                  variant="highlight"
+                />
 
-                <div className="flex items-center gap-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl p-3.5">
-                  <div className="w-10 h-10 rounded-lg bg-white border border-slate-200/70 shadow-2xs flex items-center justify-center text-brand-primary shrink-0">
-                    <Calendar className="w-5 h-5" />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-caption font-semibold text-slate-400 uppercase tracking-wider">
-                      {t.workOrderDetail.scheduledOnLabel}
-                    </span>
-                    <span className="text-body-lg font-semibold text-slate-700 truncate">
-                      {formatScheduledOn(scheduledOn)}
-                    </span>
-                  </div>
-                </div>
+                <DetailField
+                  icon={<Calendar className="w-5 h-5" />}
+                  label={t.workOrderDetail.scheduledOnLabel}
+                  value={formatScheduledOn(scheduledOn)}
+                  variant="default"
+                />
 
                 {detail?.paidOn && (
-                  <div
-                    data-testid="work-order-paid-info"
-                    className="flex items-center gap-3.5 bg-emerald-50/70 border border-emerald-200/60 rounded-xl p-3.5 sm:col-span-2"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-white border border-emerald-200/70 shadow-2xs flex items-center justify-center text-emerald-600 shrink-0">
-                      <CheckCircle2 className="w-5 h-5" />
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-caption font-semibold text-emerald-600 uppercase tracking-wider">
-                        {t.workOrderDetail.paidOnLabel}
-                      </span>
-                      <span className="text-body-lg font-semibold text-emerald-950 truncate">
-                        {formatScheduledOn(detail.paidOn)}
-                      </span>
-                    </div>
-                  </div>
+                  <DetailField
+                    icon={<CheckCircle2 className="w-5 h-5" />}
+                    label={t.workOrderDetail.paidOnLabel}
+                    value={formatScheduledOn(detail.paidOn)}
+                    className="bg-emerald-50/70 border-emerald-200/60 sm:col-span-2"
+                    iconClassName="border-emerald-200/70 text-emerald-600"
+                    labelClassName="text-emerald-600"
+                    valueClassName="text-emerald-950"
+                    dataTestId="work-order-paid-info"
+                  />
                 )}
               </div>
 

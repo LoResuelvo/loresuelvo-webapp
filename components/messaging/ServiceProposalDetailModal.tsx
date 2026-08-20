@@ -8,6 +8,7 @@ import { Modal } from "@/components/ui/modal";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DetailField } from "@/components/ui/detail-field";
 import { Calendar, DollarSign, FileText, MessageCircle, CheckCircle2, Clock } from "lucide-react";
 import { t } from "@/infrastructure/i18n/translations";
 import { getInitials } from "@/lib/text-utils";
@@ -28,10 +29,6 @@ export default function ServiceProposalDetailModal({
   onClose,
   onViewConversation,
 }: ServiceProposalDetailModalProps) {
-  const { counterpart } = proposal;
-  const displayName = `${counterpart.name} ${counterpart.surname}`.trim() || "Usuario";
-  const initials = getInitials(displayName);
-  const statusBadge = getStatusBadge(proposal.status);
   const { now } = useClock();
 
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
@@ -39,7 +36,7 @@ export default function ServiceProposalDetailModal({
   const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
   const [isReportedSuccess, setIsReportedSuccess] = useState(false);
 
-  const isProvider = counterpart.role === "consumer";
+  const isProvider = proposal.counterpart.role === "consumer";
   const isAccepted = proposal.status === "accepted";
   const scheduledTime = new Date(proposal.scheduledOn).getTime();
   const isScheduledDateReached = !isNaN(scheduledTime) && now().getTime() >= scheduledTime;
@@ -56,6 +53,10 @@ export default function ServiceProposalDetailModal({
     }
   }, [proposal.id, isAccepted]);
 
+  const counterpart = proposal.counterpart;
+  const displayName = `${counterpart.name} ${counterpart.surname}`.trim() || "Usuario";
+  const initials = getInitials(displayName);
+  const statusBadge = getStatusBadge(proposal.status);
   const isAwaitingPayment = isReportedSuccess || workOrder?.status === "awaiting_payment" || workOrder?.status === "paid";
 
   return (
@@ -79,13 +80,13 @@ export default function ServiceProposalDetailModal({
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-[17px] font-semibold text-slate-800 leading-tight">{displayName}</p>
+                  <p className="text-subtitle font-semibold text-slate-800 leading-tight">{displayName}</p>
                   <Badge variant={statusBadge.variant} className="px-2 py-0.5 font-medium">
                     {statusBadge.label}
                   </Badge>
                 </div>
                 {counterpart.categoryName && (
-                  <p className="text-[13px] text-slate-500 mt-1 font-normal">{counterpart.categoryName}</p>
+                  <p className="text-body-sm text-slate-500 mt-1 font-normal">{counterpart.categoryName}</p>
                 )}
               </div>
             </div>
@@ -94,7 +95,7 @@ export default function ServiceProposalDetailModal({
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-1.5 text-xs text-brand-primary h-8 px-3 font-medium cursor-pointer shadow-2xs hover:bg-slate-50 hover:text-brand-primary shrink-0"
+                className="gap-1.5 text-small text-brand-primary h-8 px-3 font-medium cursor-pointer shadow-2xs hover:bg-slate-50 hover:text-brand-primary shrink-0"
                 onClick={() => onViewConversation(proposal.conversationId)}
               >
                 <MessageCircle className="w-3.5 h-3.5" />
@@ -106,44 +107,30 @@ export default function ServiceProposalDetailModal({
           {/* Detail fields */}
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div className="flex items-center gap-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl p-3.5 transition-colors hover:bg-slate-50">
-                <div className="w-10 h-10 rounded-lg bg-white border border-slate-200/70 shadow-2xs flex items-center justify-center text-brand-primary shrink-0">
-                  <DollarSign className="w-5 h-5" />
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                    {t.serviceProposals.chatPanel.amountLabel}
-                  </span>
-                  <span className="text-[17px] font-bold text-slate-800 truncate">
-                    {formatAmountCents(proposal.amountCents)}
-                  </span>
-                </div>
-              </div>
+              <DetailField
+                icon={<DollarSign className="w-5 h-5" />}
+                label={t.serviceProposals.chatPanel.amountLabel}
+                value={formatAmountCents(proposal.amountCents)}
+                variant="highlight"
+              />
 
-              <div className="flex items-center gap-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl p-3.5 transition-colors hover:bg-slate-50">
-                <div className="w-10 h-10 rounded-lg bg-white border border-slate-200/70 shadow-2xs flex items-center justify-center text-brand-primary shrink-0">
-                  <Calendar className="w-5 h-5" />
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                    {t.serviceProposals.chatPanel.dateLabel}
-                  </span>
-                  <span className="text-[15px] font-semibold text-slate-700 truncate">
-                    {formatScheduledOn(proposal.scheduledOn)}
-                  </span>
-                </div>
-              </div>
+              <DetailField
+                icon={<Calendar className="w-5 h-5" />}
+                label={t.serviceProposals.chatPanel.dateLabel}
+                value={formatScheduledOn(proposal.scheduledOn)}
+                variant="default"
+              />
             </div>
 
             {proposal.description && (
               <div className="bg-slate-50/80 border border-slate-200/60 rounded-xl p-4 space-y-2">
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-brand-primary shrink-0" />
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  <span className="text-caption font-semibold text-slate-400 uppercase tracking-wider">
                     {t.serviceProposals.chatPanel.descriptionLabel}
                   </span>
                 </div>
-                <p className="text-[14px] leading-relaxed text-slate-700 whitespace-pre-wrap max-h-60 overflow-y-auto pr-1 font-normal">
+                <p className="text-body leading-relaxed text-slate-700 whitespace-pre-wrap max-h-60 overflow-y-auto pr-1 font-normal">
                   {proposal.description}
                 </p>
               </div>

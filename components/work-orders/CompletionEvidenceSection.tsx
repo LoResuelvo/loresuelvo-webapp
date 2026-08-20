@@ -3,23 +3,11 @@
 import { t } from "@/infrastructure/i18n/translations";
 import { formatScheduledOn } from "@/lib/proposal-utils";
 import { ImageGalleryPreview } from "@/components/shared/ImageGalleryPreview";
+import type { CompletionReportDetail } from "@/domain/work-order/types";
 import { CheckCircle2, Clock, FileText } from "lucide-react";
 
-export interface CompletionEvidenceImage {
-  fileId: string;
-  originalName: string;
-  url: string;
-}
-
-export interface CompletionEvidenceData {
-  id?: number;
-  description?: string;
-  reportedOn?: string;
-  images?: CompletionEvidenceImage[];
-}
-
 interface CompletionEvidenceSectionProps {
-  report: CompletionEvidenceData;
+  report: CompletionReportDetail;
 }
 
 export function CompletionEvidenceSection({ report }: CompletionEvidenceSectionProps) {

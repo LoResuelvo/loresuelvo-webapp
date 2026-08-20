@@ -1,9 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { CompletionEvidenceSection, CompletionEvidenceData } from "./CompletionEvidenceSection";
+import { CompletionEvidenceSection } from "./CompletionEvidenceSection";
+import type { CompletionReportDetail } from "@/domain/work-order/types";
 
 describe("CompletionEvidenceSection", () => {
-  const mockReport: CompletionEvidenceData = {
+  const mockReport: CompletionReportDetail = {
     id: 1,
     description: "Trabajo finalizado correctamente y verificado.",
     reportedOn: "2026-08-20T12:00:00Z",

@@ -281,6 +281,19 @@ export interface ApiCompletionReport {
   created_on: string;
 }
 
+export interface ApiCompletionImage {
+  file_id: string;
+  original_name: string;
+  url: string;
+}
+
+export interface ApiCompletionReportDetail {
+  id: number;
+  description: string;
+  reported_on: string;
+  images: ApiCompletionImage[];
+}
+
 export interface ApiWorkOrderDetail {
   id: number;
   service_proposal_id: number;
@@ -291,4 +304,5 @@ export interface ApiWorkOrderDetail {
   description: string;
   status: "scheduled" | "awaiting_payment" | "paid";
   accepted_on: string;
+  completion_report?: ApiCompletionReportDetail;
 }

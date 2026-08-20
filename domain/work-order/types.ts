@@ -23,6 +23,19 @@ export interface CompletionReport {
   createdOn: string;
 }
 
+export interface CompletionImage {
+  fileId: string;
+  originalName: string;
+  url: string;
+}
+
+export interface CompletionReportDetail {
+  id: number;
+  description: string;
+  reportedOn: string;
+  images: CompletionImage[];
+}
+
 export interface WorkOrderDetail {
   id: number;
   serviceProposalId: number;
@@ -33,4 +46,5 @@ export interface WorkOrderDetail {
   description: string;
   status: WorkOrderStatus;
   acceptedOn: string;
+  completionReport?: CompletionReportDetail;
 }

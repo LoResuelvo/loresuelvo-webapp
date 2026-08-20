@@ -1,5 +1,15 @@
-import { ApiWorkOrder, ApiWorkOrderDetail, ApiCompletionReport } from "@/infrastructure/api/types";
-import { WorkOrder, WorkOrderDetail, CompletionReport } from "@/domain/work-order/types";
+import {
+  ApiWorkOrder,
+  ApiWorkOrderDetail,
+  ApiCompletionReport,
+  ApiCompletionReportDetail,
+} from "@/infrastructure/api/types";
+import {
+  WorkOrder,
+  WorkOrderDetail,
+  CompletionReport,
+  CompletionReportDetail,
+} from "@/domain/work-order/types";
 
 export function transformApiToWorkOrder(api: ApiWorkOrder): WorkOrder {
   return {
@@ -10,6 +20,21 @@ export function transformApiToWorkOrder(api: ApiWorkOrder): WorkOrder {
     scheduledOn: api.scheduled_on,
     description: api.description,
     acceptedOn: api.accepted_on,
+  };
+}
+
+export function transformApiToCompletionReportDetail(
+  api: ApiCompletionReportDetail
+): CompletionReportDetail {
+  return {
+    id: api.id,
+    description: api.description,
+    reportedOn: api.reported_on,
+    images: (api.images || []).map((img) => ({
+      fileId: img.file_id,
+      originalName: img.original_name,
+      url: img.url,
+    })),
   };
 }
 
@@ -24,6 +49,9 @@ export function transformApiToWorkOrderDetail(api: ApiWorkOrderDetail): WorkOrde
     description: api.description,
     status: api.status,
     acceptedOn: api.accepted_on,
+    completionReport: api.completion_report
+      ? transformApiToCompletionReportDetail(api.completion_report)
+      : undefined,
   };
 }
 

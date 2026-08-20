@@ -59,6 +59,47 @@ describe("work-order-mapper", () => {
     });
   });
 
+  it("transforms ApiWorkOrderDetail with completion_report", () => {
+    const api: ApiWorkOrderDetail = {
+      id: 10,
+      service_proposal_id: 42,
+      consumer_id: 10,
+      provider_id: 1,
+      status: "awaiting_payment",
+      amount_cents: 1500000,
+      scheduled_on: "2026-08-20T10:00:00Z",
+      description: "Reparación de cañería",
+      accepted_on: "2026-08-05T10:00:00Z",
+      completion_report: {
+        id: 1,
+        description: "Trabajo terminado",
+        reported_on: "2026-08-20T12:00:00Z",
+        images: [
+          {
+            file_id: "file-01",
+            original_name: "foto.jpg",
+            url: "https://example.com/foto.jpg",
+          },
+        ],
+      },
+    };
+
+    const result = transformApiToWorkOrderDetail(api);
+
+    expect(result.completionReport).toEqual({
+      id: 1,
+      description: "Trabajo terminado",
+      reportedOn: "2026-08-20T12:00:00Z",
+      images: [
+        {
+          fileId: "file-01",
+          originalName: "foto.jpg",
+          url: "https://example.com/foto.jpg",
+        },
+      ],
+    });
+  });
+
   it("transforms ApiCompletionReport to CompletionReport", () => {
     const api: ApiCompletionReport = {
       id: 1,

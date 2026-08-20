@@ -75,6 +75,19 @@ export default function ReportWorkCompletionModal({
     setErrorMessage(null);
   };
 
+  const handleClose = () => {
+    selectedImages.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+    setSelectedImages([]);
+    setDescription("");
+    setErrorMessage(null);
+    if (isSuccess) {
+      onSuccess?.();
+    }
+    setIsSuccess(false);
+    setIsSubmitting(false);
+    onClose();
+  };
+
   const handleSubmit = async () => {
     if (!isFormValid || isSubmitting || isUploading) return;
 
@@ -115,25 +128,13 @@ export default function ReportWorkCompletionModal({
       }
 
       setIsSuccess(true);
+      setIsSubmitting(false);
     } catch (err: unknown) {
       setErrorMessage(
         err instanceof Error ? err.message : t.workOrderCompletion.errors.generic
       );
       setIsSubmitting(false);
     }
-  };
-
-  const handleClose = () => {
-    selectedImages.forEach((img) => URL.revokeObjectURL(img.previewUrl));
-    setSelectedImages([]);
-    setDescription("");
-    setErrorMessage(null);
-    if (isSuccess) {
-      onSuccess?.();
-    }
-    setIsSuccess(false);
-    setIsSubmitting(false);
-    onClose();
   };
 
   return (
@@ -145,9 +146,9 @@ export default function ReportWorkCompletionModal({
     >
       <div className="p-6 space-y-6" data-testid="report-work-completion-modal">
         {isSuccess ? (
-          <div className="text-center py-8 space-y-4">
+          <div className="text-center py-8 space-y-4 animate-in fade-in zoom-in-95 duration-300">
             <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto ring-8 ring-emerald-50/50">
-              <CheckCircle2 className="w-10 h-10" />
+              <CheckCircle2 className="w-10 h-10 animate-in zoom-in duration-200" />
             </div>
             <div className="space-y-1">
               <h3 className="text-xl font-bold text-slate-800">
@@ -158,7 +159,7 @@ export default function ReportWorkCompletionModal({
               <Button
                 variant="brand"
                 onClick={handleClose}
-                className="w-full sm:w-auto px-8"
+                className="w-full sm:w-auto px-8 cursor-pointer"
               >
                 {t.workOrderCompletion.closeButton}
               </Button>

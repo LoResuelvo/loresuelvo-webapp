@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
+import { WorkOrder } from "@/domain/work-order/types";
 import { formatAmountCents, formatScheduledOn, getStatusBadge } from "@/lib/proposal-utils";
 import { Modal } from "@/components/ui/modal";
 import { Avatar } from "@/components/ui/avatar";
@@ -13,7 +14,6 @@ import { getInitials } from "@/lib/text-utils";
 import { BookingDepositPayment } from "@/components/payments/BookingDepositPayment";
 import ReportWorkCompletionModal from "@/components/provider/ReportWorkCompletionModal";
 import { getWorkOrderByProposalAction } from "@/app/work-orders/actions";
-
 import { useClock } from "@/hooks/useClock";
 
 interface ServiceProposalDetailModalProps {
@@ -34,7 +34,8 @@ export default function ServiceProposalDetailModal({
   const { now } = useClock();
 
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
-  const [workOrderId, setWorkOrderId] = useState<number | null>(null);
+  const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
+  const [isReportedSuccess, setIsReportedSuccess] = useState(false);
 
   const isProvider = counterpart.role === "consumer";
   const isAccepted = proposal.status === "accepted";
@@ -46,12 +47,14 @@ export default function ServiceProposalDetailModal({
       getWorkOrderByProposalAction(proposal.id)
         .then((res) => {
           if (res.ok && res.workOrder) {
-            setWorkOrderId(res.workOrder.id);
+            setWorkOrder(res.workOrder);
           }
         })
         .catch(() => {});
     }
   }, [proposal.id, isAccepted, isProvider]);
+
+  const isAwaitingPayment = isReportedSuccess || workOrder?.status === "awaiting_payment" || workOrder?.status === "paid";
 
   return (
     <>
@@ -163,7 +166,22 @@ export default function ServiceProposalDetailModal({
             {/* Provider work order completion actions */}
             {isAccepted && isProvider && (
               <div className="pt-2">
-                {isScheduledDateReached ? (
+                {isAwaitingPayment ? (
+                  <div
+                    role="status"
+                    data-testid="completion-reported-success-banner"
+                    className="flex items-center gap-3 p-3.5 bg-emerald-50/90 border border-emerald-200/80 rounded-xl text-emerald-800 text-sm animate-in fade-in zoom-in-95 duration-300 shadow-xs"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600 animate-in zoom-in duration-200" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-emerald-900 leading-tight">
+                        {t.workOrderCompletion.successMessage}
+                      </p>
+                    </div>
+                  </div>
+                ) : isScheduledDateReached ? (
                   <Button
                     variant="brand"
                     className="w-full h-11 rounded-xl text-sm font-semibold gap-2 shadow-xs cursor-pointer"
@@ -193,10 +211,9 @@ export default function ServiceProposalDetailModal({
         <ReportWorkCompletionModal
           open={true}
           onClose={() => setIsCompletionModalOpen(false)}
-          workOrderId={workOrderId ?? proposal.id}
+          workOrderId={workOrder?.id ?? proposal.id}
           onSuccess={() => {
-            setIsCompletionModalOpen(false);
-            onClose();
+            setIsReportedSuccess(true);
           }}
         />
       )}

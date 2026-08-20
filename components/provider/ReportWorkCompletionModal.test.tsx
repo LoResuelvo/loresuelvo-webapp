@@ -118,7 +118,7 @@ describe("ReportWorkCompletionModal", () => {
     expect(previews).toHaveLength(3);
   });
 
-  it("submits completion report successfully and shows success message", async () => {
+  it("submits completion report successfully, shows in-modal success view, and calls onSuccess when closed", async () => {
     const user = userEvent.setup();
     mockUploadMultipleFiles.mockResolvedValue([
       { fileId: "file-id-1", url: "https://url1", originalName: "foto1.jpg" },
@@ -162,6 +162,12 @@ describe("ReportWorkCompletionModal", () => {
       );
       expect(screen.getByText(t.workOrderCompletion.successMessage)).toBeInTheDocument();
     });
+
+    const closeButtons = screen.getAllByRole("button", { name: t.workOrderCompletion.closeButton });
+    await user.click(closeButtons[closeButtons.length - 1]);
+
+    expect(defaultProps.onSuccess).toHaveBeenCalled();
+    expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
   it("displays error message when reportWorkCompletionAction returns status 409", async () => {

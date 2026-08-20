@@ -2,8 +2,9 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { aProposal, aWorkOrder, aCompletionReport, aReview } from "../support/factories";
+import { ROUTES } from "../../lib/routes";
 
-const PROPOSAL_ID = 42;
+const PROPOSAL_ID = 10;
 const WORK_ORDER_ID = 10;
 
 Given(
@@ -33,57 +34,61 @@ Given(
 Given(
   'que la orden de trabajo está en estado "scheduled"',
   async function (this: CustomWorld) {
-    await this.stubGet(
-      `/work-orders/${WORK_ORDER_ID}`,
-      aWorkOrder({ id: WORK_ORDER_ID, service_proposal_id: PROPOSAL_ID, status: "scheduled" })
-    );
+    const wo = aWorkOrder({ id: WORK_ORDER_ID, service_proposal_id: 10, status: "scheduled" });
+    await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, wo);
+    await this.stubGet(`/work-orders?service_proposal_id=10`, wo);
+    await this.stubGet(`/work-orders?service_proposal_id=42`, { ...wo, service_proposal_id: 42 });
+    await this.stubGet(`/work-orders/42`, { ...wo, id: 42, service_proposal_id: 42 });
   }
 );
 
 Given(
   'que la orden de trabajo está en estado "awaiting_payment" con evidencia de finalización',
   async function (this: CustomWorld) {
-    await this.stubGet(
-      `/work-orders/${WORK_ORDER_ID}`,
-      aWorkOrder({
-        id: WORK_ORDER_ID,
-        service_proposal_id: PROPOSAL_ID,
-        status: "awaiting_payment",
-        completion_report: aCompletionReport(),
-      })
-    );
+    const wo = aWorkOrder({
+      id: WORK_ORDER_ID,
+      service_proposal_id: 10,
+      status: "awaiting_payment",
+      completion_report: aCompletionReport(),
+    });
+    await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, wo);
+    await this.stubGet(`/work-orders?service_proposal_id=10`, wo);
+    await this.stubGet(`/work-orders?service_proposal_id=42`, { ...wo, service_proposal_id: 42 });
+    await this.stubGet(`/work-orders/42`, { ...wo, id: 42, service_proposal_id: 42 });
   }
 );
 
 Given(
   'que la orden de trabajo está en estado "paid" con evidencia de finalización',
   async function (this: CustomWorld) {
-    await this.stubGet(
-      `/work-orders/${WORK_ORDER_ID}`,
-      aWorkOrder({
-        id: WORK_ORDER_ID,
-        service_proposal_id: PROPOSAL_ID,
-        status: "paid",
-        paid_on: "2026-08-20T14:30:00Z",
-        completion_report: aCompletionReport(),
-      })
-    );
+    const wo = aWorkOrder({
+      id: WORK_ORDER_ID,
+      service_proposal_id: 10,
+      status: "paid",
+      paid_on: "2026-08-20T14:30:00Z",
+      completion_report: aCompletionReport(),
+    });
+    await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, wo);
+    await this.stubGet(`/work-orders?service_proposal_id=10`, wo);
+    await this.stubGet(`/work-orders?service_proposal_id=42`, { ...wo, service_proposal_id: 42 });
+    await this.stubGet(`/work-orders/42`, { ...wo, id: 42, service_proposal_id: 42 });
   }
 );
 
 Given(
   'que la orden de trabajo está en estado "paid" con reseña de 5 estrellas',
   async function (this: CustomWorld) {
-    await this.stubGet(
-      `/work-orders/${WORK_ORDER_ID}`,
-      aWorkOrder({
-        id: WORK_ORDER_ID,
-        service_proposal_id: PROPOSAL_ID,
-        status: "paid",
-        paid_on: "2026-08-20T14:30:00Z",
-        review: aReview({ rating: 5 }),
-      })
-    );
+    const wo = aWorkOrder({
+      id: WORK_ORDER_ID,
+      service_proposal_id: 10,
+      status: "paid",
+      paid_on: "2026-08-20T14:30:00Z",
+      review: aReview({ rating: 5 }),
+    });
+    await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, wo);
+    await this.stubGet(`/work-orders?service_proposal_id=10`, wo);
+    await this.stubGet(`/work-orders?service_proposal_id=42`, { ...wo, service_proposal_id: 42 });
+    await this.stubGet(`/work-orders/42`, { ...wo, id: 42, service_proposal_id: 42 });
   }
 );
 
@@ -103,47 +108,82 @@ Given(
   }
 );
 
+async function openWorkOrderDetailModal(world: CustomWorld) {
+  const cookies = await world.page.context().cookies();
+  const sessionCookie = cookies.find((c) => c.name === "__e2e_session");
+  let isProvider = false;
+  if (sessionCookie) {
+    try {
+      const parsed = JSON.parse(decodeURIComponent(sessionCookie.value));
+      isProvider = parsed?.user?.role === "provider";
+    } catch {}
+  }
+
+  const targetUrl = isProvider
+    ? `${APP_URL}${ROUTES.provider.jobs}`
+    : `${APP_URL}${ROUTES.consumer.services}`;
+
+  await world.page.goto(targetUrl, { waitUntil: "domcontentloaded" });
+  await world.page.waitForLoadState("networkidle").catch(() => {});
+
+  const tabAceptadas = world.page.getByRole("tab", { name: /aceptadas/i });
+  await tabAceptadas.waitFor({ state: "visible", timeout: 10000 });
+
+  for (let i = 0; i < 10; i++) {
+    await tabAceptadas.click();
+    await world.page.waitForTimeout(200);
+    const isSelected = await tabAceptadas.getAttribute("aria-selected");
+    if (isSelected === "true") break;
+    await world.page.waitForTimeout(300);
+  }
+
+  const card = world.page
+    .getByTestId("proposal-card")
+    .or(world.page.getByRole("listitem"))
+    .first();
+  await card.waitFor({ state: "visible", timeout: 10000 });
+
+  const detailModal = world.page.getByTestId("service-proposal-detail-modal");
+  for (let i = 0; i < 5; i++) {
+    await card.click();
+    const isModalVisible = await detailModal.isVisible().catch(() => false);
+    if (isModalVisible) break;
+    await world.page.waitForTimeout(300);
+  }
+  await detailModal.waitFor({ state: "visible", timeout: 10000 });
+
+  const viewDetailButton = world.page.getByRole("button", {
+    name: /ver detalle de la orden/i,
+  });
+  await viewDetailButton.waitFor({ state: "visible", timeout: 10000 });
+  await viewDetailButton.click();
+
+  const workOrderModal = world.page.getByTestId("work-order-detail-modal");
+  await workOrderModal.waitFor({ state: "visible", timeout: 10000 });
+}
+
 When(
   "abro el detalle de la orden de trabajo",
   async function (this: CustomWorld) {
-    // Navigate to proposals view
-    await this.page.goto(`${APP_URL}/consumidor/mis-servicios`);
-    
-    // Switch to Aceptadas tab
-    const acceptedTab = this.page.getByRole("tab", { name: /aceptadas/i });
-    if (await acceptedTab.isVisible()) {
-      await acceptedTab.click();
-    }
-    
-    // Click on the accepted proposal card to open proposal detail modal
-    const proposalCard = this.page.getByRole("listitem").first();
-    await proposalCard.click();
-    
-    // Click "Ver detalle de la orden" button inside proposal detail modal
-    const viewDetailButton = this.page.getByRole("button", { name: /ver detalle de la orden/i });
-    await viewDetailButton.click();
+    await openWorkOrderDetailModal(this);
   }
 );
 
 Given(
   "tengo abierto el detalle de la orden de trabajo",
   async function (this: CustomWorld) {
-    await this.page.goto(`${APP_URL}/consumidor/mis-servicios`);
-    const acceptedTab = this.page.getByRole("tab", { name: /aceptadas/i });
-    if (await acceptedTab.isVisible()) {
-      await acceptedTab.click();
-    }
-    const proposalCard = this.page.getByRole("listitem").first();
-    await proposalCard.click();
-    const viewDetailButton = this.page.getByRole("button", { name: /ver detalle de la orden/i });
-    await viewDetailButton.click();
+    await openWorkOrderDetailModal(this);
   }
 );
 
 When(
   "hago clic en una foto de evidencia",
   async function (this: CustomWorld) {
-    const photoThumbnail = this.page.getByRole("button", { name: /evidencia/i }).first();
+    const modal = this.page.getByTestId("work-order-detail-modal");
+    const evidenceSection = modal.getByTestId("completion-evidence-section");
+    await evidenceSection.waitFor({ state: "visible", timeout: 10000 });
+    const photoThumbnail = evidenceSection.getByRole("button").first();
+    await photoThumbnail.waitFor({ state: "visible", timeout: 10000 });
     await photoThumbnail.click();
   }
 );

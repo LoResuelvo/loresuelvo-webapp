@@ -45,7 +45,6 @@ Feature: US-27 Consultar detalle y evidencia de una orden de trabajo
     When abro el detalle de la orden de trabajo
     Then veo un mensaje de error al cargar el detalle
 
-  @wip
   Scenario: 07-VWOD Visualizar calificación y reseña previa en orden pagada
     Given que la orden de trabajo está en estado "paid" con reseña de 5 estrellas
     When abro el detalle de la orden de trabajo

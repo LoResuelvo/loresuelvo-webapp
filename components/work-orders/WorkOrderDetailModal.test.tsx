@@ -108,4 +108,50 @@ describe("WorkOrderDetailModal", () => {
 
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
+
+  it("should render completion evidence section when completionReport is present", async () => {
+    vi.mocked(getWorkOrderDetailAction).mockResolvedValue({
+      ok: true,
+      detail: {
+        id: 10,
+        serviceProposalId: 42,
+        consumerId: 10,
+        providerId: 1,
+        status: "awaiting_payment",
+        amountCents: 1500000,
+        scheduledOn: "2026-08-20T10:00:00Z",
+        description: "Reparación de cañería en cocina",
+        acceptedOn: "2026-08-05T10:00:00Z",
+        completionReport: {
+          id: 1,
+          description: "Trabajo finalizado correctamente y verificado.",
+          reportedOn: "2026-08-20T12:00:00Z",
+          images: [
+            {
+              fileId: "file-01",
+              originalName: "evidencia_1.jpg",
+              url: "https://placehold.co/600x400/png?text=Evidencia+1",
+            },
+          ],
+        },
+      },
+    });
+
+    render(
+      <WorkOrderDetailModal
+        open={true}
+        onClose={vi.fn()}
+        workOrderId={10}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("completion-evidence-section")).toBeInTheDocument();
+      expect(screen.getByText("Evidencia de finalización")).toBeInTheDocument();
+      expect(
+        screen.getByText("Trabajo finalizado correctamente y verificado.")
+      ).toBeInTheDocument();
+      expect(screen.getByText("Pendiente de pago")).toBeInTheDocument();
+    });
+  });
 });

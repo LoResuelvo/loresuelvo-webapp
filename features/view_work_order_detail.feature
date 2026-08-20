@@ -13,7 +13,6 @@ Feature: US-27 Consultar detalle y evidencia de una orden de trabajo
     And veo el estado "Programada"
     And no veo la sección de evidencia de finalización
 
-  @wip
   Scenario: 02-VWOD Consumidor visualiza evidencia en orden pendiente de pago
     Given que la orden de trabajo está en estado "awaiting_payment" con evidencia de finalización
     When abro el detalle de la orden de trabajo

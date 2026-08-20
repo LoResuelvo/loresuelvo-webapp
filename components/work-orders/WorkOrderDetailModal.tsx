@@ -7,6 +7,7 @@ import { t } from "@/infrastructure/i18n/translations";
 import { DollarSign, Calendar, FileText } from "lucide-react";
 import { formatAmountCents, formatScheduledOn } from "@/lib/proposal-utils";
 import { getWorkOrderDetailAction } from "@/app/work-orders/actions";
+import { CompletionEvidenceSection } from "./CompletionEvidenceSection";
 import type { WorkOrderDetail } from "@/domain/work-order/types";
 
 interface WorkOrderDetailModalProps {
@@ -127,6 +128,10 @@ export function WorkOrderDetailModal({
                 {description}
               </p>
             </div>
+          )}
+
+          {detail?.completionReport && (
+            <CompletionEvidenceSection report={detail.completionReport} />
           )}
         </div>
       </div>

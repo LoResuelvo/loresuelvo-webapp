@@ -55,29 +55,38 @@ describe("ApiWorkOrderRepository", () => {
       expect(result).toBeNull();
     });
 
-    it("returns first element if API returns an array", async () => {
-      const mockApiWorkOrder: ApiWorkOrder = {
-        id: 10,
-        service_proposal_id: 42,
+    it("matches the specific work order by service_proposal_id when API returns an array", async () => {
+      const order1: ApiWorkOrder = {
+        id: 2,
+        service_proposal_id: 2,
+        status: "awaiting_payment",
+        amount_cents: 400000,
+        scheduled_on: "2026-08-10T10:00:00Z",
+        description: "Trabajo 1",
+        accepted_on: "2026-08-05T14:30:00Z",
+      };
+      const order2: ApiWorkOrder = {
+        id: 4,
+        service_proposal_id: 4,
         status: "scheduled",
-        amount_cents: 1500000,
-        scheduled_on: "2026-08-20T10:00:00Z",
-        description: "Reparación de cañería",
+        amount_cents: 500000,
+        scheduled_on: "2026-08-27T10:00:00Z",
+        description: "Trabajo 2",
         accepted_on: "2026-08-15T14:30:00Z",
       };
 
-      vi.mocked(baseClient.api.get).mockResolvedValue([mockApiWorkOrder]);
+      vi.mocked(baseClient.api.get).mockResolvedValue([order1, order2]);
 
-      const result = await repository.getByServiceProposalId(42);
+      const result = await repository.getByServiceProposalId(4);
 
-      expect(baseClient.api.get).toHaveBeenCalledWith("/work-orders?service_proposal_id=42");
+      expect(baseClient.api.get).toHaveBeenCalledWith("/work-orders?service_proposal_id=4");
       expect(result).toEqual({
-        id: 10,
-        serviceProposalId: 42,
+        id: 4,
+        serviceProposalId: 4,
         status: "scheduled",
-        amountCents: 1500000,
-        scheduledOn: "2026-08-20T10:00:00Z",
-        description: "Reparación de cañería",
+        amountCents: 500000,
+        scheduledOn: "2026-08-27T10:00:00Z",
+        description: "Trabajo 2",
         acceptedOn: "2026-08-15T14:30:00Z",
       });
     });
@@ -113,7 +122,7 @@ describe("ApiWorkOrderRepository", () => {
   });
 
   describe("reportCompletion", () => {
-    it("calls POST /work-orders/:id/completion-report with correct snake_case body and maps response", async () => {
+    it("calls POST /work-orders/:id/completion-reports with correct snake_case body and maps response", async () => {
       const mockApiResponse: ApiCompletionReport = {
         id: 1,
         work_order_id: 10,

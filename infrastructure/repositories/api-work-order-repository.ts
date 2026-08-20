@@ -16,7 +16,8 @@ export class ApiWorkOrderRepository implements WorkOrderRepository {
 
     if (Array.isArray(res)) {
       if (res.length === 0) return null;
-      return transformApiToWorkOrder(res[0]);
+      const matched = res.find((order) => order.service_proposal_id === serviceProposalId);
+      return matched ? transformApiToWorkOrder(matched) : null;
     }
 
     return transformApiToWorkOrder(res);

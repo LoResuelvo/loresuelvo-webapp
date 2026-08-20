@@ -414,6 +414,7 @@ export const t = {
   },
   workOrderDetail: {
     modalTitle: "Detalle de la orden de trabajo",
+    orderLabel: "Orden de trabajo",
     viewDetailButton: "Ver detalle de la orden",
     amountLabel: "Monto acordado",
     scheduledOnLabel: "Fecha y hora del servicio",

@@ -61,7 +61,7 @@ export default function ServiceProposalDetailModal({
   return (
     <>
       <Modal
-        open={true}
+        open={!isWorkOrderDetailOpen && !isCompletionModalOpen}
         onClose={onClose}
         title={t.serviceProposals.chatPanel.title}
         closeLabel={t.serviceProposals.chatPanel.closeLabel}

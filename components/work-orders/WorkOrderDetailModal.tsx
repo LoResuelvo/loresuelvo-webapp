@@ -1,10 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { t } from "@/infrastructure/i18n/translations";
 import { DollarSign, Calendar, FileText } from "lucide-react";
 import { formatAmountCents, formatScheduledOn } from "@/lib/proposal-utils";
+import { getWorkOrderDetailAction } from "@/app/work-orders/actions";
+import type { WorkOrderDetail } from "@/domain/work-order/types";
 
 interface WorkOrderDetailModalProps {
   open: boolean;
@@ -23,26 +26,60 @@ export function WorkOrderDetailModal({
   initialScheduledOn = "2026-08-20T10:00:00Z",
   initialDescription = "Reparación de cañería en cocina",
 }: WorkOrderDetailModalProps) {
+  const [detail, setDetail] = useState<WorkOrderDetail | null>(null);
+
+  useEffect(() => {
+    if (open && workOrderId) {
+      getWorkOrderDetailAction(workOrderId)
+        .then((res) => {
+          if (res.ok) {
+            setDetail(res.detail);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [open, workOrderId]);
+
+  const currentStatus = detail?.status ?? "scheduled";
+  const amountCents = detail?.amountCents ?? initialAmountCents;
+  const scheduledOn = detail?.scheduledOn ?? initialScheduledOn;
+  const description = detail?.description ?? initialDescription;
+
+  const statusLabel =
+    currentStatus === "paid"
+      ? t.workOrderDetail.statusPaid
+      : currentStatus === "awaiting_payment"
+      ? t.workOrderDetail.statusAwaitingPayment
+      : t.workOrderDetail.statusScheduled;
+
+  const statusVariant =
+    currentStatus === "paid"
+      ? "success"
+      : currentStatus === "awaiting_payment"
+      ? "warning"
+      : "default";
+
   return (
     <Modal
       open={open}
       onClose={onClose}
       title={t.workOrderDetail.modalTitle}
       closeLabel={t.workOrderDetail.closeButton}
+      className="z-[60]"
     >
       <div className="p-6 space-y-5" data-testid="work-order-detail-modal">
-        {/* Header with status */}
+        {/* Status Header */}
         <div className="flex items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div>
-            <h3 className="text-base font-semibold text-slate-800">
-              {t.workOrderDetail.modalTitle}
-            </h3>
+            <span className="text-caption font-semibold text-slate-400 uppercase tracking-wider">
+              {t.workOrderDetail.orderLabel}
+            </span>
             {workOrderId && (
-              <p className="text-xs text-slate-400 mt-0.5">#{workOrderId}</p>
+              <p className="text-body font-semibold text-slate-700 mt-0.5">#{workOrderId}</p>
             )}
           </div>
-          <Badge variant="default" className="px-2.5 py-0.5 font-medium">
-            {t.workOrderDetail.statusScheduled}
+          <Badge variant={statusVariant} className="px-2.5 py-0.5 font-medium">
+            {statusLabel}
           </Badge>
         </div>
 
@@ -54,11 +91,11 @@ export function WorkOrderDetailModal({
                 <DollarSign className="w-5 h-5" />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                <span className="text-caption font-semibold text-slate-400 uppercase tracking-wider">
                   {t.workOrderDetail.amountLabel}
                 </span>
-                <span className="text-[17px] font-bold text-slate-800 truncate">
-                  {formatAmountCents(initialAmountCents)}
+                <span className="text-subtitle font-bold text-slate-800 truncate">
+                  {formatAmountCents(amountCents)}
                 </span>
               </div>
             </div>
@@ -68,26 +105,26 @@ export function WorkOrderDetailModal({
                 <Calendar className="w-5 h-5" />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                <span className="text-caption font-semibold text-slate-400 uppercase tracking-wider">
                   {t.workOrderDetail.scheduledOnLabel}
                 </span>
-                <span className="text-[15px] font-semibold text-slate-700 truncate">
-                  {formatScheduledOn(initialScheduledOn)}
+                <span className="text-body-lg font-semibold text-slate-700 truncate">
+                  {formatScheduledOn(scheduledOn)}
                 </span>
               </div>
             </div>
           </div>
 
-          {initialDescription && (
+          {description && (
             <div className="bg-slate-50/80 border border-slate-200/60 rounded-xl p-4 space-y-2">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-brand-primary shrink-0" />
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                <span className="text-caption font-semibold text-slate-400 uppercase tracking-wider">
                   {t.workOrderDetail.descriptionLabel}
                 </span>
               </div>
-              <p className="text-[14px] leading-relaxed text-slate-700 whitespace-pre-wrap font-normal">
-                {initialDescription}
+              <p className="text-body leading-relaxed text-slate-700 whitespace-pre-wrap font-normal">
+                {description}
               </p>
             </div>
           )}

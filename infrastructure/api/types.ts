@@ -294,6 +294,12 @@ export interface ApiCompletionReportDetail {
   images: ApiCompletionImage[];
 }
 
+export interface ApiWorkOrderReview {
+  rating: number;
+  comment?: string;
+  created_on?: string;
+}
+
 export interface ApiWorkOrderDetail {
   id: number;
   service_proposal_id: number;
@@ -306,4 +312,5 @@ export interface ApiWorkOrderDetail {
   accepted_on: string;
   paid_on?: string;
   completion_report?: ApiCompletionReportDetail;
+  review?: ApiWorkOrderReview;
 }

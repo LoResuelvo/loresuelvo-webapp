@@ -100,6 +100,34 @@ describe("work-order-mapper", () => {
     });
   });
 
+  it("transforms ApiWorkOrderDetail with review", () => {
+    const api: ApiWorkOrderDetail = {
+      id: 10,
+      service_proposal_id: 42,
+      consumer_id: 10,
+      provider_id: 1,
+      status: "paid",
+      amount_cents: 1500000,
+      scheduled_on: "2026-08-20T10:00:00Z",
+      description: "Reparación de cañería",
+      accepted_on: "2026-08-05T10:00:00Z",
+      paid_on: "2026-08-21T14:00:00Z",
+      review: {
+        rating: 5,
+        comment: "Excelente trabajo",
+        created_on: "2026-08-21T15:00:00Z",
+      },
+    };
+
+    const result = transformApiToWorkOrderDetail(api);
+
+    expect(result.review).toEqual({
+      rating: 5,
+      comment: "Excelente trabajo",
+      createdOn: "2026-08-21T15:00:00Z",
+    });
+  });
+
   it("transforms ApiCompletionReport to CompletionReport", () => {
     const api: ApiCompletionReport = {
       id: 1,

@@ -53,6 +53,13 @@ export function transformApiToWorkOrderDetail(api: ApiWorkOrderDetail): WorkOrde
     completionReport: api.completion_report
       ? transformApiToCompletionReportDetail(api.completion_report)
       : undefined,
+    review: api.review
+      ? {
+          rating: api.review.rating,
+          comment: api.review.comment,
+          createdOn: api.review.created_on,
+        }
+      : undefined,
   };
 }
 

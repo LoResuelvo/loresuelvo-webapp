@@ -426,6 +426,7 @@ export const t = {
     reportedOnLabel: "Fecha de reporte",
     deliveryDescriptionLabel: "Descripción del trabajo realizado",
     paidOnLabel: "Fecha de pago",
+    reviewSectionTitle: "Calificación del servicio",
     loadingText: "Cargando detalle...",
     errorMessage: "No se pudo cargar el detalle de la orden. Por favor intenta nuevamente.",
     closeButton: "Cerrar",

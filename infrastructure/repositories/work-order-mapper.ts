@@ -49,6 +49,7 @@ export function transformApiToWorkOrderDetail(api: ApiWorkOrderDetail): WorkOrde
     description: api.description,
     status: api.status,
     acceptedOn: api.accepted_on,
+    paidOn: api.paid_on,
     completionReport: api.completion_report
       ? transformApiToCompletionReportDetail(api.completion_report)
       : undefined,

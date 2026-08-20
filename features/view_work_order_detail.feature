@@ -27,7 +27,6 @@ Feature: US-27 Consultar detalle y evidencia de una orden de trabajo
     When hago clic en una foto de evidencia
     Then se abre la foto ampliada en el visor de imágenes
 
-  @wip
   Scenario: 04-VWOD Prestador visualiza orden pagada con evidencia y fecha de pago
     Given que soy un prestador autenticado con una propuesta de servicio aceptada
     And que la orden de trabajo está en estado "paid" con evidencia de finalización

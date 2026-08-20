@@ -425,6 +425,7 @@ export const t = {
     evidenceSectionTitle: "Evidencia de finalización",
     reportedOnLabel: "Fecha de reporte",
     deliveryDescriptionLabel: "Descripción del trabajo realizado",
+    paidOnLabel: "Fecha de pago",
     loadingText: "Cargando detalle...",
     closeButton: "Cerrar",
   },

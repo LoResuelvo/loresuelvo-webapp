@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { t } from "@/infrastructure/i18n/translations";
-import { DollarSign, Calendar, FileText } from "lucide-react";
+import { DollarSign, Calendar, FileText, CheckCircle2 } from "lucide-react";
 import { formatAmountCents, formatScheduledOn } from "@/lib/proposal-utils";
 import { getWorkOrderDetailAction } from "@/app/work-orders/actions";
 import { CompletionEvidenceSection } from "./CompletionEvidenceSection";
@@ -114,6 +114,25 @@ export function WorkOrderDetailModal({
                 </span>
               </div>
             </div>
+
+            {detail?.paidOn && (
+              <div
+                data-testid="work-order-paid-info"
+                className="flex items-center gap-3.5 bg-emerald-50/70 border border-emerald-200/60 rounded-xl p-3.5 sm:col-span-2"
+              >
+                <div className="w-10 h-10 rounded-lg bg-white border border-emerald-200/70 shadow-2xs flex items-center justify-center text-emerald-600 shrink-0">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-caption font-semibold text-emerald-600 uppercase tracking-wider">
+                    {t.workOrderDetail.paidOnLabel}
+                  </span>
+                  <span className="text-body-lg font-semibold text-emerald-950 truncate">
+                    {formatScheduledOn(detail.paidOn)}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {description && (

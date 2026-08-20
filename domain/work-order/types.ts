@@ -46,5 +46,6 @@ export interface WorkOrderDetail {
   description: string;
   status: WorkOrderStatus;
   acceptedOn: string;
+  paidOn?: string;
   completionReport?: CompletionReportDetail;
 }

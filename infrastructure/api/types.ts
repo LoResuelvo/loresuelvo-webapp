@@ -304,5 +304,6 @@ export interface ApiWorkOrderDetail {
   description: string;
   status: "scheduled" | "awaiting_payment" | "paid";
   accepted_on: string;
+  paid_on?: string;
   completion_report?: ApiCompletionReportDetail;
 }

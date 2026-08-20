@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run --passWithNoTests",
+    "test:ui": "vitest --ui",
+    "test:preview": "vitest --browser.enabled --ui",
     "test:e2e": "TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js",
     "test:e2e:wip": "TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js --tags @wip",
     "test:e2e:report": "TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js --format html:reports/cucumber-report.html"
@@ -44,6 +46,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "@vitest/browser": "^4.1.8",
     "@vitest/browser-playwright": "^4.1.8",
+    "@vitest/ui": "^4.1.8",
     "eslint": "^9.18.0",
     "eslint-config-next": "^15.1.0",
     "jsdom": "^29.1.1",

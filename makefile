@@ -73,6 +73,12 @@ lint:
 test:
 	npm run test
 
+test-ui:
+	npm run test:ui
+
+test-preview:
+	npm run test:preview
+
 test-e2e:
 	APP_URL=$(APP_URL) npm run test:e2e
 

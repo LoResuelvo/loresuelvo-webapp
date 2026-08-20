@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { t } from "@/infrastructure/i18n/translations";
-import { DollarSign, Calendar, FileText, CheckCircle2, Loader2 } from "lucide-react";
+import { DollarSign, Calendar, FileText, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { formatAmountCents, formatScheduledOn } from "@/lib/proposal-utils";
 import { getWorkOrderDetailAction } from "@/app/work-orders/actions";
 import { CompletionEvidenceSection } from "./CompletionEvidenceSection";
@@ -29,17 +29,23 @@ export function WorkOrderDetailModal({
 }: WorkOrderDetailModalProps) {
   const [detail, setDetail] = useState<WorkOrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     if (open && workOrderId) {
       setIsLoading(true);
+      setHasError(false);
       getWorkOrderDetailAction(workOrderId)
         .then((res) => {
           if (res.ok) {
             setDetail(res.detail);
+          } else {
+            setHasError(true);
           }
         })
-        .catch(() => {})
+        .catch(() => {
+          setHasError(true);
+        })
         .finally(() => {
           setIsLoading(false);
         });
@@ -74,7 +80,19 @@ export function WorkOrderDetailModal({
       className="z-[60]"
     >
       <div className="p-6 space-y-5" data-testid="work-order-detail-modal">
-        {isLoading && !detail ? (
+        {hasError ? (
+          <div
+            data-testid="work-order-detail-error"
+            className="flex flex-col items-center justify-center py-10 px-4 text-center space-y-3"
+          >
+            <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <p className="text-body font-semibold text-slate-800">
+              {t.workOrderDetail.errorMessage}
+            </p>
+          </div>
+        ) : isLoading && !detail ? (
           <div
             data-testid="work-order-detail-loading"
             className="flex flex-col items-center justify-center py-12 space-y-3"

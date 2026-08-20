@@ -40,7 +40,6 @@ Feature: US-27 Consultar detalle y evidencia de una orden de trabajo
     When abro el detalle de la orden de trabajo
     Then veo un indicador de carga en el detalle
 
-  @wip
   Scenario: 06-VWOD Mensaje de error cuando falla la consulta de la orden
     Given que el servidor responde con error al consultar el detalle de la orden
     When abro el detalle de la orden de trabajo

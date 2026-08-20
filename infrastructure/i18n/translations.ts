@@ -427,6 +427,7 @@ export const t = {
     deliveryDescriptionLabel: "Descripción del trabajo realizado",
     paidOnLabel: "Fecha de pago",
     loadingText: "Cargando detalle...",
+    errorMessage: "No se pudo cargar el detalle de la orden. Por favor intenta nuevamente.",
     closeButton: "Cerrar",
   },
 };

@@ -209,4 +209,28 @@ describe("WorkOrderDetailModal", () => {
     expect(screen.getByTestId("work-order-detail-loading")).toBeInTheDocument();
     expect(screen.getByText("Cargando detalle...")).toBeInTheDocument();
   });
+
+  it("should render error message when fetching detail fails", async () => {
+    vi.mocked(getWorkOrderDetailAction).mockResolvedValue({
+      ok: false,
+      status: 500,
+    });
+
+    render(
+      <WorkOrderDetailModal
+        open={true}
+        onClose={vi.fn()}
+        workOrderId={10}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("work-order-detail-error")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "No se pudo cargar el detalle de la orden. Por favor intenta nuevamente."
+        )
+      ).toBeInTheDocument();
+    });
+  });
 });

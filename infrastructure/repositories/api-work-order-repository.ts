@@ -1,8 +1,22 @@
 import { api } from "@/infrastructure/api/base-client";
 import { WorkOrderRepository } from "@/ports/work-order-repository";
-import { WorkOrder, CompletionReport, CompletionReportInput } from "@/domain/work-order/types";
-import { ApiWorkOrder, ApiCompletionReport, ApiCompletionReportInput } from "@/infrastructure/api/types";
-import { transformApiToWorkOrder, transformApiToCompletionReport } from "./work-order-mapper";
+import {
+  WorkOrder,
+  WorkOrderDetail,
+  CompletionReport,
+  CompletionReportInput,
+} from "@/domain/work-order/types";
+import {
+  ApiWorkOrder,
+  ApiWorkOrderDetail,
+  ApiCompletionReport,
+  ApiCompletionReportInput,
+} from "@/infrastructure/api/types";
+import {
+  transformApiToWorkOrder,
+  transformApiToWorkOrderDetail,
+  transformApiToCompletionReport,
+} from "./work-order-mapper";
 
 export class ApiWorkOrderRepository implements WorkOrderRepository {
   async getByServiceProposalId(serviceProposalId: number): Promise<WorkOrder | null> {
@@ -29,6 +43,11 @@ export class ApiWorkOrderRepository implements WorkOrderRepository {
       return null;
     }
     return transformApiToWorkOrder(res);
+  }
+
+  async getDetail(workOrderId: number): Promise<WorkOrderDetail> {
+    const res = await api.get<ApiWorkOrderDetail>(`/work-orders/${workOrderId}`);
+    return transformApiToWorkOrderDetail(res);
   }
 
   async reportCompletion(

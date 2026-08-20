@@ -1,5 +1,5 @@
-import { ApiWorkOrder, ApiCompletionReport } from "@/infrastructure/api/types";
-import { WorkOrder, CompletionReport } from "@/domain/work-order/types";
+import { ApiWorkOrder, ApiWorkOrderDetail, ApiCompletionReport } from "@/infrastructure/api/types";
+import { WorkOrder, WorkOrderDetail, CompletionReport } from "@/domain/work-order/types";
 
 export function transformApiToWorkOrder(api: ApiWorkOrder): WorkOrder {
   return {
@@ -9,6 +9,20 @@ export function transformApiToWorkOrder(api: ApiWorkOrder): WorkOrder {
     amountCents: api.amount_cents,
     scheduledOn: api.scheduled_on,
     description: api.description,
+    acceptedOn: api.accepted_on,
+  };
+}
+
+export function transformApiToWorkOrderDetail(api: ApiWorkOrderDetail): WorkOrderDetail {
+  return {
+    id: api.id,
+    serviceProposalId: api.service_proposal_id,
+    consumerId: api.consumer_id,
+    providerId: api.provider_id,
+    amountCents: api.amount_cents,
+    scheduledOn: api.scheduled_on,
+    description: api.description,
+    status: api.status,
     acceptedOn: api.accepted_on,
   };
 }

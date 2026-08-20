@@ -280,3 +280,15 @@ export interface ApiCompletionReport {
   image_file_ids: string[];
   created_on: string;
 }
+
+export interface ApiWorkOrderDetail {
+  id: number;
+  service_proposal_id: number;
+  consumer_id: number;
+  provider_id: number;
+  amount_cents: number;
+  scheduled_on: string;
+  description: string;
+  status: "scheduled" | "awaiting_payment" | "paid";
+  accepted_on: string;
+}

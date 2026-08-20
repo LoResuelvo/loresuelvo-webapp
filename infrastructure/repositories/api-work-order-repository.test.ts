@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ApiWorkOrderRepository } from "./api-work-order-repository";
 import * as baseClient from "@/infrastructure/api/base-client";
-import { ApiWorkOrder, ApiCompletionReport } from "@/infrastructure/api/types";
+import { ApiWorkOrder, ApiWorkOrderDetail, ApiCompletionReport } from "@/infrastructure/api/types";
 
 vi.mock("@/infrastructure/api/base-client", () => ({
   api: {
@@ -117,6 +117,39 @@ describe("ApiWorkOrderRepository", () => {
         scheduledOn: "2026-08-20T10:00:00Z",
         description: "Reparación de cañería",
         acceptedOn: "2026-08-15T14:30:00Z",
+      });
+    });
+  });
+
+  describe("getDetail", () => {
+    it("calls GET /work-orders/:id and maps response to WorkOrderDetail", async () => {
+      const mockApiDetail: ApiWorkOrderDetail = {
+        id: 10,
+        service_proposal_id: 42,
+        consumer_id: 10,
+        provider_id: 1,
+        status: "scheduled",
+        amount_cents: 1500000,
+        scheduled_on: "2026-08-20T10:00:00Z",
+        description: "Reparación de cañería",
+        accepted_on: "2026-08-05T14:30:00Z",
+      };
+
+      vi.mocked(baseClient.api.get).mockResolvedValue(mockApiDetail);
+
+      const result = await repository.getDetail(10);
+
+      expect(baseClient.api.get).toHaveBeenCalledWith("/work-orders/10");
+      expect(result).toEqual({
+        id: 10,
+        serviceProposalId: 42,
+        consumerId: 10,
+        providerId: 1,
+        status: "scheduled",
+        amountCents: 1500000,
+        scheduledOn: "2026-08-20T10:00:00Z",
+        description: "Reparación de cañería",
+        acceptedOn: "2026-08-05T14:30:00Z",
       });
     });
   });

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { t } from "@/infrastructure/i18n/translations";
-import { DollarSign, Calendar, FileText, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { DollarSign, Calendar, FileText, CheckCircle2, Loader2, AlertCircle, Star } from "lucide-react";
 import { formatAmountCents, formatScheduledOn } from "@/lib/proposal-utils";
 import { getWorkOrderDetailAction } from "@/app/work-orders/actions";
 import { CompletionEvidenceSection } from "./CompletionEvidenceSection";
@@ -186,6 +186,39 @@ export function WorkOrderDetailModal({
 
               {detail?.completionReport && (
                 <CompletionEvidenceSection report={detail.completionReport} />
+              )}
+
+              {detail?.review && (
+                <div
+                  data-testid="work-order-review-section"
+                  className="bg-amber-50/60 border border-amber-200/60 rounded-xl p-4 space-y-2.5"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-caption font-semibold text-amber-900 uppercase tracking-wider">
+                      {t.workOrderDetail.reviewSectionTitle}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          data-testid={
+                            i < detail.review!.rating ? "star-filled" : "star-empty"
+                          }
+                          className={`w-4 h-4 ${
+                            i < detail.review!.rating
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-slate-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  {detail.review.comment && (
+                    <p className="text-body text-slate-700 leading-relaxed font-normal italic">
+                      “{detail.review.comment}”
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           </>

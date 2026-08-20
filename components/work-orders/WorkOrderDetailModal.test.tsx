@@ -233,4 +233,42 @@ describe("WorkOrderDetailModal", () => {
       ).toBeInTheDocument();
     });
   });
+
+  it("should render review and rating section when review is present", async () => {
+    vi.mocked(getWorkOrderDetailAction).mockResolvedValue({
+      ok: true,
+      detail: {
+        id: 10,
+        serviceProposalId: 42,
+        consumerId: 10,
+        providerId: 1,
+        status: "paid",
+        amountCents: 1500000,
+        scheduledOn: "2026-08-20T10:00:00Z",
+        description: "Reparación de cañería en cocina",
+        acceptedOn: "2026-08-05T10:00:00Z",
+        paidOn: "2026-08-21T14:30:00Z",
+        review: {
+          rating: 5,
+          comment: "Excelente trabajo realizado.",
+          createdOn: "2026-08-21T15:00:00Z",
+        },
+      },
+    });
+
+    render(
+      <WorkOrderDetailModal
+        open={true}
+        onClose={vi.fn()}
+        workOrderId={10}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("work-order-review-section")).toBeInTheDocument();
+      expect(screen.getByText("Calificación del servicio")).toBeInTheDocument();
+      expect(screen.getByText("“Excelente trabajo realizado.”")).toBeInTheDocument();
+      expect(screen.getAllByTestId("star-filled")).toHaveLength(5);
+    });
+  });
 });

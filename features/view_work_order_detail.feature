@@ -29,7 +29,7 @@ Feature: US-27 Consultar detalle y evidencia de una orden de trabajo
     Then se abre la foto ampliada en el visor de imágenes
 
   Scenario: 04-VWOD Prestador visualiza orden pagada con evidencia y fecha de pago
-    Given que soy un prestador autenticado con una propuesta de servicio aceptada
+    Given que soy un prestador autenticado con una propuesta pagada
     And que la orden de trabajo está en estado "paid" con evidencia de finalización
     When abro el detalle de la orden de trabajo
     Then veo el estado "Pagada"

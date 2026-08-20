@@ -13,7 +13,7 @@ describe("WorkOrderDetailModal", () => {
     vi.clearAllMocks();
   });
 
-  it("should render contractual details and status badge", () => {
+  it("should render contractual details and status badge", async () => {
     vi.mocked(getWorkOrderDetailAction).mockResolvedValue({
       ok: true,
       detail: {
@@ -40,10 +40,12 @@ describe("WorkOrderDetailModal", () => {
       />
     );
 
-    expect(screen.getByTestId("work-order-detail-modal")).toBeInTheDocument();
-    expect(screen.getByText("Programada")).toBeInTheDocument();
-    expect(screen.getByText("Reparación de cañería en cocina")).toBeInTheDocument();
-    expect(screen.getByText("$ 15.000,00")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("work-order-detail-modal")).toBeInTheDocument();
+      expect(screen.getByText("Programada")).toBeInTheDocument();
+      expect(screen.getByText("Reparación de cañería en cocina")).toBeInTheDocument();
+      expect(screen.getByText("$ 15.000,00")).toBeInTheDocument();
+    });
   });
 
   it("should fetch and update detail when opened with workOrderId", async () => {
@@ -191,5 +193,20 @@ describe("WorkOrderDetailModal", () => {
       expect(screen.getByTestId("work-order-paid-info")).toBeInTheDocument();
       expect(screen.getByText("Fecha de pago")).toBeInTheDocument();
     });
+  });
+
+  it("should render loading indicator while fetching detail", () => {
+    vi.mocked(getWorkOrderDetailAction).mockReturnValue(new Promise(() => {}));
+
+    render(
+      <WorkOrderDetailModal
+        open={true}
+        onClose={vi.fn()}
+        workOrderId={10}
+      />
+    );
+
+    expect(screen.getByTestId("work-order-detail-loading")).toBeInTheDocument();
+    expect(screen.getByText("Cargando detalle...")).toBeInTheDocument();
   });
 });

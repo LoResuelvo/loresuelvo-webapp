@@ -35,7 +35,6 @@ Feature: US-27 Consultar detalle y evidencia de una orden de trabajo
     And veo la fecha de pago registrada
     And veo la sección "Evidencia de finalización"
 
-  @wip
   Scenario: 05-VWOD Indicador de carga al abrir el detalle
     Given que la consulta de la orden de trabajo demora en responder
     When abro el detalle de la orden de trabajo

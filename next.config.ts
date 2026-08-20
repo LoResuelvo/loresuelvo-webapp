@@ -20,6 +20,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.r2.cloudflarestorage.com",
       },
+      {
+        protocol: "https",
+        hostname: "placehold.co",
+      },
       ...(process.env.NEXT_PUBLIC_PUBLIC_MEDIA_BASE_URL
         ? [
             {

@@ -43,7 +43,8 @@ export interface MockCompletionReport {
 
 export interface MockReview {
   rating: number;
-  description: string;
+  description?: string;
+  comment?: string;
 }
 
 export interface MockWorkOrderStub {
@@ -173,7 +174,8 @@ export function aCompletionReport(overrides: Partial<MockCompletionReport> = {})
 export function aReview(overrides: Partial<MockReview> = {}): MockReview {
   return {
     rating: 5,
-    description: "Excelente servicio, muy puntual y prolijo.",
+    comment: "excelente servicio, muy puntual y prolijo",
+    description: "excelente servicio, muy puntual y prolijo",
     ...overrides,
   };
 }

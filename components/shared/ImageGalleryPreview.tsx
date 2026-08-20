@@ -33,6 +33,7 @@ export function ImageGalleryPreview({ images, label }: ImageGalleryPreviewProps)
               src={img.url}
               alt={img.originalName}
               fill
+              unoptimized
               className="object-cover"
             />
           </button>

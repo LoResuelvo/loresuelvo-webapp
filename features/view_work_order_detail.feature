@@ -21,7 +21,6 @@ Feature: US-27 Consultar detalle y evidencia de una orden de trabajo
     And veo la descripción de entrega del prestador
     And veo 2 fotos de evidencia
 
-  @wip
   Scenario: 03-VWOD Ampliar foto de evidencia en lightbox
     Given que la orden de trabajo está en estado "awaiting_payment" con evidencia de finalización
     And tengo abierto el detalle de la orden de trabajo

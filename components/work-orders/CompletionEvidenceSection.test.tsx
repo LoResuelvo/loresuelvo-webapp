@@ -33,4 +33,16 @@ describe("CompletionEvidenceSection", () => {
     expect(screen.getByRole("img", { name: "evidencia_1.jpg" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "evidencia_2.jpg" })).toBeInTheDocument();
   });
+
+  it("should open lightbox modal when clicking an image thumbnail", async () => {
+    const userEvent = (await import("@testing-library/user-event")).default;
+    const user = userEvent.setup();
+
+    render(<CompletionEvidenceSection report={mockReport} />);
+
+    const thumbnailBtn = screen.getByRole("button", { name: "evidencia_1.jpg" });
+    await user.click(thumbnailBtn);
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
 });

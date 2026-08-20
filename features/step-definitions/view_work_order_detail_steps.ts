@@ -122,12 +122,6 @@ When(
     // Click "Ver detalle de la orden" button inside proposal detail modal
     const viewDetailButton = this.page.getByRole("button", { name: /ver detalle de la orden/i });
     await viewDetailButton.click();
-    const modal = this.page.getByTestId("work-order-detail-modal");
-    await modal.waitFor({ state: "visible" });
-    await this.page.waitForTimeout(400);
-    await this.page.screenshot({
-      path: "/home/matexore/.gemini/antigravity/brain/6b13322c-3e5d-4687-8a0d-9f18b979ce10/work_order_detail_scheduled.png",
-    });
   }
 );
 

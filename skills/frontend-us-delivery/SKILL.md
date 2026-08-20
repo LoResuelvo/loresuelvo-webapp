@@ -74,15 +74,28 @@ La estructura de todo commit en los repositorios debe ser:
 * **`revert`**: Para revertir un commit anterior.
 
 ### Reglas de formato de commit:
-- Descripción en **inglés** y en **modo imperativo** (ej: `feat[54]: implement ProposalTimelineCard with role-based alignment`).
+- Formato obligatorio: `<type>[optional issue/scope]: <description>` (ej: `feat[54]: implement ProposalTimelineCard with role-based alignment` o `fix[26]: resolve work order completion state`).
+- Descripción en **inglés** y en **modo imperativo**.
 - No terminar la línea de asunto con punto final.
 
-## Reglas de testing y E2E
+## Ejecución Incremental y Reporte por Micro-Paso (Step)
 
-- **`CustomWorld` obligatorio en Step Definitions:** Todo step definition de Cucumber **DEBE** tiparse con `async function (this: CustomWorld, ...)` y acceder a la página mediante `this.page`. **PROHIBIDO** declarar variables `let page: Page` a nivel de módulo o singletons.
-- **Hooks centralizados:** Ciclo de vida de Playwright gestionado exclusivamente en `features/support/hooks.ts`.
-- **`APP_URL` centralizado:** Importar `APP_URL` desde `../support/world` (puerto 3001 por defecto).
-- **Mocks dinámicos por petición:** Usar cookies `__e2e_session` y `__e2e_api_stubs_*`. No usar variables de compilación `NEXT_PUBLIC_*`.
+El desarrollo no se entrega como un bloque monolítico, sino en **micro-pasos atómicos (steps)**:
+*(Un "step" es un avance puntual: crear tipos de dominio, implementar un use-case con su test, crear un componente TSX, etc., avanzando incrementalmente hacia completar el escenario).*
+
+Por cada micro-paso (step) completado, el agente **DEBE**:
+1. **Explicar brevemente los cambios realizados:** Archivos modificados y justificación técnica concisa.
+2. **Sugerir el comando de commit exacto:** Proporcionar el comando listo para copiar con formato canónico:
+   ```bash
+   git add <archivos-modificados>
+   git commit -m "<type>[<issue>]: <descripción>"
+   ```
+3. **Feedback Visual Inmediato (Screenshots):** Apenas se agrega o modifica código TSX que renderiza un componente o vista, generar una captura con Playwright o embeber la previsualización para que el usuario valide la UI en 1 segundo sin tener que navegarla manualmente.
+
+## Integración con BDD y Testing
+
+- **Definición de Escenarios y TDD:** Cargar `skills/frontend-bdd-tdd-process` para la Matriz Obligatoria de los 5 Estados de UI, el ciclo Double-Loop TDD y las reglas de `CustomWorld` / Step Definitions.
+- **Validación final:** Cargar `skills/frontend-testing-gates` antes de handoff o PR.
 
 ## Validación por fase
 

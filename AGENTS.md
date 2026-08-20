@@ -180,10 +180,25 @@ skills/                      Skills locales para agentes de IA cargadas bajo dem
 
 - Texto visible para usuarios: español, centralizado en `translations.ts`.
 - Respuestas al equipo: español, salvo que se pida otro idioma.
-- Commits: inglés claro.
+- Commits: inglés claro siguiendo la convención del proyecto: `<type>[optional scope]: <description>` (ej: `feat[26]: implement ...`, `fix[26]: ...`, `test[US-26]: ...`, `docs: ...`).
 - Pruebas unitarias: títulos/descripciones en inglés (`it("should do something", ...)`).
 - En código nuevo, respetar el idioma predominante del archivo y nombres existentes.
 - Tipos de dominio en camelCase; DTOs de la API en snake_case solo dentro de `infrastructure/`.
+
+### Flujo de Desarrollo Incremental, Commits y Feedback Visual
+
+- **Avance Escenario por Escenario y Micro-Paso (Step) por Micro-Paso:**
+  - Prohibido desarrollar múltiples escenarios de golpe. Avanzar estrictamente escenario por escenario en pasos atómicos (tipos -> caso de uso -> UI -> estado).
+- **Reporte y Commits por cada Step completado:**
+  - Por cada micro-paso completado, el agente **DEBE**:
+    1. Indicar brevemente los cambios realizados y archivos modificados.
+    2. Sugerir el comando de commit listo para ejecutar con formato canónico:
+       ```bash
+       git add <archivos>
+       git commit -m "<type>[<issue>]: <descripción>"
+       ```
+    3. Si el paso incluye código TSX que renderiza un componente o vista, proveer **feedback visual inmediato (Screenshot)** con Playwright.
+- **Detalle de procesos:** Cargar `skills/frontend-us-delivery` para implementación de User Stories y `skills/frontend-bdd-tdd-process` para BDD/TDD y la Matriz de los 5 Estados de UI.
 
 ### Testing y E2E (Reglas Críticas de Aislamiento y Paralelismo)
 

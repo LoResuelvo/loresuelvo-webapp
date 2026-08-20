@@ -35,51 +35,68 @@ Usar esta skill cuando el trabajo deba partir de comportamiento esperado, criter
 - Una feature completa requiere confianza de punta a punta y también lógica interna no trivial.
 - El flujo BDD valida el camino principal y los tests unit/component cubren bordes.
 
-## Flujo BDD recomendado
+## Flujo Double-Loop TDD (Bucle Doble de Desarrollo)
 
-1. Leer o crear el `.feature` en `features/` antes de implementar.
+El desarrollo se realiza en dos bucles sincronizados:
+1. **Bucle Externo (BDD / Aceptación):** Un escenario Gherkin define el criterio observable de negocio (inicia en RED).
+2. **Bucle Interno (TDD / Unidades y Componentes):** Se implementan las piezas necesarias (dominio, use case, mapper, UI) en micro-ciclos RED -> GREEN -> REFACTOR con Vitest.
+3. **Cierre de Bucle:** El escenario E2E pasa a GREEN y se refactoriza.
+
+## Regla de Oro: Un Escenario y un Micro-Paso (Step) a la vez
+
+- **Prohibido implementar múltiples escenarios de golpe:** Avanzar estrictamente escenario por escenario (Escenario 1 -> GREEN -> Escenario 2 -> GREEN...).
+- **Entrega por Micro-Paso (Step):** Cada escenario se construye en pasos atómicos (ej: definir entidad, crear use-case con test, maquetar TSX, conectar estado).
+- **Por cada paso completado, el agente DEBE:**
+  1. Indicar brevemente los cambios realizados y archivos tocados.
+  2. Sugerir el comando de commit correspondiente (`git add <archivos>` y `git commit -m "<type>[<issue>]: <descripción>"`).
+  3. Si se agrega o modifica código TSX visual, proveer feedback visual inmediato (screenshot o previsualización).
+
+## Matriz Obligatoria de los 5 Estados de UI (Definición de Escenarios)
+
+Al escribir o revisar un `.feature`, se deben cubrir obligatoriamente los 5 estados canónicos:
+1. **Ideal State (Happy Path):** Flujo principal con datos válidos.
+2. **Loading State:** Spinner / estado deshabilitado durante peticiones asíncronas.
+3. **Empty State:** Listas vacías, primera visita o sin resultados.
+4. **Error State:** Validaciones (400), duplicados (409), no encontrado (404) y servidor caído (500).
+5. **Partial / Edge State:** Textos extensos (truncamiento con `line-clamp`), desbordes y límites.
+
+## Flujo BDD recomendado (Bucle Externo)
+
+1. Leer o crear el `.feature` en `features/` cubriendo los estados de la matriz.
 2. Escribir escenarios desde el punto de vista del usuario, no desde componentes internos.
 3. Mantener escenarios cortos: Given contexto, When acción, Then resultado observable.
 4. Ejecutar el escenario y confirmar RED:
 
 ```bash
-npm run test:e2e -- --name "texto del escenario"
+make test-e2e-file FILE=features/<feature>.feature
 ```
 
-Si el runner no acepta filtro por nombre en el entorno actual, ejecutar:
+5. Avanzar por el bucle interno (TDD) para implementar las piezas mínimas.
+6. Confirmar GREEN en el escenario E2E.
+7. Refactorizar y verificar regresiones en toda la suite: `make test-e2e`.
 
-```bash
-npm run test:e2e
-```
-
-5. Implementar el mínimo cambio para GREEN.
-6. Refactorizar sin cambiar el comportamiento esperado.
-7. Re-ejecutar el escenario afectado o toda la suite E2E si no hay filtro confiable.
-
-## Flujo TDD recomendado
+## Flujo TDD recomendado (Bucle Interno)
 
 1. Crear o ajustar test cerca del código afectado (`*.test.ts` / `*.test.tsx`).
-2. Escribir una prueba que falle por el comportamiento faltante, no por detalles de implementación.
+2. Escribir una prueba unitaria pequeña (10-20 líneas) que falle por el comportamiento faltante (RED).
 3. Ejecutar RED focalizado:
 
 ```bash
 npm run test -- <patron>
 ```
 
-4. Implementar el mínimo cambio para GREEN.
-5. Refactorizar manteniendo la prueba verde.
-6. Agregar casos borde solo si representan riesgo real.
+4. Implementar el mínimo código de producción para pasar a GREEN.
+5. Refactorizar manteniendo la suite verde.
+6. Repetir hasta completar las piezas del escenario actual.
 
 ## Buenas prácticas Gherkin
 
-- Escribir pasos en español claro y estable.
-- Evitar mencionar nombres de componentes, clases CSS o estructura DOM.
-- Preferir resultados visibles: textos, roles, navegación, mensajes, cambios de estado.
-- Reutilizar steps existentes antes de crear duplicados.
-- Mantener datos de prueba explícitos y pequeños.
-- No depender de orden accidental si la UI no lo garantiza.
+- **Exactamente 1 `When` por escenario (Principio de Acción Única):** Cada escenario valida una única acción clave. Los preparativos y estados previos van en `Given` y sus `And`; las consecuencias observables van en `Then` y sus `And`.
+- **Escribir pasos en español claro y declarativo:** Centrados en la intención de negocio del usuario, evitando detalles de implementación interna.
+- **Reutilizar steps existentes:** Antes de crear una frase nueva, verificar si ya existe un step equivalente en `features/step-definitions/`.
+- **Datos de prueba explícitos y concisos:** Solo incluir en el texto del step los datos que alteran el resultado del test.
 
-## Buenas prácticas Cucumber Step Definitions (Crítico para Paralelización)
+## Buenas prácticas Cucumber Step Definitions (Arquitectura Limpia y Paralelización)
 
 - **`CustomWorld` obligatorio**: Todo step definition **DEBE** tipar su contexto con `this: CustomWorld` (importado de `../support/world`) y acceder al browser mediante `this.page`:
   ```ts
@@ -89,6 +106,9 @@ npm run test -- <patron>
   ```
 - **Prohibido `let page: Page` a nivel de módulo**: Nunca declarar variables de `page` globales o singletons en archivos de steps. Rompe el aislamiento en paralelo.
 - **Hooks centralizados**: Toda la inicialización y cierre de navegadores/contextos se maneja exclusivamente en `features/support/hooks.ts`. Nunca definir hooks locales en step files.
+- **Regla de las 3 a 5 líneas por Step (Evitar Código Espagueti):**
+  - Un step definition **solo es pegamento de orquestación**: no debe superar las 3 a 5 líneas de código.
+  - **PROHIBIDO pegar bloques de 30 líneas de JSON crudo dentro de un step:** Usar funciones de fábrica (*Fixture Factories* como `aProvider()`, `aCategory()`) o helpers semánticos (`this.stubGet(...)`) para mantener los steps limpios y declarativos.
 - **Mocks dinámicos vía cookies**: Usar `addApiStub` y `setMockSession` que inyectan cookies `__e2e_*` por escenario de forma aislada.
 
 ## Buenas prácticas Testing Library

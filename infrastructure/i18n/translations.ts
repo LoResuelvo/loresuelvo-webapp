@@ -412,4 +412,16 @@ export const t = {
       generic: "Hubo un problema al enviar el reporte. Por favor intenta nuevamente.",
     },
   },
+  workOrderDetail: {
+    modalTitle: "Detalle de la orden de trabajo",
+    viewDetailButton: "Ver detalle de la orden",
+    amountLabel: "Monto acordado",
+    scheduledOnLabel: "Fecha y hora del servicio",
+    descriptionLabel: "Descripción del servicio",
+    statusScheduled: "Programada",
+    statusAwaitingPayment: "Pendiente de pago",
+    statusPaid: "Pagada",
+    loadingText: "Cargando detalle...",
+    closeButton: "Cerrar",
+  },
 };

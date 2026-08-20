@@ -13,6 +13,7 @@ import { t } from "@/infrastructure/i18n/translations";
 import { getInitials } from "@/lib/text-utils";
 import { BookingDepositPayment } from "@/components/payments/BookingDepositPayment";
 import ReportWorkCompletionModal from "@/components/provider/ReportWorkCompletionModal";
+import { WorkOrderDetailModal } from "@/components/work-orders/WorkOrderDetailModal";
 import { getWorkOrderByProposalAction } from "@/app/work-orders/actions";
 import { useClock } from "@/hooks/useClock";
 
@@ -34,6 +35,7 @@ export default function ServiceProposalDetailModal({
   const { now } = useClock();
 
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
+  const [isWorkOrderDetailOpen, setIsWorkOrderDetailOpen] = useState(false);
   const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
   const [isReportedSuccess, setIsReportedSuccess] = useState(false);
 
@@ -43,7 +45,7 @@ export default function ServiceProposalDetailModal({
   const isScheduledDateReached = !isNaN(scheduledTime) && now().getTime() >= scheduledTime;
 
   useEffect(() => {
-    if (isAccepted && isProvider) {
+    if (isAccepted) {
       getWorkOrderByProposalAction(proposal.id)
         .then((res) => {
           if (res.ok && res.workOrder) {
@@ -52,7 +54,7 @@ export default function ServiceProposalDetailModal({
         })
         .catch(() => {});
     }
-  }, [proposal.id, isAccepted, isProvider]);
+  }, [proposal.id, isAccepted]);
 
   const isAwaitingPayment = isReportedSuccess || workOrder?.status === "awaiting_payment" || workOrder?.status === "paid";
 
@@ -163,6 +165,20 @@ export default function ServiceProposalDetailModal({
               />
             )}
 
+            {/* View work order detail action */}
+            {isAccepted && (
+              <div className="pt-2">
+                <Button
+                  variant="outline"
+                  className="w-full h-11 rounded-xl text-sm font-semibold gap-2 cursor-pointer border-brand-primary/30 text-brand-primary hover:bg-brand-primary/5 shadow-2xs"
+                  onClick={() => setIsWorkOrderDetailOpen(true)}
+                >
+                  <FileText className="w-4 h-4 text-brand-primary" />
+                  {t.workOrderDetail.viewDetailButton}
+                </Button>
+              </div>
+            )}
+
             {/* Provider work order completion actions */}
             {isAccepted && isProvider && (
               <div className="pt-2">
@@ -215,6 +231,17 @@ export default function ServiceProposalDetailModal({
           onSuccess={() => {
             setIsReportedSuccess(true);
           }}
+        />
+      )}
+
+      {isWorkOrderDetailOpen && (
+        <WorkOrderDetailModal
+          open={true}
+          onClose={() => setIsWorkOrderDetailOpen(false)}
+          workOrderId={workOrder?.id ?? proposal.id}
+          initialAmountCents={proposal.amountCents}
+          initialScheduledOn={proposal.scheduledOn}
+          initialDescription={proposal.description}
         />
       )}
     </>

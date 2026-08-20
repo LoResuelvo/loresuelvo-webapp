@@ -188,7 +188,11 @@ skills/                      Skills locales para agentes de IA cargadas bajo dem
 ### Flujo de Desarrollo Incremental, Commits y Feedback Visual
 
 - **Avance Escenario por Escenario y Micro-Paso (Step) por Micro-Paso:**
-  - Prohibido desarrollar múltiples escenarios de golpe. Avanzar estrictamente escenario por escenario en pasos atómicos (tipos -> caso de uso -> UI -> estado).
+  - Prohibido desarrollar múltiples escenarios de golpe o agrupar múltiples capas en un solo commit. Avanzar estrictamente escenario por escenario bajo el flujo **Outside-In (Double-Loop TDD)** en pasos atómicos (1 commit por micro-paso):
+    1. **Outside (UI TSX inicial):** Componente de presentación mínimo con props iniciales/mocks + feedback visual.
+    2. **Middle (Aplicación & Dominio):** Caso de uso, tipos y contratos guiados por unit tests RED -> GREEN.
+    3. **Inside (Infraestructura):** DTOs, mappers, repositorios y Server Actions.
+    4. **Integración & Cierre:** Conexión del TSX con Server Action, verificación E2E en GREEN y retiro de `@wip`.
 - **Reporte y Commits por cada Step completado:**
   - Por cada micro-paso completado, el agente **DEBE**:
     1. Indicar brevemente los cambios realizados y archivos modificados.
@@ -197,6 +201,7 @@ skills/                      Skills locales para agentes de IA cargadas bajo dem
        git add <archivos>
        git commit -m "<type>[<issue>]: <descripción>"
        ```
+       *Nota:* Mantener la descripción concisa; no incluir aclaraciones redundantes como "and i18n keys" o "with tests" ya que son implícitas.
     3. Si el paso incluye código TSX que renderiza un componente o vista, proveer **feedback visual inmediato (Screenshot)** con Playwright.
 - **Detalle de procesos:** Cargar `skills/frontend-us-delivery` para implementación de User Stories y `skills/frontend-bdd-tdd-process` para BDD/TDD y la Matriz de los 5 Estados de UI.
 
@@ -211,6 +216,15 @@ skills/                      Skills locales para agentes de IA cargadas bajo dem
   - Los tests E2E inyectan la sesión y los stubs dinámicamente por petición mediante cookies (`__e2e_session` y `__e2e_api_stubs_*`).
   - No usar flags en tiempo de compilación (`NEXT_PUBLIC_*`) para alternar lógica de mock.
   - La seguridad en la nube se gestiona con `APP_ENV=production` (configurado en `compose.prod.yml`), lo cual desactiva cualquier bypass de mocks para usuarios reales.
+- **Portabilidad en CI y Prohibición de Rutas Locales:**
+  - **PROHIBIDO** commitear rutas absolutas locales del filesystem (ej. `/home/...` o rutas a carpetas de artefactos de agentes) dentro de step definitions o archivos de prueba. Rompe los pipelines de CI con `ENOENT`.
+- **Navegación y Rutas en E2E:**
+  - Usar siempre las constantes de `ROUTES` de `@/lib/routes` (ej: `ROUTES.provider.jobs`, `ROUTES.consumer.services`) en los steps de navegación en lugar de URLs hardcodeadas.
+  - Para cambios de pestañas o filtros interactivos, verificar hidratación con polling/reintentos sobre `aria-selected` antes de buscar elementos hijos.
+- **Manejo de Imágenes en E2E:**
+  - Componentes de preview/galería con imágenes mockeadas o dinámicas deben usar `unoptimized` en `<Image />` o declarar sus dominios en `next.config.ts` para no provocar caídas de Error Boundary en Next.js.
+- **Gestión del tag `@wip`:**
+  - Retirar la etiqueta `@wip` de un escenario únicamente cuando dicho escenario ya esté completamente implementado y verificado en verde localmente.
 
 ---
 

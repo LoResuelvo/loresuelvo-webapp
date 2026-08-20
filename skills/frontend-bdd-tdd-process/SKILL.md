@@ -46,11 +46,16 @@ El desarrollo se realiza en dos bucles sincronizados:
 ## Regla de Oro: Un Escenario y un Micro-Paso (Step) a la vez
 
 - **Prohibido implementar múltiples escenarios de golpe:** Avanzar estrictamente escenario por escenario (Escenario 1 -> GREEN -> Escenario 2 -> GREEN...).
-- **Entrega por Micro-Paso (Step):** Cada escenario se construye en pasos atómicos (ej: definir entidad, crear use-case con test, maquetar TSX, conectar estado).
+- **Entrega por Micro-Paso (Step) Outside-In:** Cada escenario se construye en pasos atómicos individuales de afuera hacia adentro (1 commit por micro-paso):
+  1. `UI TSX inicial` con lo mínimo indispensable y props/mocks para renderizar (+ screenshot).
+  2. `Aplicación & Dominio` (use case, types, ports) guiado por unit tests RED -> GREEN.
+  3. `Infraestructura` (DTOs, mapper, repo, server action).
+  4. `Integración & E2E` (conexión de TSX con server action, confirmación de E2E GREEN y retiro de `@wip`).
 - **Por cada paso completado, el agente DEBE:**
   1. Indicar brevemente los cambios realizados y archivos tocados.
-  2. Sugerir el comando de commit correspondiente (`git add <archivos>` y `git commit -m "<type>[<issue>]: <descripción>"`).
+  2. Sugerir o ejecutar el comando de commit correspondiente (`git add <archivos>` y `git commit -m "<type>[<issue>]: <descripción>"`), sin descripciones redundantes (ej: sin "and i18n keys").
   3. Si se agrega o modifica código TSX visual, proveer feedback visual inmediato (screenshot o previsualización).
+  4. Nunca commitear rutas de archivos del sistema local en step definitions (asegurar portabilidad en CI).
 
 ## Matriz Obligatoria de los 5 Estados de UI (Definición de Escenarios)
 

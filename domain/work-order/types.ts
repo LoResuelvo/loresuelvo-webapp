@@ -22,3 +22,15 @@ export interface CompletionReport {
   imageFileIds: string[];
   createdOn: string;
 }
+
+export interface WorkOrderDetail {
+  id: number;
+  serviceProposalId: number;
+  consumerId: number;
+  providerId: number;
+  amountCents: number;
+  scheduledOn: string;
+  description: string;
+  status: WorkOrderStatus;
+  acceptedOn: string;
+}

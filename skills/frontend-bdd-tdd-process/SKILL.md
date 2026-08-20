@@ -38,6 +38,7 @@ Usar esta skill cuando el trabajo deba partir de comportamiento esperado, criter
 ## Flujo Double-Loop TDD (Bucle Doble de Desarrollo)
 
 El desarrollo se realiza en dos bucles sincronizados:
+
 1. **Bucle Externo (BDD / Aceptación):** Un escenario Gherkin define el criterio observable de negocio (inicia en RED).
 2. **Bucle Interno (TDD / Unidades y Componentes):** Se implementan las piezas necesarias (dominio, use case, mapper, UI) en micro-ciclos RED -> GREEN -> REFACTOR con Vitest.
 3. **Cierre de Bucle:** El escenario E2E pasa a GREEN y se refactoriza.
@@ -54,6 +55,7 @@ El desarrollo se realiza en dos bucles sincronizados:
 ## Matriz Obligatoria de los 5 Estados de UI (Definición de Escenarios)
 
 Al escribir o revisar un `.feature`, se deben cubrir obligatoriamente los 5 estados canónicos:
+
 1. **Ideal State (Happy Path):** Flujo principal con datos válidos.
 2. **Loading State:** Spinner / estado deshabilitado durante peticiones asíncronas.
 3. **Empty State:** Listas vacías, primera visita o sin resultados.
@@ -108,7 +110,29 @@ npm run test -- <patron>
 - **Hooks centralizados**: Toda la inicialización y cierre de navegadores/contextos se maneja exclusivamente en `features/support/hooks.ts`. Nunca definir hooks locales en step files.
 - **Regla de las 3 a 5 líneas por Step (Evitar Código Espagueti):**
   - Un step definition **solo es pegamento de orquestación**: no debe superar las 3 a 5 líneas de código.
-  - **PROHIBIDO pegar bloques de 30 líneas de JSON crudo dentro de un step:** Usar funciones de fábrica (*Fixture Factories* como `aProvider()`, `aCategory()`) o helpers semánticos (`this.stubGet(...)`) para mantener los steps limpios y declarativos.
+  - **PROHIBIDO pegar bloques de 30 líneas de JSON crudo dentro de un step:** Usar obligatoriamente las funciones de fábrica de `features/support/factories.ts` (`aProvider()`, `aProposal()`, `aWorkOrder()`, `aCategory()`) y los helpers fluent de `CustomWorld` (`this.stubGet(...)`, `this.stubPost(...)`, `this.setSession(...)`).
+
+### 🌟 Golden Example: Step Definitions Limpios vs. Prohibidos
+
+```ts
+// PROHIBIDO PARA AGENTES: Bloques de 30 líneas de JSON crudo dentro del step
+Given("que soy un consumidor autenticado con una propuesta de servicio", async function (this: CustomWorld) {
+  await this.addApiStub({
+    method: "GET",
+    endpoint: "/service-proposals",
+    status: 200,
+    body: [{ id: 42, amount_cents: 1500000, description: "...", counterpart: { id: 1, ... } }]
+  });
+});
+
+// OBLIGATORIO PARA AGENTES: Usar Factory + Fluent Helper (2 líneas declarativas)
+// Ver referencia modelo en: features/step-definitions/view_work_order_detail_steps.ts
+Given("que soy un consumidor autenticado con una propuesta de servicio", async function (this: CustomWorld) {
+  await this.setSession("consumer");
+  await this.stubGet("/service-proposals", [aProposal("consumer", { id: 42 })]);
+});
+```
+
 - **Mocks dinámicos vía cookies**: Usar `addApiStub` y `setMockSession` que inyectan cookies `__e2e_*` por escenario de forma aislada.
 
 ## Buenas prácticas Testing Library

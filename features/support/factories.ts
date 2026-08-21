@@ -305,13 +305,13 @@ export function aAiConversationDetail(overrides: Partial<ApiAiConversationDetail
     messages: [
       {
         id: 1,
-        sender_role: "user",
+        sender_role: "consumer",
         content: "Tengo una fuga debajo de la bacha.",
         created_on: "2026-08-20T10:00:00Z",
       },
       {
         id: 2,
-        sender_role: "assistant",
+        sender_role: "chatbot",
         content: "Parece ser un problema en el sifón o flexible de desagüe.",
         created_on: "2026-08-20T10:00:05Z",
       },

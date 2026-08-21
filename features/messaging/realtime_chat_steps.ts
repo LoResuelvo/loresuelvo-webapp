@@ -127,7 +127,7 @@ Given(
     await stubConversationApi(this, activeConversationId);
     await interceptWebSocket(this);
     await this.page.goto(
-      APP_URL + ROUTES.consumer.messages + `?provider_id=provider-001&name=Juan&surname=Gómez`,
+      APP_URL + ROUTES.consumer.messages + `?provider_id=1&name=Juan&surname=Gómez`,
       { waitUntil: "domcontentloaded" }
     );
     await this.page.locator('[data-testid="messages-list"]').waitFor({ state: "visible" });
@@ -145,7 +145,7 @@ Given(
         id: activeConversationId,
         status: "accepted",
         counterpart: {
-          id: 10,
+          id: 1,
           role: "consumer",
           name: "Ana",
           surname: "Pérez",
@@ -165,7 +165,7 @@ Given(
       id: activeConversationId,
       status: "accepted",
       counterpart: {
-        id: "consumer-001",
+        id: 1,
         role: "consumer",
         name: "Ana",
         surname: "Pérez",
@@ -185,7 +185,7 @@ Given(
     await this.stubPost("/ws-tickets", 201, { ticket: "mock-ws-ticket-abc123" });
 
     await interceptWebSocket(this);
-    await this.page.goto(APP_URL + ROUTES.provider.messages + `?consumer_id=consumer-001`, {
+    await this.page.goto(APP_URL + ROUTES.provider.messages + `?consumer_id=1`, {
       waitUntil: "domcontentloaded",
     });
     await this.page.locator('[data-testid="messages-list"]').waitFor({ state: "visible" });
@@ -279,7 +279,7 @@ Given("estoy revisando mensajes anteriores en la conversación", async function 
   await this.stubGet(`/conversations/${activeConversationId}`, {
     id: activeConversationId,
     status: "accepted",
-    counterpart: { id: "provider-001", role: "provider", name: "Juan", surname: "Gómez", category_name: "Plomería" },
+    counterpart: { id: 1, role: "provider", name: "Juan", surname: "Gómez", category_name: "Plomería" },
     messages: Array.from({ length: 15 }, (_, i) => ({
       id: i + 1,
       sender_role: i % 2 === 0 ? "consumer" : "provider",

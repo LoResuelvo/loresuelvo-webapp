@@ -52,6 +52,22 @@ Given("me encuentro en la pantalla Home", async function (this: CustomWorld) {
     });
   }
 
+  if (!(await this.hasApiStub("GET", "/chatbot/conversations"))) {
+    await this.stubGet("/chatbot/conversations", [
+      aAiConversation({
+        id: 1,
+        title: "Pérdida de agua",
+        last_message: {
+          id: 2,
+          sender_role: "chatbot",
+          content: "Revisá si el agua sale desde la rosca del sifón.",
+          created_on: "2026-06-18T10:00:01Z",
+        },
+        updated_on: "2026-06-18T10:00:01Z",
+      }),
+    ]);
+  }
+
   if (!(await this.hasApiStub("GET", "/conversations/1"))) {
     await this.stubGet("/conversations/1", {
       ...detail,
@@ -93,21 +109,19 @@ Then("veo mi mensaje en el chat", async function (this: CustomWorld) {
 Given("inicié una conversación con el asistente", async function (this: CustomWorld) {
   await this.setSession("consumer");
 
-  if (!(await this.hasApiStub("GET", "/chatbot/conversations"))) {
-    await this.stubGet("/chatbot/conversations", [
-      aAiConversation({
-        id: 1,
-        title: "Pérdida de agua",
-        last_message: {
-          id: 2,
-          sender_role: "chatbot",
-          content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
-          created_on: "2026-06-18T10:00:01Z",
-        },
-        updated_on: "2026-06-18T10:00:01Z",
-      }),
-    ]);
-  }
+  await this.stubGet("/chatbot/conversations", [
+    aAiConversation({
+      id: 1,
+      title: "Pérdida de agua",
+      last_message: {
+        id: 2,
+        sender_role: "chatbot",
+        content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
+        created_on: "2026-06-18T10:00:01Z",
+      },
+      updated_on: "2026-06-18T10:00:01Z",
+    }),
+  ]);
 
   const detail = aAiConversationDetail({
     id: 1,
@@ -136,19 +150,15 @@ Given("inicié una conversación con el asistente", async function (this: Custom
     recommended_providers: [],
   });
 
-  if (!(await this.hasApiStub("POST", "/chatbot/conversations"))) {
-    await this.stubPost("/chatbot/conversations", 200, {
-      ...detail,
-      conversation_id: 1,
-    });
-  }
+  await this.stubPost("/chatbot/conversations", 200, {
+    ...detail,
+    conversation_id: 1,
+  });
 
-  if (!(await this.hasApiStub("GET", "/conversations/1"))) {
-    await this.stubGet("/conversations/1", {
-      ...detail,
-      conversation_id: 1,
-    });
-  }
+  await this.stubGet("/conversations/1", {
+    ...detail,
+    conversation_id: 1,
+  });
 
   await this.page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);
   await this.page.waitForLoadState("networkidle");

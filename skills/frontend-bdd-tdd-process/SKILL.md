@@ -107,7 +107,7 @@ npm run test -- <patron>
     - `features/proposals-payments/`: Envío/visualización de propuestas de servicio y pago de seña.
     - `features/work-orders/`: Detalle de órdenes de trabajo y reporte de finalización.
     - `features/support/`: Soporte común (`world.ts`, `factories.ts`, `hooks.ts`, `stubs-helper.ts`).
-  - *(La carpeta `features/step-definitions/` está deprecada y eliminada).*
+  - _(La carpeta `features/step-definitions/` está deprecada y eliminada)._
 
 - **Exactamente 1 `When` por escenario (Principio de Acción Única):** Cada escenario valida una única acción clave. Los preparativos y estados previos van en `Given` y sus `And`; las consecuencias observables van en `Then` y sus `And`.
 - **Escribir pasos en español claro y declarativo:** Centrados en la intención de negocio del usuario, evitando detalles de implementación interna.
@@ -128,7 +128,7 @@ npm run test -- <patron>
   - Un step definition **solo es pegamento de orquestación**: debe ser declarativo y conciso (guía de 3 a 5 líneas).
   - **PROHIBIDO pegar bloques de JSON crudo dentro de un step:** Toda la data de prueba debe delegarse obligatoriamente a las funciones de `features/support/factories.ts` y a los helpers fluent de `CustomWorld` (`this.stubGet(...)`, `this.stubPost(...)`, `this.setSession(...)`).
 
-### 📚 Catálogo Centralizado de Factories (`features/support/factories.ts`)
+### Catálogo Centralizado de Factories (`features/support/factories.ts`)
 
 Siempre utilizar las factories predefinidas, pasando únicamente los overrides `Partial<T>` estrictamente necesarios para el escenario:
 
@@ -140,10 +140,10 @@ Siempre utilizar las factories predefinidas, pasando únicamente los overrides `
 - **Diagnóstico IA**: `aAiConversation()`, `aAiConversationDetail()`, `anAiMessage()`
 - **Utilidades API**: `anApiError()`, `aWsTicket()`, `aPresignedUpload()`, `aConfirmedFile()`
 
-### 🌟 Golden Example: Step Definitions Limpios vs. Prohibidos
+### Golden Example: Step Definitions Limpios vs. Prohibidos
 
 ```ts
-// ❌ PROHIBIDO PARA AGENTES: Bloques de 30 líneas de JSON crudo dentro del step
+// PROHIBIDO PARA AGENTES: Bloques de 30 líneas de JSON crudo dentro del step
 Given("que soy un consumidor autenticado con una propuesta de servicio", async function (this: CustomWorld) {
   await this.addApiStub({
     method: "GET",
@@ -153,7 +153,7 @@ Given("que soy un consumidor autenticado con una propuesta de servicio", async f
   });
 });
 
-// ✅ OBLIGATORIO PARA AGENTES: Usar Factory + Fluent Helper (Declarativo y legible)
+// OBLIGATORIO PARA AGENTES: Usar Factory + Fluent Helper (Declarativo y legible)
 Given("que soy un consumidor autenticado con una propuesta de servicio", async function (this: CustomWorld) {
   await this.setSession("consumer");
   await this.stubGet("/service-proposals", [aProposal("consumer", { id: 42 })]);
@@ -166,7 +166,7 @@ Given("que soy un consumidor autenticado con una propuesta de servicio", async f
 
 1. **1 Commit = 1 Push Inmediato**: En tareas de reorganización, refactor y features, cada commit atómico debe ser probado y pusheado de inmediato para no acumular deuda en local.
 2. **Formato de Commits Limpio**:
-   - En tareas de feature / US: `feat[US-XX]: descripción`
+   - En tareas de feature / US: `feat[XX]: descripción`
    - En tareas de refactor arquitectónico o BDD transversal: `refactor: <descripción clara sin corchetes de US ni paréntesis>` (ej: `refactor: organize search and discovery bdd features and steps`).
 3. **Quality Gates Obligatorios antes de Push**:
    - `npm run lint` (0 errores, 0 warnings)

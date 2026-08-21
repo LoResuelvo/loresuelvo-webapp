@@ -624,6 +624,68 @@ Given(
   }
 );
 
+Given(
+  "que el servicio de pagos del saldo responde con estado HTTP {int}",
+  async function (this: CustomWorld, status: number) {
+    await this.setSession("consumer");
+    await this.stubGet("/service-proposals", [
+      aProposal("consumer", {
+        id: PROPOSAL_ID,
+        amount_cents: TOTAL_AMOUNT_CENTS,
+        status: "accepted",
+      }),
+    ]);
+    const workOrder = aWorkOrder({
+      id: WORK_ORDER_ID,
+      service_proposal_id: PROPOSAL_ID,
+      amount_cents: TOTAL_AMOUNT_CENTS,
+      status: "awaiting_payment",
+    });
+    await this.stubGet(`/work-orders?service_proposal_id=${PROPOSAL_ID}`, workOrder);
+    await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, workOrder);
+
+    await this.page.goto(APP_URL);
+    await this.page.evaluate(
+      ({ paymentIntentId, workOrderId }) => {
+        sessionStorage.setItem(
+          "activePayment",
+          JSON.stringify({
+            purpose: "service_balance",
+            paymentIntentId,
+            workOrderId,
+            expiresOn: "2026-08-25T20:30:00Z",
+          })
+        );
+      },
+      { paymentIntentId: PAYMENT_INTENT_ID, workOrderId: WORK_ORDER_ID }
+    );
+
+    await this.stubGet(
+      `/payment-intents/${PAYMENT_INTENT_ID}`,
+      anApiError("Detail"),
+      status
+    );
+
+    (this as any).returnPath = "/payments/pending";
+    (this as any).paymentIntentId = PAYMENT_INTENT_ID;
+  }
+);
+
+When(
+  "intento continuar con el pago del saldo",
+  async function (this: CustomWorld) {
+    const targetPath = (this as any).returnPath || "/payments/pending";
+    const response = await this.page.goto(`${APP_URL}${targetPath}`);
+    assert.strictEqual(
+      response?.status(),
+      200,
+      "La ruta de retorno no respondió HTTP 200"
+    );
+    await this.page.getByRole("heading").first().waitFor({ state: "visible", timeout: 10_000 });
+  }
+);
+
+
 
 
 

@@ -90,7 +90,6 @@ Feature: US-28 Completar pago del servicio
       Then se me solicita iniciar sesión nuevamente
       And no veo un mensaje que afirme que el pago falló
 
-    @wip
     Scenario Outline: 11-CSP Informar un error al iniciar o verificar el pago del saldo
       Given que el servicio de pagos del saldo responde con estado HTTP <httpStatus>
       When intento continuar con el pago del saldo

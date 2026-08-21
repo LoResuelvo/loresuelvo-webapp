@@ -233,7 +233,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
 
       <div className="flex flex-col border-t border-slate-200 bg-white flex-shrink-0">
         {attachedFiles.length > 0 && (
-          <div role="region" aria-label="Imágenes seleccionadas" className="flex gap-2 overflow-x-auto p-4 pb-0">
+          <div role="region" aria-label={t.aiDiagnosis.attachedImages} className="flex gap-2 overflow-x-auto p-4 pb-0">
             {attachedFiles.map((file, idx) => {
               const url = URL.createObjectURL(file);
               return (
@@ -279,7 +279,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
             size="icon"
             onClick={() => fileInputRef.current?.click()}
             disabled={isProcessing || isSending || attachedFiles.length >= 5}
-            aria-label="Adjuntar imágenes"
+            aria-label={t.aiDiagnosis.attachImages}
             className="text-slate-500 hover:text-brand-primary hover:bg-slate-100 flex-shrink-0"
           >
             <Paperclip className="w-5 h-5" aria-hidden="true" />

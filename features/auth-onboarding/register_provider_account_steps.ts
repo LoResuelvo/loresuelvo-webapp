@@ -1,6 +1,7 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import { CustomWorld, APP_URL } from "../support/world";
 import { setSelectedRole } from "./register_consumer_account_steps";
+import { aCategory } from "../support/factories";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 
@@ -13,12 +14,7 @@ When("entro al home de prestadores", async function (this: CustomWorld) {
 Given("elegí la opción de prestador en la pagina de registro", async function (this: CustomWorld) {
   setSelectedRole("provider");
 
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/categories",
-    status: 200,
-    body: [{ id: 1, name: "Plomería" }],
-  });
+  await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
 
   await this.page.goto(APP_URL + ROUTES.onboarding);
   const providerButton = this.page.getByText("Soy Prestador").first();

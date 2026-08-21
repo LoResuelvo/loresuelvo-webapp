@@ -84,6 +84,72 @@ export function aSession(
   };
 }
 
+export function aCurrentUser(
+  role: "consumer" | "provider" = "consumer",
+  overrides: Partial<any> = {}
+) {
+  const base = {
+    id: role === "consumer" ? 1 : 2,
+    name: role === "consumer" ? "Ana" : "Juan",
+    surname: role === "consumer" ? "Pérez" : "Gómez",
+    email: role === "consumer" ? "consumidor@loresuelvo.test" : "prestador@loresuelvo.test",
+    role,
+    profile_photo: null,
+  };
+
+  if (role === "provider") {
+    return {
+      ...base,
+      category: {
+        id: 1,
+        name: "Plomería",
+      },
+      ...overrides,
+    };
+  }
+
+  return {
+    ...base,
+    ...overrides,
+  };
+}
+
+export function aPresignedUpload(overrides: Partial<any> = {}) {
+  return {
+    file_id: "test-file-id",
+    key: "test-key",
+    upload_url: "http://localhost:3001/mock-s3-upload",
+    headers: {},
+    ...overrides,
+  };
+}
+
+export function aConfirmedFile(overrides: Partial<any> = {}) {
+  return {
+    id: "test-file-id",
+    url: "http://localhost:3001/mock-s3-url/avatar.png",
+    original_name: "avatar.png",
+    ...overrides,
+  };
+}
+
+export function aPaymentAccount(overrides: Partial<any> = {}) {
+  return {
+    status: "pending",
+    can_receive_payments: false,
+    can_send_service_proposals: false,
+    ...overrides,
+  };
+}
+
+export function aPaymentAuthorization(overrides: Partial<any> = {}) {
+  return {
+    authorization_url: "https://auth.mercadopago.com/authorization?state=test-state",
+    state: "test-state",
+    ...overrides,
+  };
+}
+
 export function aCategory(overrides: Partial<any> = {}) {
   return {
     id: 1,
@@ -176,6 +242,124 @@ export function aReview(overrides: Partial<MockReview> = {}): MockReview {
     rating: 5,
     comment: "excelente servicio, muy puntual y prolijo",
     description: "excelente servicio, muy puntual y prolijo",
+    ...overrides,
+  };
+}
+
+export function aConversation(overrides: Partial<ApiConversation> = {}): ApiConversation {
+  return {
+    id: 1,
+    status: "active",
+    counterpart: {
+      id: 1,
+      role: "provider",
+      name: "Juan",
+      surname: "Gómez",
+      category_name: "Plomería",
+      profile_photo_url: "http://localhost:3001/mock-avatar.png",
+    },
+    last_message: {
+      id: 1,
+      sender_role: "provider",
+      content: "Hola, ¿en qué te puedo ayudar?",
+      created_on: "2026-08-20T10:00:00Z",
+    },
+    updated_on: "2026-08-20T10:00:00Z",
+    ...overrides,
+  };
+}
+
+export function aConversationMessage(overrides: Partial<ApiConversationMessage> = {}): ApiConversationMessage {
+  return {
+    id: 1,
+    sender_role: "consumer",
+    content: "Hola, tengo una pérdida de agua en el baño.",
+    created_on: "2026-08-20T10:00:00Z",
+    ...overrides,
+  };
+}
+
+export function aAiConversation(overrides: Partial<ApiAiConversation> = {}): ApiAiConversation {
+  return {
+    id: 1,
+    status: "active",
+    title: "Consulta de Plomería",
+    last_message: {
+      id: 1,
+      sender_role: "assistant",
+      content: "¿Podrías detallar el problema con la cañería?",
+      created_on: "2026-08-20T10:00:00Z",
+    },
+    updated_on: "2026-08-20T10:00:00Z",
+    ...overrides,
+  };
+}
+
+export function aAiConversationDetail(overrides: Partial<ApiAiConversationDetail> = {}): ApiAiConversationDetail {
+  return {
+    id: 1,
+    status: "active",
+    title: "Consulta de Plomería",
+    messages: [
+      {
+        id: 1,
+        sender_role: "user",
+        content: "Tengo una fuga debajo de la bacha.",
+        created_on: "2026-08-20T10:00:00Z",
+      },
+      {
+        id: 2,
+        sender_role: "assistant",
+        content: "Parece ser un problema en el sifón o flexible de desagüe.",
+        created_on: "2026-08-20T10:00:05Z",
+      },
+    ],
+    recommended_providers: [
+      {
+        id: 1,
+        name: "Juan",
+        surname: "Gómez",
+        category_name: "Plomería",
+        profile_photo_url: "http://localhost:3001/mock-avatar.png",
+      },
+    ],
+    chatbot: {
+      title: "Consulta de Plomería",
+      response_status: "idle",
+      diagnosis_completed: true,
+      assessment: {
+        outcome: "solved",
+        problem_category: { id: 1, name: "Plomería" },
+      },
+      recommended_category: { id: 1, name: "Plomería" },
+      recommended_providers: [
+        {
+          id: 1,
+          name: "Juan",
+          surname: "Gómez",
+          category_name: "Plomería",
+          profile_photo_url: "http://localhost:3001/mock-avatar.png",
+        },
+      ],
+    },
+    ...overrides,
+  };
+}
+
+export function aJobRequest(overrides: Partial<any> = {}) {
+  return {
+    id: 1,
+    title: "Reparación de cañería",
+    description: "Pérdida de agua continua bajo bacha",
+    status: "pending",
+    category_id: 1,
+    category_name: "Plomería",
+    consumer: {
+      id: 10,
+      name: "Ana",
+      surname: "Pérez",
+    },
+    created_on: "2026-08-20T10:00:00Z",
     ...overrides,
   };
 }

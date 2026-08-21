@@ -1,8 +1,7 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import { CustomWorld, APP_URL } from "../support/world";
+import { aPaymentAccount, aPaymentAuthorization } from "../support/factories";
 import assert from "assert";
-import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
-
 
 When("finalizo el registro como prestador", async function (this: CustomWorld) {
   // Mock external MercadoPago authorization page navigation
@@ -14,36 +13,25 @@ When("finalizo el registro como prestador", async function (this: CustomWorld) {
     });
   });
 
-  await this.addApiStub({
-    method: "POST",
-    endpoint: "/providers",
-    status: 201,
-    body: {
-      id: "mock-provider-001",
-      profile_photo_url: "http://localhost:3001/mock-s3-url/avatar.png",
-    },
+  await this.stubPost("/providers", 201, {
+    id: "mock-provider-001",
+    profile_photo_url: "http://localhost:3001/mock-s3-url/avatar.png",
   });
 
-  await this.addApiStub({
-    method: "POST",
-    endpoint: "/providers/me/payment-accounts/authorization",
-    status: 201,
-    body: {
-      authorization_url: "https://auth.mercadopago.com/authorization?state=test-state",
-      state: "test-state",
-    },
-  });
+  await this.stubPost(
+    "/providers/me/payment-accounts/authorization",
+    201,
+    aPaymentAuthorization()
+  );
 
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/providers/me/payment-accounts",
-    status: 200,
-    body: {
+  await this.stubGet(
+    "/providers/me/payment-accounts",
+    aPaymentAccount({
       status: "pending",
       can_receive_payments: false,
       can_send_service_proposals: false,
-    },
-  });
+    })
+  );
 
   const button = this.page.getByRole("button", { name: "Finalizar Registro" }).first();
   await button.waitFor({ state: "visible" });
@@ -76,36 +64,25 @@ Given(
       });
     });
 
-    await this.addApiStub({
-      method: "POST",
-      endpoint: "/providers",
-      status: 201,
-      body: {
-        id: "mock-provider-001",
-        profile_photo_url: "http://localhost:3001/mock-s3-url/avatar.png",
-      },
+    await this.stubPost("/providers", 201, {
+      id: "mock-provider-001",
+      profile_photo_url: "http://localhost:3001/mock-s3-url/avatar.png",
     });
 
-    await this.addApiStub({
-      method: "POST",
-      endpoint: "/providers/me/payment-accounts/authorization",
-      status: 201,
-      body: {
-        authorization_url: "https://auth.mercadopago.com/authorization?state=test-state",
-        state: "test-state",
-      },
-    });
+    await this.stubPost(
+      "/providers/me/payment-accounts/authorization",
+      201,
+      aPaymentAuthorization()
+    );
 
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/providers/me/payment-accounts",
-      status: 200,
-      body: {
+    await this.stubGet(
+      "/providers/me/payment-accounts",
+      aPaymentAccount({
         status: "pending",
         can_receive_payments: false,
         can_send_service_proposals: false,
-      },
-    });
+      })
+    );
 
     const button = this.page.getByRole("button", { name: "Finalizar Registro" }).first();
     await button.waitFor({ state: "visible" });
@@ -128,36 +105,27 @@ When(
   "llego a la página de resultado de conexión con resultado {string}",
   async function (this: CustomWorld, result: string) {
     if (result === "success") {
-      await this.addApiStub({
-        method: "GET",
-        endpoint: "/providers/me/payment-accounts",
-        status: 200,
-        body: {
+      await this.stubGet(
+        "/providers/me/payment-accounts",
+        aPaymentAccount({
           status: "connected",
           account_id: "mp-test",
           can_receive_payments: true,
           can_send_service_proposals: true,
-        },
-      });
+        })
+      );
     } else {
-      await this.addApiStub({
-        method: "GET",
-        endpoint: "/providers/me/payment-accounts",
-        status: 200,
-        body: {
+      await this.stubGet(
+        "/providers/me/payment-accounts",
+        aPaymentAccount({
           status: "pending",
           can_receive_payments: false,
           can_send_service_proposals: false,
-        },
-      });
+        })
+      );
     }
 
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/job-requests",
-      status: 200,
-      body: [],
-    });
+    await this.stubGet("/job-requests", []);
 
     const callbackUrl = APP_URL + "/provider/register/mercado-pago" + `?result=${result}`;
     await this.page.goto(callbackUrl);
@@ -165,45 +133,25 @@ When(
 );
 
 Given("que la conexión de Mercado Pago fue exitosa", async function (this: CustomWorld) {
-  await this.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(
-        JSON.stringify({
-          user: {
-            id: "mock-provider-001",
-            email: "prestador@example.com",
-            firstName: "Juan",
-            lastName: "Pérez",
-            isOnboarded: true,
-            role: "provider",
-          },
-          accessToken: "mock-access-token",
-        })
-      ),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
+  await this.setSession("provider", {
+    id: "mock-provider-001",
+    email: "prestador@example.com",
+    firstName: "Juan",
+    lastName: "Pérez",
+    isOnboarded: true,
+  });
 
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/providers/me/payment-accounts",
-    status: 200,
-    body: {
+  await this.stubGet(
+    "/providers/me/payment-accounts",
+    aPaymentAccount({
       status: "connected",
       account_id: "mp-test",
       can_receive_payments: true,
       can_send_service_proposals: true,
-    },
-  });
+    })
+  );
 
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/job-requests",
-    status: 200,
-    body: [],
-  });
+  await this.stubGet("/job-requests", []);
 
   const callbackUrl = APP_URL + "/provider/register/mercado-pago" + "?result=success";
   await this.page.goto(callbackUrl);
@@ -222,44 +170,24 @@ When(
 );
 
 Given("que la conexión de Mercado Pago fue cancelada", async function (this: CustomWorld) {
-  await this.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(
-        JSON.stringify({
-          user: {
-            id: "mock-provider-001",
-            email: "prestador@example.com",
-            firstName: "Juan",
-            lastName: "Pérez",
-            isOnboarded: false,
-            role: "provider",
-          },
-          accessToken: "mock-access-token",
-        })
-      ),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
+  await this.setSession("provider", {
+    id: "mock-provider-001",
+    email: "prestador@example.com",
+    firstName: "Juan",
+    lastName: "Pérez",
+    isOnboarded: false,
+  });
 
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/providers/me/payment-accounts",
-    status: 200,
-    body: {
+  await this.stubGet(
+    "/providers/me/payment-accounts",
+    aPaymentAccount({
       status: "pending",
       can_receive_payments: false,
       can_send_service_proposals: false,
-    },
-  });
+    })
+  );
 
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/job-requests",
-    status: 200,
-    body: [],
-  });
+  await this.stubGet("/job-requests", []);
 
   const callbackUrl = APP_URL + "/provider/register/mercado-pago" + "?result=cancelled";
   await this.page.goto(callbackUrl);

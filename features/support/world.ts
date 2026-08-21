@@ -1,7 +1,7 @@
 import { setWorldConstructor, World, IWorldOptions } from "@cucumber/cucumber";
 import { Browser, BrowserContext, Page } from "playwright";
 import type { ApiStub, HttpMethod } from "../../infrastructure/api/types";
-import { addApiStub, getStubs, hasApiStub } from "../step-definitions/stubs-helper";
+import { addApiStub, getStubs, hasApiStub } from "./stubs-helper";
 import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
 import { AuthSession } from "../../infrastructure/auth/types";
 import { aSession } from "./factories";

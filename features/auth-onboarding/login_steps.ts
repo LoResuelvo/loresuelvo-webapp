@@ -1,7 +1,6 @@
 import { Given, Then, When } from "@cucumber/cucumber";
 import { CustomWorld, APP_URL } from "../support/world";
-import { AuthSession } from "../../infrastructure/auth/types";
-import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
+import { aCurrentUser } from "../support/factories";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 
@@ -12,23 +11,8 @@ let registeredEmail = "";
 let registeredFirstName = "";
 let registeredLastName = "";
 
-async function setMockSession(world: CustomWorld, session: AuthSession) {
-  await world.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
-}
-
-async function clearMockSession(world: CustomWorld) {
-  await world.page.context().clearCookies();
-}
-
 Given("que no inicié sesión en Auth0", async function (this: CustomWorld) {
-  await clearMockSession(this);
+  await this.page.context().clearCookies();
 });
 
 Given(
@@ -55,30 +39,22 @@ Then("soy redirigido al portal de autenticación de Auth0 para iniciar sesión",
 });
 
 Given("que me logueé exitosamente en Auth0 como cliente", async function (this: CustomWorld) {
-  await setMockSession(this, {
-    user: {
-      id: "mock-001",
-      email: registeredEmail || "andy@pro.com",
-      firstName: registeredFirstName || "Andres",
-      lastName: registeredLastName || "Colina",
-      isOnboarded: true,
-      role: "consumer",
-    },
-    accessToken: "mock-access-token",
+  await this.setSession("consumer", {
+    id: "mock-001",
+    email: registeredEmail || "andy@pro.com",
+    firstName: registeredFirstName || "Andres",
+    lastName: registeredLastName || "Colina",
+    isOnboarded: true,
   });
 });
 
 Given("que me logueé exitosamente en Auth0 como prestador", async function (this: CustomWorld) {
-  await setMockSession(this, {
-    user: {
-      id: "mock-002",
-      email: registeredEmail || "andy@pro.com",
-      firstName: registeredFirstName || "Andres",
-      lastName: registeredLastName || "Colina",
-      isOnboarded: true,
-      role: "provider",
-    },
-    accessToken: "mock-access-token",
+  await this.setSession("provider", {
+    id: "mock-002",
+    email: registeredEmail || "andy@pro.com",
+    firstName: registeredFirstName || "Andres",
+    lastName: registeredLastName || "Colina",
+    isOnboarded: true,
   });
 });
 
@@ -87,81 +63,48 @@ When("entro al home de clientes", async function (this: CustomWorld) {
 });
 
 Given("la API devuelve mi perfil completo de consumidor sin foto", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/me",
-    status: 200,
-    body: {
+  await this.stubGet(
+    "/me",
+    aCurrentUser("consumer", {
       id: 1,
       name: registeredFirstName || "Andres",
       surname: registeredLastName || "Colina",
       email: registeredEmail || "andy@pro.com",
-      role: "consumer",
       profile_photo: null,
-    },
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/categories",
-    status: 200,
-    body: [],
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/service-proposals",
-    status: 200,
-    body: [],
-  });
+    })
+  );
+  await this.stubGet("/categories", []);
+  await this.stubGet("/service-proposals", []);
 });
 
 Given("la API devuelve mi perfil completo de consumidor con foto", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/me",
-    status: 200,
-    body: {
+  await this.stubGet(
+    "/me",
+    aCurrentUser("consumer", {
       id: 1,
       name: registeredFirstName || "Andres",
       surname: registeredLastName || "Colina",
       email: registeredEmail || "andy@pro.com",
-      role: "consumer",
       profile_photo: {
         original_name: "avatar.png",
         url: "https://example.com/mock-avatar.png",
       },
-    },
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/categories",
-    status: 200,
-    body: [],
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/service-proposals",
-    status: 200,
-    body: [],
-  });
+    })
+  );
+  await this.stubGet("/categories", []);
+  await this.stubGet("/service-proposals", []);
 });
 
 Given(
   "la API devuelve mi perfil completo de prestador con rubro {string}",
   async function (this: CustomWorld, categoryName: string) {
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/me",
-      status: 200,
-      body: {
+    await this.stubGet(
+      "/me",
+      aCurrentUser("provider", {
         id: 2,
         name: registeredFirstName || "Andres",
         surname: registeredLastName || "Colina",
         email: registeredEmail || "andy@pro.com",
-        role: "provider",
         profile_photo: {
           original_name: "avatar.png",
           url: "https://example.com/mock-avatar.png",
@@ -170,22 +113,10 @@ Given(
           id: 1,
           name: categoryName,
         },
-      },
-    });
-
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/job-requests",
-      status: 200,
-      body: [],
-    });
-
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/service-proposals",
-      status: 200,
-      body: [],
-    });
+      })
+    );
+    await this.stubGet("/job-requests", []);
+    await this.stubGet("/service-proposals", []);
   }
 );
 

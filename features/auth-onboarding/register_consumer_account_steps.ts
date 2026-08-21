@@ -1,7 +1,5 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import { CustomWorld, APP_URL } from "../support/world";
-import { AuthSession } from "../../infrastructure/auth/types";
-import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 
@@ -12,21 +10,6 @@ let selectedRole: "consumer" | "provider" | null = null;
 export const setSelectedRole = (role: "consumer" | "provider") => {
   selectedRole = role;
 };
-
-async function setMockSession(world: CustomWorld, session: AuthSession) {
-  await world.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
-}
-
-async function clearMockSession(world: CustomWorld) {
-  await world.page.context().clearCookies();
-}
 
 Given("que estoy en la página de inicio", async function (this: CustomWorld) {
   await this.page.goto(APP_URL);
@@ -54,12 +37,7 @@ When("finalizo el registro", async function (this: CustomWorld) {
   const endpoint = selectedRole === "provider" ? "/providers" : "/consumers";
 
   if (!(await this.hasApiStub("POST", endpoint))) {
-    await this.addApiStub({
-      method: "POST",
-      endpoint,
-      status: 201,
-      body: { id: `mock-${selectedRole}-001` },
-    });
+    await this.stubPost(endpoint, 201, { id: `mock-${selectedRole}-001` });
   }
 
   const button = this.page.getByRole("button", { name: "Finalizar Registro" }).first();
@@ -82,9 +60,12 @@ Then("soy redirigido al portal de autenticación de Auth0", async function (this
 Given(
   "que me registré exitosamente en Auth0 con email {string}",
   async function (this: CustomWorld, email: string) {
-    await setMockSession(this, {
-      user: { id: "mock-001", email, firstName: "", lastName: "", isOnboarded: false },
-      accessToken: "mock-access-token",
+    await this.setSession("consumer", {
+      id: "mock-001",
+      email,
+      firstName: "",
+      lastName: "",
+      isOnboarded: false,
     });
   }
 );
@@ -92,9 +73,12 @@ Given(
 Given(
   "complete mi nombre {string} y apellido {string} en la pagina de registro de LoResuelvo",
   async function (this: CustomWorld, firstName: string, lastName: string) {
-    await setMockSession(this, {
-      user: { id: "mock-001", email: "andy@pro.com", firstName: firstName, lastName: lastName, isOnboarded: true },
-      accessToken: "mock-access-token",
+    await this.setSession("consumer", {
+      id: "mock-001",
+      email: "andy@pro.com",
+      firstName,
+      lastName,
+      isOnboarded: true,
     });
   }
 );
@@ -118,7 +102,6 @@ Then("veo mi nombre {string} en el encabezado", async function (this: CustomWorl
     const avatarButton = header.getByRole("button", { name: initials }).or(header.locator("button")).first();
     await avatarButton.waitFor({ state: "visible" });
     await avatarButton.click();
-    await this.page.waitForTimeout(200);
     text = await header.innerText();
   }
   assert.ok(text.includes(name), `Name "${name}" not found in header`);
@@ -134,23 +117,25 @@ Then("veo el botón de {string}", async function (this: CustomWorld, buttonName:
 });
 
 Given("que no me registré en Auth0", async function (this: CustomWorld) {
-  await clearMockSession(this);
+  await this.page.context().clearCookies();
 });
 
 Then("soy redirigido a la página de inicio", async function (this: CustomWorld) {
   const currentUrl = this.page.url().replace(/\/$/, "");
   const expectedUrl = APP_URL.replace(/\/$/, "");
-  const is_home_page = currentUrl === expectedUrl;
   assert.ok(
-    is_home_page,
+    currentUrl === expectedUrl,
     `Was expected to be redirected to "${expectedUrl}" but the current URL is: ${this.page.url()}`
   );
 });
 
 Given("no completé mis datos en la pagina de registro de LoResuelvo", async function (this: CustomWorld) {
-  await setMockSession(this, {
-    user: { id: "mock-001", email: "andy@pro.com", firstName: "", lastName: "", isOnboarded: false },
-    accessToken: "mock-access-token",
+  await this.setSession("consumer", {
+    id: "mock-001",
+    email: "andy@pro.com",
+    firstName: "",
+    lastName: "",
+    isOnboarded: false,
   });
 });
 

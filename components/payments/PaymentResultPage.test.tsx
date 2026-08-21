@@ -180,4 +180,107 @@ describe("PaymentResultPage", () => {
     expect(screen.getByRole("heading", { name: "Pago en proceso" })).toBeInTheDocument();
     expect(screen.queryByText("Pago de reserva confirmado")).not.toBeInTheDocument();
   });
+
+  describe("when purpose is service_balance", () => {
+    const serviceBalanceStorage = JSON.stringify({
+      purpose: "service_balance",
+      paymentIntentId: "intent-123",
+      workOrderId: 10,
+      expiresOn: "2026-08-21T20:30:00Z",
+    });
+
+    it("should display service balance paid confirmation and remove activePayment", async () => {
+      const getPaymentIntent = vi.fn()
+        .mockImplementationOnce(() => verified("checkout_ready"))
+        .mockImplementationOnce(() => verified("paid"));
+      const removeItem = vi.fn();
+
+      render(
+        <PaymentResultPage
+          returnKind="success"
+          search="?external_reference=intent-123"
+          storage={{ getItem: vi.fn().mockReturnValue(serviceBalanceStorage), removeItem }}
+          getPaymentIntent={getPaymentIntent}
+        />,
+      );
+
+      await act(async () => undefined);
+      await act(async () => vi.advanceTimersByTimeAsync(2_000));
+
+      expect(screen.getByRole("heading", { name: "Pago del servicio confirmado" })).toBeInTheDocument();
+      expect(screen.getByText("El saldo del servicio fue abonado correctamente.")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Volver a mis servicios" })).toBeInTheDocument();
+      expect(removeItem).toHaveBeenCalledWith("activePayment");
+    });
+
+    it.each([
+      [
+        "rejected",
+        "El pago del servicio fue rechazado",
+        "Podés volver a la orden de trabajo e intentar generar un nuevo pago.",
+      ],
+      [
+        "expired",
+        "El pago del servicio venció",
+        "Volvé a la orden de trabajo para generar un nuevo checkout.",
+      ],
+    ] as const)("should display terminal state %s for service balance", async (status, title, description) => {
+      const getPaymentIntent = vi.fn().mockImplementation(() => verified(status));
+
+      render(
+        <PaymentResultPage
+          returnKind="failure"
+          search="?external_reference=intent-123"
+          storage={{ getItem: vi.fn().mockReturnValue(serviceBalanceStorage), removeItem: vi.fn() }}
+          getPaymentIntent={getPaymentIntent}
+        />,
+      );
+
+      await act(async () => undefined);
+      await act(async () => vi.advanceTimersByTimeAsync(10_000));
+
+      expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
+      expect(screen.getByText(description)).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Volver a la orden de trabajo" })).toBeInTheDocument();
+    });
+
+    it("should display timeout message customized for services on timeout", async () => {
+      const getPaymentIntent = vi.fn().mockImplementation(() => verified("processing"));
+
+      render(
+        <PaymentResultPage
+          returnKind="pending"
+          search="?external_reference=intent-123"
+          storage={{ getItem: vi.fn().mockReturnValue(serviceBalanceStorage), removeItem: vi.fn() }}
+          getPaymentIntent={getPaymentIntent}
+        />,
+      );
+
+      await act(async () => undefined);
+      await act(async () => vi.advanceTimersByTimeAsync(30_000));
+
+      expect(screen.getByText(
+        "Seguimos esperando la confirmación de Mercado Pago. Podés consultar nuevamente o volver a tus servicios.",
+      )).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Volver a mis servicios" })).toBeInTheDocument();
+    });
+
+    it("should recover payment intent and service_balance context from storage when search has no reference", async () => {
+      const getPaymentIntent = vi.fn().mockImplementation(() => verified("paid"));
+
+      render(
+        <PaymentResultPage
+          returnKind="pending"
+          search="?status=pending"
+          storage={{ getItem: vi.fn().mockReturnValue(serviceBalanceStorage), removeItem: vi.fn() }}
+          getPaymentIntent={getPaymentIntent}
+        />,
+      );
+
+      await act(async () => undefined);
+
+      expect(screen.getByRole("heading", { name: "Pago del servicio confirmado" })).toBeInTheDocument();
+      expect(getPaymentIntent).toHaveBeenCalledWith("intent-123");
+    });
+  });
 });

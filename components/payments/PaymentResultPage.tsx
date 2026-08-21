@@ -11,7 +11,8 @@ import {
   type GetPaymentIntentResult,
 } from "@/app/consumidor/pagos/actions";
 import { ROUTES } from "@/lib/routes";
-import { resolvePaymentIntentId } from "@/lib/payment-utils";
+import { parseActivePayment, resolvePaymentIntentId } from "@/lib/payment-utils";
+import type { ActivePayment } from "@/domain/payment/types";
 import { t } from "@/infrastructure/i18n/translations";
 import { cn } from "@/lib/utils";
 import { usePaymentIntentPolling } from "./usePaymentIntentPolling";
@@ -91,6 +92,7 @@ function resolvePaymentViewState(
   hasResolvedPaymentIntent: boolean,
   paymentIntentId: string | null,
   polling: ReturnType<typeof usePaymentIntentPolling>,
+  activePayment?: ActivePayment | null,
 ): PaymentViewState {
   if (hasResolvedPaymentIntent && !paymentIntentId) {
     return {
@@ -112,10 +114,14 @@ function resolvePaymentViewState(
     };
   }
 
+  const isServiceBalance = activePayment?.purpose === "service_balance";
+
   if (polling.timedOut) {
     return {
       title: t.payments.result.waitingTitle,
-      description: t.payments.result.timeoutDescription,
+      description: isServiceBalance
+        ? t.payments.result.balance.timeoutDescription
+        : t.payments.result.timeoutDescription,
       variant: "warning",
       icon: Clock3,
       canRetryVerification: true,
@@ -125,23 +131,35 @@ function resolvePaymentViewState(
   switch (polling.status) {
     case "paid":
       return {
-        title: t.payments.result.paidTitle,
-        description: t.payments.result.paidDescription,
+        title: isServiceBalance
+          ? t.payments.result.balance.paidTitle
+          : t.payments.result.paidTitle,
+        description: isServiceBalance
+          ? t.payments.result.balance.paidDescription
+          : t.payments.result.paidDescription,
         variant: "success",
         icon: CheckCircle2,
       };
     case "rejected":
       return {
-        title: t.payments.result.rejectedTitle,
-        description: t.payments.result.rejectedDescription,
+        title: isServiceBalance
+          ? t.payments.result.balance.rejectedTitle
+          : t.payments.result.rejectedTitle,
+        description: isServiceBalance
+          ? t.payments.result.balance.rejectedDescription
+          : t.payments.result.rejectedDescription,
         variant: "danger",
         icon: XCircle,
         canRetryPayment: true,
       };
     case "expired":
       return {
-        title: t.payments.result.expiredTitle,
-        description: t.payments.result.expiredDescription,
+        title: isServiceBalance
+          ? t.payments.result.balance.expiredTitle
+          : t.payments.result.expiredTitle,
+        description: isServiceBalance
+          ? t.payments.result.balance.expiredDescription
+          : t.payments.result.expiredDescription,
         variant: "warning",
         icon: AlertTriangle,
         canRetryPayment: true,
@@ -181,6 +199,9 @@ export function PaymentResultPage({
 }: PaymentResultPageProps) {
   const router = useRouter();
   const [paymentStorage, setPaymentStorage] = useState<PaymentResultStorage | null>(storage ?? null);
+  const [activePayment, setActivePayment] = useState<ActivePayment | null>(() => storage
+    ? parseActivePayment(storage.getItem("activePayment"))
+    : null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(() => storage
     ? resolvePaymentIntentId(search ?? "", storage.getItem("activePayment"))
     : null);
@@ -189,9 +210,11 @@ export function PaymentResultPage({
   useEffect(() => {
     const resolvedStorage = storage ?? window.sessionStorage;
     setPaymentStorage(resolvedStorage);
+    const rawActivePayment = resolvedStorage.getItem("activePayment");
+    setActivePayment(parseActivePayment(rawActivePayment));
     setPaymentIntentId(resolvePaymentIntentId(
       search ?? window.location.search,
-      resolvedStorage.getItem("activePayment"),
+      rawActivePayment,
     ));
     setHasResolvedPaymentIntent(true);
   }, [search, storage]);
@@ -212,6 +235,7 @@ export function PaymentResultPage({
     hasResolvedPaymentIntent,
     paymentIntentId,
     polling,
+    activePayment,
   );
 
   return (
@@ -262,9 +286,13 @@ export function PaymentResultPage({
               className="w-full sm:w-auto sm:flex-1 h-11 rounded-xl font-semibold shadow-sm"
             >
               <Link href={ROUTES.consumer.services}>
-                {state.canRetryPayment
-                  ? t.payments.result.backToProposal
-                  : t.payments.result.backToProposals}
+                {activePayment?.purpose === "service_balance"
+                  ? state.canRetryPayment
+                    ? t.payments.result.balance.backToWorkOrder
+                    : t.payments.result.balance.backToServices
+                  : state.canRetryPayment
+                    ? t.payments.result.backToProposal
+                    : t.payments.result.backToProposals}
               </Link>
             </Button>
           </div>

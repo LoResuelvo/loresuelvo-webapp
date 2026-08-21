@@ -27,5 +27,16 @@ describe("payment utils", () => {
   it("should safely ignore malformed or unrelated stored values", () => {
     expect(parseActivePayment("not-json")).toBeNull();
     expect(parseActivePayment(JSON.stringify({ purpose: "other_payment" }))).toBeNull();
+    expect(parseActivePayment(JSON.stringify({
+      purpose: "service_balance",
+      paymentIntentId: "balance-intent",
+      workOrderId: 10,
+      expiresOn: "2026-08-11T20:30:00Z",
+    }))).toEqual({
+      purpose: "service_balance",
+      paymentIntentId: "balance-intent",
+      workOrderId: 10,
+      expiresOn: "2026-08-11T20:30:00Z",
+    });
   });
 });

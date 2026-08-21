@@ -56,6 +56,17 @@ export const t = {
       login: "Iniciar sesión",
       backToProposal: "Volver a la propuesta",
       backToProposals: "Volver a mis propuestas",
+      balance: {
+        paidTitle: "Pago del servicio confirmado",
+        paidDescription: "El saldo del servicio fue abonado correctamente.",
+        rejectedTitle: "El pago del servicio fue rechazado",
+        rejectedDescription: "Podés volver a la orden de trabajo e intentar generar un nuevo pago.",
+        expiredTitle: "El pago del servicio venció",
+        expiredDescription: "Volvé a la orden de trabajo para generar un nuevo checkout.",
+        backToWorkOrder: "Volver a la orden de trabajo",
+        backToServices: "Volver a mis servicios",
+        timeoutDescription: "Seguimos esperando la confirmación de Mercado Pago. Podés consultar nuevamente o volver a tus servicios.",
+      },
     },
   },
   home: {

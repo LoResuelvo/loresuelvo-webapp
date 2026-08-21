@@ -10,15 +10,25 @@ export function parseActivePayment(value: string | null): ActivePayment | null {
       typeof parsed !== "object" ||
       parsed === null ||
       !("purpose" in parsed) ||
-      parsed.purpose !== "booking_deposit" ||
+      (parsed.purpose !== "booking_deposit" && parsed.purpose !== "service_balance") ||
       !("paymentIntentId" in parsed) ||
       typeof parsed.paymentIntentId !== "string" ||
-      !("serviceProposalId" in parsed) ||
-      typeof parsed.serviceProposalId !== "number" ||
       !("expiresOn" in parsed) ||
       typeof parsed.expiresOn !== "string"
     ) {
       return null;
+    }
+
+    if (parsed.purpose === "booking_deposit") {
+      if (!("serviceProposalId" in parsed) || typeof parsed.serviceProposalId !== "number") {
+        return null;
+      }
+    }
+
+    if (parsed.purpose === "service_balance") {
+      if (!("workOrderId" in parsed) || typeof parsed.workOrderId !== "number") {
+        return null;
+      }
     }
 
     return parsed as ActivePayment;

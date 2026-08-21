@@ -29,6 +29,11 @@ export const t = {
       conflict: "El pago no está disponible para esta propuesta.",
       temporary: "No pudimos consultar el pago en este momento. Intentá otra vez.",
       generic: "Ocurrió un error inesperado. Intentá nuevamente.",
+      balance: {
+        forbidden: "No tenés permiso para pagar esta orden de trabajo.",
+        notFound: "No encontramos la orden de trabajo o el pago solicitado.",
+        conflict: "El pago del saldo no está disponible para esta orden.",
+      },
     },
     result: {
       verifyingTitle: "Estamos verificando tu pago",

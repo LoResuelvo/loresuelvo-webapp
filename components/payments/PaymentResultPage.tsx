@@ -66,7 +66,7 @@ function StatusBadge({
   );
 }
 
-function getErrorContent(status: number | null): { title: string; description: string } {
+function getErrorContent(status: number | null, isBalance = false): { title: string; description: string } {
   switch (status) {
     case 401:
       return {
@@ -74,11 +74,20 @@ function getErrorContent(status: number | null): { title: string; description: s
         description: t.payments.errors.unauthorized,
       };
     case 403:
-      return { title: t.payments.result.errorTitle, description: t.payments.errors.forbidden };
+      return {
+        title: t.payments.result.errorTitle,
+        description: isBalance ? t.payments.errors.balance.forbidden : t.payments.errors.forbidden,
+      };
     case 404:
-      return { title: t.payments.result.errorTitle, description: t.payments.errors.notFound };
+      return {
+        title: t.payments.result.errorTitle,
+        description: isBalance ? t.payments.errors.balance.notFound : t.payments.errors.notFound,
+      };
     case 409:
-      return { title: t.payments.result.errorTitle, description: t.payments.errors.conflict };
+      return {
+        title: t.payments.result.errorTitle,
+        description: isBalance ? t.payments.errors.balance.conflict : t.payments.errors.conflict,
+      };
     case 500:
     case 504:
       return { title: t.payments.result.errorTitle, description: t.payments.errors.temporary };
@@ -103,8 +112,10 @@ function resolvePaymentViewState(
     };
   }
 
+  const isServiceBalance = activePayment?.purpose === "service_balance";
+
   if (polling.errorStatus !== undefined) {
-    const errorContent = getErrorContent(polling.errorStatus);
+    const errorContent = getErrorContent(polling.errorStatus, isServiceBalance);
     return {
       title: errorContent.title,
       description: errorContent.description,
@@ -113,8 +124,6 @@ function resolvePaymentViewState(
       canRetryVerification: polling.errorStatus !== 401 && polling.errorStatus !== 403,
     };
   }
-
-  const isServiceBalance = activePayment?.purpose === "service_balance";
 
   if (polling.timedOut) {
     return {

@@ -282,5 +282,27 @@ describe("PaymentResultPage", () => {
       expect(screen.getByRole("heading", { name: "Pago del servicio confirmado" })).toBeInTheDocument();
       expect(getPaymentIntent).toHaveBeenCalledWith("intent-123");
     });
+
+    it.each([
+      [403, "No tenés permiso para pagar esta orden de trabajo."],
+      [404, "No encontramos la orden de trabajo o el pago solicitado."],
+      [409, "El pago del saldo no está disponible para esta orden."],
+      [500, "No pudimos consultar el pago en este momento. Intentá otra vez."],
+    ])("should safely handle verification error %s for service balance", async (status, message) => {
+      const getPaymentIntent = vi.fn().mockResolvedValue({ ok: false, status });
+      render(
+        <PaymentResultPage
+          returnKind="pending"
+          search="?external_reference=intent-123"
+          storage={{ getItem: vi.fn().mockReturnValue(serviceBalanceStorage), removeItem: vi.fn() }}
+          getPaymentIntent={getPaymentIntent}
+        />,
+      );
+
+      await act(async () => undefined);
+
+      expect(screen.getByText(message)).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Volver a mis servicios" })).toBeInTheDocument();
+    });
   });
 });

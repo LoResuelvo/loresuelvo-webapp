@@ -38,6 +38,13 @@ function canBeCompleted(
   }
 }
 
+function canPayBalance(
+  order: Pick<WorkOrderDetail, "status">,
+  isConsumer: boolean,
+): boolean {
+  return isConsumer === true && order.status === "awaiting_payment";
+}
+
 function getStatusBadge(status: WorkOrderStatus | string): {
   label: string;
   variant: WorkOrderBadgeVariant;
@@ -59,6 +66,7 @@ export const WorkOrderModule = {
   isAwaitingPayment,
   isPaid,
   canBeCompleted,
+  canPayBalance,
   getStatusBadge,
 };
 

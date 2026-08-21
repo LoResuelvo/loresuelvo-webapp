@@ -39,9 +39,19 @@ export interface PaymentIntent {
   status: PaymentIntentStatus;
 }
 
+export type PaymentPurpose = "booking_deposit" | "service_balance";
+
 export interface ActivePayment {
-  purpose: "booking_deposit";
+  purpose: PaymentPurpose;
   paymentIntentId: string;
-  serviceProposalId: number;
+  serviceProposalId?: number;
+  workOrderId?: number;
   expiresOn: string;
+}
+
+export interface ServiceBalancePricing {
+  currency: string;
+  remainingServiceBalanceCents: number;
+  remainingPlatformFeeCents: number;
+  amountDueNowCents: number;
 }

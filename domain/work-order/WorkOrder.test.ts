@@ -65,6 +65,26 @@ describe("WorkOrder Domain Module", () => {
     });
   });
 
+  describe("canPayBalance", () => {
+    it("allows consumer to pay balance when order status is awaiting_payment", () => {
+      const awaiting = { ...sampleWorkOrder, status: "awaiting_payment" as const };
+      expect(WorkOrderModule.canPayBalance(awaiting, true)).toBe(true);
+    });
+
+    it("prevents provider from paying balance", () => {
+      const awaiting = { ...sampleWorkOrder, status: "awaiting_payment" as const };
+      expect(WorkOrderModule.canPayBalance(awaiting, false)).toBe(false);
+    });
+
+    it("prevents consumer from paying balance when order status is scheduled or paid", () => {
+      const scheduled = { ...sampleWorkOrder, status: "scheduled" as const };
+      expect(WorkOrderModule.canPayBalance(scheduled, true)).toBe(false);
+
+      const paid = { ...sampleWorkOrder, status: "paid" as const };
+      expect(WorkOrderModule.canPayBalance(paid, true)).toBe(false);
+    });
+  });
+
   describe("getStatusBadge", () => {
     it("returns correct badge for scheduled", () => {
       expect(WorkOrderModule.getStatusBadge("scheduled")).toEqual({

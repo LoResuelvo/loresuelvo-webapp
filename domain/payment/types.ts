@@ -7,8 +7,10 @@ export type PaymentIntentStatus =
 
 export interface PaymentPricing {
   currency: string;
-  depositCents: number;
-  platformFeeDueNowCents: number;
+  depositCents?: number;
+  platformFeeDueNowCents?: number;
+  remainingServiceBalanceCents?: number;
+  remainingPlatformFeeCents?: number;
   amountDueNowCents: number;
 }
 

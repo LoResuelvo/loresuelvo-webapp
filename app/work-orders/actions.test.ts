@@ -1,14 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError } from "@/infrastructure/api/base-client";
 import {
+  createServiceBalanceCheckoutAction,
   getWorkOrderByProposalAction,
   getWorkOrderDetailAction,
   reportWorkCompletionAction,
 } from "./actions";
+import { createServiceBalanceCheckout } from "@/application/payments/create-service-balance-checkout";
 import { getWorkOrderByProposal } from "@/application/work-orders/get-work-order";
 import { getWorkOrderDetail } from "@/application/work-orders/get-work-order-detail";
 import { reportWorkCompletion } from "@/application/work-orders/report-work-completion";
+import { CheckoutSession } from "@/domain/payment/types";
 import { WorkOrder, WorkOrderDetail, CompletionReport } from "@/domain/work-order/types";
+
+vi.mock("@/application/payments/create-service-balance-checkout", () => ({
+  createServiceBalanceCheckout: vi.fn(),
+}));
 
 vi.mock("@/application/work-orders/get-work-order", () => ({
   getWorkOrderByProposal: vi.fn(),
@@ -20,6 +27,10 @@ vi.mock("@/application/work-orders/get-work-order-detail", () => ({
 
 vi.mock("@/application/work-orders/report-work-completion", () => ({
   reportWorkCompletion: vi.fn(),
+}));
+
+vi.mock("@/infrastructure/repositories/api-payment-repository", () => ({
+  ApiPaymentRepository: vi.fn(),
 }));
 
 vi.mock("@/infrastructure/repositories/api-work-order-repository", () => ({
@@ -194,6 +205,60 @@ describe("reportWorkCompletionAction", () => {
       ok: false,
       status: null,
       message: null,
+    });
+  });
+});
+
+describe("createServiceBalanceCheckoutAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns ok: true and the checkout session when creation succeeds", async () => {
+    const mockCheckout: CheckoutSession = {
+      paymentIntentId: "intent-balance-123",
+      status: "checkout_ready",
+      checkoutUrl: "https://www.mercadopago.com.ar/checkout?pref_id=balance-123",
+      expiresOn: "2026-08-25T20:30:00Z",
+      pricing: {
+        currency: "ARS",
+        remainingServiceBalanceCents: 8_000_000,
+        remainingPlatformFeeCents: 400_000,
+        amountDueNowCents: 8_400_000,
+      },
+    };
+
+    vi.mocked(createServiceBalanceCheckout).mockResolvedValue(mockCheckout);
+
+    const result = await createServiceBalanceCheckoutAction(10);
+
+    expect(result).toEqual({
+      ok: true,
+      checkout: mockCheckout,
+    });
+  });
+
+  it("returns ok: false with HTTP status when ApiClientError occurs", async () => {
+    vi.mocked(createServiceBalanceCheckout).mockRejectedValue(
+      new ApiClientError(404, "Not Found", "Order not found"),
+    );
+
+    const result = await createServiceBalanceCheckoutAction(10);
+
+    expect(result).toEqual({
+      ok: false,
+      status: 404,
+    });
+  });
+
+  it("returns ok: false with status null when unexpected error occurs", async () => {
+    vi.mocked(createServiceBalanceCheckout).mockRejectedValue(new Error("Unexpected error"));
+
+    const result = await createServiceBalanceCheckoutAction(10);
+
+    expect(result).toEqual({
+      ok: false,
+      status: null,
     });
   });
 });

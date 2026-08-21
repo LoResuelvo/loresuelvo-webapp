@@ -3,6 +3,8 @@ import type {
   ApiCheckoutSession,
   ApiPaymentIntent,
   ApiPaymentPricing,
+  ApiServiceBalanceCheckoutSession,
+  ApiServiceBalancePricing,
 } from "@/infrastructure/api/types";
 import type {
   BookingTerms,
@@ -58,6 +60,20 @@ export function mapApiPaymentPricing(api: ApiPaymentPricing): PaymentPricing {
   };
 }
 
+export function mapApiServiceBalancePricing(api: ApiServiceBalancePricing): PaymentPricing {
+  const currency = (api.currency as "ARS" | "USD") ?? "ARS";
+  const remainingServiceBalance = Money.create(api.remaining_service_balance_cents, currency);
+  const remainingPlatformFee = Money.create(api.remaining_platform_fee_cents, currency);
+  const amountDueNow = Money.create(api.amount_due_now_cents, currency);
+
+  return {
+    currency: api.currency,
+    remainingServiceBalanceCents: remainingServiceBalance.cents,
+    remainingPlatformFeeCents: remainingPlatformFee.cents,
+    amountDueNowCents: amountDueNow.cents,
+  };
+}
+
 export function mapApiCheckoutSession(api: ApiCheckoutSession): CheckoutSession {
   const expiresOn = ScheduledDateTime.create(api.expires_on);
   return {
@@ -66,6 +82,19 @@ export function mapApiCheckoutSession(api: ApiCheckoutSession): CheckoutSession 
     checkoutUrl: api.checkout_url,
     expiresOn: expiresOn.isoString,
     pricing: mapApiPaymentPricing(api.pricing),
+  };
+}
+
+export function mapApiServiceBalanceCheckoutSession(
+  api: ApiServiceBalanceCheckoutSession,
+): CheckoutSession {
+  const expiresOn = ScheduledDateTime.create(api.expires_on);
+  return {
+    paymentIntentId: api.payment_intent_id,
+    status: api.status as "checkout_ready",
+    checkoutUrl: api.checkout_url,
+    expiresOn: expiresOn.isoString,
+    pricing: mapApiServiceBalancePricing(api.pricing),
   };
 }
 

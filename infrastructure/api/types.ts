@@ -210,12 +210,27 @@ export interface ApiPaymentPricing {
   amount_due_now_cents: number;
 }
 
+export interface ApiServiceBalancePricing {
+  currency: string;
+  remaining_service_balance_cents: number;
+  remaining_platform_fee_cents: number;
+  amount_due_now_cents: number;
+}
+
 export interface ApiCheckoutSession {
   payment_intent_id: string;
   status: string;
   checkout_url: string;
   expires_on: string;
   pricing: ApiPaymentPricing;
+}
+
+export interface ApiServiceBalanceCheckoutSession {
+  payment_intent_id: string;
+  status: string;
+  checkout_url: string;
+  expires_on: string;
+  pricing: ApiServiceBalancePricing;
 }
 
 export interface ApiPaymentIntent {

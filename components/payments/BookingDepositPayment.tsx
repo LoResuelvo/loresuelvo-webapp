@@ -111,13 +111,13 @@ export function BookingDepositPayment({
           <div className="flex items-center justify-between gap-4">
             <dt className="text-slate-600">{t.payments.checkout.depositLabel}</dt>
             <dd className="font-medium text-slate-800">
-              {Money.format(Money.create(pricing.depositCents, currency))}
+              {Money.format(Money.create(pricing.depositCents ?? 0, currency))}
             </dd>
           </div>
           <div className="flex items-center justify-between gap-4">
             <dt className="text-slate-600">{t.payments.checkout.feeLabel}</dt>
             <dd className="font-medium text-slate-800">
-              {Money.format(Money.create(pricing.platformFeeDueNowCents, currency))}
+              {Money.format(Money.create(pricing.platformFeeDueNowCents ?? 0, currency))}
             </dd>
           </div>
           <div className="flex items-center justify-between gap-4 border-t border-slate-200/80 pt-2.5">

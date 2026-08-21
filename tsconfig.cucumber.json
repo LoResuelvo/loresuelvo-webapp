@@ -7,5 +7,6 @@
     "outDir": ".cucumber-dist",
     "types": ["node", "vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": ["features/**/*.ts"]
+  "include": ["features/**/*.ts"],
+  "exclude": ["node_modules"]
 }

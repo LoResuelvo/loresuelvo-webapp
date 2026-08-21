@@ -4,6 +4,8 @@ import {
   ApiProvider,
   ApiConversation,
   ApiConversationMessage,
+  ApiAiConversation,
+  ApiAiConversationDetail,
 } from "../../infrastructure/api/types";
 
 export interface MockCounterpart {

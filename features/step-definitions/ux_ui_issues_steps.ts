@@ -4,7 +4,7 @@ import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
 import { AuthSession } from "../../infrastructure/auth/types";
 import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
-import { setConsumerSession } from "./initiate_chat_with_provider_steps";
+import { setConsumerSession } from "../messaging/initiate_chat_with_provider_steps";
 
 
 let consumerContacts: any[] = [];

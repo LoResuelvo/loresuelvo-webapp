@@ -5,7 +5,9 @@ import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { t } from "@/infrastructure/i18n/translations";
 import { DollarSign, Calendar, FileText, CheckCircle2, Loader2, AlertCircle, Star } from "lucide-react";
-import { formatAmountCents, formatScheduledOn } from "@/lib/proposal-utils";
+import { Money } from "@/domain/shared/Money";
+import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
+import { WorkOrder } from "@/domain/work-order/WorkOrder";
 import { getWorkOrderDetailAction } from "@/app/work-orders/actions";
 import { DetailField } from "@/components/ui/detail-field";
 import { CompletionEvidenceSection } from "./CompletionEvidenceSection";
@@ -58,19 +60,7 @@ export function WorkOrderDetailModal({
   const scheduledOn = detail?.scheduledOn ?? initialScheduledOn;
   const description = detail?.description ?? initialDescription;
 
-  const statusLabel =
-    currentStatus === "paid"
-      ? t.workOrderDetail.statusPaid
-      : currentStatus === "awaiting_payment"
-      ? t.workOrderDetail.statusAwaitingPayment
-      : t.workOrderDetail.statusScheduled;
-
-  const statusVariant =
-    currentStatus === "paid"
-      ? "success"
-      : currentStatus === "awaiting_payment"
-      ? "warning"
-      : "default";
+  const { label: statusLabel, variant: statusVariant } = WorkOrder.getStatusBadge(currentStatus);
 
   return (
     <Modal
@@ -126,14 +116,14 @@ export function WorkOrderDetailModal({
                 <DetailField
                   icon={<DollarSign className="w-5 h-5" />}
                   label={t.workOrderDetail.amountLabel}
-                  value={formatAmountCents(amountCents)}
+                  value={Money.format(Money.create(amountCents))}
                   variant="highlight"
                 />
 
                 <DetailField
                   icon={<Calendar className="w-5 h-5" />}
                   label={t.workOrderDetail.scheduledOnLabel}
-                  value={formatScheduledOn(scheduledOn)}
+                  value={ScheduledDateTime.formatWithTime(ScheduledDateTime.create(scheduledOn))}
                   variant="default"
                 />
 
@@ -141,7 +131,7 @@ export function WorkOrderDetailModal({
                   <DetailField
                     icon={<CheckCircle2 className="w-5 h-5" />}
                     label={t.workOrderDetail.paidOnLabel}
-                    value={formatScheduledOn(detail.paidOn)}
+                    value={ScheduledDateTime.formatWithTime(ScheduledDateTime.create(detail.paidOn))}
                     className="bg-emerald-50/70 border-emerald-200/60 sm:col-span-2"
                     iconClassName="border-emerald-200/70 text-emerald-600"
                     labelClassName="text-emerald-600"

@@ -2,7 +2,9 @@
 
 import React from "react";
 import type { ServiceProposalSummary } from "@/domain/messaging/types";
-import { formatAmountCents, formatProposalTime, formatScheduledOn, getStatusBadge } from "@/lib/proposal-utils";
+import { Money } from "@/domain/shared/Money";
+import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
+import { ServiceProposal } from "@/domain/messaging/ServiceProposal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, FileText, ArrowRight } from "lucide-react";
@@ -22,7 +24,7 @@ export function ProposalTimelineCard({
   onClick,
   className,
 }: ProposalTimelineCardProps) {
-  const statusBadge = getStatusBadge(proposal.status);
+  const statusBadge = ServiceProposal.getStatusBadge(proposal.status);
 
   const getButtonContent = () => {
     if (proposal.status === "pending") {
@@ -82,7 +84,7 @@ export function ProposalTimelineCard({
               Monto
             </span>
             <span className="text-subtitle font-bold text-slate-900 leading-tight">
-              {formatAmountCents(proposal.amountCents)}
+              {Money.format(Money.create(proposal.amountCents))}
             </span>
           </div>
 
@@ -92,7 +94,9 @@ export function ProposalTimelineCard({
             </span>
             <div className="flex items-center gap-2 text-slate-600 text-small font-medium">
               <Calendar className="w-3.5 h-3.5 text-brand-primary shrink-0" />
-              <span className="truncate">{formatScheduledOn(proposal.scheduledOn)}</span>
+              <span className="truncate">
+                {ScheduledDateTime.formatWithTime(ScheduledDateTime.create(proposal.scheduledOn))}
+              </span>
             </div>
           </div>
 
@@ -134,7 +138,7 @@ export function ProposalTimelineCard({
         {/* Timestamp */}
         {proposal.createdOn && (
           <p className="text-caption text-slate-400 text-right pt-0.5">
-            {formatProposalTime(proposal.createdOn)}
+            {ScheduledDateTime.formatRawTime(ScheduledDateTime.create(proposal.createdOn))}
           </p>
         )}
       </div>

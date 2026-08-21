@@ -7,7 +7,7 @@ import { t } from "@/infrastructure/i18n/translations";
 import { Avatar } from "@/components/ui/avatar";
 
 import { JobRequestInfo, ServiceProposalSummary } from "@/domain/messaging/types";
-import { formatAmountCents } from "@/lib/proposal-utils";
+import { Money } from "@/domain/shared/Money";
 
 interface ChatHeaderProps {
   providerName: string;
@@ -85,7 +85,7 @@ export default function ChatHeader({
                   ? t.messaging.serviceProposal.headerPendingProviderChip
                   : t.messaging.serviceProposal.headerPendingChip}
               </span>
-              <span className="font-bold">{formatAmountCents(serviceProposal.amountCents)}</span>
+              <span className="font-bold">{Money.format(Money.create(serviceProposal.amountCents))}</span>
             </Button>
           )}
 

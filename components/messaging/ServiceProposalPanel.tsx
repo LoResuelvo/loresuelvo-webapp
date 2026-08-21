@@ -2,7 +2,9 @@
 
 import React, { useState } from "react";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
-import { formatAmountCents, formatScheduledOn, getStatusBadge } from "@/lib/proposal-utils";
+import { Money } from "@/domain/shared/Money";
+import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
+import { ServiceProposal } from "@/domain/messaging/ServiceProposal";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, DollarSign, FileText, ChevronRight } from "lucide-react";
 import { t } from "@/infrastructure/i18n/translations";
@@ -14,7 +16,7 @@ interface ServiceProposalPanelProps {
 
 export function ServiceProposalPanel({ proposal }: ServiceProposalPanelProps) {
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const statusBadge = getStatusBadge(proposal.status);
+  const statusBadge = ServiceProposal.getStatusBadge(proposal.status);
 
   return (
     <>
@@ -43,7 +45,7 @@ export function ServiceProposalPanel({ proposal }: ServiceProposalPanelProps) {
                   {t.serviceProposals.chatPanel.amountLabel}
                 </span>
                 <span className="text-body font-semibold text-slate-700">
-                  {formatAmountCents(proposal.amountCents)}
+                  {Money.format(Money.create(proposal.amountCents))}
                 </span>
               </div>
             </div>
@@ -55,7 +57,7 @@ export function ServiceProposalPanel({ proposal }: ServiceProposalPanelProps) {
                   {t.serviceProposals.chatPanel.dateLabel}
                 </span>
                 <span className="text-body font-medium text-slate-700">
-                  {formatScheduledOn(proposal.scheduledOn)}
+                  {ScheduledDateTime.formatWithTime(ScheduledDateTime.create(proposal.scheduledOn))}
                 </span>
               </div>
             </div>

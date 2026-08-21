@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ActivePayment, BookingTerms, PaymentPricing } from "@/domain/payment/types";
+import { Money, type Currency } from "@/domain/shared/Money";
 import {
   createBookingDepositCheckoutAction,
   type CreateBookingDepositCheckoutResult,
@@ -21,13 +22,6 @@ interface BookingDepositPaymentProps {
   storage?: PaymentStorage;
   redirect?: (url: string) => void;
   bookingTerms?: BookingTerms;
-}
-
-function formatCurrencyCents(amountCents: number, currency: string): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency,
-  }).format(amountCents / 100);
 }
 
 function getPaymentErrorMessage(status: number | null): string {
@@ -60,6 +54,7 @@ export function BookingDepositPayment({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const requestInProgress = useRef(false);
 
+  const currency = (pricing.currency as Currency) ?? "ARS";
   const remainingBalanceCents = bookingTerms
     ? bookingTerms.remainingServiceBalanceCents ?? (bookingTerms.remainingAmountDueCents - bookingTerms.remainingPlatformFeeCents)
     : 0;
@@ -116,19 +111,19 @@ export function BookingDepositPayment({
           <div className="flex items-center justify-between gap-4">
             <dt className="text-slate-600">{t.payments.checkout.depositLabel}</dt>
             <dd className="font-medium text-slate-800">
-              {formatCurrencyCents(pricing.depositCents, pricing.currency)}
+              {Money.format(Money.create(pricing.depositCents, currency))}
             </dd>
           </div>
           <div className="flex items-center justify-between gap-4">
             <dt className="text-slate-600">{t.payments.checkout.feeLabel}</dt>
             <dd className="font-medium text-slate-800">
-              {formatCurrencyCents(pricing.platformFeeDueNowCents, pricing.currency)}
+              {Money.format(Money.create(pricing.platformFeeDueNowCents, currency))}
             </dd>
           </div>
           <div className="flex items-center justify-between gap-4 border-t border-slate-200/80 pt-2.5">
             <dt className="font-semibold text-slate-800">{t.payments.checkout.totalLabel}</dt>
             <dd className="text-subtitle font-bold text-brand-primary">
-              {formatCurrencyCents(pricing.amountDueNowCents, pricing.currency)}
+              {Money.format(Money.create(pricing.amountDueNowCents, currency))}
             </dd>
           </div>
         </dl>
@@ -137,7 +132,7 @@ export function BookingDepositPayment({
           <div className="mt-2.5 pt-2.5 border-t border-slate-200/60 bg-white/70 rounded-lg p-2.5 space-y-1">
             <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
               <span>{t.payments.checkout.remainingBalanceLabel}</span>
-              <span>{formatCurrencyCents(remainingBalanceCents, pricing.currency)}</span>
+              <span>{Money.format(Money.create(remainingBalanceCents, currency))}</span>
             </div>
             <p className="text-caption text-slate-500 leading-normal">
               {t.payments.checkout.remainingBalanceHelp}

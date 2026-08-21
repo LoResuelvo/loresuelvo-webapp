@@ -1,7 +1,7 @@
 "use client";
 
 import { t } from "@/infrastructure/i18n/translations";
-import { formatScheduledOn } from "@/lib/proposal-utils";
+import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
 import { ImageGalleryPreview } from "@/components/shared/ImageGalleryPreview";
 import type { CompletionReportDetail } from "@/domain/work-order/types";
 import { CheckCircle2, Clock, FileText } from "lucide-react";
@@ -34,7 +34,7 @@ export function CompletionEvidenceSection({ report }: CompletionEvidenceSectionP
           <div className="flex items-center gap-1.5 text-slate-400">
             <Clock className="w-3.5 h-3.5" />
             <span className="text-small font-medium">
-              {formatScheduledOn(report.reportedOn)}
+              {ScheduledDateTime.formatWithTime(ScheduledDateTime.create(report.reportedOn))}
             </span>
           </div>
         )}

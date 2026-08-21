@@ -3,7 +3,10 @@
 import { useState, useEffect } from "react";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 import { WorkOrder } from "@/domain/work-order/types";
-import { formatAmountCents, formatScheduledOn, getStatusBadge } from "@/lib/proposal-utils";
+import { Money } from "@/domain/shared/Money";
+import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
+import { ServiceProposal } from "@/domain/messaging/ServiceProposal";
+import { Provider } from "@/domain/provider/Provider";
 import { Modal } from "@/components/ui/modal";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { DetailField } from "@/components/ui/detail-field";
 import { Calendar, DollarSign, FileText, MessageCircle, CheckCircle2, Clock } from "lucide-react";
 import { t } from "@/infrastructure/i18n/translations";
-import { getInitials } from "@/lib/text-utils";
 import { BookingDepositPayment } from "@/components/payments/BookingDepositPayment";
 import ReportWorkCompletionModal from "@/components/provider/ReportWorkCompletionModal";
 import { WorkOrderDetailModal } from "@/components/work-orders/WorkOrderDetailModal";
@@ -38,8 +40,8 @@ export default function ServiceProposalDetailModal({
 
   const isProvider = proposal.counterpart.role === "consumer";
   const isAccepted = proposal.status === "accepted";
-  const scheduledTime = new Date(proposal.scheduledOn).getTime();
-  const isScheduledDateReached = !isNaN(scheduledTime) && now().getTime() >= scheduledTime;
+  const scheduledOnVo = ScheduledDateTime.create(proposal.scheduledOn);
+  const isScheduledDateReached = !ScheduledDateTime.isFuture(scheduledOnVo, now());
 
   useEffect(() => {
     if (isAccepted) {
@@ -54,9 +56,9 @@ export default function ServiceProposalDetailModal({
   }, [proposal.id, isAccepted]);
 
   const counterpart = proposal.counterpart;
-  const displayName = `${counterpart.name} ${counterpart.surname}`.trim() || "Usuario";
-  const initials = getInitials(displayName);
-  const statusBadge = getStatusBadge(proposal.status);
+  const displayName = Provider.getDisplayName(counterpart) || "Usuario";
+  const initials = Provider.getInitials(counterpart);
+  const statusBadge = ServiceProposal.getStatusBadge(proposal.status);
   const isAwaitingPayment = isReportedSuccess || workOrder?.status === "awaiting_payment" || workOrder?.status === "paid";
 
   return (
@@ -110,14 +112,14 @@ export default function ServiceProposalDetailModal({
               <DetailField
                 icon={<DollarSign className="w-5 h-5" />}
                 label={t.serviceProposals.chatPanel.amountLabel}
-                value={formatAmountCents(proposal.amountCents)}
+                value={Money.format(Money.create(proposal.amountCents))}
                 variant="highlight"
               />
 
               <DetailField
                 icon={<Calendar className="w-5 h-5" />}
                 label={t.serviceProposals.chatPanel.dateLabel}
-                value={formatScheduledOn(proposal.scheduledOn)}
+                value={ScheduledDateTime.formatWithTime(scheduledOnVo)}
                 variant="default"
               />
             </div>

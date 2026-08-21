@@ -1,37 +1,19 @@
+import { Money } from "@/domain/shared/Money";
+import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
+
 export function formatAmountCents(amountCents: number): string {
-  const amount = amountCents / 100;
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-  }).format(amount);
+  return Money.format(Money.create(amountCents));
 }
 
 export function formatScheduledOn(isoDate: string): string {
-  const date = new Date(isoDate);
-  const formattedDate = new Intl.DateTimeFormat("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(date);
-
-  const formattedTime = new Intl.DateTimeFormat("es-AR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(date);
-
-  return `${formattedDate} - ${formattedTime} hs`;
+  return ScheduledDateTime.formatWithTime(ScheduledDateTime.create(isoDate));
 }
 
 export function formatProposalTime(isoDate: string): string {
-  const date = new Date(isoDate);
-  return new Intl.DateTimeFormat("es-AR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return ScheduledDateTime.formatRawTime(ScheduledDateTime.create(isoDate));
 }
 
-type StatusVariant = "default" | "secondary" | "destructive" | "outline" | "success" | "warning";
+export type StatusVariant = "default" | "secondary" | "destructive" | "outline" | "success" | "warning";
 
 export function getStatusBadge(status: string): { label: string; variant: StatusVariant } {
   switch (status) {

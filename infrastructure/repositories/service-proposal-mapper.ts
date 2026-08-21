@@ -1,16 +1,21 @@
 import { ApiServiceProposal, ApiServiceProposalSummary } from "@/infrastructure/api/types";
 import { ServiceProposal, ServiceProposalSummary } from "@/domain/messaging/types";
+import { Money } from "@/domain/shared/Money";
+import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
 import { mapApiBookingTerms } from "./payment-mapper";
 
 export function transformApiToServiceProposal(api: ApiServiceProposal): ServiceProposal {
+  const money = Money.create(api.amount_cents);
+  const scheduledOn = ScheduledDateTime.create(api.scheduled_on);
   const bookingTerms = mapApiBookingTerms(api.booking_terms);
+
   return {
     id: api.id,
     conversationId: api.conversation_id,
     consumerId: api.consumer_id,
     providerId: api.provider_id,
-    amountCents: api.amount_cents,
-    scheduledOn: api.scheduled_on,
+    amountCents: money.cents,
+    scheduledOn: scheduledOn.isoString,
     description: api.description,
     status: api.status as "pending" | "accepted" | "rejected",
     ...(bookingTerms ? { bookingTerms } : {}),
@@ -20,15 +25,19 @@ export function transformApiToServiceProposal(api: ApiServiceProposal): ServiceP
 export function transformApiToServiceProposalSummary(
   api: ApiServiceProposalSummary
 ): ServiceProposalSummary {
+  const money = Money.create(api.amount_cents);
+  const scheduledOn = ScheduledDateTime.create(api.scheduled_on);
+  const createdOn = ScheduledDateTime.create(api.created_on);
   const bookingTerms = mapApiBookingTerms(api.booking_terms);
+
   return {
     id: api.id,
     conversationId: api.conversation_id,
-    amountCents: api.amount_cents,
-    scheduledOn: api.scheduled_on,
+    amountCents: money.cents,
+    scheduledOn: scheduledOn.isoString,
     description: api.description,
     status: api.status as "pending" | "accepted" | "rejected",
-    createdOn: api.created_on,
+    createdOn: createdOn.isoString,
     counterpart: {
       id: api.counterpart.id,
       role: api.counterpart.role as "consumer" | "provider",

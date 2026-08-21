@@ -1,4 +1,5 @@
 import type { ActivePayment, PaymentIntentStatus } from "@/domain/payment/types";
+import { PaymentIntent } from "@/domain/payment/PaymentIntent";
 
 export function parseActivePayment(value: string | null): ActivePayment | null {
   if (!value) return null;
@@ -36,5 +37,5 @@ export function resolvePaymentIntentId(
 }
 
 export function isTerminalPaymentStatus(status: PaymentIntentStatus): boolean {
-  return status === "paid" || status === "rejected" || status === "expired";
+  return PaymentIntent.isTerminalStatus(status);
 }

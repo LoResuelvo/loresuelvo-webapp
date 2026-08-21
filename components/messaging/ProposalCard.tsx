@@ -1,9 +1,11 @@
 import React from "react";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
-import { formatAmountCents, formatScheduledOn, getStatusBadge } from "@/lib/proposal-utils";
+import { Money } from "@/domain/shared/Money";
+import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
+import { ServiceProposal } from "@/domain/messaging/ServiceProposal";
+import { Provider } from "@/domain/provider/Provider";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { getInitials } from "@/lib/text-utils";
 import { cn } from "@/lib/utils";
 
 interface ProposalCardProps {
@@ -15,11 +17,11 @@ interface ProposalCardProps {
 
 export function ProposalCard({ proposal, onClick, isProvider, className }: ProposalCardProps) {
   const { counterpart } = proposal;
-  const statusBadge = getStatusBadge(proposal.status);
+  const statusBadge = ServiceProposal.getStatusBadge(proposal.status);
   
   // If the one who looks at the card is the consumer, the counterpart is the provider, and vice versa
-  const displayName = `${counterpart.name} ${counterpart.surname}`.trim() || "Usuario";
-  const initials = getInitials(displayName);
+  const displayName = Provider.getDisplayName(counterpart) || "Usuario";
+  const initials = Provider.getInitials(counterpart);
   const displayCategory = !isProvider && counterpart.categoryName ? counterpart.categoryName : null;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -78,13 +80,13 @@ export function ProposalCard({ proposal, onClick, isProvider, className }: Propo
           <div className="flex flex-col gap-1">
             <span className="text-muted-foreground text-caption font-medium uppercase tracking-wider">Monto</span>
             <span className="text-foreground text-body font-semibold">
-              {formatAmountCents(proposal.amountCents)}
+              {Money.format(Money.create(proposal.amountCents))}
             </span>
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-muted-foreground text-caption font-medium uppercase tracking-wider">Fecha y hora</span>
             <span className="text-foreground text-body font-medium">
-              {formatScheduledOn(proposal.scheduledOn)}
+              {ScheduledDateTime.formatWithTime(ScheduledDateTime.create(proposal.scheduledOn))}
             </span>
           </div>
         </div>

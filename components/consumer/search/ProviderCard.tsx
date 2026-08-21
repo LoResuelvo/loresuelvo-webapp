@@ -1,17 +1,21 @@
 import { MessageCircle, User, ArrowRight } from "lucide-react";
-import { Provider } from "@/domain/provider/types";
+import type { Provider as ProviderType } from "@/domain/provider/types";
+import { Provider } from "@/domain/provider/Provider";
 import { Button } from "@/components/ui/button";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { t } from "@/infrastructure/i18n/translations";
 import { cn } from "@/lib/utils";
 
 interface ProviderCardProps {
-  provider: Provider;
+  provider: ProviderType;
   className?: string;
-  onContact?: (provider: Provider) => void;
+  onContact?: (provider: ProviderType) => void;
 }
 
 export default function ProviderCard({ provider, className, onContact }: ProviderCardProps) {
+  const displayName = Provider.getDisplayName(provider);
+  const ratingSummary = Provider.getRatingSummary(provider);
+
   return (
     <div className={cn("provider-card bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 flex gap-5 items-center relative group", className)}>
       <div className="w-[80px] h-[80px] rounded-2xl bg-slate-100 flex items-center justify-center border border-slate-200/50 flex-shrink-0 select-none overflow-hidden relative">
@@ -19,7 +23,7 @@ export default function ProviderCard({ provider, className, onContact }: Provide
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={provider.profilePhotoUrl}
-            alt={`${t.consumerSearch.providerCard.photoAlt} ${provider.name}`}
+            alt={`${t.consumerSearch.providerCard.photoAlt} ${displayName}`}
             className="w-full h-full object-cover"
             data-testid="provider-profile-photo"
           />
@@ -34,13 +38,13 @@ export default function ProviderCard({ provider, className, onContact }: Provide
         <div className="flex justify-between items-start gap-4">
           <div className="flex-1 min-w-0">
             <h4 className="text-subtitle font-bold text-brand-primary truncate leading-tight group-hover:text-brand-secondary transition-colors flex items-center gap-2">
-              <span>{provider.name} {provider.surname}</span>
+              <span>{displayName}</span>
             </h4>
 
             <div className="flex items-center gap-2 mt-1">
               <RatingStars rating={provider.rating} />
               <span className="text-small font-bold text-slate-700 leading-none">
-                {provider.rating !== undefined ? provider.rating : ""}
+                {ratingSummary.hasReviews ? ratingSummary.formattedRating : (provider.rating !== undefined ? provider.rating : "")}
               </span>
               <span className="text-small text-slate-400 leading-none">
                 ({provider.reviews ?? 0} {t.consumerSearch.providerCard.reviews}) | {provider.jobs ?? 0} {t.consumerSearch.providerCard.jobs}

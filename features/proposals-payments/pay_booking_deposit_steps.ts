@@ -380,26 +380,6 @@ Then("puedo consultar nuevamente el estado del pago", async function (this: Cust
   assert.ok(await this.page.getByRole("button", { name: "Consultar nuevamente" }).isVisible());
 });
 
-Given(
-  "que regreso desde Mercado Pago sin referencia externa ni un pago activo guardado",
-  async function (this: CustomWorld) {
-    returnPath = paymentReturnPath("failure", "status=rejected&payment_id=123");
-    await this.page.goto(APP_URL);
-    await this.page.evaluate(() => sessionStorage.removeItem("activePayment"));
-  }
-);
-
-When("se intenta consultar el resultado del pago", async function (this: CustomWorld) {
-  const response = await this.page.goto(`${APP_URL}${returnPath}`);
-  assert.strictEqual(response?.status(), 200, "La ruta de retorno no respondió HTTP 200");
-  await this.page.getByRole("heading", { name: "No pudimos identificar el pago" }).waitFor({ state: "visible" });
-});
-
-Then("veo un mensaje neutral que no afirma que el pago fue rechazado", async function (this: CustomWorld) {
-  assert.ok(await this.page.getByRole("heading", { name: "No pudimos identificar el pago" }).isVisible());
-  assert.strictEqual(await this.page.getByText(/fue rechazado/i).count(), 0);
-});
-
 Given("que regreso desde Mercado Pago con un pago identificable", function (this: CustomWorld) {
   returnPath = paymentReturnPath("success");
 });

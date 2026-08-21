@@ -63,7 +63,6 @@ Feature: US-28 Completar pago del servicio
       And no se realizan más consultas automáticas
       And puedo consultar nuevamente el estado del pago
 
-    @wip
     Scenario: 08-CSP Volver sin un pago de saldo identificable
       Given que regreso desde Mercado Pago sin referencia externa ni un pago activo guardado
       When se intenta consultar el resultado del pago

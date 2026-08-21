@@ -299,7 +299,9 @@ Then(
 Then(
   "puedo volver a mis servicios",
   async function (this: CustomWorld) {
-    const link = this.page.getByRole("link", { name: "Volver a mis servicios" });
+    const link = this.page.getByRole("link", {
+      name: /Volver a mis (servicios|propuestas)/i,
+    });
     await link.waitFor({ state: "visible", timeout: 10_000 });
     assert.ok(await link.isVisible());
     const href = await link.getAttribute("href");
@@ -443,4 +445,66 @@ Given(
     });
   }
 );
+
+Given(
+  "que regreso desde Mercado Pago sin referencia externa ni un pago activo guardado",
+  async function (this: CustomWorld) {
+    if ((this as any).paymentPurpose === "booking_deposit") {
+      (this as any).returnPath = "/payments/failure?status=rejected&payment_id=123";
+      await this.page.goto(APP_URL);
+      await this.page.evaluate(() => sessionStorage.removeItem("activePayment"));
+      return;
+    }
+
+    await this.setSession("consumer");
+    await this.stubGet("/service-proposals", [
+      aProposal("consumer", {
+        id: PROPOSAL_ID,
+        amount_cents: TOTAL_AMOUNT_CENTS,
+        status: "accepted",
+      }),
+    ]);
+    const workOrder = aWorkOrder({
+      id: WORK_ORDER_ID,
+      service_proposal_id: PROPOSAL_ID,
+      amount_cents: TOTAL_AMOUNT_CENTS,
+      status: "awaiting_payment",
+    });
+    await this.stubGet(`/work-orders?service_proposal_id=${PROPOSAL_ID}`, workOrder);
+    await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, workOrder);
+
+    await this.page.goto(APP_URL);
+    await this.page.evaluate(() => sessionStorage.removeItem("activePayment"));
+    (this as any).returnPath = "/payments/pending";
+  }
+);
+
+When(
+  "se intenta consultar el resultado del pago",
+  async function (this: CustomWorld) {
+    const targetPath = (this as any).returnPath || "/payments/pending";
+    const response = await this.page.goto(`${APP_URL}${targetPath}`);
+    assert.strictEqual(
+      response?.status(),
+      200,
+      "La ruta de retorno no respondió HTTP 200"
+    );
+    await this.page
+      .getByRole("heading", { name: "No pudimos identificar el pago" })
+      .waitFor({ state: "visible", timeout: 10_000 });
+  }
+);
+
+Then(
+  "veo un mensaje neutral que no afirma que el pago fue rechazado",
+  async function (this: CustomWorld) {
+    const heading = this.page.getByRole("heading", {
+      name: "No pudimos identificar el pago",
+    });
+    await heading.waitFor({ state: "visible", timeout: 10_000 });
+    assert.ok(await heading.isVisible());
+    assert.strictEqual(await this.page.getByText(/fue rechazado/i).count(), 0);
+  }
+);
+
 

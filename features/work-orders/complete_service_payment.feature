@@ -71,7 +71,6 @@ Feature: US-28 Completar pago del servicio
 
   Rule: Manejo de errores y estados terminales en el pago del saldo
 
-    @wip
     Scenario Outline: 09-CSP Mostrar un resultado terminal verificado para el saldo
       Given que regreso desde Mercado Pago por la ruta de pago <returnRoute>
       And el backend informa que el pago del saldo está "<paymentStatus>"

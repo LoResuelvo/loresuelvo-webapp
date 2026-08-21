@@ -321,11 +321,6 @@ Given("existe un pago de reserva activo guardado en esta sesión", async functio
   await storeActivePayment(this);
 });
 
-Given("que regreso desde Mercado Pago por la ruta de pago {word}", async function (this: CustomWorld, kind: string) {
-  returnPath = paymentReturnPath(kind);
-  await storeActivePayment(this);
-});
-
 Given("el backend informa que el pago está {string}", async function (this: CustomWorld, status: PaymentIntentStatus) {
   await stubPaymentIntent(this, status);
 });

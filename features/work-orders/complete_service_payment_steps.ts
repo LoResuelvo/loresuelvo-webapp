@@ -507,4 +507,80 @@ Then(
   }
 );
 
+Given(
+  "que regreso desde Mercado Pago por la ruta de pago {word}",
+  async function (this: CustomWorld, returnRoute: string) {
+    if ((this as any).paymentPurpose === "booking_deposit") {
+      (this as any).paymentIntentId = "intent-e2e-123";
+      (this as any).returnPath = `/payments/${returnRoute}?external_reference=intent-e2e-123`;
+      await this.page.goto(APP_URL);
+      await this.page.evaluate(
+        ({ paymentIntentId, serviceProposalId }) => {
+          sessionStorage.setItem(
+            "activePayment",
+            JSON.stringify({
+              purpose: "booking_deposit",
+              paymentIntentId,
+              serviceProposalId,
+              expiresOn: "2026-08-11T20:30:00Z",
+            })
+          );
+        },
+        { paymentIntentId: "intent-e2e-123", serviceProposalId: 10 }
+      );
+      return;
+    }
+
+    await this.setSession("consumer");
+    await this.stubGet("/service-proposals", [
+      aProposal("consumer", {
+        id: PROPOSAL_ID,
+        amount_cents: TOTAL_AMOUNT_CENTS,
+        status: "accepted",
+      }),
+    ]);
+    const workOrder = aWorkOrder({
+      id: WORK_ORDER_ID,
+      service_proposal_id: PROPOSAL_ID,
+      amount_cents: TOTAL_AMOUNT_CENTS,
+      status: "awaiting_payment",
+    });
+    await this.stubGet(`/work-orders?service_proposal_id=${PROPOSAL_ID}`, workOrder);
+    await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, workOrder);
+
+    await this.page.goto(APP_URL);
+    await this.page.evaluate(
+      ({ paymentIntentId, workOrderId }) => {
+        sessionStorage.setItem(
+          "activePayment",
+          JSON.stringify({
+            purpose: "service_balance",
+            paymentIntentId,
+            workOrderId,
+            expiresOn: "2026-08-25T20:30:00Z",
+          })
+        );
+      },
+      { paymentIntentId: PAYMENT_INTENT_ID, workOrderId: WORK_ORDER_ID }
+    );
+
+    (this as any).paymentIntentId = PAYMENT_INTENT_ID;
+    (this as any).returnPath = `/payments/${returnRoute}`;
+  }
+);
+
+Then(
+  "puedo volver a la orden de trabajo para iniciar un nuevo pago",
+  async function (this: CustomWorld) {
+    const link = this.page.getByRole("link", {
+      name: /Volver a la orden de trabajo|Volver a mis servicios/i,
+    });
+    await link.waitFor({ state: "visible", timeout: 10_000 });
+    assert.ok(await link.isVisible());
+    const href = await link.getAttribute("href");
+    assert.strictEqual(href, ROUTES.consumer.services);
+  }
+);
+
+
 

@@ -6,6 +6,7 @@ import {
   aWorkOrder,
   aServiceBalanceCheckoutSession,
   aPaymentIntent,
+  anApiError,
 } from "../support/factories";
 import { openWorkOrderDetailModal } from "./view_work_order_detail_steps";
 import { ROUTES } from "../../lib/routes";
@@ -581,6 +582,48 @@ Then(
     assert.strictEqual(href, ROUTES.consumer.services);
   }
 );
+
+Given(
+  "que regreso desde Mercado Pago con un pago de saldo identificable",
+  async function (this: CustomWorld) {
+    await this.setSession("consumer");
+    await this.stubGet("/service-proposals", [
+      aProposal("consumer", {
+        id: PROPOSAL_ID,
+        amount_cents: TOTAL_AMOUNT_CENTS,
+        status: "accepted",
+      }),
+    ]);
+    const workOrder = aWorkOrder({
+      id: WORK_ORDER_ID,
+      service_proposal_id: PROPOSAL_ID,
+      amount_cents: TOTAL_AMOUNT_CENTS,
+      status: "awaiting_payment",
+    });
+    await this.stubGet(`/work-orders?service_proposal_id=${PROPOSAL_ID}`, workOrder);
+    await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, workOrder);
+
+    await this.page.goto(APP_URL);
+    await this.page.evaluate(
+      ({ paymentIntentId, workOrderId }) => {
+        sessionStorage.setItem(
+          "activePayment",
+          JSON.stringify({
+            purpose: "service_balance",
+            paymentIntentId,
+            workOrderId,
+            expiresOn: "2026-08-25T20:30:00Z",
+          })
+        );
+      },
+      { paymentIntentId: PAYMENT_INTENT_ID, workOrderId: WORK_ORDER_ID }
+    );
+
+    (this as any).paymentIntentId = PAYMENT_INTENT_ID;
+    (this as any).returnPath = "/payments/pending";
+  }
+);
+
 
 
 

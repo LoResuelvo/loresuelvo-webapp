@@ -380,7 +380,8 @@ Given("que regreso desde Mercado Pago con un pago identificable", function (this
 });
 
 Given("mi sesión vence antes de verificar el resultado", async function (this: CustomWorld) {
-  await this.stubGet(`/payment-intents/${PAYMENT_INTENT_ID}`, anApiError("Unauthorized"), 401);
+  const intentId = (this as any).paymentIntentId || PAYMENT_INTENT_ID;
+  await this.stubGet(`/payment-intents/${intentId}`, anApiError("Unauthorized"), 401);
 });
 
 Then("se me solicita iniciar sesión nuevamente", async function (this: CustomWorld) {

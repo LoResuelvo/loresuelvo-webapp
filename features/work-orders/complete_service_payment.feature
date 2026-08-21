@@ -83,7 +83,6 @@ Feature: US-28 Completar pago del servicio
         | failure     | rejected      | El pago del servicio fue rechazado |
         | pending     | expired       | El pago del servicio venció        |
 
-    @wip
     Scenario: 10-CSP Vencer la sesión durante la verificación del pago del saldo
       Given que regreso desde Mercado Pago con un pago de saldo identificable
       And mi sesión vence antes de verificar el resultado

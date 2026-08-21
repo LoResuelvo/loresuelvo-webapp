@@ -315,10 +315,6 @@ Then("puedo volver a mis propuestas", async function (this: CustomWorld) {
   assert.ok(await this.page.getByRole("link", { name: "Volver a mis propuestas" }).isVisible());
 });
 
-Given("que regreso por la ruta de pago pendiente sin referencia externa", function (this: CustomWorld) {
-  returnPath = paymentReturnPath("pending", "");
-});
-
 Given("existe un pago de reserva activo guardado en esta sesión", async function (this: CustomWorld) {
   await storeActivePayment(this);
 });

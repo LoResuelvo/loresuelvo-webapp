@@ -42,7 +42,6 @@ Feature: US-28 Completar pago del servicio
       And la orden de trabajo refleja el estado "Pagada"
       And puedo volver a mis servicios
 
-    @wip
     Scenario: 05-CSP Recuperar el pago del saldo guardado cuando el retorno no incluye una referencia
       Given que regreso por la ruta de pago pendiente sin referencia externa
       And existe un pago de saldo activo guardado en esta sesión

@@ -306,4 +306,54 @@ Then(
   }
 );
 
+Given(
+  "que regreso por la ruta de pago pendiente sin referencia externa",
+  async function (this: CustomWorld) {
+    await this.setSession("consumer");
+    await this.stubGet("/service-proposals", [
+      aProposal("consumer", {
+        id: PROPOSAL_ID,
+        amount_cents: TOTAL_AMOUNT_CENTS,
+        status: "accepted",
+      }),
+    ]);
+    const workOrder = aWorkOrder({
+      id: WORK_ORDER_ID,
+      service_proposal_id: PROPOSAL_ID,
+      amount_cents: TOTAL_AMOUNT_CENTS,
+      status: "awaiting_payment",
+    });
+    await this.stubGet(`/work-orders?service_proposal_id=${PROPOSAL_ID}`, workOrder);
+    await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, workOrder);
+    (this as any).returnPath = "/payments/pending";
+  }
+);
+
+Given(
+  "existe un pago de saldo activo guardado en esta sesión",
+  async function (this: CustomWorld) {
+    await this.page.goto(APP_URL);
+    await this.page.evaluate(
+      ({ paymentIntentId, workOrderId }) => {
+        sessionStorage.setItem(
+          "activePayment",
+          JSON.stringify({
+            purpose: "service_balance",
+            paymentIntentId,
+            workOrderId,
+            expiresOn: "2026-08-25T20:30:00Z",
+          })
+        );
+      },
+      { paymentIntentId: PAYMENT_INTENT_ID, workOrderId: WORK_ORDER_ID }
+    );
+    await this.stubGet(
+      `/payment-intents/${PAYMENT_INTENT_ID}`,
+      aPaymentIntent("processing", { id: PAYMENT_INTENT_ID })
+    );
+    (this as any).paymentIntentId = PAYMENT_INTENT_ID;
+  }
+);
+
+
 

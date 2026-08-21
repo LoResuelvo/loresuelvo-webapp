@@ -34,7 +34,6 @@ Feature: US-28 Completar pago del servicio
 
   Rule: El pago aprobado y verificado completa el saldo de la orden
 
-    @wip
     Scenario: 04-CSP Confirmar el pago del saldo usando la referencia del retorno
       Given que regreso por la ruta de pago exitoso con la referencia externa del pago del saldo
       And el estado verificado cambia de "checkout_ready" a "paid"

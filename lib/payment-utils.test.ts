@@ -16,6 +16,13 @@ describe("payment utils", () => {
     )).toBe("external-intent");
   });
 
+  it("should support payment_intent_id query param", () => {
+    expect(resolvePaymentIntentId(
+      "?payment_intent_id=intent-from-query&status=approved",
+      storedPayment,
+    )).toBe("intent-from-query");
+  });
+
   it("should recover the payment intent from session storage", () => {
     expect(resolvePaymentIntentId("?status=pending", storedPayment)).toBe("stored-intent");
   });

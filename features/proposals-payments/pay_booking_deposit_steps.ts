@@ -273,20 +273,28 @@ Given(
   "el estado verificado cambia de {string} a {string}",
   async function (this: CustomWorld, from: PaymentIntentStatus, to: PaymentIntentStatus) {
     transition = { from, to };
-    await stubPaymentIntent(this, from);
+    (this as any).paymentIntentTransition = { from, to };
+    const intentId = (this as any).paymentIntentId || PAYMENT_INTENT_ID;
+    await this.stubGet(`/payment-intents/${intentId}`, aPaymentIntent(from, { id: intentId }));
   }
 );
 
 When("se consulta el resultado del pago", async function (this: CustomWorld) {
-  assert.ok(returnPath, "No se configuró una ruta de retorno");
-  const response = await this.page.goto(`${APP_URL}${returnPath}`);
+  const targetPath = (this as any).returnPath || returnPath;
+  assert.ok(targetPath, "No se configuró una ruta de retorno");
+  const response = await this.page.goto(`${APP_URL}${targetPath}`);
   assert.strictEqual(response?.status(), 200, "La ruta de retorno no respondió HTTP 200");
 
-  if (transition) {
-    const initialHeading = transition.from === "processing" ? "Pago en proceso" : "Esperando confirmación";
+  const activeTransition = (this as any).paymentIntentTransition || transition;
+  if (activeTransition) {
+    const initialHeading = activeTransition.from === "processing" ? "Pago en proceso" : "Esperando confirmación";
     await this.page.getByRole("heading", { name: initialHeading }).waitFor({ state: "visible", timeout: 10_000 });
-    await stubPaymentIntent(this, transition.to);
-    await this.page.getByRole("heading", { name: "Pago de reserva confirmado" }).waitFor({ state: "visible", timeout: 10_000 });
+    const intentId = (this as any).paymentIntentId || PAYMENT_INTENT_ID;
+    await this.stubGet(`/payment-intents/${intentId}`, aPaymentIntent(activeTransition.to, { id: intentId }));
+    const confirmedHeading = this.page.getByRole("heading", {
+      name: /pago (de reserva|del servicio) confirmado/i,
+    });
+    await confirmedHeading.waitFor({ state: "visible", timeout: 10_000 });
     return;
   }
 

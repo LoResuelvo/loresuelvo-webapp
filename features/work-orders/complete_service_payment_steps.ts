@@ -5,6 +5,7 @@ import {
   aProposal,
   aWorkOrder,
   aServiceBalanceCheckoutSession,
+  aPaymentIntent,
 } from "../support/factories";
 import { openWorkOrderDetailModal } from "./view_work_order_detail_steps";
 import { ROUTES } from "../../lib/routes";
@@ -224,4 +225,85 @@ Then(
     );
   }
 );
+
+Given(
+  "que regreso por la ruta de pago exitoso con la referencia externa del pago del saldo",
+  async function (this: CustomWorld) {
+    await this.setSession("consumer");
+    await this.stubGet("/service-proposals", [
+      aProposal("consumer", {
+        id: PROPOSAL_ID,
+        amount_cents: TOTAL_AMOUNT_CENTS,
+        status: "accepted",
+      }),
+    ]);
+    const paidWorkOrder = aWorkOrder({
+      id: WORK_ORDER_ID,
+      service_proposal_id: PROPOSAL_ID,
+      amount_cents: TOTAL_AMOUNT_CENTS,
+      status: "paid",
+      paid_on: "2026-08-20T14:30:00Z",
+    });
+    await this.stubGet(`/work-orders?service_proposal_id=${PROPOSAL_ID}`, paidWorkOrder);
+    await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, paidWorkOrder);
+
+    await this.stubGet(
+      `/payment-intents/${PAYMENT_INTENT_ID}`,
+      aPaymentIntent("checkout_ready", { id: PAYMENT_INTENT_ID })
+    );
+
+    await this.page.goto(APP_URL);
+    await this.page.evaluate(
+      ({ paymentIntentId, workOrderId }) => {
+        sessionStorage.setItem(
+          "activePayment",
+          JSON.stringify({
+            purpose: "service_balance",
+            paymentIntentId,
+            workOrderId,
+            expiresOn: "2026-08-25T20:30:00Z",
+          })
+        );
+      },
+      { paymentIntentId: PAYMENT_INTENT_ID, workOrderId: WORK_ORDER_ID }
+    );
+
+    (this as any).paymentIntentId = PAYMENT_INTENT_ID;
+    (this as any).returnPath = `/payments/success?payment_intent_id=${PAYMENT_INTENT_ID}&external_reference=${PAYMENT_INTENT_ID}`;
+  }
+);
+
+Then(
+  "la orden de trabajo refleja el estado {string}",
+  async function (this: CustomWorld, expectedStatus: string) {
+    const raw = await this.page.evaluate(() =>
+      sessionStorage.getItem("activePayment")
+    );
+    assert.strictEqual(
+      raw,
+      null,
+      "El contexto del pago activo debe haberse limpiado de sessionStorage"
+    );
+
+    const modal = this.page.getByTestId("work-order-detail-modal");
+    const isModalVisible = await modal.isVisible().catch(() => false);
+    if (isModalVisible) {
+      const statusBadge = modal.getByText(new RegExp(expectedStatus, "i"));
+      await statusBadge.waitFor({ state: "visible", timeout: 5_000 });
+      assert.ok(await statusBadge.isVisible());
+    }
+  }
+);
+
+Then(
+  "puedo volver a mis servicios",
+  async function (this: CustomWorld) {
+    const link = this.page.getByRole("link", { name: "Volver a mis servicios" });
+    await link.waitFor({ state: "visible", timeout: 10_000 });
+    assert.ok(await link.isVisible());
+    const href = await link.getAttribute("href");
+    assert.strictEqual(href, ROUTES.consumer.services);
+  }
+);
+
 

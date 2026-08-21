@@ -43,7 +43,12 @@ export function resolvePaymentIntentId(
 ): string | null {
   const params = new URLSearchParams(search);
   const storedPayment = parseActivePayment(storedPaymentValue);
-  return params.get("external_reference") ?? storedPayment?.paymentIntentId ?? null;
+  return (
+    params.get("external_reference") ??
+    params.get("payment_intent_id") ??
+    storedPayment?.paymentIntentId ??
+    null
+  );
 }
 
 export function isTerminalPaymentStatus(status: PaymentIntentStatus): boolean {

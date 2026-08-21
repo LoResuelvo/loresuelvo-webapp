@@ -56,7 +56,7 @@ export function ProfilePhotoUpload({ onPhotoSelected, error }: ProfilePhotoUploa
         ) : (
           <div className="flex flex-col items-center justify-center text-muted-foreground">
             <Camera className="mb-1 h-6 w-6" />
-            <span className="text-[10px] font-medium uppercase tracking-wider">Subir</span>
+            <span className="text-caption font-medium uppercase tracking-wider">Subir</span>
           </div>
         )}
         

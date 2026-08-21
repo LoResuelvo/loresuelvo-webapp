@@ -33,8 +33,8 @@ export function RoleSelectionCard({
       <div className={`p-3 rounded-full mb-3 ${selected ? "bg-brand-primary/10" : "bg-gray-100"}`}>
         <Icon className={`h-6 w-6 ${selected ? "text-brand-primary" : "text-gray-600"}`} />
       </div>
-      <span className="text-[17px] font-bold text-brand-primary">{title}</span>
-      <span className="text-xs text-muted-foreground mt-1 max-w-[240px]">
+      <span className="text-subtitle font-bold text-brand-primary">{title}</span>
+      <span className="text-small text-muted-foreground mt-1 max-w-[240px]">
         {description}
       </span>
     </button>

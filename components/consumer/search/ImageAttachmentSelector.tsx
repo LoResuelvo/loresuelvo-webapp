@@ -64,7 +64,7 @@ export function ImageAttachmentSelector({
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+      <span className="text-caption font-bold text-slate-400 uppercase tracking-wider">
         {t.consumerSearch.form.attachImages}
       </span>
 
@@ -121,7 +121,7 @@ export function ImageAttachmentSelector({
           {t.consumerSearch.form.attachImages}
         </Button>
       </div>
-      <span className="text-[11px] text-slate-400">
+      <span className="text-caption text-slate-400">
         {t.consumerSearch.form.imageLimit}
       </span>
 

@@ -14,6 +14,7 @@ Fuente canónica para agentes. Leer este archivo primero y cargar skills locales
 ## Arquitectura y Stack Tecnológico
 
 ### 1. Tecnologías y Stack
+
 - **Framework**: Next.js App Router + React + TypeScript strict.
 - **Estilos/UI**: Tailwind CSS, shadcn/Radix primitives, `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`.
 - **UI Primitivas**: `Button` (CVA con variantes `brand`, `brandSecondary`, `accept`, `danger`), `Card`, `Avatar` (CVA), `Modal` (Radix Dialog), `Badge`, `Input`, `Label`, `Textarea`.
@@ -21,6 +22,7 @@ Fuente canónica para agentes. Leer este archivo primero y cargar skills locales
 - **Deploy**: Next `output: "standalone"`; Dockerfiles y compose para dev/prod.
 
 ### 2. Capas (Clean Architecture)
+
 El proyecto sigue una estructura limpia de capas desacopladas, protegiendo las reglas de negocio de la infraestructura y de la UI:
 
 ```mermaid
@@ -60,9 +62,11 @@ graph TD
 - **Capa de Presentación (`components/` & `app/`)**: Componentes de React, Server Actions simples y páginas/rutas que consumen los casos de uso e interactúan con la interfaz.
 
 ### Regla de Dependencia Estricta
+
 **Las capas internas nunca dependen de capas externas.** Las capas de `domain/` y `ports/` no deben importar nada bajo ningún concepto de `application/`, `infrastructure/` ni de `components/`. Cualquier comunicación de datos crudos (DTOs) provenientes de la API debe ser transformada al formato del dominio usando mappers en `infrastructure/` antes de propagarse.
 
 ### Regla de Pureza del Dominio
+
 **Los tipos en `domain/` nunca contienen snake_case ni DTOs de API.** Si el backend devuelve `category_name`, el dominio define `categoryName`. La conversión ocurre exclusivamente en mappers dentro de `infrastructure/repositories/` (ej: `provider-mapper.ts`, `conversation-mapper.ts`).
 
 ---
@@ -180,7 +184,7 @@ skills/                      Skills locales para agentes de IA cargadas bajo dem
 
 - Texto visible para usuarios: español, centralizado en `translations.ts`.
 - Respuestas al equipo: español, salvo que se pida otro idioma.
-- Commits: inglés claro siguiendo la convención del proyecto: `<type>[optional scope]: <description>` (ej: `feat[26]: implement ...`, `fix[26]: ...`, `test[US-26]: ...`, `docs: ...`).
+- Commits: inglés claro siguiendo la convención del proyecto: `<type>[optional scope]: <description>` (ej: `feat[26]: implement ...`, `fix[26]: ...`, `test[26]: ...`, `docs: ...`).
 - Pruebas unitarias: títulos/descripciones en inglés (`it("should do something", ...)`).
 - En código nuevo, respetar el idioma predominante del archivo y nombres existentes.
 - Tipos de dominio en camelCase; DTOs de la API en snake_case solo dentro de `infrastructure/`.
@@ -201,7 +205,7 @@ skills/                      Skills locales para agentes de IA cargadas bajo dem
        git add <archivos>
        git commit -m "<type>[<issue>]: <descripción>"
        ```
-       *Nota:* Mantener la descripción concisa; no incluir aclaraciones redundantes como "and i18n keys" o "with tests" ya que son implícitas.
+       _Nota:_ Mantener la descripción concisa; no incluir aclaraciones redundantes como "and i18n keys" o "with tests" ya que son implícitas.
     3. Si el paso incluye código TSX que renderiza un componente o vista, proveer **feedback visual inmediato (Screenshot)** con Playwright.
 - **Detalle de procesos:** Cargar `skills/frontend-us-delivery` para implementación de User Stories y `skills/frontend-bdd-tdd-process` para BDD/TDD y la Matriz de los 5 Estados de UI.
 

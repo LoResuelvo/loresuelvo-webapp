@@ -46,14 +46,14 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
         <div className="mb-5">
           <h1
             id="work-requests-title"
-            className="text-[26px] font-bold text-brand-primary"
+            className="text-title font-bold text-brand-primary"
           >
             {t.providerHome.workRequestsSection.title}
           </h1>
         </div>
 
         {requests.length === 0 ? (
-          <p className="text-[16px] text-slate-500 text-center py-8">{t.providerHome.workRequestsSection.emptyState}</p>
+          <p className="text-body-lg text-slate-500 text-center py-8">{t.providerHome.workRequestsSection.emptyState}</p>
         ) : (
           <ul
             aria-label={t.providerHome.workRequestsSection.listLabel}

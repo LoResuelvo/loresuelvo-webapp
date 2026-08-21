@@ -55,11 +55,11 @@ export default function RequestDetailModal({
         name={request.clientName}
         nameExtra={
           <div className="mt-2 space-y-1">
-            <p className="flex items-center gap-2 text-[14px] text-slate-600">
+            <p className="flex items-center gap-2 text-body text-slate-600">
               <MapPin className="h-4 w-4 text-slate-400" aria-hidden="true" />
               {request.location}
             </p>
-            <p className="flex items-center gap-2 text-[14px] text-slate-600">
+            <p className="flex items-center gap-2 text-body text-slate-600">
               <Calendar className="h-4 w-4 text-slate-400" aria-hidden="true" />
               {request.publishedAtLabel}
             </p>

@@ -79,12 +79,12 @@ export default function AiDiagnosisChatWrapper({ initialConversations: initial }
                   >
                     <div className="flex-1 min-w-0 text-left">
                       <div className="flex items-center justify-between">
-                        <p className="font-semibold text-[14px] text-brand-primary truncate">
+                        <p className="font-semibold text-body text-brand-primary truncate">
                           {conv.title}
                         </p>
-                        <p className="text-[11px] text-slate-400">{conv.lastMessageAt}</p>
+                        <p className="text-caption text-slate-400">{conv.lastMessageAt}</p>
                       </div>
-                      <p className="text-[12px] text-slate-500 truncate mt-0.5">
+                      <p className="text-small text-slate-500 truncate mt-0.5">
                         {conv.lastMessage || t.aiDiagnosis.noMessages}
                       </p>
                     </div>

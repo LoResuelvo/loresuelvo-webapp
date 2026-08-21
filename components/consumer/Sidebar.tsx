@@ -17,7 +17,7 @@ export default function Sidebar() {
     <aside className="w-[260px] bg-brand-neutral border-r border-slate-200 flex flex-col h-screen sticky top-0">
       <div className="p-6 h-20 flex items-center">
         <Link href={ROUTES.home} className="flex items-center gap-3">
-          <span className="text-[20px] font-extrabold tracking-tight text-brand-primary">
+          <span className="text-title font-extrabold tracking-tight text-brand-primary">
             {t.sidebar.logo}
           </span>
         </Link>

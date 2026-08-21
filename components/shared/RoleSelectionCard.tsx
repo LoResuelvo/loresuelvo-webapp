@@ -20,7 +20,7 @@ export function RoleColumn({
   return (
     <div className="flex-1 flex flex-col items-start p-6 md:p-8 text-left group">
       <div
-        className={`inline-flex items-center gap-2.5 rounded-full px-3.5 py-1.5 text-[15px] font-bold ${
+        className={`inline-flex items-center gap-2.5 rounded-full px-3.5 py-1.5 text-body-lg font-bold ${
           isCliente
             ? "bg-brand-primary/5 text-brand-primary"
             : "bg-brand-secondary/10 text-brand-secondary"
@@ -28,12 +28,12 @@ export function RoleColumn({
       >
         Soy {isCliente ? "Cliente" : "Prestador"}
       </div>
-      <p className="text-sm sm:text-[15px] text-gray-500 leading-relaxed mt-6 mb-8 min-h-[3.5rem]">
+      <p className="text-body-lg text-gray-500 leading-relaxed mt-6 mb-8 min-h-[3.5rem]">
         {description}
       </p>
       <Link
         href={href}
-        className={`inline-flex items-center gap-1.5 text-[15px] font-bold ${
+        className={`inline-flex items-center gap-1.5 text-body-lg font-bold ${
           isCliente
             ? "text-brand-primary group-hover:text-brand-primary/80"
             : "text-brand-secondary group-hover:text-brand-secondary/80"

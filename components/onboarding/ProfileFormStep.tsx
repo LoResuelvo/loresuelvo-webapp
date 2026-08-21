@@ -97,10 +97,10 @@ export function ProfileFormStep({
       </Button>
 
       <div className="mb-8 text-center">
-        <h1 className="mb-2 text-[26px] font-bold leading-tight tracking-tight text-brand-primary">
+        <h1 className="mb-2 text-title font-bold leading-tight tracking-tight text-brand-primary">
           {t.onboarding.profileForm.title}
         </h1>
-        <p className="text-[15px] text-muted-foreground">
+        <p className="text-body-lg text-muted-foreground">
           {t.onboarding.profileForm.subtitle}
         </p>
       </div>
@@ -127,7 +127,7 @@ export function ProfileFormStep({
         )}
         
         <div className="space-y-2">
-          <Label htmlFor="firstName" className="text-[14px] font-semibold text-brand-primary">
+          <Label htmlFor="firstName" className="text-body font-semibold text-brand-primary">
             {t.onboarding.profileForm.name}
           </Label>
           <Input
@@ -136,7 +136,7 @@ export function ProfileFormStep({
             placeholder="Ej. Juan"
             required
             autoFocus
-            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-[15px] placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${firstNameError ? "border-destructive focus-visible:ring-destructive" : ""
+            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${firstNameError ? "border-destructive focus-visible:ring-destructive" : ""
               }`}
             onChange={() => setFirstNameError(null)}
           />
@@ -148,7 +148,7 @@ export function ProfileFormStep({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="lastName" className="text-[14px] font-semibold text-brand-primary">
+          <Label htmlFor="lastName" className="text-body font-semibold text-brand-primary">
             {t.onboarding.profileForm.surname}
           </Label>
           <Input
@@ -156,7 +156,7 @@ export function ProfileFormStep({
             name="lastName"
             placeholder="Ej. Pérez"
             required
-            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-[15px] placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${lastNameError ? "border-destructive focus-visible:ring-destructive" : ""
+            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${lastNameError ? "border-destructive focus-visible:ring-destructive" : ""
               }`}
             onChange={() => setLastNameError(null)}
           />

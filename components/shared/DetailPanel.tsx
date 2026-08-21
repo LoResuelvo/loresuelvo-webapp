@@ -33,24 +33,24 @@ export function DetailPanel({
           <span className="text-lg font-semibold">{initials}</span>
         </div>
         <div className="flex-1 min-w-0 pt-1">
-          <p className="text-[18px] font-semibold text-slate-800">{name}</p>
+          <p className="text-subtitle font-semibold text-slate-800">{name}</p>
           {nameExtra}
         </div>
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-[24px] font-bold text-brand-primary leading-tight">
+        <h3 className="text-title font-bold text-brand-primary leading-tight">
           {title}
         </h3>
 
         {description && (
           <div className="pt-2 space-y-1">
             {descriptionLabel && (
-              <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wide">
+              <span className="text-caption font-medium text-slate-500 uppercase tracking-wide">
                 {descriptionLabel}
               </span>
             )}
-            <p className="text-[15px] leading-relaxed text-slate-600 whitespace-pre-wrap max-h-60 overflow-y-auto pr-2">
+            <p className="text-body-lg leading-relaxed text-slate-600 whitespace-pre-wrap max-h-60 overflow-y-auto pr-2">
               {description}
             </p>
           </div>

@@ -21,13 +21,13 @@ export default function CategoryHeader({ categoryName, className }: CategoryHead
           <ArrowLeft className="w-5 h-5 transition-transform group-hover:-translate-x-0.5" />
         </Link>
 
-        <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[12px] font-extrabold tracking-wider bg-emerald-50 text-emerald-700 uppercase border border-emerald-200/50 shadow-sm">
+        <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-caption font-extrabold tracking-wider bg-emerald-50 text-emerald-700 uppercase border border-emerald-200/50 shadow-sm">
           <Wrench className="w-3.5 h-3.5" />
           {t.consumerSearch.header.categoryPrefix} {categoryName}
         </span>
       </div>
 
-      <h2 className="text-[32px] font-extrabold tracking-tight text-brand-primary">
+      <h2 className="text-3xl font-extrabold tracking-tight text-brand-primary">
         {t.consumerSearch.header.title}
       </h2>
     </div>

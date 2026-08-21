@@ -67,7 +67,7 @@ export default function ChatHeader({
               {providerName} {providerSurname}
             </p>
             {pending && (
-              <p className="text-[11px] text-amber-600">{t.messaging.waitingAcceptance}</p>
+              <p className="text-caption text-amber-600">{t.messaging.waitingAcceptance}</p>
             )}
           </div>
 

@@ -150,17 +150,17 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
           <div className="flex flex-1 items-center justify-center text-center mt-4" role="status" aria-live="polite">
             <div className="flex flex-col items-center gap-2">
               <Loader2 className="w-8 h-8 text-brand-primary animate-spin" aria-hidden="true" />
-              <p className="text-[14px] text-slate-500">{t.aiDiagnosis.loadingMessages}</p>
+              <p className="text-body text-slate-500">{t.aiDiagnosis.loadingMessages}</p>
             </div>
           </div>
         ) : !isInitialized || messages.length === 0 ? (
           <div className="flex flex-1 items-center justify-center text-center mt-4">
             <div>
               <MessageSquare className="w-14 h-14 text-slate-300 mx-auto mb-4" aria-hidden="true" />
-              <h1 className="text-[22px] font-bold text-brand-primary">
+              <h1 className="text-title font-bold text-brand-primary">
                 {t.aiDiagnosis.chatTitle}
               </h1>
-              <p className="mt-2 text-[14px] text-slate-500">
+              <p className="mt-2 text-body text-slate-500">
                 {t.aiDiagnosis.chatDescription}
               </p>
             </div>
@@ -201,7 +201,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
           >
             <div className="rounded-2xl bg-white border border-slate-200 rounded-tl-sm px-4 py-3 flex items-center gap-2 text-slate-500">
               <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-              <span className="text-[13px]">{t.aiDiagnosis.assistantTyping}</span>
+              <span className="text-small">{t.aiDiagnosis.assistantTyping}</span>
             </div>
           </div>
         )}
@@ -214,13 +214,13 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
             <div className="rounded-2xl bg-red-50 border border-red-200 rounded-tl-sm px-4 py-3 flex flex-col gap-2 max-w-md">
               <div className="flex items-center gap-2 text-red-700">
                 <AlertCircle className="w-4 h-4" aria-hidden="true" />
-                <span className="text-[14px] font-medium">{chatError}</span>
+                <span className="text-body font-medium">{chatError}</span>
               </div>
               <Button
                 variant="link"
                 type="button"
                 onClick={handleRetry}
-                className="self-start text-[13px] font-semibold text-red-700 hover:text-red-900 underline underline-offset-2 p-0 h-auto"
+                className="self-start text-small font-semibold text-red-700 hover:text-red-900 underline underline-offset-2 p-0 h-auto"
               >
                 {t.aiDiagnosis.retry}
               </Button>
@@ -233,7 +233,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
 
       <div className="flex flex-col border-t border-slate-200 bg-white flex-shrink-0">
         {attachedFiles.length > 0 && (
-          <div role="region" aria-label={t.aiDiagnosis.attachedImages} className="p-3 pb-0 flex gap-2 overflow-x-auto">
+          <div role="region" aria-label="Imágenes seleccionadas" className="flex gap-2 overflow-x-auto p-4 pb-0">
             {attachedFiles.map((file, idx) => {
               const url = URL.createObjectURL(file);
               return (
@@ -241,7 +241,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
                   <button
                     type="button"
                     onClick={() => setPreviewImage({ url, name: file.name })}
-                    className="w-16 h-16 rounded-md overflow-hidden border border-slate-200 bg-slate-50 relative cursor-pointer block hover:ring-2 hover:ring-brand-primary/50 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50"
+                    className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 relative cursor-pointer block hover:ring-2 hover:ring-brand-primary/40 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
                   >
                     <Image
                       src={url}
@@ -253,7 +253,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
                   <button
                     type="button"
                     onClick={() => handleRemoveFile(idx)}
-                    className="absolute -top-2 -right-2 bg-slate-800 text-white rounded-full p-1 hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                    className="absolute -top-2 -right-2 bg-slate-800 text-white rounded-full p-1 hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
                     aria-label={`Eliminar ${file.name}`}
                   >
                     <X className="w-3 h-3" />
@@ -263,7 +263,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
             })}
           </div>
         )}
-        <div className="p-4 flex gap-3 items-end">
+        <div className="p-4 flex items-center gap-3">
           <input
             type="file"
             ref={fileInputRef}
@@ -279,10 +279,10 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
             size="icon"
             onClick={() => fileInputRef.current?.click()}
             disabled={isProcessing || isSending || attachedFiles.length >= 5}
-            aria-label={t.aiDiagnosis.attachImages}
-            className="text-slate-500 hover:text-brand-primary mb-[6px] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50"
+            aria-label="Adjuntar imágenes"
+            className="text-slate-500 hover:text-brand-primary hover:bg-slate-100 flex-shrink-0"
           >
-            <Paperclip className="w-5 h-5" />
+            <Paperclip className="w-5 h-5" aria-hidden="true" />
           </Button>
           <Textarea
             ref={setTextareaRef}
@@ -295,7 +295,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
               }
             }}
             placeholder={t.messaging.inputPlaceholder}
-            className="flex-1 resize-none px-4 py-3 min-h-[48px] rounded-xl border border-slate-200 bg-white text-[14px] leading-6 focus-visible:ring-brand-secondary/40"
+            className="flex-1 resize-none px-4 py-3 min-h-[48px] rounded-xl border border-slate-200 bg-white text-body leading-6 focus-visible:ring-brand-secondary/40"
             disabled={isProcessing || isSending}
           />
           <Button

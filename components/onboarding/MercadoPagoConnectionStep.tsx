@@ -41,16 +41,16 @@ export function MercadoPagoConnectionStep({ className }: MercadoPagoConnectionSt
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
           <Wallet className="h-8 w-8" />
         </div>
-        <h1 className="mb-2 text-[26px] font-bold leading-tight tracking-tight text-brand-primary">
+        <h1 className="mb-2 text-title font-bold leading-tight tracking-tight text-brand-primary">
           {t.onboarding.mercadoPago.title}
         </h1>
-        <p className="text-[15px] text-muted-foreground max-w-[340px] mx-auto">
+        <p className="text-body-lg text-muted-foreground max-w-[340px] mx-auto">
           {t.onboarding.mercadoPago.subtitle}
         </p>
       </div>
 
       {error && (
-        <div className="mb-6 flex items-start gap-2.5 rounded-lg bg-destructive/10 p-3.5 text-[14px] text-destructive">
+        <div className="mb-6 flex items-start gap-2.5 rounded-lg bg-destructive/10 p-3.5 text-body text-destructive">
           <AlertCircle className="mt-0.5 h-4.5 w-4.5 shrink-0" />
           <span>{error}</span>
         </div>

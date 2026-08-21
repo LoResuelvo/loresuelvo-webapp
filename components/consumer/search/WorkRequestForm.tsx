@@ -111,12 +111,12 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
       
       <ProviderMiniProfile provider={provider} />
 
-      <div className="text-[13px] text-slate-500 leading-relaxed">
+      <div className="text-small text-slate-500 leading-relaxed">
         {t.consumerSearch.form.description}
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="title-input" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+        <Label htmlFor="title-input" className="text-caption font-bold text-slate-400 uppercase tracking-wider">
           {t.consumerSearch.form.titleLabel}
         </Label>
         <Input
@@ -125,13 +125,13 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={t.consumerSearch.form.titlePlaceholder}
-          className="px-4 py-2.5 h-auto bg-slate-50 hover:bg-slate-100 focus:bg-white border-slate-200 focus-visible:border-brand-primary focus-visible:ring-1 focus-visible:ring-brand-primary text-brand-primary placeholder:text-slate-400 font-medium text-[13px] rounded-xl"
+          className="px-4 py-2.5 h-auto bg-slate-50 hover:bg-slate-100 focus:bg-white border-slate-200 focus-visible:border-brand-primary focus-visible:ring-1 focus-visible:ring-brand-primary text-brand-primary placeholder:text-slate-400 font-medium text-small rounded-xl"
           required
         />
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="desc-input" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+        <Label htmlFor="desc-input" className="text-caption font-bold text-slate-400 uppercase tracking-wider">
           {t.consumerSearch.form.descLabel}
         </Label>
         <Textarea
@@ -140,7 +140,7 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
           onChange={(e) => setDescription(e.target.value)}
           placeholder={t.consumerSearch.form.descPlaceholder}
           rows={4}
-          className="px-4 py-2.5 min-h-[100px] bg-slate-50 hover:bg-slate-100 focus:bg-white border-slate-200 focus-visible:border-brand-primary focus-visible:ring-1 focus-visible:ring-brand-primary text-brand-primary placeholder:text-slate-400 font-medium text-[13px] rounded-xl resize-none"
+          className="px-4 py-2.5 min-h-[100px] bg-slate-50 hover:bg-slate-100 focus:bg-white border-slate-200 focus-visible:border-brand-primary focus-visible:ring-1 focus-visible:ring-brand-primary text-brand-primary placeholder:text-slate-400 font-medium text-small rounded-xl resize-none"
           required
         />
       </div>

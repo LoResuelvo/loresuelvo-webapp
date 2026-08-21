@@ -23,10 +23,10 @@ export function RoleSelectionStep({
   return (
     <div className={cn("w-full", className)}>
       <div className="mb-8 text-center">
-        <h1 className="mb-2 text-[26px] font-bold leading-tight tracking-tight text-brand-primary">
+        <h1 className="mb-2 text-title font-bold leading-tight tracking-tight text-brand-primary">
           LoResuelvo
         </h1>
-        <p className="text-[15px] text-muted-foreground max-w-[320px] mx-auto">
+        <p className="text-body-lg text-muted-foreground max-w-[320px] mx-auto">
           {t.onboarding.roleSelection.subtitle}
         </p>
       </div>
@@ -56,7 +56,7 @@ export function RoleSelectionStep({
           type="button"
           onClick={onContinue}
           disabled={!role}
-          className={`h-[46px] w-full rounded-lg text-[15px] font-medium text-white transition-all duration-200 ${
+          className={`h-[46px] w-full rounded-lg text-body-lg font-medium text-white transition-all duration-200 ${
             role
               ? "bg-brand-primary hover:bg-brand-primary/90 cursor-pointer"
               : "bg-gray-300 cursor-not-allowed opacity-60"

@@ -152,11 +152,11 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
       <div className="relative h-full p-6 md:p-10 flex flex-col justify-center max-w-3xl gap-6">
         <div className="flex items-center gap-2.5 text-white">
           <Sparkles className="w-6 h-6" aria-hidden="true" />
-          <span className="text-[16px] font-semibold tracking-wide uppercase">
+          <span className="text-body-lg font-semibold tracking-wide uppercase">
             {t.consumerDiagnosis.hero.badge}
           </span>
         </div>
-        <h1 className="text-[30px] md:text-[36px] font-bold tracking-tight text-white drop-shadow">
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white drop-shadow">
           {t.consumerDiagnosis.hero.title}
         </h1>
 
@@ -223,7 +223,7 @@ disabled={isSubmitting || attachedFiles.length >= 5}
                 value={message}
                 onChange={handleChange}
                 placeholder={t.consumerDiagnosis.hero.placeholder}
-                className="flex-1 min-w-0 rounded-lg bg-white/20 backdrop-blur px-4 py-3 text-[16px] text-white placeholder:text-white/70 focus-visible:ring-2 focus-visible:ring-white/70 resize-none leading-6 min-h-0"
+                className="flex-1 min-w-0 rounded-lg bg-white/20 backdrop-blur px-4 py-3 text-body-lg text-white placeholder:text-white/70 focus-visible:ring-2 focus-visible:ring-white/70 resize-none leading-6 min-h-0"
               />
               <Button
                 variant="brand"
@@ -247,7 +247,7 @@ disabled={isSubmitting || attachedFiles.length >= 5}
               {error}
             </div>
           )}
-          <div className="flex items-center gap-2 text-white/80 text-[14px] mt-3">
+          <div className="flex items-center gap-2 text-white/80 text-body mt-3">
             <Info className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
             <span>{t.consumerDiagnosis.hero.infoText}</span>
           </div>

@@ -133,7 +133,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               }
             }}
             placeholder={t.messaging.inputPlaceholder}
-            className="flex-1 px-4 h-[48px] rounded-xl border border-slate-200 bg-white text-[14px] focus-visible:ring-brand-secondary/40"
+            className="flex-1 px-4 h-[48px] rounded-xl border border-slate-200 bg-white text-body focus-visible:ring-brand-secondary/40"
             disabled={disabled}
           />
           <Button

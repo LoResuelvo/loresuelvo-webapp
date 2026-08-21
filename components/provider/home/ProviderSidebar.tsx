@@ -24,7 +24,7 @@ export default function ProviderSidebar() {
     >
       <div className="p-6 h-20 flex items-center">
         <Link href={ROUTES.home} className="flex items-center gap-3">
-          <span className="text-[20px] font-extrabold tracking-tight text-brand-primary">
+          <span className="text-title font-extrabold tracking-tight text-brand-primary">
             {t.providerHome.sidebar.logo}
           </span>
         </Link>

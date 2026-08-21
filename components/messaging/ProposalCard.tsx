@@ -76,14 +76,14 @@ export function ProposalCard({ proposal, onClick, isProvider, className }: Propo
 
         <div className="bg-muted/30 grid grid-cols-2 gap-3 rounded-lg p-3">
           <div className="flex flex-col gap-1">
-            <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wider">Monto</span>
-            <span className="text-foreground text-sm font-semibold">
+            <span className="text-muted-foreground text-caption font-medium uppercase tracking-wider">Monto</span>
+            <span className="text-foreground text-body font-semibold">
               {formatAmountCents(proposal.amountCents)}
             </span>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wider">Fecha y hora</span>
-            <span className="text-foreground text-sm font-medium">
+            <span className="text-muted-foreground text-caption font-medium uppercase tracking-wider">Fecha y hora</span>
+            <span className="text-foreground text-body font-medium">
               {formatScheduledOn(proposal.scheduledOn)}
             </span>
           </div>
@@ -91,9 +91,9 @@ export function ProposalCard({ proposal, onClick, isProvider, className }: Propo
 
         {proposal.description && (
           <div className="flex flex-col gap-1.5">
-            <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wider">Descripción</span>
+            <span className="text-muted-foreground text-caption font-medium uppercase tracking-wider">Descripción</span>
             <p 
-              className="text-foreground/90 text-sm leading-relaxed line-clamp-2 break-words" 
+              className="text-foreground/90 text-body leading-relaxed line-clamp-2 break-words" 
               data-testid="proposal-description"
               title={proposal.description}
             >

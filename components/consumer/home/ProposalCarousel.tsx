@@ -58,7 +58,7 @@ export function ProposalCarousel({
           <div>
             <div className="flex items-center gap-2">
               <Icon className={cn("w-5 h-5 shrink-0", iconColor)} aria-hidden="true" />
-              <h2 id={titleId} className="text-[20px] md:text-[22px] font-bold text-brand-primary">
+              <h2 id={titleId} className="text-title font-bold text-brand-primary">
                 {title}
               </h2>
             </div>

@@ -98,7 +98,7 @@ export function TimeProviderWidget() {
               <div key={unit} className="flex bg-muted/80 rounded-lg p-0.5 border border-border">
                 <button
                   type="button"
-                  className="flex-1 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-card rounded-md transition-all cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-1 text-caption font-medium text-muted-foreground hover:text-foreground hover:bg-card rounded-md transition-all cursor-pointer disabled:opacity-50"
                   onClick={() => handleShift(-hours)}
                   disabled={isApplying}
                   aria-label={`Retroceder ${text}`}
@@ -107,7 +107,7 @@ export function TimeProviderWidget() {
                 </button>
                 <button
                   type="button"
-                  className="flex-1 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-card rounded-md transition-all cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-1 text-caption font-medium text-muted-foreground hover:text-foreground hover:bg-card rounded-md transition-all cursor-pointer disabled:opacity-50"
                   onClick={() => handleShift(hours)}
                   disabled={isApplying}
                   aria-label={`Avanzar ${text}`}
@@ -124,14 +124,14 @@ export function TimeProviderWidget() {
               type="datetime-local"
               value={customDateTime}
               onChange={(e) => setCustomDateTime(e.target.value)}
-              className="flex-1 text-[11px] border border-input rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring bg-input/20 text-foreground"
+              className="flex-1 text-caption border border-input rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring bg-input/20 text-foreground"
               data-testid="widget-datetime-input"
             />
             <Button
               type="submit"
               variant="brand"
               size="sm"
-              className="h-7 px-2.5 text-[11px] rounded-lg cursor-pointer font-medium"
+              className="h-7 px-2.5 text-caption rounded-lg cursor-pointer font-medium"
               disabled={!customDateTime || isApplying}
             >
               <Check className="w-3 h-3" />

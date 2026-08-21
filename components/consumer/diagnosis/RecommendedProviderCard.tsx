@@ -84,7 +84,7 @@ export function RecommendedProviderCard({
           )}
           {state === "error" && (
             <div className="flex flex-col items-end gap-1.5">
-              <span className="text-[11px] text-red-500 text-right leading-tight max-w-[150px]">
+              <span className="text-caption text-red-500 text-right leading-tight max-w-[150px]">
                 {t.aiDiagnosis.jobRequestError}
               </span>
               <Button
@@ -97,7 +97,7 @@ export function RecommendedProviderCard({
             </div>
           )}
           {state === "duplicate" && (
-            <span className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl text-right leading-tight max-w-[180px]">
+            <span className="text-caption text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl text-right leading-tight max-w-[180px]">
               {t.aiDiagnosis.jobRequestDuplicate}
             </span>
           )}

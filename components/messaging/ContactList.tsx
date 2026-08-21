@@ -13,7 +13,7 @@ export default function ContactList({ contacts, selectedProviderId, onContactCli
   return (
     <div className="flex flex-col h-full" role="region" aria-label={t.messaging.title}>
       <div className="p-4 border-b border-slate-100 flex-shrink-0">
-        <h2 className="text-[18px] font-bold text-brand-primary">{t.messaging.title}</h2>
+        <h2 className="text-subtitle font-bold text-brand-primary">{t.messaging.title}</h2>
       </div>
       <div
         role="list"

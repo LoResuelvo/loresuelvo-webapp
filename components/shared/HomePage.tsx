@@ -26,10 +26,10 @@ export default function HomePage() {
           />
 
           <div className="w-full flex flex-col items-center text-center mt-20 mb-6 relative z-10">
-            <h3 className="text-3xl sm:text-[34px] font-extrabold text-brand-primary tracking-tight">
+            <h3 className="text-3xl sm:text-4xl font-extrabold text-brand-primary tracking-tight">
               {t.home.whyChooseUs.title}
             </h3>
-            <p className="text-sm sm:text-base md:text-[17px] text-gray-500 max-w-2xl leading-relaxed mt-3.5 font-medium">
+            <p className="text-base md:text-body-lg text-gray-500 max-w-2xl leading-relaxed mt-3.5 font-medium">
               {t.home.whyChooseUs.subtitle}
             </p>
 

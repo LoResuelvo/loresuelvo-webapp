@@ -26,14 +26,14 @@ export default function ScheduledJobsSection({ jobs }: ScheduledJobsSectionProps
         <div className="mb-5">
           <h2
             id="scheduled-jobs-title"
-            className="text-[26px] font-bold text-brand-primary"
+            className="text-title font-bold text-brand-primary"
           >
             {t.providerHome.scheduledJobsSection.title}
           </h2>
         </div>
 
         {jobs.length === 0 ? (
-          <p className="text-[16px] text-slate-500 text-center py-8">{t.providerHome.scheduledJobsSection.emptyState}</p>
+          <p className="text-body-lg text-slate-500 text-center py-8">{t.providerHome.scheduledJobsSection.emptyState}</p>
         ) : (
           <ul
             aria-label={t.providerHome.scheduledJobsSection.listLabel}

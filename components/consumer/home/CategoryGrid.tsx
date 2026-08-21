@@ -28,10 +28,10 @@ export default function CategoryGrid({ categories, className }: CategoryGridProp
     <section aria-labelledby="explore-categories-title" className={cn("w-full", className)}>
       <div className="flex justify-between items-end mb-6">
         <div>
-          <h2 id="explore-categories-title" className="text-[24px] md:text-[26px] font-bold tracking-tight text-brand-primary mb-1">
+          <h2 id="explore-categories-title" className="text-title font-bold tracking-tight text-brand-primary mb-1">
             {t.consumerHome.exploreCategories}
           </h2>
-          <p className="text-sm text-slate-500 font-medium">
+          <p className="text-body text-slate-500 font-medium">
             {t.consumerHome.exploreCategoriesSubtitle}
           </p>
         </div>
@@ -50,7 +50,7 @@ export default function CategoryGrid({ categories, className }: CategoryGridProp
                 <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-brand-primary group-hover:bg-brand-secondary/15 group-hover:text-brand-secondary transition-colors">
                   <Icon className="w-5 h-5" />
                 </div>
-                <span className="text-[16px] md:text-[17px] font-bold text-brand-primary group-hover:text-brand-secondary transition-colors">
+                <span className="text-subtitle font-bold text-brand-primary group-hover:text-brand-secondary transition-colors">
                   {category.name}
                 </span>
               </div>

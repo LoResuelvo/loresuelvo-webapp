@@ -102,7 +102,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
         />
         {blockInputWhenPending && selectedContact.pending ? (
           <div className="p-4 bg-white border-t border-slate-200 flex-shrink-0">
-            <p className="text-center text-[13px] text-slate-400 py-2">
+            <p className="text-center text-small text-slate-400 py-2">
               {t.messaging.acceptRequired}
             </p>
           </div>

@@ -48,16 +48,16 @@ export default function ContactItem({
             // Note: data-field is used exclusively for Cucumber E2E tests
             data-field="consumer-name"
             data-testid="consumer-name"
-            className="font-semibold text-[14px] text-brand-primary truncate"
+            className="font-semibold text-body text-brand-primary truncate"
           >
             {providerName + " " + providerSurname}
           </p>
-          <p data-field="last-message-at" data-testid="last-message-at" className="text-[11px] text-slate-400">{lastMessageAt}</p>
+          <p data-field="last-message-at" data-testid="last-message-at" className="text-caption text-slate-400">{lastMessageAt}</p>
         </div>
         <p
           data-field="last-message"
           data-testid="last-message"
-          className="text-[12px] text-slate-500 truncate"
+          className="text-small text-slate-500 truncate"
         >
           {lastMessage}
         </p>

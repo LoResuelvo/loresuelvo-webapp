@@ -53,10 +53,10 @@ export default function ConsumerHeader({ session }: ConsumerHeaderProps) {
           <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg py-1 z-50 transition-all animate-in fade-in slide-in-from-top-1 duration-100">
             {session?.user && (
               <div className="px-4 py-2.5 border-b border-slate-100">
-                <p className="text-[14px] font-bold text-brand-primary truncate">
+                <p className="text-body font-bold text-brand-primary truncate">
                   {session.user.firstName} {session.user.lastName}
                 </p>
-                <p className="text-[12px] text-slate-500 truncate">
+                <p className="text-small text-slate-500 truncate">
                   {session.user.email}
                 </p>
               </div>
@@ -64,7 +64,7 @@ export default function ConsumerHeader({ session }: ConsumerHeaderProps) {
             <div className="py-1">
               <Link
                 href={ROUTES.auth.logout}
-                className="flex items-center gap-2.5 px-4 py-2 text-[14px] text-rose-600 hover:bg-rose-50 font-medium transition-colors w-full text-left"
+                className="flex items-center gap-2.5 px-4 py-2 text-body text-rose-600 hover:bg-rose-50 font-medium transition-colors w-full text-left"
               >
                 <LogOut className="w-4 h-4" />
                 <span>{t.header.logout}</span>

@@ -41,14 +41,14 @@ export default function JobRequestPanel({ jobRequest, onClose }: JobRequestPanel
             size="lg"
           />
           <div className="flex-1 min-w-0 pt-1">
-            <p className="text-[18px] font-semibold text-slate-800">
+            <p className="text-subtitle font-semibold text-slate-800">
               {jobRequest.providerName ? `${jobRequest.providerName} ${jobRequest.providerSurname}` : ""}
             </p>
           </div>
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-[24px] font-bold text-brand-primary leading-tight">
+          <h3 className="text-title font-bold text-brand-primary leading-tight">
             {jobRequest.title}
           </h3>
 
@@ -59,7 +59,7 @@ export default function JobRequestPanel({ jobRequest, onClose }: JobRequestPanel
               </span>
               <p
                 data-testid="job-request-description"
-                className="mt-2 text-[17px] leading-relaxed text-slate-700 whitespace-pre-wrap max-h-60 overflow-y-auto pr-2"
+                className="mt-2 text-body-lg leading-relaxed text-slate-700 whitespace-pre-wrap max-h-60 overflow-y-auto pr-2"
               >
                 {jobRequest.description}
               </p>

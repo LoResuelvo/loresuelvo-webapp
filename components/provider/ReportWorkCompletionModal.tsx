@@ -215,7 +215,7 @@ export default function ReportWorkCompletionModal({
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
-                    <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-medium">
+                    <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-caption font-medium">
                       #{index + 1}
                     </span>
                   </div>

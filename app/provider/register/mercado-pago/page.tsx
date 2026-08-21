@@ -46,7 +46,7 @@ function MercadoPagoCallbackContent() {
               <h1 className="mb-3 text-2xl font-bold tracking-tight text-foreground">
                 {t.onboarding.mercadoPago.connectionSuccess}
               </h1>
-              <p className="mb-8 text-[15px] text-muted-foreground leading-relaxed">
+              <p className="mb-8 text-body-lg text-muted-foreground leading-relaxed">
                 {t.onboarding.mercadoPago.connectionSuccessSubtitle}
               </p>
               <Button
@@ -66,7 +66,7 @@ function MercadoPagoCallbackContent() {
               <h1 className="mb-3 text-2xl font-bold tracking-tight text-foreground">
                 {t.onboarding.mercadoPago.connectionCancelled}
               </h1>
-              <p className="mb-8 text-[15px] text-muted-foreground leading-relaxed">
+              <p className="mb-8 text-body-lg text-muted-foreground leading-relaxed">
                 {t.onboarding.mercadoPago.connectionCancelledSubtitle}
               </p>
               

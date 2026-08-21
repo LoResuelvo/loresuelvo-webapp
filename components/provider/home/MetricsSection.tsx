@@ -16,7 +16,7 @@ export default function MetricsSection({ metrics }: MetricsSectionProps) {
       <div className="mb-5">
         <h2
           id="metrics-title"
-          className="text-[26px] font-bold text-brand-primary"
+          className="text-title font-bold text-brand-primary"
         >
           {t.providerHome.metricsSection.title}
         </h2>
@@ -29,8 +29,8 @@ export default function MetricsSection({ metrics }: MetricsSectionProps) {
         >
           <CardContent className="p-5 flex flex-col items-center text-center gap-2">
             <DollarSign className="h-8 w-8 text-brand-secondary" aria-hidden="true" />
-            <p className="text-[14px] font-medium text-slate-500">{t.providerHome.metricsSection.incomeLabel}</p>
-            <p className="text-[24px] font-bold text-brand-primary">{metrics.incomeLabel}</p>
+            <p className="text-body font-medium text-slate-500">{t.providerHome.metricsSection.incomeLabel}</p>
+            <p className="text-title font-bold text-brand-primary">{metrics.incomeLabel}</p>
           </CardContent>
         </Card>
 
@@ -40,8 +40,8 @@ export default function MetricsSection({ metrics }: MetricsSectionProps) {
         >
           <CardContent className="p-5 flex flex-col items-center text-center gap-2">
             <Wrench className="h-8 w-8 text-brand-secondary" aria-hidden="true" />
-            <p className="text-[14px] font-medium text-slate-500">{t.providerHome.metricsSection.jobsLabel}</p>
-            <p className="text-[24px] font-bold text-brand-primary">{metrics.jobsCompletedCount}</p>
+            <p className="text-body font-medium text-slate-500">{t.providerHome.metricsSection.jobsLabel}</p>
+            <p className="text-title font-bold text-brand-primary">{metrics.jobsCompletedCount}</p>
           </CardContent>
         </Card>
 
@@ -51,8 +51,8 @@ export default function MetricsSection({ metrics }: MetricsSectionProps) {
         >
           <CardContent className="p-5 flex flex-col items-center text-center gap-2">
             <Star className="h-8 w-8 text-brand-secondary" aria-hidden="true" />
-            <p className="text-[14px] font-medium text-slate-500">{t.providerHome.metricsSection.ratingLabel}</p>
-            <p className="text-[24px] font-bold text-brand-primary">{metrics.ratingLabel}</p>
+            <p className="text-body font-medium text-slate-500">{t.providerHome.metricsSection.ratingLabel}</p>
+            <p className="text-title font-bold text-brand-primary">{metrics.ratingLabel}</p>
           </CardContent>
         </Card>
       </div>

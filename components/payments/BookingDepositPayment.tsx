@@ -127,7 +127,7 @@ export function BookingDepositPayment({
           </div>
           <div className="flex items-center justify-between gap-4 border-t border-slate-200/80 pt-2.5">
             <dt className="font-semibold text-slate-800">{t.payments.checkout.totalLabel}</dt>
-            <dd className="text-[17px] font-bold text-brand-primary">
+            <dd className="text-subtitle font-bold text-brand-primary">
               {formatCurrencyCents(pricing.amountDueNowCents, pricing.currency)}
             </dd>
           </div>
@@ -139,7 +139,7 @@ export function BookingDepositPayment({
               <span>{t.payments.checkout.remainingBalanceLabel}</span>
               <span>{formatCurrencyCents(remainingBalanceCents, pricing.currency)}</span>
             </div>
-            <p className="text-[11px] text-slate-500 leading-normal">
+            <p className="text-caption text-slate-500 leading-normal">
               {t.payments.checkout.remainingBalanceHelp}
             </p>
           </div>

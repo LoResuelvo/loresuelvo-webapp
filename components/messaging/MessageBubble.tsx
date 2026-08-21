@@ -57,7 +57,7 @@ export default function MessageBubble({
           </div>
         )}
         {content && (
-          <p className={`text-[14px] whitespace-pre-wrap break-words ${!isExpanded && showExpandButton ? "line-clamp-5" : ""}`}>
+          <p className={`text-body whitespace-pre-wrap break-words ${!isExpanded && showExpandButton ? "line-clamp-5" : ""}`}>
             {content}
           </p>
         )}
@@ -65,14 +65,14 @@ export default function MessageBubble({
           <Button
             variant="ghost"
             onClick={() => onToggleExpand(id)}
-            className={`text-[11px] mt-1 hover:underline p-0 h-auto hover:bg-transparent ${
+            className={`text-caption mt-1 hover:underline p-0 h-auto hover:bg-transparent ${
               isOwnMessage ? "text-white/70 hover:text-white" : "text-slate-500 hover:text-slate-700"
             }`}
           >
             {isExpanded ? t.messaging.expandLess : t.messaging.expandMore}
           </Button>
         )}
-        <p className={`text-[11px] mt-2 ${isOwnMessage ? "text-white/70" : "text-slate-400"}`}>{sentAt}</p>
+        <p className={`text-caption mt-2 ${isOwnMessage ? "text-white/70" : "text-slate-400"}`}>{sentAt}</p>
       </div>
       
       <ImagePreviewModal

@@ -22,13 +22,13 @@ export default function WorkRequestCard({ request, onViewDetails }: WorkRequestC
             <div className="flex-1">
               <p
                 data-field="client-name"
-                className="text-[14px] font-semibold text-brand-secondary"
+                className="text-body font-semibold text-brand-secondary"
               >
                 {request.clientName}
               </p>
               <h2
                 data-field="problem-title"
-                className="mt-1 text-[18px] font-bold text-brand-primary"
+                className="mt-1 text-subtitle font-bold text-brand-primary"
               >
                 {request.problemTitle}
               </h2>
@@ -37,7 +37,7 @@ export default function WorkRequestCard({ request, onViewDetails }: WorkRequestC
 
           <p
             data-field="description"
-            className="text-[14px] leading-6 text-slate-600 line-clamp-3"
+            className="text-body leading-6 text-slate-600 line-clamp-3"
           >
             {request.description}
           </p>
@@ -45,7 +45,7 @@ export default function WorkRequestCard({ request, onViewDetails }: WorkRequestC
           <div className="flex items-center justify-between">
             <p
               data-field="location"
-              className="flex items-center gap-1.5 text-[14px] font-medium text-slate-600"
+              className="flex items-center gap-1.5 text-body font-medium text-slate-600"
             >
               <MapPin className="h-4 w-4 text-brand-secondary" aria-hidden="true" />
               {request.location}
@@ -53,7 +53,7 @@ export default function WorkRequestCard({ request, onViewDetails }: WorkRequestC
             {request.images && request.images.length > 0 && (
               <span
                 data-testid="images-indicator"
-                className="flex items-center gap-1 text-[11px] font-bold text-brand-primary bg-brand-secondary/15 px-2.5 py-1 rounded-full uppercase tracking-wider"
+                className="flex items-center gap-1 text-caption font-bold text-brand-primary bg-brand-secondary/15 px-2.5 py-1 rounded-full uppercase tracking-wider"
               >
                 <ImageIcon className="h-3.5 w-3.5 text-brand-primary" aria-hidden="true" />
                 {request.images.length} {request.images.length === 1 ? "Imagen" : "Imágenes"}
@@ -62,7 +62,7 @@ export default function WorkRequestCard({ request, onViewDetails }: WorkRequestC
           </div>
         </div>
 
-        <div data-field="published-at" className="absolute right-4 top-4 flex items-center gap-1.5 text-[13px] font-medium text-slate-500">
+        <div data-field="published-at" className="absolute right-4 top-4 flex items-center gap-1.5 text-small font-medium text-slate-500">
           <Timer className="h-4 w-4" aria-hidden="true" />
           {request.publishedAtLabel}
         </div>

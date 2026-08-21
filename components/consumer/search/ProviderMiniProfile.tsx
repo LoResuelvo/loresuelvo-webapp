@@ -21,10 +21,10 @@ export function ProviderMiniProfile({ provider, className }: ProviderMiniProfile
         className="bg-slate-200 border-slate-300/35"
       />
       <div>
-        <h5 className="font-bold text-brand-primary text-[14px]">
+        <h5 className="font-bold text-brand-primary text-body">
           {provider.name} {provider.surname}
         </h5>
-        <p className="text-[13px] text-slate-500 font-medium">
+        <p className="text-small text-slate-500 font-medium">
           Categoría: {provider.categoryName}
         </p>
       </div>

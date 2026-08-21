@@ -8,7 +8,6 @@ Feature: US-28 Completar pago del servicio
 
   Rule: Completar el pago cobra únicamente el saldo acordado
 
-    @wip
     Scenario: 01-CSP Mostrar el desglose del saldo y la acción de pago en una orden pendiente de pago
       When abro el detalle de la orden de trabajo
       Then veo un saldo del servicio de "$ 80.000,00"

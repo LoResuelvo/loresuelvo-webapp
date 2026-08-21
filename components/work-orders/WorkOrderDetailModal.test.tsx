@@ -6,6 +6,7 @@ import { getWorkOrderDetailAction } from "@/app/work-orders/actions";
 
 vi.mock("@/app/work-orders/actions", () => ({
   getWorkOrderDetailAction: vi.fn(),
+  createServiceBalanceCheckoutAction: vi.fn(),
 }));
 
 describe("WorkOrderDetailModal", () => {

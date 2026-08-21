@@ -8,7 +8,7 @@ import { DollarSign, Calendar, FileText, CheckCircle2, Loader2, AlertCircle, Sta
 import { Money } from "@/domain/shared/Money";
 import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
 import { WorkOrder } from "@/domain/work-order/WorkOrder";
-import { getWorkOrderDetailAction } from "@/app/work-orders/actions";
+import { getWorkOrderDetailAction, createServiceBalanceCheckoutAction } from "@/app/work-orders/actions";
 import { DetailField } from "@/components/ui/detail-field";
 import { CompletionEvidenceSection } from "./CompletionEvidenceSection";
 import { ServiceBalancePayment } from "@/components/payments/ServiceBalancePayment";
@@ -164,6 +164,7 @@ export function WorkOrderDetailModal({
                 <ServiceBalancePayment
                   workOrderId={workOrderId ?? detail?.id ?? 0}
                   totalServiceAmountCents={amountCents}
+                  createCheckout={createServiceBalanceCheckoutAction}
                 />
               )}
 

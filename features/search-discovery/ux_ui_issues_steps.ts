@@ -2,121 +2,109 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { AuthSession } from "../../infrastructure/auth/types";
-import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
-import { setConsumerSession } from "../messaging/initiate_chat_with_provider_steps";
+import { aConversation, aConversationDetail, aConversationMessage, aCounterpart } from "../support/factories";
 
+interface ContactData {
+  id: string;
+  counterpartId: string;
+  counterpartName: string;
+  counterpartSurname: string;
+  lastMessage: string;
+  lastMessageAt: string;
+}
 
-let consumerContacts: any[] = [];
-let providerContacts: any[] = [];
+let consumerContacts: ContactData[] = [];
+let providerContacts: ContactData[] = [];
 let originalContactsWidth = 0;
 let savedScrollTop = 0;
 
-async function setProviderSession(world: CustomWorld) {
-  const session: AuthSession = {
-    user: {
-      id: "provider-001",
-      email: "prestador@loresuelvo.test",
-      firstName: "Paula",
-      lastName: "Rios",
-      isOnboarded: true,
-      role: "provider",
-    },
-    accessToken: "mock-access-token",
-  };
-
-  await world.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
-}
-
-function buildConsumerContacts() {
+function buildConsumerContacts(): ContactData[] {
   return [
     {
       id: "conv-1",
-      providerId: "provider-001",
-      providerName: "Juan",
-      providerSurname: "Gómez",
+      counterpartId: "provider-001",
+      counterpartName: "Juan",
+      counterpartSurname: "Gómez",
       lastMessage: "Hola, ¿podés venir mañana?",
       lastMessageAt: new Date(Date.now() - 60000).toISOString(),
-      pending: false,
     },
     {
       id: "conv-2",
-      providerId: "provider-002",
-      providerName: "Lucía",
-      providerSurname: "Martínez",
+      counterpartId: "provider-002",
+      counterpartName: "Lucía",
+      counterpartSurname: "Martínez",
       lastMessage: "Gracias por tu presupuesto",
       lastMessageAt: new Date(Date.now() - 7200000).toISOString(),
-      pending: false,
     },
   ];
 }
 
-function buildProviderContacts() {
+function buildProviderContacts(): ContactData[] {
   return [
     {
       id: "conv-1",
-      consumerId: "consumer-001",
-      consumerName: "Andrés",
-      consumerSurname: "Test",
+      counterpartId: "consumer-001",
+      counterpartName: "Andrés",
+      counterpartSurname: "Test",
       lastMessage: "Hola, necesito un presupuesto",
       lastMessageAt: new Date(Date.now() - 60000).toISOString(),
-      pending: false,
     },
     {
       id: "conv-2",
-      consumerId: "consumer-002",
-      consumerName: "María",
-      consumerSurname: "Fernández",
+      counterpartId: "consumer-002",
+      counterpartName: "María",
+      counterpartSurname: "Fernández",
       lastMessage: "Confirmo para el jueves",
       lastMessageAt: new Date(Date.now() - 7200000).toISOString(),
-      pending: false,
     },
   ];
 }
 
-function buildManyMessages(conversationId: number, counterpartId: string, counterpartRole: "provider" | "consumer") {
-  return Array.from({ length: 12 }, (_, i) => ({
-    id: i + 1,
-    sender_role: i % 2 === 0 ? "consumer" : counterpartRole,
-    content: `Msg ${conversationId}-${i + 1}`,
-    created_on: new Date(Date.now() - (12 - i) * 60000).toISOString(),
-  }));
+function buildManyMessages(conversationId: number, counterpartRole: "provider" | "consumer") {
+  return Array.from({ length: 12 }, (_, i) =>
+    aConversationMessage({
+      id: i + 1,
+      sender_role: i % 2 === 0 ? "consumer" : counterpartRole,
+      content: `Msg ${conversationId}-${i + 1}`,
+      created_on: new Date(Date.now() - (12 - i) * 60000).toISOString(),
+    })
+  );
 }
 
-Given("que estoy en la pantalla de mensajes como consumidor con conversaciones", async function (this: CustomWorld) {
-  await setConsumerSession(this);
-
-  consumerContacts = buildConsumerContacts();
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: consumerContacts.map((c) => ({
-      id: c.id.replace("conv-", ""),
+function mapContactsToConversations(contacts: ContactData[], counterpartRole: "provider" | "consumer") {
+  return contacts.map((c) =>
+    aConversation({
+      id: Number(c.id.replace("conv-", "")),
       status: "accepted",
-      counterpart: {
-        id: c.providerId,
-        role: "provider",
-        name: c.providerName,
-        surname: c.providerSurname,
+      counterpart: aCounterpart({
+        id: Number(c.counterpartId.replace(/[^0-9]/g, "") || 1),
+        role: counterpartRole,
+        name: c.counterpartName,
+        surname: c.counterpartSurname,
         category_name: "Plomería",
-      },
-      last_message: {
+      }),
+      last_message: aConversationMessage({
         id: 1,
         sender_role: "consumer",
         content: c.lastMessage,
         created_on: c.lastMessageAt,
-      },
+      }),
       updated_on: c.lastMessageAt,
-    })),
+    })
+  );
+}
+
+Given("que estoy en la pantalla de mensajes como consumidor con conversaciones", async function (this: CustomWorld) {
+  await this.setSession("consumer", {
+    id: "consumer-001",
+    email: "consumidor@loresuelvo.test",
+    firstName: "Ana",
+    lastName: "Pérez",
+    isOnboarded: true,
   });
+
+  consumerContacts = buildConsumerContacts();
+  await this.stubGet("/conversations", mapContactsToConversations(consumerContacts, "provider"));
 
   await this.page.goto(APP_URL + ROUTES.consumer.messages, { waitUntil: "networkidle" });
   const list = this.page.getByRole("list", { name: "Lista de conversaciones" });
@@ -124,32 +112,16 @@ Given("que estoy en la pantalla de mensajes como consumidor con conversaciones",
 });
 
 Given("que estoy en la pantalla de mensajes como prestador con conversaciones", async function (this: CustomWorld) {
-  await setProviderSession(this);
+  await this.setSession("provider", {
+    id: "provider-001",
+    email: "prestador@loresuelvo.test",
+    firstName: "Paula",
+    lastName: "Rios",
+    isOnboarded: true,
+  });
 
   providerContacts = buildProviderContacts();
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: providerContacts.map((c) => ({
-      id: c.id.replace("conv-", ""),
-      status: "accepted",
-      counterpart: {
-        id: c.consumerId,
-        role: "consumer",
-        name: c.consumerName,
-        surname: c.consumerSurname,
-        category_name: "Plomería",
-      },
-      last_message: {
-        id: 1,
-        sender_role: "consumer",
-        content: c.lastMessage,
-        created_on: c.lastMessageAt,
-      },
-      updated_on: c.lastMessageAt,
-    })),
-  });
+  await this.stubGet("/conversations", mapContactsToConversations(providerContacts, "consumer"));
 
   await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
   const list = this.page.getByRole("list", { name: "Lista de conversaciones" });
@@ -159,58 +131,40 @@ Given("que estoy en la pantalla de mensajes como prestador con conversaciones", 
 Given(
   "que estoy chateando con un prestador con varios mensajes en la conversación",
   async function (this: CustomWorld) {
-    await setConsumerSession(this);
+    await this.setSession("consumer", {
+      id: "consumer-001",
+      email: "consumidor@loresuelvo.test",
+      firstName: "Ana",
+      lastName: "Pérez",
+      isOnboarded: true,
+    });
 
     consumerContacts = buildConsumerContacts();
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/conversations",
-      status: 200,
-      body: consumerContacts.map((c) => ({
-        id: c.id.replace("conv-", ""),
-        status: "accepted",
-        counterpart: {
-          id: c.providerId,
-          role: "provider",
-          name: c.providerName,
-          surname: c.providerSurname,
-          category_name: "Plomería",
-        },
-        last_message: {
-          id: 1,
-          sender_role: "consumer",
-          content: c.lastMessage,
-          created_on: c.lastMessageAt,
-        },
-        updated_on: c.lastMessageAt,
-      })),
-    });
+    await this.stubGet("/conversations", mapContactsToConversations(consumerContacts, "provider"));
 
     const firstContact = consumerContacts[0];
-    const firstConvId = firstContact.id.replace("conv-", "");
-    await this.addApiStub({
-      method: "GET",
-      endpoint: `/conversations/${firstConvId}`,
-      status: 200,
-      body: {
-        id: Number(firstConvId),
+    const firstConvId = Number(firstContact.id.replace("conv-", ""));
+    await this.stubGet(
+      `/conversations/${firstConvId}`,
+      aConversationDetail({
+        id: firstConvId,
         status: "accepted",
-        counterpart: {
-          id: firstContact.providerId,
+        counterpart: aCounterpart({
+          id: Number(firstContact.counterpartId.replace(/[^0-9]/g, "") || 1),
           role: "provider",
-          name: firstContact.providerName,
-          surname: firstContact.providerSurname,
+          name: firstContact.counterpartName,
+          surname: firstContact.counterpartSurname,
           category_name: "Plomería",
-        },
-        messages: buildManyMessages(Number(firstConvId), firstContact.providerId, "provider"),
+        }),
+        messages: buildManyMessages(firstConvId, "provider"),
         updated_on: new Date().toISOString(),
-      },
-    });
+      })
+    );
 
     await this.page.goto(
       APP_URL +
         ROUTES.consumer.messages +
-        `?provider_id=${firstContact.providerId}&name=${firstContact.providerName}&surname=${firstContact.providerSurname}`,
+        `?provider_id=${firstContact.counterpartId}&name=${firstContact.counterpartName}&surname=${firstContact.counterpartSurname}`,
       { waitUntil: "networkidle" }
     );
 
@@ -222,55 +176,37 @@ Given(
 Given(
   "que estoy chateando con un consumidor con varios mensajes en la conversación",
   async function (this: CustomWorld) {
-    await setProviderSession(this);
+    await this.setSession("provider", {
+      id: "provider-001",
+      email: "prestador@loresuelvo.test",
+      firstName: "Paula",
+      lastName: "Rios",
+      isOnboarded: true,
+    });
 
     providerContacts = buildProviderContacts();
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/conversations",
-      status: 200,
-      body: providerContacts.map((c) => ({
-        id: c.id.replace("conv-", ""),
-        status: "accepted",
-        counterpart: {
-          id: c.consumerId,
-          role: "consumer",
-          name: c.consumerName,
-          surname: c.consumerSurname,
-          category_name: "Plomería",
-        },
-        last_message: {
-          id: 1,
-          sender_role: "consumer",
-          content: c.lastMessage,
-          created_on: c.lastMessageAt,
-        },
-        updated_on: c.lastMessageAt,
-      })),
-    });
+    await this.stubGet("/conversations", mapContactsToConversations(providerContacts, "consumer"));
 
     const firstContact = providerContacts[0];
-    const firstConvId = firstContact.id.replace("conv-", "");
-    await this.addApiStub({
-      method: "GET",
-      endpoint: `/conversations/${firstConvId}`,
-      status: 200,
-      body: {
-        id: Number(firstConvId),
+    const firstConvId = Number(firstContact.id.replace("conv-", ""));
+    await this.stubGet(
+      `/conversations/${firstConvId}`,
+      aConversationDetail({
+        id: firstConvId,
         status: "accepted",
-        counterpart: {
-          id: firstContact.consumerId,
+        counterpart: aCounterpart({
+          id: Number(firstContact.counterpartId.replace(/[^0-9]/g, "") || 1),
           role: "consumer",
-          name: firstContact.consumerName,
-          surname: firstContact.consumerSurname,
+          name: firstContact.counterpartName,
+          surname: firstContact.counterpartSurname,
           category_name: "Plomería",
-        },
-        messages: buildManyMessages(Number(firstConvId), firstContact.consumerId, "consumer"),
+        }),
+        messages: buildManyMessages(firstConvId, "consumer"),
         updated_on: new Date().toISOString(),
-      },
-    });
+      })
+    );
 
-    await this.page.goto(APP_URL + ROUTES.provider.messages + `?consumer_id=${firstContact.consumerId}`, {
+    await this.page.goto(APP_URL + ROUTES.provider.messages + `?consumer_id=${firstContact.counterpartId}`, {
       waitUntil: "networkidle",
     });
 
@@ -422,7 +358,7 @@ When("vuelvo a la conversación con el prestador", async function (this: CustomW
   await this.page.goto(
     APP_URL +
       ROUTES.consumer.messages +
-      `?provider_id=${firstContact.providerId}&name=${firstContact.providerName}&surname=${firstContact.providerSurname}`,
+      `?provider_id=${firstContact.counterpartId}&name=${firstContact.counterpartName}&surname=${firstContact.counterpartSurname}`,
     { waitUntil: "networkidle" }
   );
   const messagesList = this.page.locator("[data-testid='messages-list']");
@@ -446,18 +382,16 @@ When("envío el mensaje de borrador {string}", async function (this: CustomWorld
   const input = this.page.getByRole("textbox", { name: /escribe un mensaje/i });
   await input.waitFor({ state: "visible", timeout: 10000 });
 
-  await this.addApiStub({
-    method: "POST",
-    endpoint: "/conversations/1/messages",
-    status: 201,
-    body: {
+  await this.stubPost(
+    "/conversations/1/messages",
+    201,
+    aConversationMessage({
       id: 999,
-      conversation_id: 1,
       sender_role: "consumer",
       content: texto,
       created_on: new Date().toISOString(),
-    },
-  });
+    })
+  );
 
   await input.fill(texto);
   const sendButton = this.page.getByRole("button", { name: /enviar/i });
@@ -480,7 +414,7 @@ Then("si navego a la página de inicio y vuelvo, la caja de texto sigue vacía",
   await this.page.goto(
     APP_URL +
       ROUTES.consumer.messages +
-      `?provider_id=${firstContact.providerId}&name=${firstContact.providerName}&surname=${firstContact.providerSurname}`,
+      `?provider_id=${firstContact.counterpartId}&name=${firstContact.counterpartName}&surname=${firstContact.counterpartSurname}`,
     { waitUntil: "networkidle" }
   );
 
@@ -498,8 +432,8 @@ When("cambio a otra conversación y vuelvo a abrir la conversación original", a
   const contacts = isConsumer ? consumerContacts : providerContacts;
   const secondContact = contacts[1];
   const firstContact = contacts[0];
-  const otherFullName = `${secondContact.providerName ?? secondContact.consumerName} ${secondContact.providerSurname ?? secondContact.consumerSurname}`;
-  const firstFullName = `${firstContact.providerName ?? firstContact.consumerName} ${firstContact.providerSurname ?? firstContact.consumerSurname}`;
+  const otherFullName = `${secondContact.counterpartName} ${secondContact.counterpartSurname}`;
+  const firstFullName = `${firstContact.counterpartName} ${firstContact.counterpartSurname}`;
 
   const list = this.page.getByRole("list", { name: "Lista de conversaciones" });
   await list.waitFor({ state: "visible", timeout: 10000 });

@@ -2,62 +2,45 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-
+import { aConversation, aConversationDetail, aConversationMessage, aCounterpart } from "../support/factories";
 
 Given("que tengo una conversacion iniciada con un prestador", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: [
-      {
-        id: 1,
-        status: "pending",
-        counterpart: {
-          id: 20,
-          role: "provider",
-          name: "Juan",
-          surname: "Pérez",
-          category_name: "Plomería",
-          profile_photo_url: "https://example.com/a",
-        },
-        last_message: {
-          id: 1,
-          sender_role: "consumer",
-          content: "Hola",
-          created_on: "2026-05-31T12:00:00Z",
-        },
-        updated_on: "2026-05-31T12:00:00Z",
-      },
-    ],
+  const counterpart = aCounterpart({
+    id: 20,
+    role: "provider",
+    name: "Juan",
+    surname: "Pérez",
+    category_name: "Plomería",
+    profile_photo_url: "https://example.com/a",
   });
 
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations/1",
-    status: 200,
-    body: {
+  const message = aConversationMessage({
+    id: 1,
+    sender_role: "consumer",
+    content: "Hola",
+    created_on: "2026-05-31T12:00:00Z",
+  });
+
+  await this.stubGet("/conversations", [
+    aConversation({
       id: 1,
       status: "pending",
-      counterpart: {
-        id: 20,
-        role: "provider",
-        name: "Juan",
-        surname: "Pérez",
-        category_name: "Plomería",
-        profile_photo_url: "https://example.com/a",
-      },
-      messages: [
-        {
-          id: 1,
-          sender_role: "consumer",
-          content: "Hola",
-          created_on: "2026-05-31T12:00:00Z",
-        },
-      ],
+      counterpart,
+      last_message: message,
       updated_on: "2026-05-31T12:00:00Z",
-    },
-  });
+    }),
+  ]);
+
+  await this.stubGet(
+    "/conversations/1",
+    aConversationDetail({
+      id: 1,
+      status: "pending",
+      counterpart,
+      messages: [message],
+      updated_on: "2026-05-31T12:00:00Z",
+    })
+  );
 });
 
 Given("estoy en la seccion de mensajes del dashboard de cliente", async function (this: CustomWorld) {

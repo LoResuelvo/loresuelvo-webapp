@@ -2,39 +2,18 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { AuthSession } from "../../infrastructure/auth/types";
-import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
-
+import { aJobRequest } from "../support/factories";
 
 Given("que ingreso a la HomePage como prestador", async function (this: CustomWorld) {
-  const session: AuthSession = {
-    user: {
-      id: "provider-002",
-      email: "prestador@loresuelvo.test",
-      firstName: "Paula",
-      lastName: "Rios",
-      isOnboarded: true,
-      role: "provider",
-    },
-    accessToken: "mock-access-token",
-  };
-
-  await this.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/job-requests",
-    status: 200,
-    body: [],
+  await this.setSession("provider", {
+    id: "provider-002",
+    email: "prestador@loresuelvo.test",
+    firstName: "Paula",
+    lastName: "Rios",
+    isOnboarded: true,
   });
 
+  await this.stubGet("/job-requests", []);
   await this.page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "networkidle" });
   await this.page.waitForTimeout(500);
 });
@@ -148,88 +127,52 @@ Then("cada solicitud posee una acción {string}", async function (this: CustomWo
 });
 
 Given("que ingreso a la HomePage como prestador con solicitudes", async function (this: CustomWorld) {
-  const session: AuthSession = {
-    user: {
-      id: "provider-home-001",
-      email: "prestador@loresuelvo.test",
-      firstName: "Paula",
-      lastName: "Rios",
-      isOnboarded: true,
-      role: "provider",
-    },
-    accessToken: "mock-access-token",
-  };
-
-  await this.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/job-requests",
-    status: 200,
-    body: [
-      {
-        id: 1,
-        conversation_id: 1,
-        title: "Reparación de fuga en la cocina",
-        description: "Hola, necesito reparar una fuga de agua.",
-        requester: { name: "María", surname: "Fernández" },
-      },
-      {
-        id: 2,
-        conversation_id: 2,
-        title: "Instalación de luminarias",
-        description: "Busco instalar tres luces nuevas.",
-        requester: { name: "Javier", surname: "Torres" },
-      },
-    ],
+  await this.setSession("provider", {
+    id: "provider-home-001",
+    email: "prestador@loresuelvo.test",
+    firstName: "Paula",
+    lastName: "Rios",
+    isOnboarded: true,
   });
+
+  await this.stubGet("/job-requests", [
+    aJobRequest({
+      id: 1,
+      conversation_id: 1,
+      title: "Reparación de fuga en la cocina",
+      description: "Hola, necesito reparar una fuga de agua.",
+      requester: { name: "María", surname: "Fernández" },
+    }),
+    aJobRequest({
+      id: 2,
+      conversation_id: 2,
+      title: "Instalación de luminarias",
+      description: "Busco instalar tres luces nuevas.",
+      requester: { name: "Javier", surname: "Torres" },
+    }),
+  ]);
 
   await this.page.goto(APP_URL + ROUTES.provider.home);
 });
 
 Given("que ingreso a la HomePage como prestador con trabajos agendados", async function (this: CustomWorld) {
-  const session: AuthSession = {
-    user: {
-      id: "provider-home-001",
-      email: "prestador@loresuelvo.test",
-      firstName: "Paula",
-      lastName: "Rios",
-      isOnboarded: true,
-      role: "provider",
-    },
-    accessToken: "mock-access-token",
-  };
-
-  await this.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/job-requests",
-    status: 200,
-    body: [
-      {
-        id: 1,
-        conversation_id: 1,
-        title: "Reparación de fuga",
-        description: "Necesito reparar una fuga de agua.",
-        requester: { name: "Carlos", surname: "Méndez" },
-      },
-    ],
+  await this.setSession("provider", {
+    id: "provider-home-001",
+    email: "prestador@loresuelvo.test",
+    firstName: "Paula",
+    lastName: "Rios",
+    isOnboarded: true,
   });
+
+  await this.stubGet("/job-requests", [
+    aJobRequest({
+      id: 1,
+      conversation_id: 1,
+      title: "Reparación de fuga",
+      description: "Necesito reparar una fuga de agua.",
+      requester: { name: "Carlos", surname: "Méndez" },
+    }),
+  ]);
 
   await this.page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "networkidle" });
 });
@@ -279,43 +222,25 @@ Then("cada trabajo muestra el importe acordado", async function (this: CustomWor
 });
 
 Given("que ingreso a la HomePage como prestador con métricas", async function (this: CustomWorld) {
-  const session: AuthSession = {
-    user: {
-      id: "provider-home-001",
-      email: "prestador@loresuelvo.test",
-      firstName: "Paula",
-      lastName: "Rios",
-      isOnboarded: true,
-      role: "provider",
-    },
-    accessToken: "mock-access-token",
-  };
-
-  await this.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/job-requests",
-    status: 200,
-    body: [
-      {
-        id: 1,
-        conversation_id: 1,
-        title: "Reparación de fuga",
-        description: "Necesito reparar una fuga de agua.",
-        requester: { name: "Carlos", surname: "Méndez" },
-      },
-    ],
+  await this.setSession("provider", {
+    id: "provider-home-001",
+    email: "prestador@loresuelvo.test",
+    firstName: "Paula",
+    lastName: "Rios",
+    isOnboarded: true,
   });
 
-  await this.addApiStub({ method: "GET", endpoint: "/service-proposals", status: 200, body: [] });
+  await this.stubGet("/job-requests", [
+    aJobRequest({
+      id: 1,
+      conversation_id: 1,
+      title: "Reparación de fuga",
+      description: "Necesito reparar una fuga de agua.",
+      requester: { name: "Carlos", surname: "Méndez" },
+    }),
+  ]);
+
+  await this.stubGet("/service-proposals", []);
   await this.page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "networkidle" });
 });
 
@@ -376,41 +301,23 @@ Then("visualizo el indicador de variación", async function (this: CustomWorld) 
 Given("que la API aún no se encuentra disponible", async function (this: CustomWorld) {});
 
 Given("ingreso a la HomePage como prestador con datos simulados", async function (this: CustomWorld) {
-  const session: AuthSession = {
-    user: {
-      id: "provider-home-001",
-      email: "prestador@loresuelvo.test",
-      firstName: "Paula",
-      lastName: "Rios",
-      isOnboarded: true,
-      role: "provider",
-    },
-    accessToken: "mock-access-token",
-  };
-
-  await this.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/job-requests",
-    status: 200,
-    body: [
-      {
-        id: 1,
-        conversation_id: 1,
-        title: "Reparación de fuga en la cocina",
-        description: "Hola, necesito reparar una fuga de agua.",
-        requester: { name: "María", surname: "Fernández" },
-      },
-    ],
+  await this.setSession("provider", {
+    id: "provider-home-001",
+    email: "prestador@loresuelvo.test",
+    firstName: "Paula",
+    lastName: "Rios",
+    isOnboarded: true,
   });
+
+  await this.stubGet("/job-requests", [
+    aJobRequest({
+      id: 1,
+      conversation_id: 1,
+      title: "Reparación de fuga en la cocina",
+      description: "Hola, necesito reparar una fuga de agua.",
+      requester: { name: "María", surname: "Fernández" },
+    }),
+  ]);
 
   await this.page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "networkidle" });
   await this.page.waitForTimeout(500);

@@ -2,6 +2,7 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import { CustomWorld, APP_URL } from "../support/world";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
+import { aCategory, aProvider } from "../support/factories";
 
 const CONSUMER_URL = APP_URL + ROUTES.consumer.home;
 
@@ -10,16 +11,11 @@ Given("estoy en el home de consumidores", async function (this: CustomWorld) {
 });
 
 Given("existen los rubros Plomería, Electricista y Gasista", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/categories",
-    status: 200,
-    body: [
-      { id: 1, name: "Plomería", description: "" },
-      { id: 2, name: "Electricista", description: "" },
-      { id: 3, name: "Gasista", description: "" },
-    ],
-  });
+  await this.stubGet("/categories", [
+    aCategory({ id: 1, name: "Plomería", description: "" }),
+    aCategory({ id: 2, name: "Electricista", description: "" }),
+    aCategory({ id: 3, name: "Gasista", description: "" }),
+  ]);
 });
 
 Given("existen los siguientes prestadores registrados:", async function (this: CustomWorld, dataTable) {
@@ -32,22 +28,19 @@ Given("existen los siguientes prestadores registrados:", async function (this: C
       providersByCategory[categoryId] = [];
     }
 
-    providersByCategory[categoryId].push({
-      id: parseInt(provider.id.replace("prov-", "")),
-      name: provider.name,
-      surname: provider.surname,
-      category_name: provider.category_name,
-      profile_photo_url: provider.profile_photo_url,
-    });
+    providersByCategory[categoryId].push(
+      aProvider({
+        id: parseInt(provider.id.replace("prov-", "")),
+        name: provider.name,
+        surname: provider.surname,
+        category_name: provider.category_name,
+        profile_photo_url: provider.profile_photo_url,
+      })
+    );
   }
 
   for (const [categoryId, providersList] of Object.entries(providersByCategory)) {
-    await this.addApiStub({
-      method: "GET",
-      endpoint: `/providers?category_id=${categoryId}`,
-      status: 200,
-      body: providersList,
-    });
+    await this.stubGet(`/providers?category_id=${categoryId}`, providersList);
   }
 });
 
@@ -65,12 +58,7 @@ Given(
       throw new Error(`Category ID not found for: ${categoryName}`);
     }
 
-    await this.addApiStub({
-      method: "GET",
-      endpoint: `/providers?category_id=${categoryId}`,
-      status: 200,
-      body: [],
-    });
+    await this.stubGet(`/providers?category_id=${categoryId}`, []);
   }
 );
 

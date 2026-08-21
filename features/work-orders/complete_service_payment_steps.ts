@@ -7,6 +7,7 @@ import {
   aServiceBalanceCheckoutSession,
 } from "../support/factories";
 import { openWorkOrderDetailModal } from "./view_work_order_detail_steps";
+import { ROUTES } from "../../lib/routes";
 
 const PROPOSAL_ID = 10;
 const WORK_ORDER_ID = 10;
@@ -139,3 +140,88 @@ Then(
     );
   }
 );
+
+Given(
+  "que la creación del checkout del saldo está en curso",
+  async function (this: CustomWorld) {
+    (this as any).balanceCheckoutRequestCount = 0;
+    await this.stubPost(
+      `/work-orders/${WORK_ORDER_ID}/checkout-sessions`,
+      200,
+      aServiceBalanceCheckoutSession({
+        payment_intent_id: PAYMENT_INTENT_ID,
+        checkout_url: CHECKOUT_URL,
+      })
+    );
+    await this.page.route(CHECKOUT_URL, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: "<html><body>Mercado Pago Checkout</body></html>",
+      });
+    });
+    await this.page.route(`**${ROUTES.consumer.services}**`, async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.continue();
+        return;
+      }
+      (this as any).balanceCheckoutRequestCount =
+        ((this as any).balanceCheckoutRequestCount || 0) + 1;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await route.continue();
+    });
+  }
+);
+
+When(
+  "intento pagar el saldo dos veces",
+  async function (this: CustomWorld) {
+    const modal = this.page.getByTestId("work-order-detail-modal");
+    const isVisible = await modal.isVisible().catch(() => false);
+    if (!isVisible) {
+      await openWorkOrderDetailModal(this);
+    }
+
+    const payButton = this.page.getByRole("button", {
+      name: /Pagar saldo del servicio|Preparando pago/i,
+    });
+    await payButton.waitFor({ state: "visible", timeout: 10_000 });
+
+    (this as any).balanceCheckoutRequestCount = 0;
+
+    await payButton.evaluate((element: HTMLButtonElement) => {
+      element.click();
+      element.click();
+    });
+  }
+);
+
+Then(
+  "la acción de pagar saldo permanece deshabilitada durante la solicitud",
+  async function (this: CustomWorld) {
+    const payButton = this.page.getByRole("button", {
+      name: /Preparando pago/i,
+    });
+    await payButton.waitFor({ state: "visible", timeout: 10_000 });
+    const isDisabled = await payButton.isDisabled();
+    const ariaBusy = await payButton.getAttribute("aria-busy");
+    assert.ok(
+      isDisabled || ariaBusy === "true",
+      "La acción de pagar saldo debe permanecer deshabilitada durante la solicitud"
+    );
+  }
+);
+
+Then(
+  "se solicita un único checkout para el saldo de la orden",
+  async function (this: CustomWorld) {
+    await this.page.waitForURL(CHECKOUT_URL, { timeout: 10_000 });
+    const count = (this as any).balanceCheckoutRequestCount ?? 0;
+    assert.strictEqual(
+      count,
+      1,
+      `Se esperaba un único request de checkout pero se registraron ${count}`
+    );
+  }
+);
+

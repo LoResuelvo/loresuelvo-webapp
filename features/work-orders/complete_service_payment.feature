@@ -26,7 +26,6 @@ Feature: US-28 Completar pago del servicio
         | 201        |
         | 200        |
 
-    @wip
     Scenario: 03-CSP Evitar solicitudes duplicadas al iniciar el pago del saldo
       Given que la creación del checkout del saldo está en curso
       When intento pagar el saldo dos veces

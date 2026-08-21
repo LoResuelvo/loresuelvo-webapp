@@ -67,34 +67,44 @@ export function mapApiServiceProposal(
 
 ---
 
-## 4. Catálogo de Patrones de Dominio
+## 4. Arquetipos Canónicos de Referencia (Ejemplos Modelo)
 
-### A. Value Object `Money` (`domain/shared/Money.ts`)
+No es necesario registrar cada nueva entidad en esta skill; cualquier nuevo módulo que se cree en `domain/` debe seguir uno de estos dos arquetipos de diseño:
 
-- Encapsula cantidad en centavos enteros y moneda.
-- Provee formateo monetario estándar (`$ 15.000,00`).
-- Operaciones matemáticas seguras (`add`, `subtract`, `percentage`).
+### Arquetipo 1: Value Object Puro (Ejemplo: `Money` en `domain/shared/Money.ts`)
 
-### B. Value Object `ScheduledDateTime` (`domain/shared/ScheduledDateTime.ts`)
+Úsese para encapsular datos primitivos con invariantes matemáticas, formatos o rangos (ej. Dinero, Fechas ISO, Calificaciones, Porcentajes).
 
-- Encapsula fechas ISO strings con validación de validez.
-- Provee formateo para vistas (`"20/08/2026 - 10:00 hs"`, `"20/08/2026"`).
-- Comparaciones temporales (`isPast`, `isFuture`).
+- Tipo inmutable con `readonly`.
+- `create()` valida la invariante (ej. entero no negativo).
+- Funciones puras de operación y formateo (`add`, `format`).
 
-### C. Entidad de Negocio `ServiceProposal` (`domain/messaging/ServiceProposal.ts`)
+### Arquetipo 2: Entidad de Dominio con Reglas de Estado (Ejemplo: `ServiceProposal` en `domain/messaging/ServiceProposal.ts`)
 
-- Encapsula el ciclo de vida y reglas de aceptación/rechazo de propuestas.
-- Preguntas de negocio: `ServiceProposal.canBeAccepted(proposal, isConsumer)`.
-- Metadatos visuales: `ServiceProposal.getStatusBadge(proposal)`.
+Úsese para entidades de negocio con ciclo de vida o permisos (ej. Propuestas, Órdenes, Sesiones).
 
-### D. Entidad de Negocio `WorkOrder` (`domain/work-order/WorkOrder.ts`)
-
-- Encapsula el ciclo de vida de la orden de trabajo (`scheduled` -> `awaiting_payment` -> `paid`).
-- Reglas: `WorkOrder.canBeCompleted(order, isProvider, now)`.
+- Predicados de negocio (_Tell Don't Ask_): `Type.canBeAccepted(item, isConsumer)`.
+- Metadatos visuales centralizados: `Type.getStatusBadge(item)`.
 
 ---
 
-## 5. Disciplina de Testing (TDD Estricto)
+## 5. Principios Fundamentales de Ingeniería de Software
+
+1. **Tell, Don't Ask (Dile, no le preguntes)**:
+   - La UI no debe inspeccionar estados anidados con operadores lógicos complejos (`if (status === 'pending' && !isProvider)`).
+   - Siempre se debe delegar la decisión en el módulo de dominio (`if (ServiceProposal.canBeAccepted(proposal, isConsumer))`).
+2. **Ley de Deméter (Principio de Mínimo Conocimiento)**:
+   - Evitar cadenas de navegación profundas en componentes (`order.proposal.provider.category.name`).
+   - El mapper o el módulo de dominio deben aplanar o proveer selectores limpios.
+3. **Nombres que Revelan Intención (_Intention-Revealing Interfaces_)**:
+   - El código debe ser auto-documentado.
+   - Prohibido el uso de variables genéricas (`data`, `res`, `info`, `temp`, `item`, `val`) en favor de términos del **Lenguaje Ubicuo** (`serviceProposal`, `bookingDeposit`, `workOrder`).
+4. **Regla del Boy Scout (_The Boy Scout Rule_)**:
+   - _"Dejar el código más limpio de lo que se encontró"_. Si se detecta un helper procedural obsoleto o lógica de negocio dispersa en un componente, debe migrarse al dominio correspondiente.
+
+---
+
+## 6. Disciplina de Testing (TDD Estricto)
 
 1. **Tests Unitarios de Dominio**: Cada módulo en `domain/` DEBE tener su archivo `.test.ts` que valide:
    - Invariantes en el constructor (ej. centavos negativos deben arrojar error).
@@ -103,7 +113,7 @@ export function mapApiServiceProposal(
 
 ---
 
-## 6. Quality Gates & Convenciones de Commit
+## 7. Quality Gates & Convenciones de Commit
 
 Antes de commitear cualquier cambio de dominio:
 
@@ -111,4 +121,4 @@ Antes de commitear cualquier cambio de dominio:
 2. `npx tsc --noEmit` (0 errores de tipos).
 3. `npm run test` (todos los tests pasando).
 4. `npm run build` (build Next.js exitoso).
-5. **Commits sin User Story**: Formato Conventional Commits `refactor: ...`, `fix: ...`, `test: ...` **sin corchetes `[]`**.
+5. **Commits sin User Story**: Formato Conventional Commits `refactor: ...`, `fix: ...`, `test: ...` **sin corchetes `[]` ni paréntesis `()`**.

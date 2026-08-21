@@ -1,11 +1,11 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
-import { CustomWorld, APP_URL } from "../support/world";
+import { CustomWorld, APP_URL, visibleTimeout } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { aConversation } from "../support/factories";
+import { aConversation, aConversationDetail, aCounterpart, aJobRequest } from "../support/factories";
 
 const mockJobRequests = [
-  {
+  aJobRequest({
     id: 1,
     conversation_id: 1,
     title: "Reparación de fuga en la cocina",
@@ -14,8 +14,8 @@ const mockJobRequests = [
       name: "María",
       surname: "Fernández",
     },
-  },
-  {
+  }),
+  aJobRequest({
     id: 2,
     conversation_id: 2,
     title: "Instalación de luminarias",
@@ -24,7 +24,7 @@ const mockJobRequests = [
       name: "Javier",
       surname: "Torres",
     },
-  },
+  }),
 ];
 
 async function setProviderSession(world: CustomWorld) {
@@ -49,7 +49,7 @@ When("accedo al dashboard de prestador", async function (this: CustomWorld) {
 
 Then("visualizo las solicitudes pendientes en la sección {string}", async function (this: CustomWorld, sectionName: string) {
   const section = this.page.getByRole("region", { name: sectionName });
-  await section.waitFor({ state: "visible" });
+  await section.waitFor(visibleTimeout);
   assert.ok(await section.isVisible(), `No se visualiza la sección "${sectionName}"`);
 });
 
@@ -63,13 +63,13 @@ Given("que visualizo una solicitud pendiente", async function (this: CustomWorld
 
 When("hago clic en {string}", async function (this: CustomWorld, buttonName: string) {
   const button = this.page.getByRole("button", { name: new RegExp(buttonName, "i") }).first();
-  await button.waitFor({ state: "visible" });
+  await button.waitFor(visibleTimeout);
   await button.click();
 });
 
 Then("se muestra el detalle de la solicitud", async function (this: CustomWorld) {
   const modal = this.page.getByRole("dialog", { name: "Detalle de Solicitud" });
-  await modal.waitFor({ state: "visible" });
+  await modal.waitFor(visibleTimeout);
   assert.ok(await modal.isVisible(), "No se muestra el modal de detalle");
 });
 
@@ -80,13 +80,13 @@ Then("visualizo:", async function (this: CustomWorld, dataTable: { raw: () => st
   for (const field of fields) {
     switch (field) {
       case "nombre del consumidor":
-        await modal.getByText("María Fernández").waitFor({ state: "visible" });
+        await modal.getByText("María Fernández").waitFor(visibleTimeout);
         break;
       case "fecha de creación":
-        await modal.getByText(/Ahora|Hace/).waitFor({ state: "visible" });
+        await modal.getByText(/Ahora|Hace/).waitFor(visibleTimeout);
         break;
       case "descripción del problema":
-        await modal.getByText(/fuga en la cocina/i).waitFor({ state: "visible" });
+        await modal.getByText(/fuga en la cocina/i).waitFor(visibleTimeout);
         break;
       case "categoría":
       case "ubicación":
@@ -101,21 +101,19 @@ Given("que me encuentro visualizando el detalle de una solicitud pendiente", asy
   await this.stubGet("/job-requests", mockJobRequests);
   await this.stubPost("/job-requests/1/accept", 200, {});
 
-  await this.stubGet("/conversations/1", {
+  await this.stubGet("/conversations/1", aConversationDetail({
     id: 1,
     status: "pending",
-    work: {
-      counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández", category_name: "Plomería" },
-    },
+    counterpart: aCounterpart({ id: 10, role: "consumer", name: "María", surname: "Fernández", category_name: "Plomería" }),
     messages: [],
     updated_on: "2026-06-03T12:00:00Z",
-  });
+  }));
 
   await this.stubGet("/conversations", [
     aConversation({
       id: 1,
       status: "pending",
-      counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández", category_name: "Plomería" },
+      counterpart: aCounterpart({ id: 10, role: "consumer", name: "María", surname: "Fernández", category_name: "Plomería" }),
       last_message: undefined,
       updated_on: "2026-06-03T12:00:00Z",
     }),
@@ -125,11 +123,11 @@ Given("que me encuentro visualizando el detalle de una solicitud pendiente", asy
   await this.page.waitForLoadState("networkidle");
 
   const viewButton = this.page.getByRole("button", { name: /Ver Solicitud/i }).first();
-  await viewButton.waitFor({ state: "visible" });
+  await viewButton.waitFor(visibleTimeout);
   await viewButton.click();
 
   const modal = this.page.getByRole("dialog", { name: "Detalle de Solicitud" });
-  await modal.waitFor({ state: "visible" });
+  await modal.waitFor(visibleTimeout);
 });
 
 Then("la solicitud cambia a estado aceptada", async function (this: CustomWorld) {
@@ -153,25 +151,25 @@ Given("que estoy visualizando el detalle de una solicitud", async function (this
   await this.page.waitForLoadState("networkidle");
 
   const viewButton = this.page.getByRole("button", { name: /Ver Solicitud/i }).first();
-  await viewButton.waitFor({ state: "visible" });
+  await viewButton.waitFor(visibleTimeout);
   await viewButton.click();
 
   const modal = this.page.getByRole("dialog", { name: "Detalle de Solicitud" });
-  await modal.waitFor({ state: "visible" });
+  await modal.waitFor(visibleTimeout);
 });
 
 When("cierro la ventana de detalle", async function (this: CustomWorld) {
   const closeButton = this.page.getByRole("button", { name: /Cerrar/i });
-  await closeButton.waitFor({ state: "visible" });
+  await closeButton.waitFor(visibleTimeout);
   await closeButton.click();
 });
 
 Then("regreso al dashboard de prestador", async function (this: CustomWorld) {
   const section = this.page.getByRole("region", { name: "Solicitudes de Trabajo" });
-  await section.waitFor({ state: "visible" });
+  await section.waitFor(visibleTimeout);
 });
 
 Then("continúo visualizando la lista de solicitudes pendientes", async function (this: CustomWorld) {
   const list = this.page.getByRole("list", { name: "Lista de solicitudes de trabajo" });
-  await list.waitFor({ state: "visible" });
+  await list.waitFor(visibleTimeout);
 });

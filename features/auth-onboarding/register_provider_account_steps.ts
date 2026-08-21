@@ -35,8 +35,8 @@ Given(
   "elegí el rubro {string} de la lista en la pagina de registro de LoResuelvo",
   async function (this: CustomWorld, rubro: string) {
     const select = this.page.getByLabel("Rubro").or(this.page.locator("select")).first();
-    await select.waitFor({ state: "visible" });
-    await select.selectOption({ label: rubro });
+    await select.waitFor();
+    await select.selectOption(rubro);
   }
 );
 
@@ -50,7 +50,7 @@ Then("soy redirigido al home de prestadores", async function (this: CustomWorld)
 
 Then("veo un mensaje de error {string}", async function (this: CustomWorld, errorMessage: string) {
   const errorText = this.page.getByText(errorMessage).first();
-  await errorText.waitFor({ state: "visible" });
+  await errorText.waitFor();
   assert.ok(await errorText.isVisible(), `No se encontró el mensaje de error: "${errorMessage}"`);
 });
 

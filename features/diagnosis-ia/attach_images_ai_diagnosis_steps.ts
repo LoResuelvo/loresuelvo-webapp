@@ -1,8 +1,8 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
-import { CustomWorld, APP_URL } from "../support/world";
+import { CustomWorld, APP_URL, visibleTimeout, attachedTimeout, waitTimeout, attachedState } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { aPresignedUpload, aConfirmedFile, aAiConversation } from "../support/factories";
+import { aPresignedUpload, aConfirmedFile, aAiConversation, aAiConversationDetail, anAiMessage, aMessageImage, anApiError } from "../support/factories";
 
 let currentDiagnosisImages: string[] = [];
 
@@ -32,92 +32,45 @@ async function stubDiagnosisFileUpload(world: CustomWorld, fileName: string, fil
 }
 
 function buildAiConversationResponse(images: string[] = [], content: string = "") {
-  return {
+  return aAiConversationDetail({
     id: 1,
-    conversation_id: 1,
-    status: "active",
     title: "Pérdida de agua",
     response_status: "answered",
     messages: [
-      {
+      anAiMessage({
         id: 1,
         sender_role: "consumer",
         content: "Se está filtrando agua debajo de la bacha",
         created_on: "2026-06-18T10:00:00Z",
-      },
-      {
+      }),
+      anAiMessage({
         id: 2,
         sender_role: "chatbot",
         content: "Revisá si el agua sale desde la rosca del sifón.",
         created_on: "2026-06-18T10:00:01Z",
-      },
-      {
+      }),
+      anAiMessage({
         id: 3,
         sender_role: "consumer",
         content,
-        images: images.map((name, idx) => ({
-          id: `mock-diag-file-${idx}`,
-          url: `/${name}`,
-          original_name: name,
-        })),
+        images: images.map((name, idx) => aMessageImage({ id: `mock-diag-file-${idx}`, url: `/${name}`, original_name: name })),
         created_on: new Date().toISOString(),
-      },
-      {
+      }),
+      anAiMessage({
         id: 4,
         sender_role: "chatbot",
         content: "Por la imagen, parece ser una fuga en la unión del sifón. Te recomiendo contactar un plomero.",
         created_on: new Date().toISOString(),
-      },
+      }),
     ],
-    response: {
-      id: 4,
-      sender_role: "chatbot",
-      content: "Por la imagen, parece ser una fuga en la unión del sifón. Te recomiendo contactar un plomero.",
-      created_on: new Date().toISOString(),
-    },
     recommended_providers: [],
-  };
+  });
 }
 
 Given("tengo una conversación activa con el asistente de diagnóstico", async function (this: CustomWorld) {
   currentDiagnosisImages = [];
-
-  await this.stubGet("/chatbot/conversations", [
-    aAiConversation({
-      id: 1,
-      title: "Pérdida de agua",
-      last_message: {
-        id: 2,
-        sender_role: "chatbot",
-        content: "Revisá si el agua sale desde la rosca del sifón.",
-        created_on: "2026-06-18T10:00:01Z",
-      },
-      updated_on: "2026-06-18T10:00:01Z",
-    }),
-  ]);
-
-  await this.stubGet("/conversations/1", {
-    id: 1,
-    conversation_id: 1,
-    status: "active",
-    title: "Pérdida de agua",
-    response_status: "answered",
-    messages: [
-      {
-        id: 1,
-        sender_role: "consumer",
-        content: "Se está filtrando agua debajo de la bacha",
-        created_on: "2026-06-18T10:00:00Z",
-      },
-      {
-        id: 2,
-        sender_role: "chatbot",
-        content: "Revisá si el agua sale desde la rosca del sifón.",
-        created_on: "2026-06-18T10:00:01Z",
-      },
-    ],
-    recommended_providers: [],
-  });
+  await this.stubGet("/chatbot/conversations", [aAiConversation()]);
+  await this.stubGet("/conversations/1", aAiConversationDetail());
 });
 
 Given("estoy en el chat con el asistente de diagnóstico", async function (this: CustomWorld) {
@@ -133,16 +86,11 @@ Given("adjunté la imagen {string} para el diagnóstico", async function (this: 
   await this.page.getByRole("button", { name: /adjuntar/i }).click();
   const fileChooser = await fileChooserPromise;
 
-  await fileChooser.setFiles([
-    {
-      name: imagen,
-      mimeType: "image/jpeg",
-      buffer: Buffer.from("mock-image-data"),
-    },
-  ]);
+  const fileData = { name: imagen, mimeType: "image/jpeg", buffer: Buffer.from("mock-image-data") };
+  await fileChooser.setFiles([fileData]);
 
   const thumbnail = this.page.getByRole("img", { name: `Vista previa de ${imagen}` });
-  await thumbnail.waitFor({ state: "visible", timeout: 2000 }).catch(() => {});
+  await thumbnail.waitFor(visibleTimeout).catch(() => {});
 });
 
 Given("adjunté las imágenes {string} y {string} para el diagnóstico", async function (this: CustomWorld, img1: string, img2: string) {
@@ -168,13 +116,8 @@ When("adjunto una imagen {string} desde la galería", async function (this: Cust
   await this.page.getByRole("button", { name: /adjuntar/i }).click();
   const fileChooser = await fileChooserPromise;
 
-  await fileChooser.setFiles([
-    {
-      name: imagen,
-      mimeType: "image/jpeg",
-      buffer: Buffer.from("mock-image-data"),
-    },
-  ]);
+  const fileData = { name: imagen, mimeType: "image/jpeg", buffer: Buffer.from("mock-image-data") };
+  await fileChooser.setFiles([fileData]);
 });
 
 When("elimino la imagen {string} del área de adjuntos", async function (this: CustomWorld, imagen: string) {
@@ -185,7 +128,7 @@ When("elimino la imagen {string} del área de adjuntos", async function (this: C
 
 When("reviso las imágenes adjuntas antes de enviar", async function (this: CustomWorld) {
   const attachmentArea = this.page.locator('[role="region"][aria-label*="adjunt"], [aria-label*="Vista previa"]').first();
-  await attachmentArea.waitFor({ state: "visible", timeout: 2000 });
+  await attachmentArea.waitFor(visibleTimeout);
 });
 
 When("envío el mensaje de diagnóstico {string}", async function (this: CustomWorld, mensaje: string) {
@@ -218,19 +161,14 @@ When("envío el mensaje de diagnóstico sin texto", async function (this: Custom
 });
 
 When("la carga de la imagen {string} falla por un error del servidor", async function (this: CustomWorld, imagen: string) {
-  await this.stubPost("/files/presign", 500, { error: "Internal Server Error" });
+  await this.stubPost("/files/presign", 500, anApiError("Internal Server Error"));
 
   const fileChooserPromise = this.page.waitForEvent("filechooser");
   await this.page.getByRole("button", { name: /adjuntar/i }).click();
   const fileChooser = await fileChooserPromise;
 
-  await fileChooser.setFiles([
-    {
-      name: imagen,
-      mimeType: "image/jpeg",
-      buffer: Buffer.from("mock-image-data"),
-    },
-  ]);
+  const fileData = { name: imagen, mimeType: "image/jpeg", buffer: Buffer.from("mock-image-data") };
+  await fileChooser.setFiles([fileData]);
 });
 
 When("envío el mensaje de diagnóstico {string} y el procesamiento falla", async function (this: CustomWorld, mensaje: string) {
@@ -238,7 +176,7 @@ When("envío el mensaje de diagnóstico {string} y el procesamiento falla", asyn
     await route.fulfill({
       status: 500,
       contentType: "application/json",
-      body: JSON.stringify({ error: "Internal Server Error" }),
+      body: JSON.stringify(anApiError("Internal Server Error")),
     });
   });
 
@@ -258,18 +196,13 @@ When("adjunto una imagen {string} que supera los 5MB en el diagnóstico", async 
 
   const largeBuffer = Buffer.alloc(5.1 * 1024 * 1024);
 
-  await fileChooser.setFiles([
-    {
-      name: imagen,
-      mimeType: "image/jpeg",
-      buffer: largeBuffer,
-    },
-  ]);
+  const fileData = { name: imagen, mimeType: "image/jpeg", buffer: largeBuffer };
+  await fileChooser.setFiles([fileData]);
 });
 
 Then("veo la vista previa de la imagen {string} en el área de adjuntos", async function (this: CustomWorld, imagen: string) {
   const thumbnail = this.page.getByRole("img", { name: `Vista previa de ${imagen}` });
-  await thumbnail.waitFor({ state: "visible", timeout: 2000 });
+  await thumbnail.waitFor(visibleTimeout);
   assert.ok(await thumbnail.isVisible(), `La vista previa de ${imagen} no se muestra`);
 });
 
@@ -281,7 +214,7 @@ Then("la imagen {string} ya no aparece en el área de adjuntos", async function 
 
 Then("el sistema muestra mi mensaje con la imagen {string} en el chat", async function (this: CustomWorld, imagen: string) {
   const sentImage = this.page.getByRole("img", { name: `Imagen adjunta ${imagen}` }).first();
-  await sentImage.waitFor({ state: "visible", timeout: 3000 });
+  await sentImage.waitFor(visibleTimeout);
   assert.ok(await sentImage.isVisible(), `La imagen ${imagen} no se muestra en el chat`);
 });
 
@@ -289,25 +222,25 @@ Then("el asistente recibe el mensaje con la imagen para procesar el diagnóstico
   const reply = this.page
     .getByText("Por la imagen, parece ser una fuga en la unión del sifón. Te recomiendo contactar un plomero.")
     .first();
-  await reply.waitFor({ state: "visible", timeout: 5000 });
+  await reply.waitFor(visibleTimeout);
   assert.ok(await reply.isVisible(), "No se ve la respuesta del asistente tras enviar la imagen");
 });
 
 Then("veo un mensaje de error indicando que no se pudo cargar la imagen", async function (this: CustomWorld) {
   const errorMsg = this.page.getByText(/no se pudo cargar la imagen/i);
-  await errorMsg.waitFor({ state: "visible", timeout: 2000 });
+  await errorMsg.waitFor(visibleTimeout);
   assert.ok(await errorMsg.isVisible(), "No se muestra el error de carga de imagen");
 });
 
 Then("puedo reintentar la carga", async function (this: CustomWorld) {
   const retryBtn = this.page.getByRole("button", { name: /reintentar/i });
-  await retryBtn.waitFor({ state: "visible", timeout: 2000 });
+  await retryBtn.waitFor(visibleTimeout);
   assert.ok(await retryBtn.isVisible(), "No se ve el botón para reintentar la carga");
 });
 
 Then("veo un mensaje de error indicando que la imagen es demasiado grande", async function (this: CustomWorld) {
   const errorMsg = this.page.getByText(/no debe superar los 5MB/i);
-  await errorMsg.waitFor({ state: "visible", timeout: 2000 });
+  await errorMsg.waitFor(visibleTimeout);
   assert.ok(await errorMsg.isVisible(), "No se muestra el error de tamaño de imagen");
 });
 
@@ -321,39 +254,27 @@ function buildHomeAiConversationResponse(
   images: string[] = [],
   content: string = "Se está filtrando agua debajo de la bacha"
 ) {
-  return {
+  return aAiConversationDetail({
     id: 1,
-    conversation_id: 1,
-    status: "active",
     title: "Pérdida de agua",
     response_status: "answered",
     messages: [
-      {
+      anAiMessage({
         id: 1,
         sender_role: "consumer",
         content,
-        images: images.map((name, idx) => ({
-          id: `mock-diag-file-${idx}`,
-          url: `/${name}`,
-          original_name: name,
-        })),
+        images: images.map((name, idx) => aMessageImage({ id: `mock-diag-file-${idx}`, url: `/${name}`, original_name: name })),
         created_on: "2026-06-18T10:00:00Z",
-      },
-      {
+      }),
+      anAiMessage({
         id: 2,
         sender_role: "chatbot",
         content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
         created_on: "2026-06-18T10:00:01Z",
-      },
+      }),
     ],
-    response: {
-      id: 2,
-      sender_role: "chatbot",
-      content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
-      created_on: "2026-06-18T10:00:01Z",
-    },
     recommended_providers: [],
-  };
+  });
 }
 
 Given("adjunté la imagen {string} en el campo de diagnóstico", async function (this: CustomWorld, imagen: string) {
@@ -367,16 +288,11 @@ Given("adjunté la imagen {string} en el campo de diagnóstico", async function 
   await this.page.getByRole("button", { name: /adjuntar/i }).click();
   const fileChooser = await fileChooserPromise;
 
-  await fileChooser.setFiles([
-    {
-      name: imagen,
-      mimeType: "image/jpeg",
-      buffer: Buffer.from("mock-image-data"),
-    },
-  ]);
+  const fileData = { name: imagen, mimeType: "image/jpeg", buffer: Buffer.from("mock-image-data") };
+  await fileChooser.setFiles([fileData]);
 
   const thumbnail = this.page.getByRole("img", { name: `Vista previa de ${imagen}` });
-  await thumbnail.waitFor({ state: "visible", timeout: 2000 }).catch(() => {});
+  await thumbnail.waitFor(visibleTimeout).catch(() => {});
 });
 
 When(
@@ -392,12 +308,7 @@ When(
     await this.page.getByRole("button", { name: /adjuntar/i }).click();
     const fileChooser = await fileChooserPromise;
 
-    await fileChooser.setFiles([
-      {
-        name: imagen,
-        mimeType: "image/jpeg",
-        buffer: Buffer.from("mock-image-data"),
-      },
-    ]);
+    const fileData = { name: imagen, mimeType: "image/jpeg", buffer: Buffer.from("mock-image-data") };
+  await fileChooser.setFiles([fileData]);
   }
 );

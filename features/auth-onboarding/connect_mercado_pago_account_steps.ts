@@ -1,6 +1,6 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import { CustomWorld, APP_URL } from "../support/world";
-import { aPaymentAccount, aPaymentAuthorization } from "../support/factories";
+import { aPaymentAccount, aConnectedPaymentAccount, aPaymentAuthorization, aProvider } from "../support/factories";
 import assert from "assert";
 
 When("finalizo el registro como prestador", async function (this: CustomWorld) {
@@ -13,10 +13,10 @@ When("finalizo el registro como prestador", async function (this: CustomWorld) {
     });
   });
 
-  await this.stubPost("/providers", 201, {
-    id: "mock-provider-001",
+  await this.stubPost("/providers", 201, aProvider({
+    id: 1,
     profile_photo_url: "http://localhost:3001/mock-s3-url/avatar.png",
-  });
+  }));
 
   await this.stubPost(
     "/providers/me/payment-accounts/authorization",
@@ -24,32 +24,26 @@ When("finalizo el registro como prestador", async function (this: CustomWorld) {
     aPaymentAuthorization()
   );
 
-  await this.stubGet(
-    "/providers/me/payment-accounts",
-    aPaymentAccount({
-      status: "pending",
-      can_receive_payments: false,
-      can_send_service_proposals: false,
-    })
-  );
+  await this.stubGet("/providers/me/payment-accounts", aPaymentAccount());
 
   const button = this.page.getByRole("button", { name: "Finalizar Registro" }).first();
-  await button.waitFor({ state: "visible" });
+  await button.waitFor();
   await button.click();
 });
 
 Then("veo la pantalla de conexión de Mercado Pago", async function (this: CustomWorld) {
   const title = this.page.getByText("Conectá tu cuenta de Mercado Pago").first();
-  await title.waitFor({ state: "visible" });
+  await title.waitFor();
   assert.ok(await title.isVisible(), "No se muestra la pantalla de conexión de Mercado Pago");
 });
 
 Then("veo un botón {string}", async function (this: CustomWorld, buttonName: string) {
+  const options = { name: buttonName };
   const button = this.page
-    .getByRole("button", { name: buttonName })
-    .or(this.page.getByRole("link", { name: buttonName }))
+    .getByRole("button", options)
+    .or(this.page.getByRole("link", options))
     .first();
-  await button.waitFor({ state: "visible" });
+  await button.waitFor();
   assert.ok(await button.isVisible(), `No se encontró el botón: "${buttonName}"`);
 });
 
@@ -64,10 +58,10 @@ Given(
       });
     });
 
-    await this.stubPost("/providers", 201, {
-      id: "mock-provider-001",
+    await this.stubPost("/providers", 201, aProvider({
+      id: 1,
       profile_photo_url: "http://localhost:3001/mock-s3-url/avatar.png",
-    });
+    }));
 
     await this.stubPost(
       "/providers/me/payment-accounts/authorization",
@@ -75,21 +69,14 @@ Given(
       aPaymentAuthorization()
     );
 
-    await this.stubGet(
-      "/providers/me/payment-accounts",
-      aPaymentAccount({
-        status: "pending",
-        can_receive_payments: false,
-        can_send_service_proposals: false,
-      })
-    );
+    await this.stubGet("/providers/me/payment-accounts", aPaymentAccount());
 
     const button = this.page.getByRole("button", { name: "Finalizar Registro" }).first();
-    await button.waitFor({ state: "visible" });
+    await button.waitFor();
     await button.click();
 
     const title = this.page.getByText("Conectá tu cuenta de Mercado Pago").first();
-    await title.waitFor({ state: "visible" });
+    await title.waitFor();
   }
 );
 
@@ -104,27 +91,8 @@ Then("soy redirigido a la página de autorización de Mercado Pago", async funct
 When(
   "llego a la página de resultado de conexión con resultado {string}",
   async function (this: CustomWorld, result: string) {
-    if (result === "success") {
-      await this.stubGet(
-        "/providers/me/payment-accounts",
-        aPaymentAccount({
-          status: "connected",
-          account_id: "mp-test",
-          can_receive_payments: true,
-          can_send_service_proposals: true,
-        })
-      );
-    } else {
-      await this.stubGet(
-        "/providers/me/payment-accounts",
-        aPaymentAccount({
-          status: "pending",
-          can_receive_payments: false,
-          can_send_service_proposals: false,
-        })
-      );
-    }
-
+    const account = result === "success" ? aConnectedPaymentAccount() : aPaymentAccount();
+    await this.stubGet("/providers/me/payment-accounts", account);
     await this.stubGet("/job-requests", []);
 
     const callbackUrl = APP_URL + "/provider/register/mercado-pago" + `?result=${result}`;
@@ -134,23 +102,14 @@ When(
 
 Given("que la conexión de Mercado Pago fue exitosa", async function (this: CustomWorld) {
   await this.setSession("provider", {
-    id: "mock-provider-001",
+    id: "1",
     email: "prestador@example.com",
     firstName: "Juan",
     lastName: "Pérez",
     isOnboarded: true,
   });
 
-  await this.stubGet(
-    "/providers/me/payment-accounts",
-    aPaymentAccount({
-      status: "connected",
-      account_id: "mp-test",
-      can_receive_payments: true,
-      can_send_service_proposals: true,
-    })
-  );
-
+  await this.stubGet("/providers/me/payment-accounts", aConnectedPaymentAccount());
   await this.stubGet("/job-requests", []);
 
   const callbackUrl = APP_URL + "/provider/register/mercado-pago" + "?result=success";
@@ -160,33 +119,26 @@ Given("que la conexión de Mercado Pago fue exitosa", async function (this: Cust
 When(
   "hago clic en el botón {string} de la página de resultado",
   async function (this: CustomWorld, buttonName: string) {
+    const options = { name: buttonName };
     const button = this.page
-      .getByRole("button", { name: buttonName })
-      .or(this.page.getByRole("link", { name: buttonName }))
+      .getByRole("button", options)
+      .or(this.page.getByRole("link", options))
       .first();
-    await button.waitFor({ state: "visible" });
+    await button.waitFor();
     await button.click();
   }
 );
 
 Given("que la conexión de Mercado Pago fue cancelada", async function (this: CustomWorld) {
   await this.setSession("provider", {
-    id: "mock-provider-001",
+    id: "1",
     email: "prestador@example.com",
     firstName: "Juan",
     lastName: "Pérez",
     isOnboarded: false,
   });
 
-  await this.stubGet(
-    "/providers/me/payment-accounts",
-    aPaymentAccount({
-      status: "pending",
-      can_receive_payments: false,
-      can_send_service_proposals: false,
-    })
-  );
-
+  await this.stubGet("/providers/me/payment-accounts", aPaymentAccount());
   await this.stubGet("/job-requests", []);
 
   const callbackUrl = APP_URL + "/provider/register/mercado-pago" + "?result=cancelled";

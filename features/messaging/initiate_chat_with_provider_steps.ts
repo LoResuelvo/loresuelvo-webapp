@@ -2,7 +2,7 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { aCategory, aProvider, aConversation } from "../support/factories";
+import { aCategory, aProvider, aConversation, aConversationDetail, aConversationMessage, aCounterpart, anApiError } from "../support/factories";
 
 export async function setConsumerSession(world: CustomWorld, email: string = "consumer@test.com", firstName: string = "Andres") {
   await world.setSession("consumer", {
@@ -257,52 +257,51 @@ Given("que inicié un chat con un prestador y envié un mensaje", async function
       aConversation({
         id: 1,
         status: "pending",
-        counterpart: {
+        counterpart: aCounterpart({
           id: 20,
           role: "provider",
           name: "Carlos",
           surname: "Méndez",
           category_name: "Plomería",
-        },
-        last_message: {
+        }),
+        last_message: aConversationMessage({
           id: 1,
           sender_role: "consumer",
           content: "Hola, me gustaría contratarte para el trabajo",
           created_on: "2026-05-31T12:00:00Z",
-        },
+        }),
         updated_on: "2026-05-31T12:00:00Z",
       }),
     ]);
   }
 
   if (!(await this.hasApiStub("POST", "/conversations"))) {
-    await this.stubPost("/conversations", 409, { error: "Conversation already exists" });
+    await this.stubPost("/conversations", 409, anApiError("Conversation already exists"));
   }
 
   if (!(await this.hasApiStub("GET", "/conversations/1"))) {
-    await this.stubGet("/conversations/1", {
+    await this.stubGet("/conversations/1", aConversationDetail({
       id: 1,
       status: "pending",
-      counterpart: {
+      counterpart: aCounterpart({
         id: 20,
         role: "provider",
         name: "Carlos",
         surname: "Méndez",
         category_name: "Plomería",
-      },
+      }),
       messages: [],
       updated_on: "2026-05-31T12:00:00Z",
-    });
+    }));
   }
 
   if (!(await this.hasApiStub("POST", "/conversations/1/messages"))) {
-    await this.stubPost("/conversations/1/messages", 201, {
+    await this.stubPost("/conversations/1/messages", 201, aConversationMessage({
       id: 1,
-      conversation_id: 1,
       sender_role: "consumer",
       content: "Hola, me gustaría contratarte para el trabajo",
       created_on: "2026-05-31T12:00:00Z",
-    });
+    }));
   }
 
   await this.page.goto(APP_URL + ROUTES.consumer.messages + "?provider_id=20&name=Carlos&surname=Méndez");
@@ -329,43 +328,43 @@ When("vuelvo a la sección de mensajes con el mismo prestador", async function (
     aConversation({
       id: 1,
       status: "pending",
-      counterpart: {
+      counterpart: aCounterpart({
         id: 20,
         role: "provider",
         name: "Carlos",
         surname: "Méndez",
         category_name: "Plomería",
-      },
-      last_message: {
+      }),
+      last_message: aConversationMessage({
         id: 1,
         sender_role: "consumer",
         content: "Hola, me gustaría contratarte para el trabajo",
         created_on: "2026-05-31T12:00:00Z",
-      },
+      }),
       updated_on: "2026-05-31T12:00:00Z",
     }),
   ]);
 
-  await this.stubGet("/conversations/1", {
+  await this.stubGet("/conversations/1", aConversationDetail({
     id: 1,
     status: "pending",
-    counterpart: {
+    counterpart: aCounterpart({
       id: 20,
       role: "provider",
       name: "Carlos",
       surname: "Méndez",
       category_name: "Plomería",
-    },
+    }),
     messages: [
-      {
+      aConversationMessage({
         id: 1,
         sender_role: "consumer",
         content: "Hola, me gustaría contratarte para el trabajo",
         created_on: "2026-05-31T12:00:00Z",
-      },
+      }),
     ],
     updated_on: "2026-05-31T12:00:00Z",
-  });
+  }));
 
   await this.page.goto(APP_URL + ROUTES.consumer.messages + "?provider_id=20");
   await this.page.waitForLoadState("networkidle");

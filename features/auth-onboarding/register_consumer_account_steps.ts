@@ -1,7 +1,8 @@
 import { Given, When, Then } from "@cucumber/cucumber";
-import { CustomWorld, APP_URL } from "../support/world";
+import { CustomWorld, APP_URL, visibleTimeout, attachedTimeout, waitTimeout, attachedState } from "../support/world";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
+import { aConsumer, aProvider } from "../support/factories";
 
 const CONSUMER_URL = APP_URL + "/consumidor/home";
 const AUTH0_SIGNUP_URL = "/auth/login?screen_hint=signup";
@@ -20,7 +21,7 @@ When("hago clic en el botón {string}", async function (this: CustomWorld, butto
     .getByRole("button", { name: buttonName })
     .or(this.page.getByRole("link", { name: buttonName }))
     .first();
-  await button.waitFor({ state: "visible" });
+  await button.waitFor();
   if (buttonName === "Ver conversación") {
     const initialUrl = this.page.url();
     for (let i = 0; i < 5; i++) {
@@ -37,11 +38,13 @@ When("finalizo el registro", async function (this: CustomWorld) {
   const endpoint = selectedRole === "provider" ? "/providers" : "/consumers";
 
   if (!(await this.hasApiStub("POST", endpoint))) {
-    await this.stubPost(endpoint, 201, { id: `mock-${selectedRole}-001` });
+    const user = selectedRole === "provider" ? aProvider() : aConsumer();
+    await this.stubPost(endpoint, 201, user);
   }
 
-  const button = this.page.getByRole("button", { name: "Finalizar Registro" }).first();
-  await button.waitFor({ state: "visible" });
+  const finalizeOptions = { name: "Finalizar Registro" };
+  const button = this.page.getByRole("button", finalizeOptions).first();
+  await button.waitFor();
   await button.click();
 });
 
@@ -52,7 +55,7 @@ When("entro al home de consumidores", async function (this: CustomWorld) {
 Then("soy redirigido al portal de autenticación de Auth0", async function (this: CustomWorld) {
   const request = await this.page.waitForRequest(
     (req) => req.url().includes(AUTH0_SIGNUP_URL),
-    { timeout: 5000 }
+    waitTimeout
   );
   assert.ok(request, `No navigation was made towards "${AUTH0_SIGNUP_URL}"`);
 });
@@ -94,13 +97,13 @@ Given("elegí la opción de consumidor en la pagina de registro", async function
 
 Then("veo mi nombre {string} en el encabezado", async function (this: CustomWorld, name: string) {
   const header = this.page.locator("header");
-  await header.waitFor({ state: "visible" });
+  await header.waitFor();
 
   let text = await header.innerText();
   if (!text.includes(name)) {
     const initials = name.charAt(0).toUpperCase();
     const avatarButton = header.getByRole("button", { name: initials }).or(header.locator("button")).first();
-    await avatarButton.waitFor({ state: "visible" });
+    await avatarButton.waitFor();
     await avatarButton.click();
     text = await header.innerText();
   }
@@ -112,7 +115,7 @@ Then("veo el botón de {string}", async function (this: CustomWorld, buttonName:
     .getByRole("button", { name: buttonName })
     .or(this.page.getByRole("link", { name: buttonName }))
     .first();
-  await button.waitFor({ state: "visible" });
+  await button.waitFor();
   assert.ok(await button.isVisible(), `There is no button or link "${buttonName}"`);
 });
 
@@ -160,8 +163,8 @@ Then("soy redirigido al home de consumidores", async function (this: CustomWorld
 
 Then("la barra lateral muestra la opción {string}", async function (this: CustomWorld, optionName: string) {
   const navigation = this.page.getByRole("navigation", { name: "Navegación del consumidor" });
-  await navigation.waitFor({ state: "visible" });
+  await navigation.waitFor();
   const option = navigation.getByRole("link", { name: optionName });
-  await option.waitFor({ state: "visible" });
+  await option.waitFor();
   assert.ok(await option.isVisible(), `La opción "${optionName}" no se encontró en la barra lateral`);
 });

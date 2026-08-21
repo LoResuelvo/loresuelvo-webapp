@@ -1,8 +1,8 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
-import { CustomWorld, APP_URL } from "../support/world";
+import { CustomWorld, APP_URL, visibleTimeout, attachedTimeout, waitTimeout, attachedState } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { aConversation } from "../support/factories";
+import { aConversation, aConversationDetail, aConversationMessage, aCounterpart, aWsTicket } from "../support/factories";
 
 interface WsEvent {
   type: string;
@@ -44,53 +44,52 @@ async function stubConversationApi(world: CustomWorld, conversationId: number = 
     aConversation({
       id: conversationId,
       status: "accepted",
-      counterpart: {
+      counterpart: aCounterpart({
         id: 1,
         role: "provider",
         name: "Juan",
         surname: "Gómez",
         category_name: "Plomería",
-      },
-      last_message: {
+      }),
+      last_message: aConversationMessage({
         id: 1,
         sender_role: "consumer",
         content: "Hola Juan, necesito reparar una pérdida de agua.",
         created_on: new Date().toISOString(),
-      },
+      }),
       updated_on: new Date().toISOString(),
     }),
   ]);
 
-  await world.stubGet(`/conversations/${conversationId}`, {
+  await world.stubGet(`/conversations/${conversationId}`, aConversationDetail({
     id: conversationId,
     status: "accepted",
-    counterpart: {
+    counterpart: aCounterpart({
       id: "provider-001",
       role: "provider",
       name: "Juan",
       surname: "Gómez",
       category_name: "Plomería",
-    },
+    }),
     messages: [
-      {
+      aConversationMessage({
         id: 1,
         sender_role: "consumer",
         content: "Hola Juan, necesito reparar una pérdida de agua.",
         created_on: new Date(Date.now() - 60000).toISOString(),
-      },
+      }),
     ],
     updated_on: new Date().toISOString(),
-  });
+  }));
 
-  await world.stubPost(`/conversations/${conversationId}/messages`, 201, {
+  await world.stubPost(`/conversations/${conversationId}/messages`, 201, aConversationMessage({
     id: 99,
-    conversation_id: conversationId,
     sender_role: "consumer",
     content: "Mensaje enviado",
     created_on: new Date().toISOString(),
-  });
+  }));
 
-  await world.stubPost("/ws-tickets", 201, { ticket: "mock-ws-ticket-abc123" });
+  await world.stubPost("/ws-tickets", 201, aWsTicket("mock-ws-ticket-abc123"));
 }
 
 async function interceptWebSocket(world: CustomWorld) {
@@ -144,45 +143,45 @@ Given(
       aConversation({
         id: activeConversationId,
         status: "accepted",
-        counterpart: {
+        counterpart: aCounterpart({
           id: 1,
           role: "consumer",
           name: "Ana",
           surname: "Pérez",
           category_name: "Plomería",
-        },
-        last_message: {
+        }),
+        last_message: aConversationMessage({
           id: 1,
           sender_role: "consumer",
           content: "Hola Juan, necesito reparar una pérdida de agua.",
           created_on: new Date().toISOString(),
-        },
+        }),
         updated_on: new Date().toISOString(),
       }),
     ]);
 
-    await this.stubGet(`/conversations/${activeConversationId}`, {
+    await this.stubGet(`/conversations/${activeConversationId}`, aConversationDetail({
       id: activeConversationId,
       status: "accepted",
-      counterpart: {
+      counterpart: aCounterpart({
         id: 1,
         role: "consumer",
         name: "Ana",
         surname: "Pérez",
         category_name: "Plomería",
-      },
+      }),
       messages: [
-        {
+        aConversationMessage({
           id: 1,
           sender_role: "consumer",
           content: "Hola Juan, necesito reparar una pérdida de agua.",
           created_on: new Date(Date.now() - 60000).toISOString(),
-        },
+        }),
       ],
       updated_on: new Date().toISOString(),
-    });
+    }));
 
-    await this.stubPost("/ws-tickets", 201, { ticket: "mock-ws-ticket-abc123" });
+    await this.stubPost("/ws-tickets", 201, aWsTicket("mock-ws-ticket-abc123"));
 
     await interceptWebSocket(this);
     await this.page.goto(APP_URL + ROUTES.provider.messages + `?consumer_id=1`, {
@@ -227,7 +226,7 @@ When(
 
 Then("veo el mensaje {string} en la pantalla del chat", async function (this: CustomWorld, messageContent: string) {
   const message = this.page.getByText(messageContent, { exact: false }).first();
-  await message.waitFor({ state: "visible", timeout: 5000 });
+  await message.waitFor(visibleTimeout);
   assert.ok(await message.isVisible(), `El mensaje "${messageContent}" no aparece en el chat`);
 });
 
@@ -264,7 +263,7 @@ Then(
   "la pantalla hace scroll automáticamente para mostrar el nuevo mensaje",
   async function (this: CustomWorld) {
     const newMessage = this.page.getByText("Confirmado para el jueves.", { exact: false }).last();
-    await newMessage.waitFor({ state: "visible", timeout: 5000 });
+    await newMessage.waitFor(visibleTimeout);
     assert.ok(await newMessage.isVisible(), "El nuevo mensaje no es visible tras el scroll automático");
 
     const isInViewport = await newMessage.evaluate((el) => {
@@ -276,18 +275,18 @@ Then(
 );
 
 Given("estoy revisando mensajes anteriores en la conversación", async function (this: CustomWorld) {
-  await this.stubGet(`/conversations/${activeConversationId}`, {
+  await this.stubGet(`/conversations/${activeConversationId}`, aConversationDetail({
     id: activeConversationId,
     status: "accepted",
-    counterpart: { id: 1, role: "provider", name: "Juan", surname: "Gómez", category_name: "Plomería" },
-    messages: Array.from({ length: 15 }, (_, i) => ({
+    counterpart: aCounterpart({ id: 1, role: "provider", name: "Juan", surname: "Gómez", category_name: "Plomería" }),
+    messages: Array.from({ length: 15 }, (_, i) => aConversationMessage({
       id: i + 1,
       sender_role: i % 2 === 0 ? "consumer" : "provider",
       content: `Msg ${i + 1}`,
       created_on: new Date(Date.now() - (15 - i) * 60000).toISOString(),
     })),
     updated_on: new Date().toISOString(),
-  });
+  }));
 
   wsServer = null;
   await this.page.reload();
@@ -315,7 +314,7 @@ Given("estoy revisando mensajes anteriores en la conversación", async function 
 
 Then("veo un aviso indicando que hay un mensaje nuevo", async function (this: CustomWorld) {
   const newMessageAlert = this.page.locator("[data-testid='new-message-alert']");
-  await newMessageAlert.waitFor({ state: "visible", timeout: 5000 });
+  await newMessageAlert.waitFor(visibleTimeout);
   assert.ok(await newMessageAlert.isVisible(), "No se muestra el aviso de mensaje nuevo");
 });
 

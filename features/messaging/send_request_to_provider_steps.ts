@@ -2,7 +2,7 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { aCategory, aConversation } from "../support/factories";
+import { aCategory, aConversation, aConversationDetail, aConversationMessage, aCounterpart, aJobRequest } from "../support/factories";
 import { setConsumerSession } from "./initiate_chat_with_provider_steps";
 
 Given("existe el rubro Plomería", async function (this: CustomWorld) {
@@ -54,33 +54,33 @@ Given(
     await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
     await this.stubGet("/conversations", []);
 
-    await this.stubPost("/job-requests", 201, {
+    await this.stubPost("/job-requests", 201, aJobRequest({
       id: 1,
       conversation_id: 1,
       title: "Pérdida de agua en termotanque",
       description: "El termotanque pierde agua por la base. El agua se acumula y el piloto se apaga.",
-    });
+    }));
 
-    await this.stubGet("/conversations/1", {
+    await this.stubGet("/conversations/1", aConversationDetail({
       id: 1,
       status: "pending",
-      counterpart: {
+      counterpart: aCounterpart({
         id: 1,
         role: "provider",
         name: "Juan",
         surname: "Pérez",
         category_name: "Plomería",
-      },
+      }),
       messages: [
-        {
+        aConversationMessage({
           id: 100,
           sender_role: "consumer",
           content: "Título: Pérdida de agua en termotanque\n\nDescripción: El termotanque pierde agua por la base. El agua se acumula y el piloto se apaga.",
           created_on: new Date().toISOString(),
-        },
+        }),
       ],
       updated_on: new Date().toISOString(),
-    });
+    }));
 
     await this.page.goto(APP_URL + ROUTES.consumer.buscar + "?category_id=1");
     await this.page.waitForLoadState("networkidle");
@@ -122,43 +122,43 @@ Given("que ya envié la solicitud de trabajo a {string}", async function (this: 
     aConversation({
       id: 1,
       status: "pending",
-      counterpart: {
+      counterpart: aCounterpart({
         id: 1,
         role: "provider",
         name: "Juan",
         surname: "Pérez",
         category_name: "Plomería",
-      },
-      last_message: {
+      }),
+      last_message: aConversationMessage({
         id: 100,
         sender_role: "consumer",
         content: "Título: Pérdida de agua en termotanque\n\nDescripción: El termotanque pierde agua por la base.",
         created_on: new Date().toISOString(),
-      },
+      }),
       updated_on: new Date().toISOString(),
     }),
   ]);
 
-  await this.stubGet("/conversations/1", {
+  await this.stubGet("/conversations/1", aConversationDetail({
     id: 1,
     status: "pending",
-    counterpart: {
+    counterpart: aCounterpart({
       id: 1,
       role: "provider",
       name: "Juan",
       surname: "Pérez",
       category_name: "Plomería",
-    },
+    }),
     messages: [
-      {
+      aConversationMessage({
         id: 100,
         sender_role: "consumer",
         content: "Título: Pérdida de agua en termotanque\n\nDescripción: El termotanque pierde agua por la base.",
         created_on: new Date().toISOString(),
-      },
+      }),
     ],
     updated_on: new Date().toISOString(),
-  });
+  }));
 });
 
 Then("visualizo al prestador {string} como contacto en mi lista", async function (this: CustomWorld, providerName: string) {
@@ -174,44 +174,43 @@ Given("que inicié la conversación con {string}", async function (this: CustomW
     aConversation({
       id: 1,
       status: "pending",
-      counterpart: {
+      counterpart: aCounterpart({
         id: 1,
         role: "provider",
         name: "Juan",
         surname: "Pérez",
         category_name: "Plomería",
-      },
-      last_message: {
+      }),
+      last_message: aConversationMessage({
         id: 100,
         sender_role: "consumer",
         content: "Hola Juan",
         created_on: new Date().toISOString(),
-      },
+      }),
       updated_on: new Date().toISOString(),
     }),
   ]);
 
-  await this.stubGet("/conversations/1", {
+  await this.stubGet("/conversations/1", aConversationDetail({
     id: 1,
     status: "pending",
-    counterpart: {
+    counterpart: aCounterpart({
       id: 1,
       role: "provider",
       name: "Juan",
       surname: "Pérez",
       category_name: "Plomería",
-    },
+    }),
     messages: [
-      {
+      aConversationMessage({
         id: 100,
         sender_role: "consumer",
         content: "Hola Juan",
         created_on: new Date().toISOString(),
-      },
+      }),
     ],
     updated_on: new Date().toISOString(),
-  });
-
+  }));
   await this.page.goto(APP_URL + ROUTES.consumer.messages + "?provider_id=1");
   await this.page.waitForLoadState("networkidle");
 });

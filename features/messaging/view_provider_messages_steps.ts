@@ -1,8 +1,8 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
-import { CustomWorld, APP_URL } from "../support/world";
+import { CustomWorld, APP_URL, visibleTimeout, attachedTimeout, waitTimeout, attachedState } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { aConversation } from "../support/factories";
+import { aConversation, aConversationMessage, aCounterpart } from "../support/factories";
 
 async function setProviderSession(world: CustomWorld) {
   await world.setSession("provider", {
@@ -18,37 +18,37 @@ const mockConversations = [
   aConversation({
     id: 1,
     status: "accepted",
-    counterpart: {
+    counterpart: aCounterpart({
       id: 10,
       role: "consumer",
       name: "María",
       surname: "Fernández",
       category_name: "Plomería",
-    },
-    last_message: {
+    }),
+    last_message: aConversationMessage({
       id: 1,
       sender_role: "consumer",
       content: "Hola, me gustaría contratarte para el trabajo",
       created_on: new Date().toISOString(),
-    },
+    }),
     updated_on: new Date().toISOString(),
   }),
   aConversation({
     id: 2,
     status: "pending",
-    counterpart: {
+    counterpart: aCounterpart({
       id: 11,
       role: "consumer",
       name: "Javier",
       surname: "Torres",
       category_name: "Electricidad",
-    },
-    last_message: {
+    }),
+    last_message: aConversationMessage({
       id: 2,
       sender_role: "consumer",
       content: "Necesito reparar una fuga de agua",
       created_on: new Date(Date.now() - 3600000).toISOString(),
-    },
+    }),
     updated_on: new Date(Date.now() - 3600000).toISOString(),
   }),
 ];

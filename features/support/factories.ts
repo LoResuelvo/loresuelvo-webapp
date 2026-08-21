@@ -3,7 +3,8 @@ import {
   Category,
   ApiProvider,
   ApiConversation,
-  ApiConversationMessage,
+  ApiConversationDetail,
+  ApiConversationMessage, ApiAiConversationMessage,
   ApiAiConversation,
   ApiAiConversationDetail,
 } from "../../infrastructure/api/types";
@@ -135,6 +136,19 @@ export function aConfirmedFile(overrides: Partial<any> = {}) {
   };
 }
 
+export function aConsumer(overrides: Partial<any> = {}) {
+  return {
+    id: 1,
+    name: "Ana",
+    surname: "Pérez",
+    email: "consumidor@loresuelvo.test",
+    role: "consumer",
+    profile_photo: null,
+    profile_photo_url: "http://localhost:3001/mock-avatar.png",
+    ...overrides,
+  };
+}
+
 export function aPaymentAccount(overrides: Partial<any> = {}) {
   return {
     status: "pending",
@@ -142,6 +156,16 @@ export function aPaymentAccount(overrides: Partial<any> = {}) {
     can_send_service_proposals: false,
     ...overrides,
   };
+}
+
+export function aConnectedPaymentAccount(overrides: Partial<any> = {}) {
+  return aPaymentAccount({
+    status: "connected",
+    account_id: "mp-test",
+    can_receive_payments: true,
+    can_send_service_proposals: true,
+    ...overrides,
+  });
 }
 
 export function aPaymentAuthorization(overrides: Partial<any> = {}) {
@@ -271,6 +295,31 @@ export function aConversation(overrides: Partial<ApiConversation> = {}): ApiConv
   };
 }
 
+export function aConversationDetail(overrides: Partial<ApiConversationDetail> = {}): ApiConversationDetail {
+  return {
+    id: 1,
+    status: "accepted",
+    counterpart: {
+      id: 1,
+      role: "provider",
+      name: "Juan",
+      surname: "Gómez",
+      category_name: "Plomería",
+      profile_photo_url: "http://localhost:3001/mock-avatar.png",
+    },
+    messages: [
+      {
+        id: 1,
+        sender_role: "consumer",
+        content: "Hola Juan, necesito reparar una pérdida de agua.",
+        created_on: new Date().toISOString(),
+      },
+    ],
+    updated_on: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
 export function aConversationMessage(overrides: Partial<ApiConversationMessage> = {}): ApiConversationMessage {
   return {
     id: 1,
@@ -285,14 +334,14 @@ export function aAiConversation(overrides: Partial<ApiAiConversation> = {}): Api
   return {
     id: 1,
     status: "active",
-    title: "Consulta de Plomería",
+    title: "Pérdida de agua",
     last_message: {
-      id: 1,
-      sender_role: "assistant",
-      content: "¿Podrías detallar el problema con la cañería?",
-      created_on: "2026-08-20T10:00:00Z",
+      id: 2,
+      sender_role: "chatbot",
+      content: "Revisá si el agua sale desde la rosca del sifón.",
+      created_on: "2026-06-18T10:00:01Z",
     },
-    updated_on: "2026-08-20T10:00:00Z",
+    updated_on: "2026-06-18T10:00:01Z",
     ...overrides,
   };
 }
@@ -301,49 +350,23 @@ export function aAiConversationDetail(overrides: Partial<ApiAiConversationDetail
   return {
     id: 1,
     status: "active",
-    title: "Consulta de Plomería",
+    title: "Pérdida de agua",
+    response_status: "answered",
     messages: [
       {
         id: 1,
         sender_role: "consumer",
-        content: "Tengo una fuga debajo de la bacha.",
-        created_on: "2026-08-20T10:00:00Z",
+        content: "Se está filtrando agua debajo de la bacha",
+        created_on: "2026-06-18T10:00:00Z",
       },
       {
         id: 2,
         sender_role: "chatbot",
-        content: "Parece ser un problema en el sifón o flexible de desagüe.",
-        created_on: "2026-08-20T10:00:05Z",
+        content: "Revisá si el agua sale desde la rosca del sifón.",
+        created_on: "2026-06-18T10:00:01Z",
       },
     ],
-    recommended_providers: [
-      {
-        id: 1,
-        name: "Juan",
-        surname: "Gómez",
-        category_name: "Plomería",
-        profile_photo_url: "http://localhost:3001/mock-avatar.png",
-      },
-    ],
-    chatbot: {
-      title: "Consulta de Plomería",
-      response_status: "idle",
-      diagnosis_completed: true,
-      assessment: {
-        outcome: "solved",
-        problem_category: { id: 1, name: "Plomería" },
-      },
-      recommended_category: { id: 1, name: "Plomería" },
-      recommended_providers: [
-        {
-          id: 1,
-          name: "Juan",
-          surname: "Gómez",
-          category_name: "Plomería",
-          profile_photo_url: "http://localhost:3001/mock-avatar.png",
-        },
-      ],
-    },
+    recommended_providers: [],
     ...overrides,
   };
 }
@@ -351,17 +374,61 @@ export function aAiConversationDetail(overrides: Partial<ApiAiConversationDetail
 export function aJobRequest(overrides: Partial<any> = {}) {
   return {
     id: 1,
+    conversation_id: 1,
     title: "Reparación de cañería",
     description: "Pérdida de agua continua bajo bacha",
     status: "pending",
     category_id: 1,
     category_name: "Plomería",
+    requester: {
+      name: "Ana",
+      surname: "Pérez",
+    },
     consumer: {
       id: 10,
       name: "Ana",
       surname: "Pérez",
     },
+    images: [],
     created_on: "2026-08-20T10:00:00Z",
     ...overrides,
   };
+}
+
+export function anAiMessage(overrides: Partial<ApiAiConversationMessage> = {}): ApiAiConversationMessage {
+  return {
+    id: 2,
+    sender_role: "chatbot",
+    content: "Revisá si el agua sale desde la rosca del sifón.",
+    created_on: "2026-06-18T10:00:01Z",
+    ...overrides,
+  } as ApiAiConversationMessage;
+}
+
+export function aCounterpart(overrides: Partial<any> = {}) {
+  return {
+    id: 1,
+    role: "consumer",
+    name: "Ana",
+    surname: "Pérez",
+    category_name: "Plomería",
+    ...overrides,
+  };
+}
+
+export function aMessageImage(overrides: Partial<any> = {}) {
+  return {
+    id: "mock-file-123",
+    url: "/image.jpg",
+    original_name: "image.jpg",
+    ...overrides,
+  };
+}
+
+export function anApiError(error: string = "Internal Server Error") {
+  return { error };
+}
+
+export function aWsTicket(ticket: string = "mock-ws-ticket-abc123") {
+  return { ticket };
 }

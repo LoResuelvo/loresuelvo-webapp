@@ -1,11 +1,11 @@
 import { Given, When, Then } from "@cucumber/cucumber";
-import { CustomWorld } from "../support/world";
-import { aPresignedUpload, aConfirmedFile } from "../support/factories";
+import { CustomWorld, visibleTimeout, attachedTimeout, waitTimeout, attachedState } from "../support/world";
+import { aPresignedUpload, aConfirmedFile, aProvider } from "../support/factories";
 import assert from "assert";
 
 async function selectFile(world: CustomWorld, fileName: string, sizeInMB: number = 1) {
   const fileInput = world.page.locator('input[type="file"]');
-  await fileInput.waitFor({ state: "attached" });
+  await fileInput.waitFor(attachedState);
 
   const sizeInBytes = sizeInMB * 1024 * 1024;
   const buffer = Buffer.alloc(sizeInBytes, "a");
@@ -32,10 +32,9 @@ Given(
     await this.stubPost("/files/presign", 200, aPresignedUpload());
     await this.stubPost("/files/test-file-id/confirm", 200, aConfirmedFile());
 
-    await this.stubPost("/providers", 201, {
-      id: 1,
+    await this.stubPost("/providers", 201, aProvider({
       profile_photo_url: "http://localhost:3001/mock-s3-url/avatar.png",
-    });
+    }));
 
     await this.stubGet("/job-requests", []);
 
@@ -71,7 +70,7 @@ Then("veo una vista previa de la foto seleccionada", async function (this: Custo
     .or(this.page.locator('img[alt="Vista previa"]'))
     .first();
 
-  await preview.waitFor({ state: "visible" });
+  await preview.waitFor();
   assert.ok(await preview.isVisible(), "La vista previa de la foto seleccionada no es visible.");
 });
 
@@ -81,6 +80,6 @@ Then("veo mi foto de perfil en el encabezado", async function (this: CustomWorld
     .or(this.page.locator('header img[alt*="perfil"]'))
     .first();
 
-  await headerAvatar.waitFor({ state: "attached" });
+  await headerAvatar.waitFor(attachedState);
   assert.ok(await headerAvatar.isVisible(), "La foto de perfil del prestador no se visualiza en el encabezado.");
 });

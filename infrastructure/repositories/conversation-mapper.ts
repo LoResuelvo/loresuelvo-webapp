@@ -69,7 +69,7 @@ export function transformApiToProviderContact(apiConv: ApiConversation): Provide
 }
 
 export function transformApiToConversationDetail(api: ApiConversationDetail): ConversationDetailInfo {
-  const counterpart = api.work?.counterpart || {
+  const counterpart = api.counterpart || api.work?.counterpart || {
     id: 0,
     role: "unknown",
     name: "Unknown",
@@ -82,11 +82,11 @@ export function transformApiToConversationDetail(api: ApiConversationDetail): Co
     id: api.id,
     status: api.status,
     counterpart: {
-      id: counterpart.id,
+      id: Number(counterpart.id) || 0,
       role: counterpart.role,
       name: counterpart.name,
       surname: counterpart.surname,
-      categoryName: counterpart.category_name,
+      categoryName: counterpart.category_name || "",
       profilePhotoUrl: counterpart.profile_photo_url,
     },
     messages: api.messages ? api.messages.map((m) => ({

@@ -26,7 +26,7 @@ export interface ApiConversation {
   last_message?: {
     id: number;
     sender_role: string;
-    content: string;
+    content?: string;
     created_on: string;
   };
   updated_on: string;
@@ -63,13 +63,21 @@ export interface ApiConversationDetail {
   id: number;
   type?: string;
   status: string;
+  counterpart?: {
+    id: number | string;
+    role: string;
+    name: string;
+    surname: string;
+    category_name?: string;
+    profile_photo_url?: string;
+  };
   work?: {
     counterpart: {
-      id: number;
+      id: number | string;
       role: string;
       name: string;
       surname: string;
-      category_name: string;
+      category_name?: string;
       profile_photo_url?: string;
     };
   };

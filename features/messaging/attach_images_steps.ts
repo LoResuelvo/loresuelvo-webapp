@@ -1,7 +1,7 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
-import { CustomWorld } from "../support/world";
-import { aPresignedUpload, aConfirmedFile } from "../support/factories";
+import { CustomWorld, visibleTimeout, attachedTimeout, waitTimeout, attachedState } from "../support/world";
+import { aPresignedUpload, aConfirmedFile, aConversationDetail, aConversationMessage, aMessageImage, aCounterpart } from "../support/factories";
 
 let currentAttachedImages: string[] = [];
 
@@ -38,7 +38,7 @@ async function triggerFileChooser(world: CustomWorld) {
   for (let i = 0; i < 5; i++) {
     await menuBtn.click();
     try {
-      await menu.waitFor({ state: "visible", timeout: 1000 });
+      await menu.waitFor(visibleTimeout);
       break;
     } catch {
       await world.page.waitForTimeout(500);
@@ -59,16 +59,11 @@ Given("que adjunté la imagen {string}", async function (this: CustomWorld, imag
 
   const fileChooser = await triggerFileChooser(this);
 
-  await fileChooser.setFiles([
-    {
-      name: imagen,
-      mimeType: "image/jpeg",
-      buffer: Buffer.from("mock-image-data"),
-    },
-  ]);
+  const fileData = { name: imagen, mimeType: "image/jpeg", buffer: Buffer.from("mock-image-data") };
+  await fileChooser.setFiles([fileData]);
 
   const thumbnail = this.page.getByRole("img", { name: `Vista previa de ${imagen}` });
-  await thumbnail.waitFor({ state: "visible", timeout: 2000 }).catch(() => {});
+  await thumbnail.waitFor(visibleTimeout).catch(() => {});
 });
 
 Given("que adjunté las imágenes {string} y {string}", async function (this: CustomWorld, img1: string, img2: string) {
@@ -89,13 +84,8 @@ When("adjunto la imagen {string} que supera los 5MB", async function (this: Cust
 
   const largeBuffer = Buffer.alloc(5.1 * 1024 * 1024);
 
-  await fileChooser.setFiles([
-    {
-      name: imagen,
-      mimeType: "image/jpeg",
-      buffer: largeBuffer,
-    },
-  ]);
+  const fileData = { name: imagen, mimeType: "image/jpeg", buffer: largeBuffer };
+  await fileChooser.setFiles([fileData]);
 });
 
 Given("que eliminé la imagen {string} de los archivos adjuntos", async function (this: CustomWorld, imagen: string) {
@@ -105,18 +95,17 @@ Given("que eliminé la imagen {string} de los archivos adjuntos", async function
 });
 
 When("envío el mensaje {string}", async function (this: CustomWorld, mensaje: string) {
-  await this.stubPost("/conversations/1/messages", 201, {
+  await this.stubPost("/conversations/1/messages", 201, aConversationMessage({
     id: 999,
-    conversation_id: 1,
     sender_role: "consumer",
     content: mensaje,
-    images: currentAttachedImages.map((name, idx) => ({
+    images: currentAttachedImages.map((name, idx) => aMessageImage({
       id: `mock-file-${idx}`,
       url: `/${name}`,
       original_name: name,
     })),
     created_on: new Date().toISOString(),
-  });
+  }));
 
   currentAttachedImages = [];
 
@@ -128,18 +117,17 @@ When("envío el mensaje {string}", async function (this: CustomWorld, mensaje: s
 });
 
 When("envío el mensaje sin texto", async function (this: CustomWorld) {
-  await this.stubPost("/conversations/1/messages", 201, {
+  await this.stubPost("/conversations/1/messages", 201, aConversationMessage({
     id: 999,
-    conversation_id: 1,
     sender_role: "consumer",
     content: "",
-    images: currentAttachedImages.map((name, idx) => ({
+    images: currentAttachedImages.map((name, idx) => aMessageImage({
       id: `mock-file-${idx}`,
       url: `/${name}`,
       original_name: name,
     })),
     created_on: new Date().toISOString(),
-  });
+  }));
 
   currentAttachedImages = [];
 
@@ -149,7 +137,7 @@ When("envío el mensaje sin texto", async function (this: CustomWorld) {
 
 Then("el sistema registra y muestra el mensaje con la imagen {string}", async function (this: CustomWorld, imagen: string) {
   const sentImage = this.page.getByRole("img", { name: `Imagen adjunta ${imagen}` }).first();
-  await sentImage.waitFor({ state: "visible", timeout: 2000 });
+  await sentImage.waitFor(visibleTimeout);
   assert.ok(await sentImage.isVisible(), `La imagen ${imagen} no se muestra en el chat`);
 });
 
@@ -159,8 +147,8 @@ Then(
     const sentImage1 = this.page.getByRole("img", { name: `Imagen adjunta ${img1}` }).first();
     const sentImage2 = this.page.getByRole("img", { name: `Imagen adjunta ${img2}` }).first();
 
-    await sentImage1.waitFor({ state: "visible", timeout: 2000 });
-    await sentImage2.waitFor({ state: "visible", timeout: 2000 });
+    await sentImage1.waitFor(visibleTimeout);
+    await sentImage2.waitFor(visibleTimeout);
 
     assert.ok(await sentImage1.isVisible(), `La imagen ${img1} no se muestra en el chat`);
     assert.ok(await sentImage2.isVisible(), `La imagen ${img2} no se muestra en el chat`);
@@ -168,27 +156,27 @@ Then(
 );
 
 Given("que el consumidor envió un mensaje con la imagen {string}", async function (this: CustomWorld, imagen: string) {
-  await this.stubGet(`/conversations/1`, {
+  await this.stubGet(`/conversations/1`, aConversationDetail({
     id: 1,
     status: "accepted",
-    counterpart: { id: "consumer-001", role: "consumer", name: "Ana", surname: "Pérez", category_name: "Plomería" },
+    counterpart: aCounterpart({ id: "consumer-001", role: "consumer", name: "Ana", surname: "Pérez", category_name: "Plomería" }),
     messages: [
-      {
+      aConversationMessage({
         id: 1,
         sender_role: "consumer",
         content: "Hola",
-        images: [{ id: "file-xyz", url: "/img.jpg", original_name: imagen }],
+        images: [aMessageImage({ id: "file-xyz", url: "/img.jpg", original_name: imagen })],
         created_on: new Date().toISOString(),
-      },
+      }),
     ],
     updated_on: new Date().toISOString(),
-  });
+  }));
   await this.page.reload({ waitUntil: "networkidle" });
 });
 
 Then("el detalle del mensaje en pantalla incluye la imagen {string}", async function (this: CustomWorld, imagen: string) {
   const receivedImage = this.page.locator(`img[alt*="${imagen}"]`).first();
-  await receivedImage.waitFor({ state: "visible", timeout: 2000 });
+  await receivedImage.waitFor(visibleTimeout);
   assert.ok(await receivedImage.isVisible(), `El detalle no incluye la imagen ${imagen}`);
 });
 
@@ -207,13 +195,13 @@ When(
       JSON.stringify({
         type: "conversation.message.created",
         conversation_id: 1,
-        message: {
+        message: aConversationMessage({
           id: 200,
           content: "Mensaje WS",
           sender_role: "consumer",
-          images: [{ id: "mock-file-123", url: "/perdida-bajo-mesada.jpg", original_name: imagen }],
+          images: [aMessageImage({ id: "mock-file-123", url: "/perdida-bajo-mesada.jpg", original_name: imagen })],
           created_on: new Date().toISOString(),
-        },
+        }),
       })
     );
   }
@@ -223,14 +211,14 @@ Then(
   "veo el mensaje con la imagen {string} en la pantalla del chat sin recargar la página",
   async function (this: CustomWorld, imagen: string) {
     const receivedImage = this.page.locator(`img[alt*="${imagen}"]`).first();
-    await receivedImage.waitFor({ state: "visible", timeout: 10000 });
+    await receivedImage.waitFor(visibleTimeout);
     assert.ok(await receivedImage.isVisible(), `La imagen WS ${imagen} no se mostró en realtime`);
   }
 );
 
 Then("veo un mensaje de error indicando que la imagen es muy grande", async function (this: CustomWorld) {
   const errorMsg = this.page.getByText(/no debe superar los 5MB/i);
-  await errorMsg.waitFor({ state: "visible", timeout: 2000 });
+  await errorMsg.waitFor(visibleTimeout);
   assert.ok(await errorMsg.isVisible(), "No se muestra el error de tamaño");
 });
 

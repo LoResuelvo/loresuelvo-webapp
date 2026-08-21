@@ -18,8 +18,8 @@ description: "Gobernanza de integraciones API y lógica de negocio bajo Clean Ar
 Esta es una regla estricta del proyecto:
 
 1. **DTOs del backend** (snake_case): viven **exclusivamente** en `infrastructure/api/types.ts` (ej: `ApiProvider`, `ApiConversation`, `ApiConversationMessage`).
-2. **Tipos de dominio** (camelCase): viven en `domain/` (ej: `Provider` con `categoryName`, `ConversationDetailInfo` con `updatedOn`).
-3. **Mappers**: viven en `infrastructure/repositories/` (ej: `provider-mapper.ts`, `conversation-mapper.ts`) y transforman `ApiXxx → DomainXxx`.
+2. **Modelos de dominio** (Functional DDD): viven en `domain/` y siguen estrictamente la skill [`frontend-domain-governance`](file:///home/matexore/Desktop/Facultad/tpp/loresuelvo-webapp/skills/frontend-domain-governance/SKILL.md) (Value Objects inmutables, Smart Constructors con invariantes y módulos de comportamiento, evitando modelos anémicos y obsesión por primitivos).
+3. **Mappers**: viven en `infrastructure/repositories/` (ej: `provider-mapper.ts`, `service-proposal-mapper.ts`) y transforman `ApiXxx → DomainXxx` aplicando el principio *Parse, don't validate* con los Smart Constructors de dominio.
 4. **Nunca** consumir DTOs directamente en componentes UI ni en `application/`.
 
 ### Ejemplo de flujo correcto

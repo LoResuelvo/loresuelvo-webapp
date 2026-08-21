@@ -56,7 +56,6 @@ Feature: US-28 Completar pago del servicio
       Then veo que el pago continúa en proceso
       And no veo el mensaje "Pago del servicio confirmado"
 
-    @wip
     Scenario: 07-CSP Agotar la espera sin interpretar el pago del saldo como rechazado
       Given que el backend mantiene el pago del saldo en estado "processing"
       When transcurren treinta segundos desde la primera consulta

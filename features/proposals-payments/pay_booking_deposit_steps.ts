@@ -347,25 +347,33 @@ Then("no veo el mensaje {string}", async function (this: CustomWorld, message: s
 
 Given("que el backend mantiene el pago en estado {string}", async function (this: CustomWorld, status: PaymentIntentStatus) {
   returnPath = paymentReturnPath("pending");
+  (this as any).returnPath = returnPath;
+  (this as any).pollingRequestCount = 0;
   await stubPaymentIntent(this, status);
   this.page.on("request", (request) => {
     if (request.method() === "POST" && request.url().includes("/payments/pending")) {
       pollingRequestCount += 1;
+      (this as any).pollingRequestCount = ((this as any).pollingRequestCount || 0) + 1;
     }
   });
 });
 
 When("transcurren treinta segundos desde la primera consulta", { timeout: 40_000 }, async function (this: CustomWorld) {
-  const response = await this.page.goto(`${APP_URL}${returnPath}`);
+  const targetPath = (this as any).returnPath || returnPath;
+  const response = await this.page.goto(`${APP_URL}${targetPath}`);
   assert.strictEqual(response?.status(), 200, "La ruta de retorno no respondió HTTP 200");
   await this.page.getByRole("heading", { name: "Pago en proceso" }).waitFor({ state: "visible" });
   await this.page.waitForTimeout(30_500);
-  requestCountAfterTimeout = pollingRequestCount;
+  const currentCount = (this as any).pollingRequestCount ?? pollingRequestCount;
+  (this as any).requestCountAfterTimeout = currentCount;
+  requestCountAfterTimeout = currentCount;
 });
 
 Then("no se realizan más consultas automáticas", async function (this: CustomWorld) {
   await this.page.waitForTimeout(3_000);
-  assert.strictEqual(pollingRequestCount, requestCountAfterTimeout);
+  const currentCount = (this as any).pollingRequestCount ?? pollingRequestCount;
+  const expectedCount = (this as any).requestCountAfterTimeout ?? requestCountAfterTimeout;
+  assert.strictEqual(currentCount, expectedCount);
 });
 
 Then("puedo consultar nuevamente el estado del pago", async function (this: CustomWorld) {

@@ -407,3 +407,40 @@ Then(
     assert.ok(await textElement.isVisible());
   }
 );
+
+Given(
+  "que el backend mantiene el pago del saldo en estado {string}",
+  async function (this: CustomWorld, status: string) {
+    await this.setSession("consumer");
+    await this.stubGet(
+      `/payment-intents/${PAYMENT_INTENT_ID}`,
+      aPaymentIntent(status as any, { id: PAYMENT_INTENT_ID })
+    );
+
+    await this.page.goto(APP_URL);
+    await this.page.evaluate(
+      ({ paymentIntentId, workOrderId }) => {
+        sessionStorage.setItem(
+          "activePayment",
+          JSON.stringify({
+            purpose: "service_balance",
+            paymentIntentId,
+            workOrderId,
+            expiresOn: "2026-08-25T20:30:00Z",
+          })
+        );
+      },
+      { paymentIntentId: PAYMENT_INTENT_ID, workOrderId: WORK_ORDER_ID }
+    );
+
+    (this as any).paymentIntentId = PAYMENT_INTENT_ID;
+    (this as any).returnPath = "/payments/pending";
+    (this as any).pollingRequestCount = 0;
+    this.page.on("request", (request) => {
+      if (request.method() === "POST" && request.url().includes("/payments/pending")) {
+        (this as any).pollingRequestCount = ((this as any).pollingRequestCount || 0) + 1;
+      }
+    });
+  }
+);
+

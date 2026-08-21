@@ -12,6 +12,16 @@ export const t = {
       submitButton: "Pagar reserva",
       submittingButton: "Preparando pago…",
     },
+    balanceCheckout: {
+      title: "Pago del saldo del servicio",
+      description: "Revisá el importe informado antes de continuar a Mercado Pago.",
+      serviceBalanceLabel: "Saldo del servicio",
+      platformFeeLabel: "Comisión de LoResuelvo pendiente",
+      totalLabel: "Total a pagar ahora",
+      securePaymentNote: "Pago seguro procesado por Mercado Pago",
+      submitButton: "Pagar saldo del servicio",
+      submittingButton: "Preparando pago…",
+    },
     errors: {
       unauthorized: "Tu sesión venció. Iniciá sesión nuevamente para consultar el pago.",
       forbidden: "No tenés permiso para pagar esta propuesta.",

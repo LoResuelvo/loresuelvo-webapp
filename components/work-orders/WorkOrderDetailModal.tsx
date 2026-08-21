@@ -11,6 +11,7 @@ import { WorkOrder } from "@/domain/work-order/WorkOrder";
 import { getWorkOrderDetailAction } from "@/app/work-orders/actions";
 import { DetailField } from "@/components/ui/detail-field";
 import { CompletionEvidenceSection } from "./CompletionEvidenceSection";
+import { ServiceBalancePayment } from "@/components/payments/ServiceBalancePayment";
 import type { WorkOrderDetail } from "@/domain/work-order/types";
 
 interface WorkOrderDetailModalProps {
@@ -157,6 +158,13 @@ export function WorkOrderDetailModal({
 
               {detail?.completionReport && (
                 <CompletionEvidenceSection report={detail.completionReport} />
+              )}
+
+              {currentStatus === "awaiting_payment" && (
+                <ServiceBalancePayment
+                  workOrderId={workOrderId ?? detail?.id ?? 0}
+                  totalServiceAmountCents={amountCents}
+                />
               )}
 
               {detail?.review && (

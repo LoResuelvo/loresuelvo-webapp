@@ -102,7 +102,6 @@ Feature: US-28 Completar pago del servicio
         | 404        | No encontramos la orden de trabajo o el pago solicitado. |
         | 409        | El pago del saldo no está disponible para esta orden.    |
 
-    @wip
     Scenario: 12-CSP Reintentar después de un error temporal al iniciar el saldo
       Given que el servicio de pagos del saldo responde con estado HTTP 500
       When intento continuar con el pago del saldo

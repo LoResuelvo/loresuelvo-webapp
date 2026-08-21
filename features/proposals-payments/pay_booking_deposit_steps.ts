@@ -1,10 +1,18 @@
 import { Given, Then, When } from "@cucumber/cucumber";
 import assert from "assert";
 import type { PaymentIntentStatus } from "../../domain/payment/types";
-import type { AuthSession } from "../../infrastructure/auth/types";
-import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
 import { ROUTES } from "../../lib/routes";
 import { CustomWorld, APP_URL } from "../support/world";
+import {
+  aProposal,
+  aBookingTerms,
+  aCounterpart,
+  aConversation,
+  aConversationDetail,
+  aCheckoutSession,
+  aPaymentIntent,
+  anApiError,
+} from "../support/factories";
 
 const PROPOSAL_ID = 42;
 const PROVIDER_ID = 20;
@@ -26,7 +34,7 @@ const pricing = {
 };
 
 function proposalFixture(status: "pending" | "accepted" = "pending") {
-  return {
+  return aProposal("consumer", {
     id: PROPOSAL_ID,
     conversation_id: 1,
     amount_cents: 10_000_000,
@@ -34,14 +42,14 @@ function proposalFixture(status: "pending" | "accepted" = "pending") {
     description: "Reparación de pérdida de agua",
     status,
     created_on: "2026-08-11T12:00:00Z",
-    counterpart: {
+    counterpart: aCounterpart({
       id: PROVIDER_ID,
       role: "provider",
       name: "Juan",
       surname: "Pérez",
       category_name: "Plomería",
-    },
-    booking_terms: {
+    }),
+    booking_terms: aBookingTerms(10_000_000, {
       currency: "ARS",
       service_total_cents: 10_000_000,
       deposit_cents: pricing.deposit_cents,
@@ -53,81 +61,53 @@ function proposalFixture(status: "pending" | "accepted" = "pending") {
       remaining_amount_due_cents: 8_400_000,
       contract_total_cents: 10_500_000,
       booking_payment_deadline: "2026-08-31T12:00:00Z",
-    },
-  };
+    }),
+  });
 }
 
 async function setConsumerSession(world: CustomWorld): Promise<void> {
-  const session: AuthSession = {
-    user: {
-      id: "consumer-e2e",
-      email: "consumer@loresuelvo.test",
-      firstName: "Ana",
-      lastName: "Pérez",
-      isOnboarded: true,
-      role: "consumer",
-    },
-    accessToken: "mock-access-token",
-  };
-
-  await world.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
+  await world.setSession("consumer", {
+    id: "consumer-e2e",
+    email: "consumer@loresuelvo.test",
+    firstName: "Ana",
+    lastName: "Pérez",
+    isOnboarded: true,
+  });
 }
 
 async function stubPendingProposal(world: CustomWorld): Promise<void> {
-  await world.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: [
-      {
-        id: 1,
-        status: "accepted",
-        counterpart: {
-          id: PROVIDER_ID,
-          role: "provider",
-          name: "Juan",
-          surname: "Pérez",
-          category_name: "Plomería",
-        },
-        last_message: null,
-        updated_on: "2026-08-11T12:00:00Z",
-      },
-    ],
-  });
-  await world.addApiStub({
-    method: "GET",
-    endpoint: "/conversations/1",
-    status: 200,
-    body: {
+  await world.stubGet("/conversations", [
+    aConversation({
       id: 1,
       status: "accepted",
-      work: {
-        counterpart: {
-          id: PROVIDER_ID,
-          role: "provider",
-          name: "Juan",
-          surname: "Pérez",
-          category_name: "Plomería",
-        },
-      },
+      counterpart: aCounterpart({
+        id: PROVIDER_ID,
+        role: "provider",
+        name: "Juan",
+        surname: "Pérez",
+        category_name: "Plomería",
+      }),
+      updated_on: "2026-08-11T12:00:00Z",
+    }),
+  ]);
+  await world.stubGet(
+    "/conversations/1",
+    aConversationDetail({
+      id: 1,
+      status: "accepted",
+      counterpart: aCounterpart({
+        id: PROVIDER_ID,
+        role: "provider",
+        name: "Juan",
+        surname: "Pérez",
+        category_name: "Plomería",
+      }),
       messages: [],
       updated_on: "2026-08-11T12:00:00Z",
-    },
-  });
-  await world.addApiStub({ method: "GET", endpoint: "/job-requests", status: 200, body: [] });
-  await world.addApiStub({
-    method: "GET",
-    endpoint: "/service-proposals",
-    status: 200,
-    body: [proposalFixture()],
-  });
+    })
+  );
+  await world.stubGet("/job-requests", []);
+  await world.stubGet("/service-proposals", [proposalFixture()]);
 }
 
 async function openProposalDetail(world: CustomWorld): Promise<void> {
@@ -139,18 +119,17 @@ async function openProposalDetail(world: CustomWorld): Promise<void> {
 }
 
 async function stubCheckout(world: CustomWorld, status: number): Promise<void> {
-  await world.addApiStub({
-    method: "POST",
-    endpoint: `/service-proposals/${PROPOSAL_ID}/checkout-sessions`,
+  await world.stubPost(
+    `/service-proposals/${PROPOSAL_ID}/checkout-sessions`,
     status,
-    body: {
+    aCheckoutSession({
       payment_intent_id: PAYMENT_INTENT_ID,
       status: "checkout_ready",
       checkout_url: CHECKOUT_URL,
       expires_on: "2026-08-11T20:30:00Z",
       pricing,
-    },
-  });
+    })
+  );
   await world.page.route(CHECKOUT_URL, async (route) => {
     await route.fulfill({ status: 200, contentType: "text/html", body: "<title>Checkout</title>" });
   });
@@ -175,12 +154,7 @@ async function storeActivePayment(world: CustomWorld): Promise<void> {
 }
 
 async function stubPaymentIntent(world: CustomWorld, status: PaymentIntentStatus): Promise<void> {
-  await world.addApiStub({
-    method: "GET",
-    endpoint: `/payment-intents/${PAYMENT_INTENT_ID}`,
-    status: 200,
-    body: { status },
-  });
+  await world.stubGet(`/payment-intents/${PAYMENT_INTENT_ID}`, aPaymentIntent(status));
 }
 
 function paymentReturnPath(kind: string, query = `external_reference=${PAYMENT_INTENT_ID}`): string {
@@ -317,12 +291,7 @@ When("se consulta el resultado del pago", async function (this: CustomWorld) {
 
 Then("la propuesta y los listados relacionados reflejan la confirmación", async function (this: CustomWorld) {
   assert.strictEqual(await this.page.evaluate(() => sessionStorage.getItem("activePayment")), null);
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/service-proposals",
-    status: 200,
-    body: [proposalFixture("accepted")],
-  });
+  await this.stubGet("/service-proposals", [proposalFixture("accepted")]);
   await this.page.getByRole("link", { name: "Volver a mis propuestas" }).click();
   await this.page.waitForURL(`${APP_URL}${ROUTES.consumer.services}`);
   await this.page.getByRole("tab", { name: "Aceptadas" }).click();
@@ -427,12 +396,7 @@ Given("que regreso desde Mercado Pago con un pago identificable", function (this
 });
 
 Given("mi sesión vence antes de verificar el resultado", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "GET",
-    endpoint: `/payment-intents/${PAYMENT_INTENT_ID}`,
-    status: 401,
-    body: { error: "Unauthorized" },
-  });
+  await this.stubGet(`/payment-intents/${PAYMENT_INTENT_ID}`, anApiError("Unauthorized"), 401);
 });
 
 Then("se me solicita iniciar sesión nuevamente", async function (this: CustomWorld) {
@@ -448,12 +412,7 @@ Then("no veo un mensaje que afirme que el pago falló", async function (this: Cu
 
 Given("que el servicio de pagos responde con estado HTTP {int}", async function (this: CustomWorld, status: number) {
   returnPath = paymentReturnPath("pending");
-  await this.addApiStub({
-    method: "GET",
-    endpoint: `/payment-intents/${PAYMENT_INTENT_ID}`,
-    status,
-    body: { error: "Internal detail" },
-  });
+  await this.stubGet(`/payment-intents/${PAYMENT_INTENT_ID}`, anApiError("Internal detail"), status);
 });
 
 When("intento continuar con el pago de reserva", async function (this: CustomWorld) {

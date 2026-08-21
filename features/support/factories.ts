@@ -11,7 +11,7 @@ import {
 
 export interface MockCounterpart {
   id: number;
-  role: "consumer" | "provider";
+  role: "consumer" | "provider" | string;
   name: string;
   surname: string;
   category_name?: string;
@@ -29,6 +29,7 @@ export interface MockProposalStub {
   status: "pending" | "accepted" | "rejected" | "cancelled";
   created_on: string;
   counterpart?: MockCounterpart;
+  booking_terms?: any;
 }
 
 export interface MockCompletionImage {
@@ -223,6 +224,55 @@ export function aProposal(
       surname: role === "consumer" ? "Gómez" : "Pérez",
       category_name: role === "consumer" ? "Plomería" : undefined,
     },
+    ...overrides,
+  };
+}
+
+export function aBookingTerms(amountCents: number, overrides: Partial<any> = {}) {
+  const depositCents = Math.round(amountCents * 0.2);
+  const remainingServiceBalanceCents = amountCents - depositCents;
+  const platformFeeTotalCents = Math.round(amountCents * 0.05);
+  const platformFeeDueNowCents = Math.round(platformFeeTotalCents * 0.2);
+  const remainingPlatformFeeCents = platformFeeTotalCents - platformFeeDueNowCents;
+  const amountDueNowCents = depositCents + platformFeeDueNowCents;
+  const remainingAmountDueCents = remainingServiceBalanceCents + remainingPlatformFeeCents;
+  const contractTotalCents = amountCents + platformFeeTotalCents;
+
+  return {
+    currency: "ARS" as const,
+    service_total_cents: amountCents,
+    deposit_cents: depositCents,
+    remaining_service_balance_cents: remainingServiceBalanceCents,
+    platform_fee_total_cents: platformFeeTotalCents,
+    platform_fee_due_now_cents: platformFeeDueNowCents,
+    remaining_platform_fee_cents: remainingPlatformFeeCents,
+    amount_due_now_cents: amountDueNowCents,
+    remaining_amount_due_cents: remainingAmountDueCents,
+    contract_total_cents: contractTotalCents,
+    booking_payment_deadline: "2026-08-31T12:00:00Z",
+    ...overrides,
+  };
+}
+
+export function aCheckoutSession(overrides: Partial<any> = {}) {
+  return {
+    payment_intent_id: "intent-e2e-123",
+    status: "checkout_ready",
+    checkout_url: "https://www.mercadopago.com.ar/checkout?pref_id=e2e-123",
+    expires_on: "2026-08-11T20:30:00Z",
+    pricing: {
+      currency: "ARS",
+      deposit_cents: 2_000_000,
+      platform_fee_due_now_cents: 100_000,
+      amount_due_now_cents: 2_100_000,
+    },
+    ...overrides,
+  };
+}
+
+export function aPaymentIntent(status: string = "pending", overrides: Partial<any> = {}) {
+  return {
+    status,
     ...overrides,
   };
 }

@@ -2,77 +2,51 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { AuthSession } from "../../infrastructure/auth/types";
-import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
-
-
-async function setProviderSession(world: CustomWorld) {
-  const session: AuthSession = {
-    user: {
-      id: "provider-001",
-      email: "prestador@loresuelvo.test",
-      firstName: "Paula",
-      lastName: "Rios",
-      isOnboarded: true,
-      role: "provider",
-    },
-    accessToken: "mock-access-token",
-  };
-
-  await world.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
-}
+import { aConversation, aConversationDetail, aCounterpart, aProposal, aBookingTerms, anApiError } from "../support/factories";
 
 async function setupChatWithStatus(world: CustomWorld, status: "accepted" | "pending") {
-  await setProviderSession(world);
-
-  await world.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: [
-      {
-        id: 1,
-        status: status,
-        counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández", category_name: "Plomería" },
-        last_message: null,
-        updated_on: new Date().toISOString(),
-      },
-    ],
+  await world.setSession("provider", {
+    id: "provider-001",
+    email: "prestador@loresuelvo.test",
+    firstName: "Paula",
+    lastName: "Rios",
+    isOnboarded: true,
   });
 
-  await world.addApiStub({
-    method: "GET",
-    endpoint: "/conversations/1",
-    status: 200,
-    body: {
+  await world.stubGet("/conversations", [
+    aConversation({
       id: 1,
-      status: status,
-      counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández", category_name: "Plomería" },
+      status,
+      counterpart: aCounterpart({
+        id: 10,
+        role: "consumer",
+        name: "María",
+        surname: "Fernández",
+        category_name: "Plomería",
+      }),
+      updated_on: new Date().toISOString(),
+    }),
+  ]);
+
+  await world.stubGet(
+    "/conversations/1",
+    aConversationDetail({
+      id: 1,
+      status,
+      counterpart: aCounterpart({
+        id: 10,
+        role: "consumer",
+        name: "María",
+        surname: "Fernández",
+        category_name: "Plomería",
+      }),
       messages: [],
       updated_on: new Date().toISOString(),
-    },
-  });
+    })
+  );
 
-  await world.addApiStub({
-    method: "GET",
-    endpoint: "/job-requests?conversation_id=1",
-    status: 200,
-    body: null,
-  });
-
-  await world.addApiStub({
-    method: "GET",
-    endpoint: "/service-proposals",
-    status: 200,
-    body: [],
-  });
+  await world.stubGet("/job-requests?conversation_id=1", null);
+  await world.stubGet("/service-proposals", []);
 
   await world.page.goto(APP_URL + ROUTES.provider.messages + "?consumer_id=10", { waitUntil: "domcontentloaded" });
   await world.page.waitForTimeout(500);
@@ -200,22 +174,20 @@ When(
   async function (this: CustomWorld, monto: string, motivo: string) {
     const alreadyStubbed = await this.hasApiStub("POST", "/service-proposals");
     if (!alreadyStubbed) {
-      await this.addApiStub({
-        method: "POST",
-        endpoint: "/service-proposals",
-        status: 201,
-        body: {
+      const amountCents = parseFloat(monto) * 100;
+      await this.stubPost(
+        "/service-proposals",
+        201,
+        aProposal("provider", {
           id: 10,
           conversation_id: 1,
           consumer_id: 10,
           provider_id: 1,
-          amount_cents: parseFloat(monto) * 100,
+          amount_cents: amountCents,
           scheduled_on: "2026-07-20T12:00:00Z",
           description: motivo,
           status: "pending",
-          booking_terms: {
-            currency: "ARS",
-            service_total_cents: parseFloat(monto) * 100,
+          booking_terms: aBookingTerms(amountCents, {
             deposit_cents: Math.round(parseFloat(monto) * 20),
             remaining_service_balance_cents: Math.round(parseFloat(monto) * 80),
             platform_fee_total_cents: Math.round(parseFloat(monto) * 10),
@@ -225,9 +197,9 @@ When(
             remaining_amount_due_cents: Math.round(parseFloat(monto) * 88),
             contract_total_cents: Math.round(parseFloat(monto) * 110),
             booking_payment_deadline: "2026-07-19T12:00:00Z",
-          },
-        },
-      });
+          }),
+        })
+      );
     }
 
     const modal = this.page.getByRole("dialog", { name: "Propuesta de Servicio" });
@@ -337,12 +309,7 @@ Then("veo un mensaje de error indicando que la fecha debe ser futura", async fun
 });
 
 Given("el servicio de propuestas no está disponible", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "POST",
-    endpoint: "/service-proposals",
-    status: 500,
-    body: { error: "Internal Server Error" },
-  });
+  await this.stubPost("/service-proposals", 500, anApiError("Internal Server Error"));
 });
 
 Then("veo un mensaje de error indicando el problema", async function (this: CustomWorld) {

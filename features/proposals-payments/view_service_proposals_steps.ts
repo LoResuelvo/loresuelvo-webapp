@@ -2,56 +2,23 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { AuthSession } from "../../infrastructure/auth/types";
-import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
-
+import {
+  aProposal,
+  aBookingTerms,
+  aCounterpart,
+  aConversation,
+  aConversationDetail,
+  anApiError,
+} from "../support/factories";
 
 async function setSession(world: CustomWorld, role: "consumer" | "provider") {
-  const session: AuthSession = {
-    user: {
-      id: "user-001",
-      email: "user@loresuelvo.test",
-      firstName: "Test",
-      lastName: "User",
-      isOnboarded: true,
-      role: role,
-    },
-    accessToken: "mock-access-token",
-  };
-
-  await world.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
-}
-
-function createBookingTerms(amountCents: number) {
-  const depositCents = Math.round(amountCents * 0.2);
-  const remainingServiceBalanceCents = amountCents - depositCents;
-  const platformFeeTotalCents = Math.round(amountCents * 0.05);
-  const platformFeeDueNowCents = Math.round(platformFeeTotalCents * 0.2);
-  const remainingPlatformFeeCents = platformFeeTotalCents - platformFeeDueNowCents;
-  const amountDueNowCents = depositCents + platformFeeDueNowCents;
-  const remainingAmountDueCents = remainingServiceBalanceCents + remainingPlatformFeeCents;
-  const contractTotalCents = amountCents + platformFeeTotalCents;
-
-  return {
-    currency: "ARS" as const,
-    service_total_cents: amountCents,
-    deposit_cents: depositCents,
-    remaining_service_balance_cents: remainingServiceBalanceCents,
-    platform_fee_total_cents: platformFeeTotalCents,
-    platform_fee_due_now_cents: platformFeeDueNowCents,
-    remaining_platform_fee_cents: remainingPlatformFeeCents,
-    amount_due_now_cents: amountDueNowCents,
-    remaining_amount_due_cents: remainingAmountDueCents,
-    contract_total_cents: contractTotalCents,
-    booking_payment_deadline: "2026-07-04T12:00:00-03:00",
-  };
+  await world.setSession(role, {
+    id: "user-001",
+    email: "user@loresuelvo.test",
+    firstName: "Test",
+    lastName: "User",
+    isOnboarded: true,
+  });
 }
 
 Given(
@@ -59,32 +26,26 @@ Given(
   async function (this: CustomWorld, providerName: string, category: string) {
     await setSession(this, "consumer");
     const [name, surname] = providerName.split(" ");
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/service-proposals",
-      status: 200,
-      body: [
-        {
-          id: 1,
-          conversation_id: 25,
-          amount_cents: 1500050,
-          scheduled_on: "2026-07-05T09:30:00-03:00",
-          description: "Reparación de pérdida de agua en cocina con materiales incluidos.",
-          status: "pending",
-          created_on: "2026-07-04T10:00:00-03:00",
-          counterpart: {
-            id: 5,
-            role: "provider",
-            name: name,
-            surname: surname,
-            category_name: category,
-            profile_photo_url: "https://example.com/photo.jpg",
-          },
-          booking_terms: createBookingTerms(1500050),
-        },
-      ],
-    });
-    // Navegar a la vista de mis servicios (Fase 8)
+    await this.stubGet("/service-proposals", [
+      aProposal("consumer", {
+        id: 1,
+        conversation_id: 25,
+        amount_cents: 1500050,
+        scheduled_on: "2026-07-05T09:30:00-03:00",
+        description: "Reparación de pérdida de agua en cocina con materiales incluidos.",
+        status: "pending",
+        created_on: "2026-07-04T10:00:00-03:00",
+        counterpart: aCounterpart({
+          id: 5,
+          role: "provider",
+          name,
+          surname,
+          category_name: category,
+          profile_photo_url: "https://example.com/photo.jpg",
+        }),
+        booking_terms: aBookingTerms(1500050, { booking_payment_deadline: "2026-07-04T12:00:00-03:00" }),
+      }),
+    ]);
     await this.page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "domcontentloaded" });
   }
 );
@@ -116,7 +77,6 @@ Then("la tarjeta muestra el monto {string}", async function (this: CustomWorld, 
 Then("la tarjeta muestra la fecha {string}", async function (this: CustomWorld, date: string) {
   const card = this.page.getByRole("listitem").first();
   const text = (await card.textContent()) || "";
-  // Validamos solo la fecha (día, mes, año) para evitar problemas de zona horaria en CI
   const datePart = date.split(" - ")[0];
   assert.ok(text.includes(datePart), `No se visualiza la fecha correcta. Esperado (parcial): ${datePart}`);
 });
@@ -150,29 +110,24 @@ Given(
   async function (this: CustomWorld, consumerName: string) {
     await setSession(this, "provider");
     const [name, surname] = consumerName.split(" ");
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/service-proposals",
-      status: 200,
-      body: [
-        {
-          id: 2,
-          conversation_id: 26,
-          amount_cents: 500000,
-          scheduled_on: "2026-07-06T10:00:00-03:00",
-          description: "Revisión eléctrica",
-          status: "pending",
-          created_on: "2026-07-04T10:00:00-03:00",
-          counterpart: {
-            id: 6,
-            role: "consumer",
-            name: name,
-            surname: surname,
-          },
-          booking_terms: createBookingTerms(500000),
-        },
-      ],
-    });
+    await this.stubGet("/service-proposals", [
+      aProposal("provider", {
+        id: 2,
+        conversation_id: 26,
+        amount_cents: 500000,
+        scheduled_on: "2026-07-06T10:00:00-03:00",
+        description: "Revisión eléctrica",
+        status: "pending",
+        created_on: "2026-07-04T10:00:00-03:00",
+        counterpart: aCounterpart({
+          id: 6,
+          role: "consumer",
+          name,
+          surname,
+        }),
+        booking_terms: aBookingTerms(500000, { booking_payment_deadline: "2026-07-04T12:00:00-03:00" }),
+      }),
+    ]);
     await this.page.goto(APP_URL + ROUTES.provider.jobs, { waitUntil: "domcontentloaded" });
   }
 );
@@ -192,18 +147,43 @@ Then("el nombre se centra verticalmente respecto al avatar", async function (thi
 
 Given(
   "que estoy en la vista de propuestas como consumidor con propuestas en estado {string}, {string} y {string}",
-  async function (this: CustomWorld, s1: string, s2: string, s3: string) {
+  async function (this: CustomWorld, s1: any, s2: any, s3: any) {
     await setSession(this, "consumer");
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/service-proposals",
-      status: 200,
-      body: [
-        { id: 1, conversation_id: 1, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: s1, created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "provider", name: "P", surname: "1" }, booking_terms: createBookingTerms(1000) },
-        { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: s2, created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "provider", name: "P", surname: "2" }, booking_terms: createBookingTerms(1000) },
-        { id: 3, conversation_id: 3, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "3", status: s3, created_on: "2026-07-03T00:00:00Z", counterpart: { id: 4, role: "provider", name: "P", surname: "3" }, booking_terms: createBookingTerms(1000) },
-      ],
-    });
+    await this.stubGet("/service-proposals", [
+      aProposal("consumer", {
+        id: 1,
+        conversation_id: 1,
+        amount_cents: 1000,
+        scheduled_on: "2026-07-05T09:30:00Z",
+        description: "1",
+        status: s1,
+        created_on: "2026-07-01T00:00:00Z",
+        counterpart: aCounterpart({ id: 2, role: "provider", name: "P", surname: "1" }),
+        booking_terms: aBookingTerms(1000),
+      }),
+      aProposal("consumer", {
+        id: 2,
+        conversation_id: 2,
+        amount_cents: 1000,
+        scheduled_on: "2026-07-05T09:30:00Z",
+        description: "2",
+        status: s2,
+        created_on: "2026-07-02T00:00:00Z",
+        counterpart: aCounterpart({ id: 3, role: "provider", name: "P", surname: "2" }),
+        booking_terms: aBookingTerms(1000),
+      }),
+      aProposal("consumer", {
+        id: 3,
+        conversation_id: 3,
+        amount_cents: 1000,
+        scheduled_on: "2026-07-05T09:30:00Z",
+        description: "3",
+        status: s3,
+        created_on: "2026-07-03T00:00:00Z",
+        counterpart: aCounterpart({ id: 4, role: "provider", name: "P", surname: "3" }),
+        booking_terms: aBookingTerms(1000),
+      }),
+    ]);
     await this.page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "domcontentloaded" });
   }
 );
@@ -255,16 +235,31 @@ Then("veo un badge {string} en color rojo", async function (this: CustomWorld, s
 
 Given("que ingreso a la HomePage como prestador con propuestas aceptadas", async function (this: CustomWorld) {
   await setSession(this, "provider");
-  await this.addApiStub({ method: "GET", endpoint: "/job-requests", status: 200, body: [] });
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/service-proposals",
-    status: 200,
-    body: [
-      { id: 1, conversation_id: 1, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "accepted", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "consumer", name: "C", surname: "1" }, booking_terms: createBookingTerms(1000) },
-      { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "consumer", name: "C", surname: "2" }, booking_terms: createBookingTerms(1000) },
-    ],
-  });
+  await this.stubGet("/job-requests", []);
+  await this.stubGet("/service-proposals", [
+    aProposal("provider", {
+      id: 1,
+      conversation_id: 1,
+      amount_cents: 1000,
+      scheduled_on: "2026-07-05T09:30:00Z",
+      description: "1",
+      status: "accepted",
+      created_on: "2026-07-01T00:00:00Z",
+      counterpart: aCounterpart({ id: 2, role: "consumer", name: "C", surname: "1" }),
+      booking_terms: aBookingTerms(1000),
+    }),
+    aProposal("provider", {
+      id: 2,
+      conversation_id: 2,
+      amount_cents: 1000,
+      scheduled_on: "2026-07-05T09:30:00Z",
+      description: "2",
+      status: "pending",
+      created_on: "2026-07-02T00:00:00Z",
+      counterpart: aCounterpart({ id: 3, role: "consumer", name: "C", surname: "2" }),
+      booking_terms: aBookingTerms(1000),
+    }),
+  ]);
   await this.page.goto(APP_URL + ROUTES.provider.home, { waitUntil: "domcontentloaded" });
 });
 
@@ -279,30 +274,60 @@ Given(
   "que ingreso a la HomePage como consumidor con propuestas pendientes y aceptadas",
   async function (this: CustomWorld) {
     await setSession(this, "consumer");
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/service-proposals",
-      status: 200,
-      body: [
-        { id: 1, conversation_id: 1, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "accepted", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "provider", name: "P", surname: "1" }, booking_terms: createBookingTerms(1000) },
-        { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "provider", name: "P", surname: "2" }, booking_terms: createBookingTerms(1000) },
-      ],
-    });
+    await this.stubGet("/service-proposals", [
+      aProposal("consumer", {
+        id: 1,
+        conversation_id: 1,
+        amount_cents: 1000,
+        scheduled_on: "2026-07-05T09:30:00Z",
+        description: "1",
+        status: "accepted",
+        created_on: "2026-07-01T00:00:00Z",
+        counterpart: aCounterpart({ id: 2, role: "provider", name: "P", surname: "1" }),
+        booking_terms: aBookingTerms(1000),
+      }),
+      aProposal("consumer", {
+        id: 2,
+        conversation_id: 2,
+        amount_cents: 1000,
+        scheduled_on: "2026-07-05T09:30:00Z",
+        description: "2",
+        status: "pending",
+        created_on: "2026-07-02T00:00:00Z",
+        counterpart: aCounterpart({ id: 3, role: "provider", name: "P", surname: "2" }),
+        booking_terms: aBookingTerms(1000),
+      }),
+    ]);
     await this.page.goto(APP_URL + ROUTES.consumer.home, { waitUntil: "domcontentloaded" });
   }
 );
 
 Given("que estoy en la vista histórica de propuestas como prestador", async function (this: CustomWorld) {
   await setSession(this, "provider");
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/service-proposals",
-    status: 200,
-    body: [
-      { id: 1, conversation_id: 1, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "accepted", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "consumer", name: "C", surname: "1" }, booking_terms: createBookingTerms(1000) },
-      { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "consumer", name: "C", surname: "2" }, booking_terms: createBookingTerms(1000) },
-    ],
-  });
+  await this.stubGet("/service-proposals", [
+    aProposal("provider", {
+      id: 1,
+      conversation_id: 1,
+      amount_cents: 1000,
+      scheduled_on: "2026-07-05T09:30:00Z",
+      description: "1",
+      status: "accepted",
+      created_on: "2026-07-01T00:00:00Z",
+      counterpart: aCounterpart({ id: 2, role: "consumer", name: "C", surname: "1" }),
+      booking_terms: aBookingTerms(1000),
+    }),
+    aProposal("provider", {
+      id: 2,
+      conversation_id: 2,
+      amount_cents: 1000,
+      scheduled_on: "2026-07-05T09:30:00Z",
+      description: "2",
+      status: "pending",
+      created_on: "2026-07-02T00:00:00Z",
+      counterpart: aCounterpart({ id: 3, role: "consumer", name: "C", surname: "2" }),
+      booking_terms: aBookingTerms(1000),
+    }),
+  ]);
   await this.page.goto(APP_URL + ROUTES.provider.jobs, { waitUntil: "domcontentloaded" });
 });
 
@@ -322,15 +347,30 @@ Given(
   "que estoy en la vista histórica de propuestas como prestador con propuestas en varios estados",
   async function (this: CustomWorld) {
     await setSession(this, "provider");
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/service-proposals",
-      status: 200,
-      body: [
-        { id: 1, conversation_id: 1, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "accepted", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "consumer", name: "C", surname: "1" }, booking_terms: createBookingTerms(1000) },
-        { id: 2, conversation_id: 2, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "2", status: "pending", created_on: "2026-07-02T00:00:00Z", counterpart: { id: 3, role: "consumer", name: "C", surname: "2" }, booking_terms: createBookingTerms(1000) },
-      ],
-    });
+    await this.stubGet("/service-proposals", [
+      aProposal("provider", {
+        id: 1,
+        conversation_id: 1,
+        amount_cents: 1000,
+        scheduled_on: "2026-07-05T09:30:00Z",
+        description: "1",
+        status: "accepted",
+        created_on: "2026-07-01T00:00:00Z",
+        counterpart: aCounterpart({ id: 2, role: "consumer", name: "C", surname: "1" }),
+        booking_terms: aBookingTerms(1000),
+      }),
+      aProposal("provider", {
+        id: 2,
+        conversation_id: 2,
+        amount_cents: 1000,
+        scheduled_on: "2026-07-05T09:30:00Z",
+        description: "2",
+        status: "pending",
+        created_on: "2026-07-02T00:00:00Z",
+        counterpart: aCounterpart({ id: 3, role: "consumer", name: "C", surname: "2" }),
+        booking_terms: aBookingTerms(1000),
+      }),
+    ]);
     await this.page.goto(APP_URL + ROUTES.provider.jobs, { waitUntil: "domcontentloaded" });
   }
 );
@@ -350,43 +390,44 @@ Then("solo se muestran las propuestas con estado aceptado", async function (this
 
 Given("que estoy en la vista histórica de propuestas como consumidor sin propuestas", async function (this: CustomWorld) {
   await setSession(this, "consumer");
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/service-proposals",
-    status: 200,
-    body: [],
-  });
+  await this.stubGet("/service-proposals", []);
   await this.page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "domcontentloaded" });
 });
 
 Given("que estoy en el chat del prestador con una propuesta de servicio asociada", async function (this: CustomWorld) {
   await setSession(this, "provider");
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: [{ id: 1, status: "accepted", counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández" }, last_message: null, updated_on: new Date().toISOString() }],
-  });
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations/1",
-    status: 200,
-    body: { id: 1, status: "accepted", counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández" }, messages: [], updated_on: new Date().toISOString() },
-  });
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/job-requests?conversation_id=1",
-    status: 200,
-    body: [],
-  });
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/service-proposals",
-    status: 200,
-    body: [
-      { id: 1, conversation_id: 1, amount_cents: 1500050, scheduled_on: "2026-07-05T09:30:00Z", description: "Arreglo", status: "pending", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández" }, booking_terms: createBookingTerms(1500050) },
-    ],
-  });
+  await this.stubGet("/conversations", [
+    aConversation({
+      id: 1,
+      status: "accepted",
+      counterpart: aCounterpart({ id: 10, role: "consumer", name: "María", surname: "Fernández" }),
+      updated_on: new Date().toISOString(),
+    }),
+  ]);
+  await this.stubGet(
+    "/conversations/1",
+    aConversationDetail({
+      id: 1,
+      status: "accepted",
+      counterpart: aCounterpart({ id: 10, role: "consumer", name: "María", surname: "Fernández" }),
+      messages: [],
+      updated_on: new Date().toISOString(),
+    })
+  );
+  await this.stubGet("/job-requests?conversation_id=1", []);
+  await this.stubGet("/service-proposals", [
+    aProposal("provider", {
+      id: 1,
+      conversation_id: 1,
+      amount_cents: 1500050,
+      scheduled_on: "2026-07-05T09:30:00Z",
+      description: "Arreglo",
+      status: "pending",
+      created_on: "2026-07-01T00:00:00Z",
+      counterpart: aCounterpart({ id: 10, role: "consumer", name: "María", surname: "Fernández" }),
+      booking_terms: aBookingTerms(1500050),
+    }),
+  ]);
   await this.page.goto(APP_URL + ROUTES.provider.messages + "?consumer_id=10", { waitUntil: "domcontentloaded" });
 });
 
@@ -407,20 +448,20 @@ Given(
   "que estoy en la vista histórica de propuestas como consumidor con una propuesta",
   async function (this: CustomWorld) {
     await setSession(this, "consumer");
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/conversations",
-      status: 200,
-      body: [],
-    });
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/service-proposals",
-      status: 200,
-      body: [
-        { id: 1, conversation_id: 42, amount_cents: 1000, scheduled_on: "2026-07-05T09:30:00Z", description: "1", status: "pending", created_on: "2026-07-01T00:00:00Z", counterpart: { id: 2, role: "provider", name: "P", surname: "1" }, booking_terms: createBookingTerms(1000) },
-      ],
-    });
+    await this.stubGet("/conversations", []);
+    await this.stubGet("/service-proposals", [
+      aProposal("consumer", {
+        id: 1,
+        conversation_id: 42,
+        amount_cents: 1000,
+        scheduled_on: "2026-07-05T09:30:00Z",
+        description: "1",
+        status: "pending",
+        created_on: "2026-07-01T00:00:00Z",
+        counterpart: aCounterpart({ id: 2, role: "provider", name: "P", surname: "1" }),
+        booking_terms: aBookingTerms(1000),
+      }),
+    ]);
     await this.page.goto(APP_URL + "/consumidor/mis-servicios", { waitUntil: "domcontentloaded" });
   }
 );
@@ -447,12 +488,7 @@ Then("se abre el chat asociado a esa propuesta", async function (this: CustomWor
 
 Given("que no tengo una sesión válida", async function (this: CustomWorld) {
   await this.page.context().clearCookies();
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/service-proposals",
-    status: 401,
-    body: { error: "Unauthorized" },
-  });
+  await this.stubGet("/service-proposals", anApiError("Unauthorized"), 401);
 });
 
 When("intento acceder a mis propuestas de servicio", async function (this: CustomWorld) {

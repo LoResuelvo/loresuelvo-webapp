@@ -15,7 +15,6 @@ Feature: US-28 Completar pago del servicio
       And veo un total a pagar de saldo de "$ 84.000,00"
       And veo la acción "Pagar saldo del servicio"
 
-    @wip
     Scenario Outline: 02-CSP Iniciar o recuperar un checkout activo del saldo
       Given que el checkout del saldo responde con estado HTTP <httpStatus>
       When elijo pagar el saldo del servicio

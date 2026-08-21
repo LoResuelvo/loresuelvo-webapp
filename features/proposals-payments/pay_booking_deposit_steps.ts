@@ -209,6 +209,8 @@ When("elijo pagar la reserva", async function (this: CustomWorld) {
   await this.page.getByRole("button", { name: "Pagar reserva" }).click();
   await this.page.waitForURL(CHECKOUT_URL, { timeout: 10_000 });
   observedCheckoutUrl = this.page.url();
+  (this as any).observedCheckoutUrl = this.page.url();
+  (this as any).expectedCheckoutUrl = CHECKOUT_URL;
   await this.page.goto(APP_URL);
 });
 
@@ -223,7 +225,9 @@ Then("se conserva el contexto del pago de reserva en esta sesión", async functi
 });
 
 Then("soy redirigido exactamente a la URL de checkout informada por el servicio", function (this: CustomWorld) {
-  assert.strictEqual(observedCheckoutUrl, CHECKOUT_URL);
+  const expected = (this as any).expectedCheckoutUrl || CHECKOUT_URL;
+  const observed = (this as any).observedCheckoutUrl || observedCheckoutUrl;
+  assert.strictEqual(observed, expected);
 });
 
 Given("que la creación del checkout está en curso", async function (this: CustomWorld) {

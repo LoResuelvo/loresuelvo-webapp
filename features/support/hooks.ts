@@ -30,6 +30,14 @@ Before(async function (this: CustomWorld) {
     });
   });
 
+  await this.page.route("https://www.mercadopago.com.ar/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<html><body>Mercado Pago Checkout</body></html>",
+    });
+  });
+
   await this.addApiStub({
     method: "GET",
     endpoint: "/service-proposals",

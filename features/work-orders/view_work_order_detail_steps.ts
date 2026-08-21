@@ -120,7 +120,7 @@ Given(
   }
 );
 
-async function openWorkOrderDetailModal(world: CustomWorld) {
+export async function openWorkOrderDetailModal(world: CustomWorld) {
   const cookies = await world.page.context().cookies();
   const sessionCookie = cookies.find((c) => c.name === "__e2e_session");
   let isProvider = false;

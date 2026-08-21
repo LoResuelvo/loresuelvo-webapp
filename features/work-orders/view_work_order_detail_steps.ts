@@ -1,7 +1,7 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
-import { aProposal, aWorkOrder, aCompletionReport, aReview } from "../support/factories";
+import { aProposal, aWorkOrder, aCompletionReport, aReview, anApiError } from "../support/factories";
 import { ROUTES } from "../../lib/routes";
 
 const PROPOSAL_ID = 10;
@@ -106,8 +106,6 @@ Given(
       const isDirectApi = req.url().includes(`/work-orders/${WORK_ORDER_ID}`);
 
       if (isServerAction || isDirectApi) {
-        // Mantiene la petición en vuelo sin demoras artificiales.
-        // Playwright verifica el spinner en ~15ms y el hook After descarta la petición.
         return;
       }
       await route.fallback();
@@ -118,7 +116,7 @@ Given(
 Given(
   "que el servidor responde con error al consultar el detalle de la orden",
   async function (this: CustomWorld) {
-    await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, { message: "Internal server error" }, 500);
+    await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, anApiError("Internal server error"), 500);
   }
 );
 

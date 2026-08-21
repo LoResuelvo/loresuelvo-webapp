@@ -2,69 +2,52 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { AuthSession } from "../../infrastructure/auth/types";
-import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
-
-async function setProviderSession(world: CustomWorld) {
-  const session: AuthSession = {
-    user: {
-      id: "provider-001",
-      email: "prestador@loresuelvo.test",
-      firstName: "Paula",
-      lastName: "Rios",
-      isOnboarded: true,
-      role: "provider",
-    },
-    accessToken: "mock-access-token",
-  };
-
-  await world.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
-}
+import {
+  aProposal,
+  aWorkOrder,
+  aCounterpart,
+  aPresignedUpload,
+  aConfirmedFile,
+  aCompletionReportSubmission,
+  anApiError,
+} from "../support/factories";
 
 async function setupWorkOrderStubs(
   world: CustomWorld,
   scheduledOn: string = "2026-08-10T10:00:00Z"
 ) {
-  await setProviderSession(world);
-
-  await world.addApiStub({
-    method: "GET",
-    endpoint: "/service-proposals",
-    status: 200,
-    body: [
-      {
-        id: 42,
-        conversation_id: 1,
-        consumer_id: 10,
-        provider_id: 1,
-        amount_cents: 1500000,
-        scheduled_on: scheduledOn,
-        description: "Reparación de cañería",
-        status: "accepted",
-        created_on: "2026-08-01T10:00:00Z",
-        counterpart: {
-          id: 10,
-          role: "consumer",
-          name: "María",
-          surname: "Fernández",
-          category_name: "Plomería",
-        },
-      },
-    ],
+  await world.setSession("provider", {
+    id: "provider-001",
+    email: "prestador@loresuelvo.test",
+    firstName: "Paula",
+    lastName: "Rios",
+    isOnboarded: true,
   });
 
-  await world.addApiStub({
-    method: "GET",
-    endpoint: "/work-orders?service_proposal_id=42",
-    status: 200,
-    body: {
+  await world.stubGet("/service-proposals", [
+    aProposal("provider", {
+      id: 42,
+      conversation_id: 1,
+      consumer_id: 10,
+      provider_id: 1,
+      amount_cents: 1500000,
+      scheduled_on: scheduledOn,
+      description: "Reparación de cañería",
+      status: "accepted",
+      created_on: "2026-08-01T10:00:00Z",
+      counterpart: aCounterpart({
+        id: 10,
+        role: "consumer",
+        name: "María",
+        surname: "Fernández",
+        category_name: "Plomería",
+      }),
+    }),
+  ]);
+
+  await world.stubGet(
+    "/work-orders?service_proposal_id=42",
+    aWorkOrder({
       id: 10,
       service_proposal_id: 42,
       status: "scheduled",
@@ -72,14 +55,12 @@ async function setupWorkOrderStubs(
       scheduled_on: scheduledOn,
       description: "Reparación de cañería",
       accepted_on: "2026-08-05T10:00:00Z",
-    },
-  });
+    })
+  );
 
-  await world.addApiStub({
-    method: "GET",
-    endpoint: "/work-orders/10",
-    status: 200,
-    body: {
+  await world.stubGet(
+    "/work-orders/10",
+    aWorkOrder({
       id: 10,
       service_proposal_id: 42,
       status: "scheduled",
@@ -87,82 +68,55 @@ async function setupWorkOrderStubs(
       scheduled_on: scheduledOn,
       description: "Reparación de cañería",
       accepted_on: "2026-08-05T10:00:00Z",
-    },
-  });
+    })
+  );
 
-  await world.addApiStub({
-    method: "POST",
-    endpoint: "/files/presign",
-    status: 200,
-    body: {
+  await world.stubPost(
+    "/files/presign",
+    200,
+    aPresignedUpload({
       file_id: "mock-completion-file-id",
       upload_url: "https://mock-upload.test/completion-upload",
       headers: {},
       key: "work_order_completion_image/mock-completion-file-id",
-    },
-  });
+    })
+  );
 
-  await world.addApiStub({
-    method: "POST",
-    endpoint: "/files/presigned-url",
-    status: 200,
-    body: {
+  await world.stubPost(
+    "/files/presigned-url",
+    200,
+    aPresignedUpload({
       file_id: "mock-completion-file-id",
       upload_url: "https://mock-upload.test/completion-upload",
       headers: {},
       key: "work_order_completion_image/mock-completion-file-id",
-    },
-  });
+    })
+  );
 
   await world.page.route("https://mock-upload.test/completion-upload*", async (route) => {
     await route.fulfill({ status: 204 });
   });
 
-  await world.addApiStub({
-    method: "POST",
-    endpoint: "/files/mock-completion-file-id/confirm",
-    status: 200,
-    body: {
+  await world.stubPost(
+    "/files/mock-completion-file-id/confirm",
+    200,
+    aConfirmedFile({
       id: "mock-completion-file-id",
       original_name: "evidencia.jpg",
-    },
-  });
+    })
+  );
 
-  await world.addApiStub({
-    method: "POST",
-    endpoint: "/files/confirm",
-    status: 200,
-    body: {
+  await world.stubPost(
+    "/files/confirm",
+    200,
+    aConfirmedFile({
       id: "mock-completion-file-id",
       original_name: "evidencia.jpg",
-    },
-  });
+    })
+  );
 
-  await world.addApiStub({
-    method: "POST",
-    endpoint: "/work-orders/10/completion-reports",
-    status: 201,
-    body: {
-      id: 1,
-      work_order_id: 10,
-      description: "Trabajo finalizado exitosamente.",
-      image_file_ids: ["mock-completion-file-id"],
-      created_on: new Date().toISOString(),
-    },
-  });
-
-  await world.addApiStub({
-    method: "POST",
-    endpoint: "/work-orders/42/completion-reports",
-    status: 201,
-    body: {
-      id: 1,
-      work_order_id: 10,
-      description: "Trabajo finalizado exitosamente.",
-      image_file_ids: ["mock-completion-file-id"],
-      created_on: new Date().toISOString(),
-    },
-  });
+  await world.stubPost("/work-orders/10/completion-reports", 201, aCompletionReportSubmission());
+  await world.stubPost("/work-orders/42/completion-reports", 201, aCompletionReportSubmission());
 }
 
 async function selectAcceptedTab(world: CustomWorld) {
@@ -306,49 +260,45 @@ Given(
 
     for (let i = 1; i <= count; i++) {
       const fileId = `mock-completion-file-${i}`;
-      await this.addApiStub({
-        method: "POST",
-        endpoint: "/files/presign",
-        status: 200,
-        body: {
+      await this.stubPost(
+        "/files/presign",
+        200,
+        aPresignedUpload({
           file_id: fileId,
           upload_url: `https://mock-upload.test/completion-upload-${i}`,
           headers: {},
           key: `work_order_completion_image/${fileId}`,
-        },
-      });
-      await this.addApiStub({
-        method: "POST",
-        endpoint: "/files/presigned-url",
-        status: 200,
-        body: {
+        })
+      );
+      await this.stubPost(
+        "/files/presigned-url",
+        200,
+        aPresignedUpload({
           file_id: fileId,
           upload_url: `https://mock-upload.test/completion-upload-${i}`,
           headers: {},
           key: `work_order_completion_image/${fileId}`,
-        },
-      });
+        })
+      );
       await this.page.route(`https://mock-upload.test/completion-upload-${i}`, async (route) => {
         await route.fulfill({ status: 204 });
       });
-      await this.addApiStub({
-        method: "POST",
-        endpoint: `/files/${fileId}/confirm`,
-        status: 200,
-        body: {
+      await this.stubPost(
+        `/files/${fileId}/confirm`,
+        200,
+        aConfirmedFile({
           id: fileId,
           original_name: `evidencia_${i}.jpg`,
-        },
-      });
-      await this.addApiStub({
-        method: "POST",
-        endpoint: "/files/confirm",
-        status: 200,
-        body: {
+        })
+      );
+      await this.stubPost(
+        "/files/confirm",
+        200,
+        aConfirmedFile({
           id: fileId,
           original_name: `evidencia_${i}.jpg`,
-        },
-      });
+        })
+      );
     }
 
     const fileInput = modal.locator('input[type="file"]');
@@ -430,22 +380,16 @@ Then(
 Given(
   "la orden de trabajo ya tiene un reporte de finalización",
   async function (this: CustomWorld) {
-    await this.addApiStub({
-      method: "POST",
-      endpoint: "/work-orders/10/completion-reports",
-      status: 409,
-      body: {
-        error: "La orden de trabajo ya fue reportada previamente.",
-      },
-    });
-    await this.addApiStub({
-      method: "POST",
-      endpoint: "/work-orders/42/completion-reports",
-      status: 409,
-      body: {
-        error: "La orden de trabajo ya fue reportada previamente.",
-      },
-    });
+    await this.stubPost(
+      "/work-orders/10/completion-reports",
+      409,
+      anApiError("La orden de trabajo ya fue reportada previamente.")
+    );
+    await this.stubPost(
+      "/work-orders/42/completion-reports",
+      409,
+      anApiError("La orden de trabajo ya fue reportada previamente.")
+    );
   }
 );
 

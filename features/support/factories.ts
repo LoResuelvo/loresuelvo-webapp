@@ -313,6 +313,17 @@ export function aCompletionReport(overrides: Partial<MockCompletionReport> = {})
   };
 }
 
+export function aCompletionReportSubmission(overrides: Partial<any> = {}) {
+  return {
+    id: 1,
+    work_order_id: 10,
+    description: "Trabajo finalizado exitosamente.",
+    image_file_ids: ["mock-completion-file-id"],
+    created_on: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
 export function aReview(overrides: Partial<MockReview> = {}): MockReview {
   return {
     rating: 5,

@@ -1,23 +1,17 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
-import { setConsumerSession } from "./initiate_chat_with_provider_steps";
 import { ROUTES } from "../../lib/routes";
-
+import { aAiConversation, aCategory } from "../support/factories";
 
 When("visualizo el sidebar", async function (this: CustomWorld) {
-  await setConsumerSession(this);
+  await this.setSession("consumer");
 
   if (!(await this.hasApiStub("GET", "/categories"))) {
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/categories",
-      status: 200,
-      body: [
-        { id: 1, name: "Plomería" },
-        { id: 2, name: "Electricista" },
-      ],
-    });
+    await this.stubGet("/categories", [
+      aCategory({ id: 1, name: "Plomería" }),
+      aCategory({ id: 2, name: "Electricista" }),
+    ]);
   }
 
   await this.page.goto(`${APP_URL}${ROUTES.consumer.home}`, { waitUntil: "networkidle", timeout: 15000 });
@@ -38,72 +32,60 @@ Then("veo el apartado Chat con IA", async function (this: CustomWorld) {
 });
 
 Given("ingreso a la sección Chat con IA", async function (this: CustomWorld) {
-  await setConsumerSession(this);
+  await this.setSession("consumer");
 
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/chatbot/conversations",
-    status: 200,
-    body: [
+  await this.stubGet("/chatbot/conversations", [
+    aAiConversation({
+      id: 1,
+      title: "Pérdida de agua en la cocina",
+      last_message: {
+        id: 2,
+        sender_role: "chatbot",
+        content: "Revisá si el agua sale desde la rosca del sifón.",
+        created_on: "2026-06-18T12:00:00Z",
+      },
+      updated_on: "2026-06-18T12:00:00Z",
+    }),
+    aAiConversation({
+      id: 2,
+      title: "Problema con el gas",
+      last_message: {
+        id: 4,
+        sender_role: "consumer",
+        content: "Huele a gas en la cocina",
+        created_on: "2026-06-17T10:00:00Z",
+      },
+      updated_on: "2026-06-17T10:00:00Z",
+    }),
+  ]);
+
+  await this.stubGet("/conversations/1", {
+    id: 1,
+    conversation_id: 1,
+    status: "active",
+    title: "Pérdida de agua en la cocina",
+    response_status: "answered",
+    messages: [
       {
         id: 1,
-        status: "active",
-        title: "Pérdida de agua en la cocina",
-        last_message: {
-          id: 2,
-          sender_role: "chatbot",
-          content: "Revisá si el agua sale desde la rosca del sifón.",
-          created_on: "2026-06-18T12:00:00Z",
-        },
-        updated_on: "2026-06-18T12:00:00Z",
+        sender_role: "consumer",
+        content: "Se está filtrando agua debajo de la bacha",
+        created_on: "2026-06-18T10:00:00Z",
       },
       {
-        id: 2,
-        status: "active",
-        title: "Problema con el gas",
-        last_message: {
-          id: 4,
-          sender_role: "consumer",
-          content: "Huele a gas en la cocina",
-          created_on: "2026-06-17T10:00:00Z",
-        },
-        updated_on: "2026-06-17T10:00:00Z",
-      },
-    ],
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations/1",
-    status: 200,
-    body: {
-      id: 1,
-      conversation_id: 1,
-      status: "active",
-      title: "Pérdida de agua en la cocina",
-      response_status: "answered",
-      messages: [
-        {
-          id: 1,
-          sender_role: "consumer",
-          content: "Se está filtrando agua debajo de la bacha",
-          created_on: "2026-06-18T10:00:00Z",
-        },
-        {
-          id: 2,
-          sender_role: "chatbot",
-          content: "Revisá si el agua sale desde la rosca del sifón.",
-          created_on: "2026-06-18T10:00:01Z",
-        },
-      ],
-      response: {
         id: 2,
         sender_role: "chatbot",
         content: "Revisá si el agua sale desde la rosca del sifón.",
         created_on: "2026-06-18T10:00:01Z",
       },
-      recommended_providers: [],
+    ],
+    response: {
+      id: 2,
+      sender_role: "chatbot",
+      content: "Revisá si el agua sale desde la rosca del sifón.",
+      created_on: "2026-06-18T10:00:01Z",
     },
+    recommended_providers: [],
   });
 
   await this.page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}`);
@@ -147,38 +129,33 @@ When("selecciono nuevo chat", async function (this: CustomWorld) {
   const button = this.page.getByRole("button", { name: "Nuevo chat", exact: true });
   await button.waitFor({ state: "visible", timeout: 5000 });
 
-  await this.addApiStub({
-    method: "POST",
-    endpoint: "/chatbot/conversations",
-    status: 201,
-    body: {
-      id: 3,
-      conversation_id: 3,
-      status: "active",
-      title: "Nuevo problema detectado",
-      response_status: "answered",
-      messages: [
-        {
-          id: 5,
-          sender_role: "consumer",
-          content: "Tengo un problema nuevo",
-          created_on: "2026-06-18T10:10:00Z",
-        },
-        {
-          id: 6,
-          sender_role: "chatbot",
-          content: "Por favor, describime el problema con más detalle.",
-          created_on: "2026-06-18T10:10:05Z",
-        },
-      ],
-      response: {
+  await this.stubPost("/chatbot/conversations", 201, {
+    id: 3,
+    conversation_id: 3,
+    status: "active",
+    title: "Nuevo problema detectado",
+    response_status: "answered",
+    messages: [
+      {
+        id: 5,
+        sender_role: "consumer",
+        content: "Tengo un problema nuevo",
+        created_on: "2026-06-18T10:10:00Z",
+      },
+      {
         id: 6,
         sender_role: "chatbot",
         content: "Por favor, describime el problema con más detalle.",
         created_on: "2026-06-18T10:10:05Z",
       },
-      recommended_providers: [],
+    ],
+    response: {
+      id: 6,
+      sender_role: "chatbot",
+      content: "Por favor, describime el problema con más detalle.",
+      created_on: "2026-06-18T10:10:05Z",
     },
+    recommended_providers: [],
   });
 
   await button.click();
@@ -204,40 +181,35 @@ Then("puedo comenzar a enviar mensajes", async function (this: CustomWorld) {
 });
 
 Given("existe una conversación con la IA", async function (this: CustomWorld) {
-  await setConsumerSession(this);
+  await this.setSession("consumer");
 
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations/1",
-    status: 200,
-    body: {
-      id: 1,
-      conversation_id: 1,
-      status: "active",
-      title: "Pérdida de agua en la cocina",
-      response_status: "answered",
-      messages: [
-        {
-          id: 1,
-          sender_role: "consumer",
-          content: "Se está filtrando agua debajo de la bacha",
-          created_on: "2026-06-18T10:00:00Z",
-        },
-        {
-          id: 2,
-          sender_role: "chatbot",
-          content: "Revisá si el agua sale desde la rosca del sifón.",
-          created_on: "2026-06-18T10:00:01Z",
-        },
-      ],
-      response: {
+  await this.stubGet("/conversations/1", {
+    id: 1,
+    conversation_id: 1,
+    status: "active",
+    title: "Pérdida de agua en la cocina",
+    response_status: "answered",
+    messages: [
+      {
+        id: 1,
+        sender_role: "consumer",
+        content: "Se está filtrando agua debajo de la bacha",
+        created_on: "2026-06-18T10:00:00Z",
+      },
+      {
         id: 2,
         sender_role: "chatbot",
         content: "Revisá si el agua sale desde la rosca del sifón.",
         created_on: "2026-06-18T10:00:01Z",
       },
-      recommended_providers: [],
+    ],
+    response: {
+      id: 2,
+      sender_role: "chatbot",
+      content: "Revisá si el agua sale desde la rosca del sifón.",
+      created_on: "2026-06-18T10:00:01Z",
     },
+    recommended_providers: [],
   });
 
   await this.page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);
@@ -245,128 +217,111 @@ Given("existe una conversación con la IA", async function (this: CustomWorld) {
 });
 
 When("recibo una nueva respuesta del asistente", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "POST",
-    endpoint: "/chatbot/conversations/1/messages",
-    status: 201,
-    body: {
-      id: 1,
-      conversation_id: 1,
-      status: "active",
-      title: "Pérdida de agua en la cocina",
-      response_status: "answered",
-      messages: [
-        {
-          id: 1,
-          sender_role: "consumer",
-          content: "Se está filtrando agua debajo de la bacha",
-          created_on: "2026-06-18T10:00:00Z",
-        },
-        {
-          id: 2,
-          sender_role: "chatbot",
-          content: "Revisá si el agua sale desde la rosca del sifón.",
-          created_on: "2026-06-18T10:00:01Z",
-        },
-        {
-          id: 3,
-          sender_role: "consumer",
-          content: "Ya revisé y no es eso.",
-          created_on: "2026-06-18T10:05:00Z",
-        },
-        {
-          id: 4,
-          sender_role: "chatbot",
-          content: "Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?",
-          created_on: "2026-06-18T10:05:05Z",
-        },
-      ],
-      response: {
-        id: 4,
-        sender_role: "chatbot",
-        content: "Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?",
-        created_on: "2026-06-18T10:05:05Z",
-      },
-      recommended_providers: [],
-    },
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/chatbot/conversations",
-    status: 200,
-    body: [
+  await this.stubPost("/chatbot/conversations/1/messages", 201, {
+    id: 1,
+    conversation_id: 1,
+    status: "active",
+    title: "Pérdida de agua en la cocina",
+    response_status: "answered",
+    messages: [
       {
         id: 1,
-        status: "active",
-        title: "Pérdida de agua en la cocina",
-        last_message: {
-          id: 4,
-          sender_role: "chatbot",
-          content: "Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?",
-          created_on: "2026-06-18T10:05:05Z",
-        },
-        updated_on: "2026-06-18T10:05:05Z",
+        sender_role: "consumer",
+        content: "Se está filtrando agua debajo de la bacha",
+        created_on: "2026-06-18T10:00:00Z",
       },
       {
         id: 2,
-        status: "active",
-        title: "Problema con el gas",
-        last_message: {
-          id: 4,
-          sender_role: "consumer",
-          content: "Huele a gas en la cocina",
-          created_on: "2026-06-17T10:00:00Z",
-        },
-        updated_on: "2026-06-17T10:00:00Z",
+        sender_role: "chatbot",
+        content: "Revisá si el agua sale desde la rosca del sifón.",
+        created_on: "2026-06-18T10:00:01Z",
       },
-    ],
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations/1",
-    status: 200,
-    body: {
-      id: 1,
-      conversation_id: 1,
-      status: "active",
-      title: "Pérdida de agua en la cocina",
-      response_status: "answered",
-      messages: [
-        {
-          id: 1,
-          sender_role: "consumer",
-          content: "Se está filtrando agua debajo de la bacha",
-          created_on: "2026-06-18T10:00:00Z",
-        },
-        {
-          id: 2,
-          sender_role: "chatbot",
-          content: "Revisá si el agua sale desde la rosca del sifón.",
-          created_on: "2026-06-18T10:00:01Z",
-        },
-        {
-          id: 3,
-          sender_role: "consumer",
-          content: "Ya revisé y no es eso.",
-          created_on: "2026-06-18T10:05:00Z",
-        },
-        {
-          id: 4,
-          sender_role: "chatbot",
-          content: "Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?",
-          created_on: "2026-06-18T10:05:05Z",
-        },
-      ],
-      response: {
+      {
+        id: 3,
+        sender_role: "consumer",
+        content: "Ya revisé y no es eso.",
+        created_on: "2026-06-18T10:05:00Z",
+      },
+      {
         id: 4,
         sender_role: "chatbot",
         content: "Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?",
         created_on: "2026-06-18T10:05:05Z",
       },
-      recommended_providers: [],
+    ],
+    response: {
+      id: 4,
+      sender_role: "chatbot",
+      content: "Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?",
+      created_on: "2026-06-18T10:05:05Z",
     },
+    recommended_providers: [],
+  });
+
+  await this.stubGet("/chatbot/conversations", [
+    aAiConversation({
+      id: 1,
+      title: "Pérdida de agua en la cocina",
+      last_message: {
+        id: 4,
+        sender_role: "chatbot",
+        content: "Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?",
+        created_on: "2026-06-18T10:05:05Z",
+      },
+      updated_on: "2026-06-18T10:05:05Z",
+    }),
+    aAiConversation({
+      id: 2,
+      title: "Problema con el gas",
+      last_message: {
+        id: 4,
+        sender_role: "consumer",
+        content: "Huele a gas en la cocina",
+        created_on: "2026-06-17T10:00:00Z",
+      },
+      updated_on: "2026-06-17T10:00:00Z",
+    }),
+  ]);
+
+  await this.stubGet("/conversations/1", {
+    id: 1,
+    conversation_id: 1,
+    status: "active",
+    title: "Pérdida de agua en la cocina",
+    response_status: "answered",
+    messages: [
+      {
+        id: 1,
+        sender_role: "consumer",
+        content: "Se está filtrando agua debajo de la bacha",
+        created_on: "2026-06-18T10:00:00Z",
+      },
+      {
+        id: 2,
+        sender_role: "chatbot",
+        content: "Revisá si el agua sale desde la rosca del sifón.",
+        created_on: "2026-06-18T10:00:01Z",
+      },
+      {
+        id: 3,
+        sender_role: "consumer",
+        content: "Ya revisé y no es eso.",
+        created_on: "2026-06-18T10:05:00Z",
+      },
+      {
+        id: 4,
+        sender_role: "chatbot",
+        content: "Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?",
+        created_on: "2026-06-18T10:05:05Z",
+      },
+    ],
+    response: {
+      id: 4,
+      sender_role: "chatbot",
+      content: "Entonces podría ser la manguera de desagüe. ¿Podrías revisarla?",
+      created_on: "2026-06-18T10:05:05Z",
+    },
+    recommended_providers: [],
   });
 
   const input = this.page.getByPlaceholder("Escribe un mensaje...");

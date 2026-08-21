@@ -2,90 +2,60 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { setConsumerSession } from "./initiate_chat_with_provider_steps";
-
+import { aAiConversation, aAiConversationDetail, aCategory, aProvider } from "../support/factories";
 
 Given("estoy autenticado como consumidor", async function (this: CustomWorld) {
-  await setConsumerSession(this);
+  await this.setSession("consumer");
 });
 
 Given("me encuentro en la pantalla Home", async function (this: CustomWorld) {
-  await setConsumerSession(this);
+  await this.setSession("consumer");
 
   if (!(await this.hasApiStub("GET", "/categories"))) {
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/categories",
-      status: 200,
-      body: [
-        { id: 1, name: "Plomería" },
-        { id: 2, name: "Electricista" },
-      ],
-    });
+    await this.stubGet("/categories", [
+      aCategory({ id: 1, name: "Plomería" }),
+      aCategory({ id: 2, name: "Electricista" }),
+    ]);
   }
 
-  if (!(await this.hasApiStub("POST", "/chatbot/conversations"))) {
-    await this.addApiStub({
-      method: "POST",
-      endpoint: "/chatbot/conversations",
-      status: 200,
-      body: {
+  const detail = aAiConversationDetail({
+    id: 1,
+    title: "Pérdida de agua",
+    response_status: "answered",
+    messages: [
+      {
         id: 1,
-        conversation_id: 1,
-        status: "active",
-        title: "Pérdida de agua",
-        response_status: "answered",
-        messages: [
-          {
-            id: 1,
-            sender_role: "consumer",
-            content: "Se está filtrando agua debajo de la bacha",
-            created_on: "2026-06-18T10:00:00Z",
-          },
-          {
-            id: 2,
-            sender_role: "chatbot",
-            content: "Revisá si el agua sale desde la rosca del sifón.",
-            created_on: "2026-06-18T10:00:01Z",
-          },
-        ],
-        response: {
-          id: 2,
-          sender_role: "chatbot",
-          content: "Revisá si el agua sale desde la rosca del sifón.",
-          created_on: "2026-06-18T10:00:01Z",
-        },
-        recommended_providers: [],
+        sender_role: "consumer",
+        content: "Se está filtrando agua debajo de la bacha",
+        created_on: "2026-06-18T10:00:00Z",
       },
+      {
+        id: 2,
+        sender_role: "chatbot",
+        content: "Revisá si el agua sale desde la rosca del sifón.",
+        created_on: "2026-06-18T10:00:01Z",
+      },
+    ],
+    response: {
+      id: 2,
+      sender_role: "chatbot",
+      content: "Revisá si el agua sale desde la rosca del sifón.",
+      created_on: "2026-06-18T10:00:01Z",
+    },
+    recommended_providers: [],
+  });
+
+  if (!(await this.hasApiStub("POST", "/chatbot/conversations"))) {
+    await this.stubPost("/chatbot/conversations", 200, {
+      ...detail,
+      conversation_id: 1,
     });
   }
 
   if (!(await this.hasApiStub("GET", "/conversations/1"))) {
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/conversations/1",
-      status: 200,
-      body: {
-        id: 1,
-        conversation_id: 1,
-        status: "active",
-        title: "Pérdida de agua",
-        response_status: "answered",
-        messages: [
-          {
-            id: 1,
-            sender_role: "consumer",
-            content: "Se está filtrando agua debajo de la bacha",
-            created_on: "2026-06-18T10:00:00Z",
-          },
-          {
-            id: 2,
-            sender_role: "chatbot",
-            content: "Revisá si el agua sale desde la rosca del sifón.",
-            created_on: "2026-06-18T10:00:01Z",
-          },
-        ],
-      },
+    await this.stubGet("/conversations/1", {
+      ...detail,
+      conversation_id: 1,
     });
   }
 
@@ -121,92 +91,62 @@ Then("veo mi mensaje en el chat", async function (this: CustomWorld) {
 });
 
 Given("inicié una conversación con el asistente", async function (this: CustomWorld) {
-  await setConsumerSession(this);
+  await this.setSession("consumer");
 
   if (!(await this.hasApiStub("GET", "/chatbot/conversations"))) {
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/chatbot/conversations",
-      status: 200,
-      body: [
-        {
-          id: 1,
-          status: "active",
-          title: "Pérdida de agua",
-          last_message: {
-            id: 2,
-            sender_role: "chatbot",
-            content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
-            created_on: "2026-06-18T10:00:01Z",
-          },
-          updated_on: "2026-06-18T10:00:01Z",
-        },
-      ],
-    });
-  }
-
-  if (!(await this.hasApiStub("POST", "/chatbot/conversations"))) {
-    await this.addApiStub({
-      method: "POST",
-      endpoint: "/chatbot/conversations",
-      status: 200,
-      body: {
+    await this.stubGet("/chatbot/conversations", [
+      aAiConversation({
         id: 1,
-        conversation_id: 1,
-        status: "active",
         title: "Pérdida de agua",
-        response_status: "answered",
-        messages: [
-          {
-            id: 1,
-            sender_role: "consumer",
-            content: "Se está filtrando agua debajo de la bacha",
-            created_on: "2026-06-18T10:00:00Z",
-          },
-          {
-            id: 2,
-            sender_role: "chatbot",
-            content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
-            created_on: "2026-06-18T10:00:01Z",
-          },
-        ],
-        response: {
+        last_message: {
           id: 2,
           sender_role: "chatbot",
           content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
           created_on: "2026-06-18T10:00:01Z",
         },
-        recommended_providers: [],
+        updated_on: "2026-06-18T10:00:01Z",
+      }),
+    ]);
+  }
+
+  const detail = aAiConversationDetail({
+    id: 1,
+    title: "Pérdida de agua",
+    response_status: "answered",
+    messages: [
+      {
+        id: 1,
+        sender_role: "consumer",
+        content: "Se está filtrando agua debajo de la bacha",
+        created_on: "2026-06-18T10:00:00Z",
       },
+      {
+        id: 2,
+        sender_role: "chatbot",
+        content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
+        created_on: "2026-06-18T10:00:01Z",
+      },
+    ],
+    response: {
+      id: 2,
+      sender_role: "chatbot",
+      content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
+      created_on: "2026-06-18T10:00:01Z",
+    },
+    recommended_providers: [],
+  });
+
+  if (!(await this.hasApiStub("POST", "/chatbot/conversations"))) {
+    await this.stubPost("/chatbot/conversations", 200, {
+      ...detail,
+      conversation_id: 1,
     });
   }
 
   if (!(await this.hasApiStub("GET", "/conversations/1"))) {
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/conversations/1",
-      status: 200,
-      body: {
-        id: 1,
-        conversation_id: 1,
-        status: "active",
-        title: "Pérdida de agua",
-        response_status: "answered",
-        messages: [
-          {
-            id: 1,
-            sender_role: "consumer",
-            content: "Se está filtrando agua debajo de la bacha",
-            created_on: "2026-06-18T10:00:00Z",
-          },
-          {
-            id: 2,
-            sender_role: "chatbot",
-            content: "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?",
-            created_on: "2026-06-18T10:00:01Z",
-          },
-        ],
-      },
+    await this.stubGet("/conversations/1", {
+      ...detail,
+      conversation_id: 1,
     });
   }
 
@@ -230,50 +170,39 @@ Then("veo una respuesta del asistente en el chat", async function (this: CustomW
 });
 
 Given("estoy en una conversación con el asistente", async function (this: CustomWorld) {
-  await setConsumerSession(this);
+  await this.setSession("consumer");
 
   if (!(await this.hasApiStub("GET", "/chatbot/conversations"))) {
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/chatbot/conversations",
-      status: 200,
-      body: [
-        {
+    await this.stubGet("/chatbot/conversations", [
+      aAiConversation({
+        id: 1,
+        title: "Pérdida de agua",
+        last_message: {
           id: 1,
-          status: "active",
-          title: "Pérdida de agua",
-          last_message: {
-            id: 1,
-            sender_role: "consumer",
-            content: "Se está filtrando agua debajo de la bacha",
-            created_on: "2026-06-18T10:00:00Z",
-          },
-          updated_on: "2026-06-18T10:00:00Z",
+          sender_role: "consumer",
+          content: "Se está filtrando agua debajo de la bacha",
+          created_on: "2026-06-18T10:00:00Z",
         },
-      ],
-    });
+        updated_on: "2026-06-18T10:00:00Z",
+      }),
+    ]);
   }
 
   if (!(await this.hasApiStub("GET", "/conversations/1"))) {
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/conversations/1",
-      status: 200,
-      body: {
-        id: 1,
-        conversation_id: 1,
-        status: "active",
-        title: "Pérdida de agua",
-        response_status: "pending",
-        messages: [
-          {
-            id: 1,
-            sender_role: "consumer",
-            content: "Se está filtrando agua debajo de la bacha",
-            created_on: "2026-06-18T10:00:00Z",
-          },
-        ],
-      },
+    await this.stubGet("/conversations/1", {
+      id: 1,
+      conversation_id: 1,
+      status: "active",
+      title: "Pérdida de agua",
+      response_status: "pending",
+      messages: [
+        {
+          id: 1,
+          sender_role: "consumer",
+          content: "Se está filtrando agua debajo de la bacha",
+          created_on: "2026-06-18T10:00:00Z",
+        },
+      ],
     });
   }
 
@@ -339,58 +268,47 @@ Then("puedo volver a intentarlo", async function (this: CustomWorld) {
 });
 
 When("visualizo la conversación con el asistente", async function (this: CustomWorld) {
-  await setConsumerSession(this);
+  await this.setSession("consumer");
 
   if (!(await this.hasApiStub("GET", "/chatbot/conversations"))) {
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/chatbot/conversations",
-      status: 200,
-      body: [
-        {
-          id: 1,
-          status: "active",
-          title: "Pérdida de agua",
-          last_message: {
-            id: 2,
-            sender_role: "chatbot",
-            content:
-              "Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo",
-            created_on: "2026-06-18T10:00:01Z",
-          },
-          updated_on: "2026-06-18T10:00:01Z",
+    await this.stubGet("/chatbot/conversations", [
+      aAiConversation({
+        id: 1,
+        title: "Pérdida de agua",
+        last_message: {
+          id: 2,
+          sender_role: "chatbot",
+          content:
+            "Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo",
+          created_on: "2026-06-18T10:00:01Z",
         },
-      ],
-    });
+        updated_on: "2026-06-18T10:00:01Z",
+      }),
+    ]);
   }
 
   if (!(await this.hasApiStub("GET", "/conversations/1"))) {
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/conversations/1",
-      status: 200,
-      body: {
-        id: 1,
-        conversation_id: 1,
-        status: "active",
-        title: "Pérdida de agua",
-        response_status: "answered",
-        messages: [
-          {
-            id: 1,
-            sender_role: "consumer",
-            content: "Se está filtrando agua debajo de la bacha",
-            created_on: "2026-06-18T10:00:00Z",
-          },
-          {
-            id: 2,
-            sender_role: "chatbot",
-            content:
-              "Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo",
-            created_on: "2026-06-18T10:00:01Z",
-          },
-        ],
-      },
+    await this.stubGet("/conversations/1", {
+      id: 1,
+      conversation_id: 1,
+      status: "active",
+      title: "Pérdida de agua",
+      response_status: "answered",
+      messages: [
+        {
+          id: 1,
+          sender_role: "consumer",
+          content: "Se está filtrando agua debajo de la bacha",
+          created_on: "2026-06-18T10:00:00Z",
+        },
+        {
+          id: 2,
+          sender_role: "chatbot",
+          content:
+            "Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo",
+          created_on: "2026-06-18T10:00:01Z",
+        },
+      ],
     });
   }
 
@@ -418,7 +336,7 @@ Then("veo la pantalla de conversación con el asistente", async function (this: 
 });
 
 Given("me encuentro escribiendo un mensaje para el asistente", async function (this: CustomWorld) {
-  await setConsumerSession(this);
+  await this.setSession("consumer");
   await this.page.goto(APP_URL + ROUTES.consumer.aiMessages);
   await this.page.waitForLoadState("networkidle");
 
@@ -510,89 +428,73 @@ Then("el contenido completo permanece accesible", async function (this: CustomWo
 Given(
   "la IA concluyó el diagnóstico y recomienda prestadores del rubro {string}",
   async function (this: CustomWorld, rubro: string) {
-    await setConsumerSession(this);
+    await this.setSession("consumer");
 
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/chatbot/conversations",
-      status: 200,
-      body: [
+    await this.stubGet("/chatbot/conversations", [
+      aAiConversation({
+        id: 1,
+        title: "Pérdida de agua",
+        last_message: {
+          id: 2,
+          sender_role: "chatbot",
+          content: "El problema es una fuga. Te sugiero un plomero.",
+          created_on: "2026-06-18T10:00:01Z",
+        },
+        updated_on: "2026-06-18T10:00:01Z",
+      }),
+    ]);
+
+    await this.stubPost("/chatbot/conversations/1/job-requests", 201, {
+      id: 100,
+      conversation_id: 1,
+      title: "Solicitud de Plomería",
+      description: "Se está filtrando agua",
+    });
+
+    await this.stubGet("/conversations/1", {
+      id: 1,
+      conversation_id: 1,
+      status: "active",
+      title: "Pérdida de agua",
+      response_status: "answered",
+      diagnosis_completed: true,
+      assessment: {
+        outcome: "professional_required",
+        problem_category: {
+          id: 1,
+          name: rubro,
+        },
+      },
+      messages: [
         {
           id: 1,
-          status: "active",
-          title: "Pérdida de agua",
-          last_message: {
-            id: 2,
-            sender_role: "chatbot",
-            content: "El problema es una fuga. Te sugiero un plomero.",
-            created_on: "2026-06-18T10:00:01Z",
-          },
-          updated_on: "2026-06-18T10:00:01Z",
+          sender_role: "consumer",
+          content: "Se está filtrando agua",
+          created_on: "2026-06-18T10:00:00Z",
+        },
+        {
+          id: 2,
+          sender_role: "chatbot",
+          content: "El problema es una fuga. Te sugiero un plomero.",
+          created_on: "2026-06-18T10:00:01Z",
         },
       ],
-    });
-
-    await this.addApiStub({
-      method: "POST",
-      endpoint: "/chatbot/conversations/1/job-requests",
-      status: 201,
-      body: {
-        id: 100,
-        conversation_id: 1,
-        title: "Solicitud de Plomería",
-        description: "Se está filtrando agua",
-      },
-    });
-
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/conversations/1",
-      status: 200,
-      body: {
-        id: 1,
-        conversation_id: 1,
-        status: "active",
-        title: "Pérdida de agua",
-        response_status: "answered",
-        diagnosis_completed: true,
-        assessment: {
-          outcome: "professional_required",
-          problem_category: {
-            id: 1,
-            name: rubro,
-          },
+      recommended_providers: [
+        {
+          id: 10,
+          name: "Juan",
+          surname: "Gómez",
+          category_name: rubro,
+          profile_photo_url: "https://cdn.example/files/provider1.jpg",
         },
-        messages: [
-          {
-            id: 1,
-            sender_role: "consumer",
-            content: "Se está filtrando agua",
-            created_on: "2026-06-18T10:00:00Z",
-          },
-          {
-            id: 2,
-            sender_role: "chatbot",
-            content: "El problema es una fuga. Te sugiero un plomero.",
-            created_on: "2026-06-18T10:00:01Z",
-          },
-        ],
-        recommended_providers: [
-          {
-            id: 10,
-            name: "Juan",
-            surname: "Gómez",
-            category_name: rubro,
-            profile_photo_url: "https://cdn.example/files/provider1.jpg",
-          },
-          {
-            id: 11,
-            name: "María",
-            surname: "López",
-            category_name: rubro,
-            profile_photo_url: "https://cdn.example/files/provider2.jpg",
-          },
-        ],
-      },
+        {
+          id: 11,
+          name: "María",
+          surname: "López",
+          category_name: rubro,
+          profile_photo_url: "https://cdn.example/files/provider2.jpg",
+        },
+      ],
     });
 
     await this.page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);
@@ -644,49 +546,38 @@ Then("cada prestador muestra su foto de perfil", async function (this: CustomWor
 });
 
 Given("la IA respondió sin recomendar prestadores", async function (this: CustomWorld) {
-  await setConsumerSession(this);
+  await this.setSession("consumer");
 
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/chatbot/conversations",
-    status: 200,
-    body: [
+  await this.stubGet("/chatbot/conversations", [
+    aAiConversation({
+      id: 1,
+      title: "Pérdida de agua",
+      last_message: {
+        id: 2,
+        sender_role: "chatbot",
+        content: "Revisá el sifón",
+        created_on: "2026-06-18T10:00:01Z",
+      },
+      updated_on: "2026-06-18T10:00:01Z",
+    }),
+  ]);
+
+  await this.stubGet("/conversations/1", {
+    id: 1,
+    conversation_id: 1,
+    status: "active",
+    title: "Pérdida de agua",
+    response_status: "answered",
+    messages: [
+      { id: 1, sender_role: "consumer", content: "Pérdida de agua", created_on: "2026-06-18T10:00:00Z" },
       {
-        id: 1,
-        status: "active",
-        title: "Pérdida de agua",
-        last_message: {
-          id: 2,
-          sender_role: "chatbot",
-          content: "Revisá el sifón",
-          created_on: "2026-06-18T10:00:01Z",
-        },
-        updated_on: "2026-06-18T10:00:01Z",
+        id: 2,
+        sender_role: "chatbot",
+        content: "El problema es una fuga. Te sugiero un plomero.",
+        created_on: "2026-06-18T10:00:01Z",
       },
     ],
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations/1",
-    status: 200,
-    body: {
-      id: 1,
-      conversation_id: 1,
-      status: "active",
-      title: "Pérdida de agua",
-      response_status: "answered",
-      messages: [
-        { id: 1, sender_role: "consumer", content: "Pérdida de agua", created_on: "2026-06-18T10:00:00Z" },
-        {
-          id: 2,
-          sender_role: "chatbot",
-          content: "El problema es una fuga. Te sugiero un plomero.",
-          created_on: "2026-06-18T10:00:01Z",
-        },
-      ],
-      recommended_providers: [],
-    },
+    recommended_providers: [],
   });
 
   await this.page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);

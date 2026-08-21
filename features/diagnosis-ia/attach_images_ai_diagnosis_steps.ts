@@ -2,36 +2,33 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-
+import { aPresignedUpload, aConfirmedFile, aAiConversation } from "../support/factories";
 
 let currentDiagnosisImages: string[] = [];
 
 async function stubDiagnosisFileUpload(world: CustomWorld, fileName: string, fileId: string = "mock-diag-file-123") {
-  await world.addApiStub({
-    method: "POST",
-    endpoint: "/files/presign",
-    status: 200,
-    body: {
+  await world.stubPost(
+    "/files/presign",
+    200,
+    aPresignedUpload({
       file_id: fileId,
       upload_url: "https://mock-upload.test/upload",
-      headers: {},
       key: `conversation_message_image/${fileId}`,
-    },
-  });
+    })
+  );
 
   await world.page.route("https://mock-upload.test/upload", async (route) => {
     await route.fulfill({ status: 204 });
   });
 
-  await world.addApiStub({
-    method: "POST",
-    endpoint: `/files/${fileId}/confirm`,
-    status: 200,
-    body: {
+  await world.stubPost(
+    `/files/${fileId}/confirm`,
+    200,
+    aConfirmedFile({
       id: fileId,
       original_name: fileName,
-    },
-  });
+    })
+  );
 }
 
 function buildAiConversationResponse(images: string[] = [], content: string = "") {
@@ -85,52 +82,41 @@ function buildAiConversationResponse(images: string[] = [], content: string = ""
 Given("tengo una conversación activa con el asistente de diagnóstico", async function (this: CustomWorld) {
   currentDiagnosisImages = [];
 
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/chatbot/conversations",
-    status: 200,
-    body: [
+  await this.stubGet("/chatbot/conversations", [
+    aAiConversation({
+      id: 1,
+      title: "Pérdida de agua",
+      last_message: {
+        id: 2,
+        sender_role: "chatbot",
+        content: "Revisá si el agua sale desde la rosca del sifón.",
+        created_on: "2026-06-18T10:00:01Z",
+      },
+      updated_on: "2026-06-18T10:00:01Z",
+    }),
+  ]);
+
+  await this.stubGet("/conversations/1", {
+    id: 1,
+    conversation_id: 1,
+    status: "active",
+    title: "Pérdida de agua",
+    response_status: "answered",
+    messages: [
       {
         id: 1,
-        status: "active",
-        title: "Pérdida de agua",
-        last_message: {
-          id: 2,
-          sender_role: "chatbot",
-          content: "Revisá si el agua sale desde la rosca del sifón.",
-          created_on: "2026-06-18T10:00:01Z",
-        },
-        updated_on: "2026-06-18T10:00:01Z",
+        sender_role: "consumer",
+        content: "Se está filtrando agua debajo de la bacha",
+        created_on: "2026-06-18T10:00:00Z",
+      },
+      {
+        id: 2,
+        sender_role: "chatbot",
+        content: "Revisá si el agua sale desde la rosca del sifón.",
+        created_on: "2026-06-18T10:00:01Z",
       },
     ],
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations/1",
-    status: 200,
-    body: {
-      id: 1,
-      conversation_id: 1,
-      status: "active",
-      title: "Pérdida de agua",
-      response_status: "answered",
-      messages: [
-        {
-          id: 1,
-          sender_role: "consumer",
-          content: "Se está filtrando agua debajo de la bacha",
-          created_on: "2026-06-18T10:00:00Z",
-        },
-        {
-          id: 2,
-          sender_role: "chatbot",
-          content: "Revisá si el agua sale desde la rosca del sifón.",
-          created_on: "2026-06-18T10:00:01Z",
-        },
-      ],
-      recommended_providers: [],
-    },
+    recommended_providers: [],
   });
 });
 
@@ -203,12 +189,11 @@ When("reviso las imágenes adjuntas antes de enviar", async function (this: Cust
 });
 
 When("envío el mensaje de diagnóstico {string}", async function (this: CustomWorld, mensaje: string) {
-  await this.addApiStub({
-    method: "POST",
-    endpoint: "/chatbot/conversations/1/messages",
-    status: 201,
-    body: buildAiConversationResponse(currentDiagnosisImages, mensaje),
-  });
+  await this.stubPost(
+    "/chatbot/conversations/1/messages",
+    201,
+    buildAiConversationResponse(currentDiagnosisImages, mensaje)
+  );
 
   currentDiagnosisImages = [];
 
@@ -220,12 +205,11 @@ When("envío el mensaje de diagnóstico {string}", async function (this: CustomW
 });
 
 When("envío el mensaje de diagnóstico sin texto", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "POST",
-    endpoint: "/chatbot/conversations/1/messages",
-    status: 201,
-    body: buildAiConversationResponse(currentDiagnosisImages, ""),
-  });
+  await this.stubPost(
+    "/chatbot/conversations/1/messages",
+    201,
+    buildAiConversationResponse(currentDiagnosisImages, "")
+  );
 
   currentDiagnosisImages = [];
 
@@ -234,12 +218,7 @@ When("envío el mensaje de diagnóstico sin texto", async function (this: Custom
 });
 
 When("la carga de la imagen {string} falla por un error del servidor", async function (this: CustomWorld, imagen: string) {
-  await this.addApiStub({
-    method: "POST",
-    endpoint: "/files/presign",
-    status: 500,
-    body: { error: "Internal Server Error" },
-  });
+  await this.stubPost("/files/presign", 500, { error: "Internal Server Error" });
 
   const fileChooserPromise = this.page.waitForEvent("filechooser");
   await this.page.getByRole("button", { name: /adjuntar/i }).click();
@@ -381,19 +360,8 @@ Given("adjunté la imagen {string} en el campo de diagnóstico", async function 
   currentDiagnosisImages.push(imagen);
   await stubDiagnosisFileUpload(this, imagen);
 
-  await this.addApiStub({
-    method: "POST",
-    endpoint: "/chatbot/conversations",
-    status: 200,
-    body: buildHomeAiConversationResponse(currentDiagnosisImages),
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations/1",
-    status: 200,
-    body: buildHomeAiConversationResponse(currentDiagnosisImages),
-  });
+  await this.stubPost("/chatbot/conversations", 200, buildHomeAiConversationResponse(currentDiagnosisImages));
+  await this.stubGet("/conversations/1", buildHomeAiConversationResponse(currentDiagnosisImages));
 
   const fileChooserPromise = this.page.waitForEvent("filechooser");
   await this.page.getByRole("button", { name: /adjuntar/i }).click();
@@ -417,19 +385,8 @@ When(
     currentDiagnosisImages.push(imagen);
     await stubDiagnosisFileUpload(this, imagen);
 
-    await this.addApiStub({
-      method: "POST",
-      endpoint: "/chatbot/conversations",
-      status: 200,
-      body: buildHomeAiConversationResponse(currentDiagnosisImages),
-    });
-
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/conversations/1",
-      status: 200,
-      body: buildHomeAiConversationResponse(currentDiagnosisImages),
-    });
+    await this.stubPost("/chatbot/conversations", 200, buildHomeAiConversationResponse(currentDiagnosisImages));
+    await this.stubGet("/conversations/1", buildHomeAiConversationResponse(currentDiagnosisImages));
 
     const fileChooserPromise = this.page.waitForEvent("filechooser");
     await this.page.getByRole("button", { name: /adjuntar/i }).click();

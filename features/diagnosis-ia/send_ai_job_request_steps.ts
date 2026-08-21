@@ -2,61 +2,49 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { setConsumerSession } from "./initiate_chat_with_provider_steps";
-
+import { aAiConversation } from "../support/factories";
 
 Given("la evaluación del chatbot todavía requiere más información", async function (this: CustomWorld) {
-  await setConsumerSession(this);
+  await this.setSession("consumer");
 
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/chatbot/conversations",
-    status: 200,
-    body: [
+  await this.stubGet("/chatbot/conversations", [
+    aAiConversation({
+      id: 1,
+      title: "Pérdida de agua",
+      last_message: {
+        id: 2,
+        sender_role: "chatbot",
+        content: "¿Podrías describir con más detalle dónde se produce la pérdida?",
+        created_on: "2026-06-18T10:00:01Z",
+      },
+      updated_on: "2026-06-18T10:00:01Z",
+    }),
+  ]);
+
+  await this.stubGet("/conversations/1", {
+    id: 1,
+    conversation_id: 1,
+    status: "active",
+    title: "Pérdida de agua",
+    response_status: "answered",
+    assessment: {
+      outcome: "collecting_information",
+    },
+    messages: [
       {
         id: 1,
-        status: "active",
-        title: "Pérdida de agua",
-        last_message: {
-          id: 2,
-          sender_role: "chatbot",
-          content: "¿Podrías describir con más detalle dónde se produce la pérdida?",
-          created_on: "2026-06-18T10:00:01Z",
-        },
-        updated_on: "2026-06-18T10:00:01Z",
+        sender_role: "consumer",
+        content: "Hay un problema con el agua",
+        created_on: "2026-06-18T10:00:00Z",
+      },
+      {
+        id: 2,
+        sender_role: "chatbot",
+        content: "¿Podrías describir con más detalle dónde se produce la pérdida?",
+        created_on: "2026-06-18T10:00:01Z",
       },
     ],
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations/1",
-    status: 200,
-    body: {
-      id: 1,
-      conversation_id: 1,
-      status: "active",
-      title: "Pérdida de agua",
-      response_status: "answered",
-      assessment: {
-        outcome: "collecting_information",
-      },
-      messages: [
-        {
-          id: 1,
-          sender_role: "consumer",
-          content: "Hay un problema con el agua",
-          created_on: "2026-06-18T10:00:00Z",
-        },
-        {
-          id: 2,
-          sender_role: "chatbot",
-          content: "¿Podrías describir con más detalle dónde se produce la pérdida?",
-          created_on: "2026-06-18T10:00:01Z",
-        },
-      ],
-      recommended_providers: [],
-    },
+    recommended_providers: [],
   });
 
   await this.page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);
@@ -66,61 +54,50 @@ Given("la evaluación del chatbot todavía requiere más información", async fu
 Given(
   "la evaluación del chatbot determina que el problema puede resolverse sin profesional",
   async function (this: CustomWorld) {
-    await setConsumerSession(this);
+    await this.setSession("consumer");
 
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/chatbot/conversations",
-      status: 200,
-      body: [
+    await this.stubGet("/chatbot/conversations", [
+      aAiConversation({
+        id: 1,
+        title: "Canilla que gotea",
+        last_message: {
+          id: 2,
+          sender_role: "chatbot",
+          content: "Podés resolverlo vos mismo ajustando el cuerito de la canilla.",
+          created_on: "2026-06-18T10:00:01Z",
+        },
+        updated_on: "2026-06-18T10:00:01Z",
+      }),
+    ]);
+
+    await this.stubGet("/conversations/1", {
+      id: 1,
+      conversation_id: 1,
+      status: "active",
+      title: "Canilla que gotea",
+      response_status: "answered",
+      assessment: {
+        outcome: "self_service",
+        problem_category: {
+          id: 1,
+          name: "Plomería",
+        },
+      },
+      messages: [
         {
           id: 1,
-          status: "active",
-          title: "Canilla que gotea",
-          last_message: {
-            id: 2,
-            sender_role: "chatbot",
-            content: "Podés resolverlo vos mismo ajustando el cuerito de la canilla.",
-            created_on: "2026-06-18T10:00:01Z",
-          },
-          updated_on: "2026-06-18T10:00:01Z",
+          sender_role: "consumer",
+          content: "La canilla gotea",
+          created_on: "2026-06-18T10:00:00Z",
+        },
+        {
+          id: 2,
+          sender_role: "chatbot",
+          content: "Podés resolverlo vos mismo ajustando el cuerito de la canilla.",
+          created_on: "2026-06-18T10:00:01Z",
         },
       ],
-    });
-
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/conversations/1",
-      status: 200,
-      body: {
-        id: 1,
-        conversation_id: 1,
-        status: "active",
-        title: "Canilla que gotea",
-        response_status: "answered",
-        assessment: {
-          outcome: "self_service",
-          problem_category: {
-            id: 1,
-            name: "Plomería",
-          },
-        },
-        messages: [
-          {
-            id: 1,
-            sender_role: "consumer",
-            content: "La canilla gotea",
-            created_on: "2026-06-18T10:00:00Z",
-          },
-          {
-            id: 2,
-            sender_role: "chatbot",
-            content: "Podés resolverlo vos mismo ajustando el cuerito de la canilla.",
-            created_on: "2026-06-18T10:00:01Z",
-          },
-        ],
-        recommended_providers: [],
-      },
+      recommended_providers: [],
     });
 
     await this.page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);
@@ -129,12 +106,7 @@ Given(
 );
 
 Given("el servicio de solicitudes de trabajo no está disponible", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "POST",
-    endpoint: "/chatbot/conversations/1/job-requests",
-    status: 500,
-    body: { error: "Internal Server Error" },
-  });
+  await this.stubPost("/chatbot/conversations/1/job-requests", 500, { error: "Internal Server Error" });
 
   await this.page.route("**/chatbot/conversations/1/job-requests", async (route) => {
     await route.fulfill({
@@ -146,13 +118,8 @@ Given("el servicio de solicitudes de trabajo no está disponible", async functio
 });
 
 Given("ya existe una solicitud de trabajo abierta con {string}", async function (this: CustomWorld, providerName: string) {
-  await this.addApiStub({
-    method: "POST",
-    endpoint: "/chatbot/conversations/1/job-requests",
-    status: 409,
-    body: {
-      error: `Ya existe una solicitud de trabajo abierta con ${providerName}`,
-    },
+  await this.stubPost("/chatbot/conversations/1/job-requests", 409, {
+    error: `Ya existe una solicitud de trabajo abierta con ${providerName}`,
   });
 
   await this.page.route("**/chatbot/conversations/1/job-requests", async (route) => {

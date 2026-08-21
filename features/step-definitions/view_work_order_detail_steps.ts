@@ -95,8 +95,22 @@ Given(
 Given(
   "que la consulta de la orden de trabajo demora en responder",
   async function (this: CustomWorld) {
-    await this.page.route(`**/work-orders/${WORK_ORDER_ID}`, async () => {
-      // Intentionally never fulfill to observe loading state
+    await this.page.route("**/*", async (route) => {
+      const req = route.request();
+      const isServerAction =
+        req.method() === "POST" &&
+        (Boolean(req.headers()["next-action"]) ||
+          req.url().includes(ROUTES.consumer.services) ||
+          req.url().includes(ROUTES.provider.jobs));
+
+      const isDirectApi = req.url().includes(`/work-orders/${WORK_ORDER_ID}`);
+
+      if (isServerAction || isDirectApi) {
+        // Mantiene la petición en vuelo sin demoras artificiales.
+        // Playwright verifica el spinner en ~15ms y el hook After descarta la petición.
+        return;
+      }
+      await route.fallback();
     });
   }
 );

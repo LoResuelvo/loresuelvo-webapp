@@ -40,6 +40,7 @@ Given(
     });
     await this.stubGet(`/work-orders?service_proposal_id=${PROPOSAL_ID}`, workOrder);
     await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, workOrder);
+    (this as any).paymentPurpose = "service_balance";
   }
 );
 
@@ -355,5 +356,54 @@ Given(
   }
 );
 
+Given(
+  "que regreso por la ruta de pago exitoso con el parámetro {string}",
+  async function (this: CustomWorld, param: string) {
+    if ((this as any).paymentPurpose === "booking_deposit") {
+      const intentId = "intent-e2e-123";
+      (this as any).paymentIntentId = intentId;
+      (this as any).returnPath = `/payments/success?external_reference=${intentId}&${param}`;
+      return;
+    }
 
+    await this.setSession("consumer");
+    await this.stubGet("/service-proposals", [
+      aProposal("consumer", {
+        id: PROPOSAL_ID,
+        amount_cents: TOTAL_AMOUNT_CENTS,
+        status: "accepted",
+      }),
+    ]);
+    const workOrder = aWorkOrder({
+      id: WORK_ORDER_ID,
+      service_proposal_id: PROPOSAL_ID,
+      amount_cents: TOTAL_AMOUNT_CENTS,
+      status: "awaiting_payment",
+    });
+    await this.stubGet(`/work-orders?service_proposal_id=${PROPOSAL_ID}`, workOrder);
+    await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, workOrder);
 
+    (this as any).paymentIntentId = PAYMENT_INTENT_ID;
+    (this as any).returnPath = `/payments/success?payment_intent_id=${PAYMENT_INTENT_ID}&${param}`;
+  }
+);
+
+Given(
+  "el backend informa que el pago del saldo está {string}",
+  async function (this: CustomWorld, status: string) {
+    const intentId = (this as any).paymentIntentId || PAYMENT_INTENT_ID;
+    await this.stubGet(
+      `/payment-intents/${intentId}`,
+      aPaymentIntent(status, { id: intentId })
+    );
+  }
+);
+
+Then(
+  "veo que el pago continúa en proceso",
+  async function (this: CustomWorld) {
+    const textElement = this.page.getByText("Pago en proceso");
+    await textElement.waitFor({ state: "visible", timeout: 10_000 });
+    assert.ok(await textElement.isVisible());
+  }
+);

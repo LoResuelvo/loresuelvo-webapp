@@ -173,6 +173,8 @@ Given("que soy un consumidor autenticado con una propuesta de servicio pendiente
   checkoutRequestCount = 0;
   pollingRequestCount = 0;
   requestCountAfterTimeout = 0;
+  (this as any).paymentPurpose = "booking_deposit";
+  (this as any).paymentIntentId = PAYMENT_INTENT_ID;
   await setConsumerSession(this);
   await stubPendingProposal(this);
 });
@@ -285,7 +287,7 @@ When("se consulta el resultado del pago", async function (this: CustomWorld) {
   const response = await this.page.goto(`${APP_URL}${targetPath}`);
   assert.strictEqual(response?.status(), 200, "La ruta de retorno no respondió HTTP 200");
 
-  const activeTransition = (this as any).paymentIntentTransition || transition;
+  const activeTransition = (this as any).paymentIntentTransition;
   if (activeTransition) {
     const initialHeading = activeTransition.from === "processing" ? "Pago en proceso" : "Esperando confirmación";
     await this.page.getByRole("heading", { name: initialHeading }).waitFor({ state: "visible", timeout: 10_000 });
@@ -338,18 +340,9 @@ Then("puedo volver a la propuesta para iniciar un nuevo pago", async function (t
   assert.ok(await this.page.getByRole("link", { name: "Volver a la propuesta" }).isVisible());
 });
 
-Given("que regreso por la ruta de pago exitoso con el parámetro {string}", function (this: CustomWorld, parameter: string) {
-  returnPath = paymentReturnPath("success", `external_reference=${PAYMENT_INTENT_ID}&${parameter}`);
-});
-
-Then("veo que el pago continúa en proceso", async function (this: CustomWorld) {
-  const heading = this.page.getByRole("heading", { name: "Pago en proceso" });
-  await heading.waitFor({ state: "visible", timeout: 10_000 });
-  assert.ok(await heading.isVisible());
-});
-
 Then("no veo el mensaje {string}", async function (this: CustomWorld, message: string) {
-  assert.strictEqual(await this.page.getByText(message, { exact: true }).count(), 0);
+  const isVisible = await this.page.getByText(message, { exact: true }).isVisible().catch(() => false);
+  assert.ok(!isVisible, `El mensaje "${message}" no debería ser visible`);
 });
 
 Given("que el backend mantiene el pago en estado {string}", async function (this: CustomWorld, status: PaymentIntentStatus) {

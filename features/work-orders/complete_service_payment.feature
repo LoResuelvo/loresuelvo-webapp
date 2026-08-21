@@ -49,7 +49,6 @@ Feature: US-28 Completar pago del servicio
       When se consulta el resultado del pago
       Then veo el mensaje "Pago del servicio confirmado"
 
-    @wip
     Scenario: 06-CSP No confiar en el estado informado por la URL de retorno del saldo
       Given que regreso por la ruta de pago exitoso con el parámetro "status=approved"
       And el backend informa que el pago del saldo está "processing"

@@ -270,6 +270,22 @@ export function aCheckoutSession(overrides: Partial<any> = {}) {
   };
 }
 
+export function aServiceBalanceCheckoutSession(overrides: Partial<any> = {}) {
+  return {
+    payment_intent_id: "intent-e2e-balance-123",
+    status: "checkout_ready",
+    checkout_url: "https://www.mercadopago.com.ar/checkout?pref_id=balance-123",
+    expires_on: "2026-08-25T20:30:00Z",
+    pricing: {
+      currency: "ARS",
+      remaining_service_balance_cents: 8_000_000,
+      remaining_platform_fee_cents: 400_000,
+      amount_due_now_cents: 8_400_000,
+    },
+    ...overrides,
+  };
+}
+
 export function aPaymentIntent(status: string = "pending", overrides: Partial<any> = {}) {
   return {
     status,

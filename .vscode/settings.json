@@ -1,8 +1,13 @@
 {
   "cucumber.features": [
-    "**/features/**/*.feature"
+    "features/**/*.feature"
   ],
   "cucumber.glue": [
-    "**/features/step-definitions/**/*.ts"
-  ]
+    "features/**/*.ts"
+  ],
+  "cucumberautocomplete.steps": [
+    "features/**/*.ts",
+    "features/**/*_steps.ts"
+  ],
+  "cucumberautocomplete.syncfeatures": "features/**/*.feature"
 }

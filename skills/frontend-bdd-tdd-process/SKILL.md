@@ -98,9 +98,20 @@ npm run test -- <patron>
 
 ## Buenas prácticas Gherkin
 
+- **Estructura Modular por Dominios en `features/`:**
+  - Los archivos `.feature` y sus step definitions `*_steps.ts` se co-localizan dentro de carpetas temáticas de dominio:
+    - `features/auth-onboarding/`: Autenticación, registro de perfiles y conexión con Mercado Pago.
+    - `features/diagnosis-ia/`: Diagnóstico por IA, asistente conversacional y adjuntos.
+    - `features/messaging/`: Chat en tiempo real, solicitudes de trabajo y mensajería entre partes.
+    - `features/search-discovery/`: Landing pages, búsqueda por categoría y perfiles de prestadores.
+    - `features/proposals-payments/`: Envío/visualización de propuestas de servicio y pago de seña.
+    - `features/work-orders/`: Detalle de órdenes de trabajo y reporte de finalización.
+    - `features/support/`: Soporte común (`world.ts`, `factories.ts`, `hooks.ts`, `stubs-helper.ts`).
+  - *(La carpeta `features/step-definitions/` está deprecada y eliminada).*
+
 - **Exactamente 1 `When` por escenario (Principio de Acción Única):** Cada escenario valida una única acción clave. Los preparativos y estados previos van en `Given` y sus `And`; las consecuencias observables van en `Then` y sus `And`.
 - **Escribir pasos en español claro y declarativo:** Centrados en la intención de negocio del usuario, evitando detalles de implementación interna.
-- **Reutilizar steps existentes:** Antes de crear una frase nueva, verificar si ya existe un step equivalente en `features/step-definitions/`.
+- **Reutilizar steps existentes:** Antes de crear una frase nueva, verificar si ya existe un step equivalente en los dominios de `features/`.
 - **Datos de prueba explícitos y concisos:** Solo incluir en el texto del step los datos que alteran el resultado del test.
 
 ## Buenas prácticas Cucumber Step Definitions (Arquitectura Limpia y Paralelización)
@@ -113,14 +124,26 @@ npm run test -- <patron>
   ```
 - **Prohibido `let page: Page` a nivel de módulo**: Nunca declarar variables de `page` globales o singletons en archivos de steps. Rompe el aislamiento en paralelo.
 - **Hooks centralizados**: Toda la inicialización y cierre de navegadores/contextos se maneja exclusivamente en `features/support/hooks.ts`. Nunca definir hooks locales en step files.
-- **Regla de las 3 a 5 líneas por Step (Evitar Código Espagueti):**
-  - Un step definition **solo es pegamento de orquestación**: no debe superar las 3 a 5 líneas de código.
-  - **PROHIBIDO pegar bloques de 30 líneas de JSON crudo dentro de un step:** Usar obligatoriamente las funciones de fábrica de `features/support/factories.ts` (`aProvider()`, `aProposal()`, `aWorkOrder()`, `aCategory()`) y los helpers fluent de `CustomWorld` (`this.stubGet(...)`, `this.stubPost(...)`, `this.setSession(...)`).
+- **Regla de las 3 a 5 líneas por Step (Legibilidad Humana y Cero JSONs en Crudo):**
+  - Un step definition **solo es pegamento de orquestación**: debe ser declarativo y conciso (guía de 3 a 5 líneas).
+  - **PROHIBIDO pegar bloques de JSON crudo dentro de un step:** Toda la data de prueba debe delegarse obligatoriamente a las funciones de `features/support/factories.ts` y a los helpers fluent de `CustomWorld` (`this.stubGet(...)`, `this.stubPost(...)`, `this.setSession(...)`).
+
+### 📚 Catálogo Centralizado de Factories (`features/support/factories.ts`)
+
+Siempre utilizar las factories predefinidas, pasando únicamente los overrides `Partial<T>` estrictamente necesarios para el escenario:
+
+- **Usuarios y Auth**: `aCurrentUser()`, `aConsumer()`, `aProvider()`, `aSession()`
+- **Cuentas de Pago**: `aPaymentAccount()`, `aConnectedPaymentAccount()`, `aPaymentAuthorization()`
+- **Propuestas y Pagos**: `aProposal()`, `aBookingTerms()`, `aPaymentIntent()`, `aCheckoutSession()`
+- **Órdenes y Solicitudes**: `aWorkOrder()`, `aJobRequest()`, `aCategory()`
+- **Mensajería**: `aConversation()`, `aConversationDetail()`, `aConversationMessage()`, `aCounterpart()`, `aMessageImage()`
+- **Diagnóstico IA**: `aAiConversation()`, `aAiConversationDetail()`, `anAiMessage()`
+- **Utilidades API**: `anApiError()`, `aWsTicket()`, `aPresignedUpload()`, `aConfirmedFile()`
 
 ### 🌟 Golden Example: Step Definitions Limpios vs. Prohibidos
 
 ```ts
-// PROHIBIDO PARA AGENTES: Bloques de 30 líneas de JSON crudo dentro del step
+// ❌ PROHIBIDO PARA AGENTES: Bloques de 30 líneas de JSON crudo dentro del step
 Given("que soy un consumidor autenticado con una propuesta de servicio", async function (this: CustomWorld) {
   await this.addApiStub({
     method: "GET",
@@ -130,8 +153,7 @@ Given("que soy un consumidor autenticado con una propuesta de servicio", async f
   });
 });
 
-// OBLIGATORIO PARA AGENTES: Usar Factory + Fluent Helper (2 líneas declarativas)
-// Ver referencia modelo en: features/step-definitions/view_work_order_detail_steps.ts
+// ✅ OBLIGATORIO PARA AGENTES: Usar Factory + Fluent Helper (Declarativo y legible)
 Given("que soy un consumidor autenticado con una propuesta de servicio", async function (this: CustomWorld) {
   await this.setSession("consumer");
   await this.stubGet("/service-proposals", [aProposal("consumer", { id: 42 })]);
@@ -139,6 +161,19 @@ Given("que soy un consumidor autenticado con una propuesta de servicio", async f
 ```
 
 - **Mocks dinámicos vía cookies**: Usar `addApiStub` y `setMockSession` que inyectan cookies `__e2e_*` por escenario de forma aislada.
+
+## Disciplina de Commits y Pipeline (Regla 1 Commit = 1 Push)
+
+1. **1 Commit = 1 Push Inmediato**: En tareas de reorganización, refactor y features, cada commit atómico debe ser probado y pusheado de inmediato para no acumular deuda en local.
+2. **Formato de Commits Limpio**:
+   - En tareas de feature / US: `feat[US-XX]: descripción`
+   - En tareas de refactor arquitectónico o BDD transversal: `refactor: <descripción clara sin corchetes de US ni paréntesis>` (ej: `refactor: organize search and discovery bdd features and steps`).
+3. **Quality Gates Obligatorios antes de Push**:
+   - `npm run lint` (0 errores, 0 warnings)
+   - `npx tsc --noEmit && npx tsc --project tsconfig.cucumber.json --noEmit` (0 errores de tipos)
+   - `npm run test` (todos los tests unitarios en verde)
+   - `make build` (compilación exitosa)
+   - `make test-e2e` (todos los escenarios E2E pasando con servidor en puerto 3001)
 
 ## Buenas prácticas Testing Library
 

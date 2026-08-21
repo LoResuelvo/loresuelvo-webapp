@@ -2,9 +2,7 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { AuthSession } from "../../infrastructure/auth/types";
-import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
-
+import { aConversation } from "../support/factories";
 
 interface WsEvent {
   type: string;
@@ -22,123 +20,77 @@ let activeConversationId = 1;
 let wsServer: import("playwright").WebSocketRoute | null = null;
 
 async function setConsumerRealtimeSession(world: CustomWorld) {
-  const session: AuthSession = {
-    user: {
-      id: "consumer-001",
-      email: "ana@example.com",
-      firstName: "Ana",
-      lastName: "Pérez",
-      isOnboarded: true,
-      role: "consumer",
-    },
-    accessToken: "mock-access-token",
-  };
-
-  await world.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
+  await world.setSession("consumer", {
+    id: "consumer-001",
+    email: "ana@example.com",
+    firstName: "Ana",
+    lastName: "Pérez",
+    isOnboarded: true,
+  });
 }
 
 async function setProviderRealtimeSession(world: CustomWorld) {
-  const session: AuthSession = {
-    user: {
-      id: "provider-001",
-      email: "juan@example.com",
-      firstName: "Juan",
-      lastName: "Gómez",
-      isOnboarded: true,
-      role: "provider",
-    },
-    accessToken: "mock-access-token",
-  };
-
-  await world.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
+  await world.setSession("provider", {
+    id: "provider-001",
+    email: "juan@example.com",
+    firstName: "Juan",
+    lastName: "Gómez",
+    isOnboarded: true,
+  });
 }
 
 async function stubConversationApi(world: CustomWorld, conversationId: number = 1) {
-  await world.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: [
-      {
-        id: conversationId,
-        status: "accepted",
-        counterpart: {
-          id: "provider-001",
-          role: "provider",
-          name: "Juan",
-          surname: "Gómez",
-          category_name: "Plomería",
-        },
-        last_message: {
-          id: 1,
-          sender_role: "consumer",
-          content: "Hola Juan, necesito reparar una pérdida de agua.",
-          created_on: new Date().toISOString(),
-        },
-        updated_on: new Date().toISOString(),
-      },
-    ],
-  });
-
-  await world.addApiStub({
-    method: "GET",
-    endpoint: `/conversations/${conversationId}`,
-    status: 200,
-    body: {
+  await world.stubGet("/conversations", [
+    aConversation({
       id: conversationId,
       status: "accepted",
       counterpart: {
-        id: "provider-001",
+        id: 1,
         role: "provider",
         name: "Juan",
         surname: "Gómez",
         category_name: "Plomería",
       },
-      messages: [
-        {
-          id: 1,
-          sender_role: "consumer",
-          content: "Hola Juan, necesito reparar una pérdida de agua.",
-          created_on: new Date(Date.now() - 60000).toISOString(),
-        },
-      ],
+      last_message: {
+        id: 1,
+        sender_role: "consumer",
+        content: "Hola Juan, necesito reparar una pérdida de agua.",
+        created_on: new Date().toISOString(),
+      },
       updated_on: new Date().toISOString(),
+    }),
+  ]);
+
+  await world.stubGet(`/conversations/${conversationId}`, {
+    id: conversationId,
+    status: "accepted",
+    counterpart: {
+      id: "provider-001",
+      role: "provider",
+      name: "Juan",
+      surname: "Gómez",
+      category_name: "Plomería",
     },
+    messages: [
+      {
+        id: 1,
+        sender_role: "consumer",
+        content: "Hola Juan, necesito reparar una pérdida de agua.",
+        created_on: new Date(Date.now() - 60000).toISOString(),
+      },
+    ],
+    updated_on: new Date().toISOString(),
   });
 
-  await world.addApiStub({
-    method: "POST",
-    endpoint: `/conversations/${conversationId}/messages`,
-    status: 201,
-    body: {
-      id: 99,
-      conversation_id: conversationId,
-      sender_role: "consumer",
-      content: "Mensaje enviado",
-      created_on: new Date().toISOString(),
-    },
+  await world.stubPost(`/conversations/${conversationId}/messages`, 201, {
+    id: 99,
+    conversation_id: conversationId,
+    sender_role: "consumer",
+    content: "Mensaje enviado",
+    created_on: new Date().toISOString(),
   });
 
-  await world.addApiStub({
-    method: "POST",
-    endpoint: "/ws-tickets",
-    status: 201,
-    body: { ticket: "mock-ws-ticket-abc123" },
-  });
+  await world.stubPost("/ws-tickets", 201, { ticket: "mock-ws-ticket-abc123" });
 }
 
 async function interceptWebSocket(world: CustomWorld) {
@@ -188,64 +140,49 @@ Given(
   async function (this: CustomWorld, consumerName: string) {
     await setProviderRealtimeSession(this);
 
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/conversations",
-      status: 200,
-      body: [
-        {
-          id: activeConversationId,
-          status: "accepted",
-          counterpart: {
-            id: "consumer-001",
-            role: "consumer",
-            name: "Ana",
-            surname: "Pérez",
-            category_name: "Plomería",
-          },
-          last_message: {
-            id: 1,
-            sender_role: "consumer",
-            content: "Hola Juan, necesito reparar una pérdida de agua.",
-            created_on: new Date().toISOString(),
-          },
-          updated_on: new Date().toISOString(),
-        },
-      ],
-    });
-
-    await this.addApiStub({
-      method: "GET",
-      endpoint: `/conversations/${activeConversationId}`,
-      status: 200,
-      body: {
+    await this.stubGet("/conversations", [
+      aConversation({
         id: activeConversationId,
         status: "accepted",
         counterpart: {
-          id: "consumer-001",
+          id: 10,
           role: "consumer",
           name: "Ana",
           surname: "Pérez",
           category_name: "Plomería",
         },
-        messages: [
-          {
-            id: 1,
-            sender_role: "consumer",
-            content: "Hola Juan, necesito reparar una pérdida de agua.",
-            created_on: new Date(Date.now() - 60000).toISOString(),
-          },
-        ],
+        last_message: {
+          id: 1,
+          sender_role: "consumer",
+          content: "Hola Juan, necesito reparar una pérdida de agua.",
+          created_on: new Date().toISOString(),
+        },
         updated_on: new Date().toISOString(),
+      }),
+    ]);
+
+    await this.stubGet(`/conversations/${activeConversationId}`, {
+      id: activeConversationId,
+      status: "accepted",
+      counterpart: {
+        id: "consumer-001",
+        role: "consumer",
+        name: "Ana",
+        surname: "Pérez",
+        category_name: "Plomería",
       },
+      messages: [
+        {
+          id: 1,
+          sender_role: "consumer",
+          content: "Hola Juan, necesito reparar una pérdida de agua.",
+          created_on: new Date(Date.now() - 60000).toISOString(),
+        },
+      ],
+      updated_on: new Date().toISOString(),
     });
 
-    await this.addApiStub({
-      method: "POST",
-      endpoint: "/ws-tickets",
-      status: 201,
-      body: { ticket: "mock-ws-ticket-abc123" },
-    });
+    await this.stubPost("/ws-tickets", 201, { ticket: "mock-ws-ticket-abc123" });
 
     await interceptWebSocket(this);
     await this.page.goto(APP_URL + ROUTES.provider.messages + `?consumer_id=consumer-001`, {
@@ -339,22 +276,17 @@ Then(
 );
 
 Given("estoy revisando mensajes anteriores en la conversación", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "GET",
-    endpoint: `/conversations/${activeConversationId}`,
-    status: 200,
-    body: {
-      id: activeConversationId,
-      status: "accepted",
-      counterpart: { id: "provider-001", role: "provider", name: "Juan", surname: "Gómez", category_name: "Plomería" },
-      messages: Array.from({ length: 15 }, (_, i) => ({
-        id: i + 1,
-        sender_role: i % 2 === 0 ? "consumer" : "provider",
-        content: `Msg ${i + 1}`,
-        created_on: new Date(Date.now() - (15 - i) * 60000).toISOString(),
-      })),
-      updated_on: new Date().toISOString(),
-    },
+  await this.stubGet(`/conversations/${activeConversationId}`, {
+    id: activeConversationId,
+    status: "accepted",
+    counterpart: { id: "provider-001", role: "provider", name: "Juan", surname: "Gómez", category_name: "Plomería" },
+    messages: Array.from({ length: 15 }, (_, i) => ({
+      id: i + 1,
+      sender_role: i % 2 === 0 ? "consumer" : "provider",
+      content: `Msg ${i + 1}`,
+      created_on: new Date(Date.now() - (15 - i) * 60000).toISOString(),
+    })),
+    updated_on: new Date().toISOString(),
   });
 
   wsServer = null;

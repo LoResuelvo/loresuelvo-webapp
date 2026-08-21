@@ -2,35 +2,20 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { AuthSession } from "../../infrastructure/auth/types";
-import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
-
+import { aConversation } from "../support/factories";
 
 async function setProviderSession(world: CustomWorld) {
-  const session: AuthSession = {
-    user: {
-      id: "provider-001",
-      email: "prestador@loresuelvo.test",
-      firstName: "Paula",
-      lastName: "Rios",
-      isOnboarded: true,
-      role: "provider",
-    },
-    accessToken: "mock-access-token",
-  };
-
-  await world.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
+  await world.setSession("provider", {
+    id: "provider-001",
+    email: "prestador@loresuelvo.test",
+    firstName: "Paula",
+    lastName: "Rios",
+    isOnboarded: true,
+  });
 }
 
 const mockConversations = [
-  {
+  aConversation({
     id: 1,
     status: "accepted",
     counterpart: {
@@ -47,8 +32,8 @@ const mockConversations = [
       created_on: new Date().toISOString(),
     },
     updated_on: new Date().toISOString(),
-  },
-  {
+  }),
+  aConversation({
     id: 2,
     status: "pending",
     counterpart: {
@@ -65,7 +50,7 @@ const mockConversations = [
       created_on: new Date(Date.now() - 3600000).toISOString(),
     },
     updated_on: new Date(Date.now() - 3600000).toISOString(),
-  },
+  }),
 ];
 
 Given("que estoy en el dashboard de prestador", async function (this: CustomWorld) {
@@ -74,32 +59,17 @@ Given("que estoy en el dashboard de prestador", async function (this: CustomWorl
 });
 
 When("navego a la sección de mensajes del dashboard", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: mockConversations,
-  });
+  await this.stubGet("/conversations", mockConversations);
   await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
 
 When("accedo a la sección de mensajes", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: mockConversations,
-  });
+  await this.stubGet("/conversations", mockConversations);
   await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
 
 When("visualizo la lista de mensajes", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: mockConversations,
-  });
+  await this.stubGet("/conversations", mockConversations);
   await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
 
@@ -109,13 +79,7 @@ Given("visualizo la lista de conversaciones", async function (this: CustomWorld)
 
 Given("que visualizo la lista de conversaciones", async function (this: CustomWorld) {
   await setProviderSession(this);
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: mockConversations,
-  });
+  await this.stubGet("/conversations", mockConversations);
 
   await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
   const section = this.page.getByRole("region", { name: "Mensajes" });
@@ -132,13 +96,7 @@ Then("visualizo una lista de conversaciones", async function (this: CustomWorld)
 
 Given("que tengo conversaciones asociadas a mi cuenta de prestador", async function (this: CustomWorld) {
   await setProviderSession(this);
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: mockConversations,
-  });
+  await this.stubGet("/conversations", mockConversations);
 
   await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
@@ -152,13 +110,7 @@ Then("veo todas las conversaciones asociadas a mi cuenta", async function (this:
 
 Given("que tengo conversaciones pendientes y aceptadas", async function (this: CustomWorld) {
   await setProviderSession(this);
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: mockConversations,
-  });
+  await this.stubGet("/conversations", mockConversations);
 
   await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
@@ -178,26 +130,14 @@ Then("cada conversación muestra el nombre del consumidor", async function (this
 
 Given("que tengo conversaciones con mensajes", async function (this: CustomWorld) {
   await setProviderSession(this);
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: mockConversations,
-  });
+  await this.stubGet("/conversations", mockConversations);
 
   await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
 
 Given("que tengo conversaciones pendientes de aceptación", async function (this: CustomWorld) {
   await setProviderSession(this);
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: mockConversations,
-  });
+  await this.stubGet("/conversations", mockConversations);
 
   await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });
@@ -208,13 +148,7 @@ Given("me encuentro visualizando la lista de conversaciones", async function (th
 
 Given("me encuentro visualizando el detalle de una solicitud pendiente", async function (this: CustomWorld) {
   await setProviderSession(this);
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: mockConversations,
-  });
+  await this.stubGet("/conversations", mockConversations);
 
   await this.page.goto(APP_URL + ROUTES.provider.messages, { waitUntil: "networkidle" });
 });

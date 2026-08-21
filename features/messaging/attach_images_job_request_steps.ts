@@ -2,36 +2,33 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
+import { aPresignedUpload, aConfirmedFile } from "../support/factories";
 
 let currentJobRequestAttachedImages: string[] = [];
 
 async function stubFileUpload(world: CustomWorld, fileName: string, fileId: string = "mock-file-123") {
-  await world.addApiStub({
-    method: "POST",
-    endpoint: "/files/presign",
-    status: 200,
-    body: {
+  await world.stubPost(
+    "/files/presign",
+    200,
+    aPresignedUpload({
       file_id: fileId,
       upload_url: "https://mock-upload.test/upload",
-      headers: {},
       key: `job_request_image/${fileId}`,
-    },
-  });
+    })
+  );
 
   await world.page.route("https://mock-upload.test/upload", async (route) => {
     await route.fulfill({ status: 204 });
   });
 
-  await world.addApiStub({
-    method: "POST",
-    endpoint: `/files/${fileId}/confirm`,
-    status: 200,
-    body: {
+  await world.stubPost(
+    `/files/${fileId}/confirm`,
+    200,
+    aConfirmedFile({
       id: fileId,
       original_name: fileName,
-    },
-  });
+    })
+  );
 }
 
 Given("que adjunté la imagen {string} a la solicitud", async function (this: CustomWorld, imagen: string) {
@@ -139,54 +136,36 @@ Then("la cuarta imagen no se adjunta", async function (this: CustomWorld) {
 });
 
 Given("que el consumidor envió una solicitud con la imagen {string}", async function (this: CustomWorld, imagen: string) {
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/job-requests",
-    status: 200,
-    body: [
-      {
-        id: 7,
-        conversation_id: 10,
-        title: "Pérdida de agua",
-        description: "El termotanque pierde agua por la base.",
-        requester: {
-          name: "Ana",
-          surname: "Pérez",
-        },
-        images: [
-          {
-            id: "img-123",
-            url: `/${imagen}`,
-            original_name: imagen,
-          },
-        ],
+  await this.stubGet("/job-requests", [
+    {
+      id: 7,
+      conversation_id: 10,
+      title: "Pérdida de agua",
+      description: "El termotanque pierde agua por la base.",
+      requester: {
+        name: "Ana",
+        surname: "Pérez",
       },
-    ],
-  });
+      images: [
+        {
+          id: "img-123",
+          url: `/${imagen}`,
+          original_name: imagen,
+        },
+      ],
+    },
+  ]);
 });
 
 async function setProviderSession(world: CustomWorld, providerName: string) {
   const [firstName, lastName] = providerName.split(" ");
-  const session = {
-    user: {
-      id: "prov-001",
-      email: "prestador@loresuelvo.test",
-      firstName: firstName || "Juan",
-      lastName: lastName || "Pérez",
-      isOnboarded: true,
-      role: "provider",
-    },
-    accessToken: "mock-access-token",
-  };
-
-  await world.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
+  await world.setSession("provider", {
+    id: "prov-001",
+    email: "prestador@loresuelvo.test",
+    firstName: firstName || "Juan",
+    lastName: lastName || "Pérez",
+    isOnboarded: true,
+  });
 }
 
 Given("estoy autenticado como prestador {string}", async function (this: CustomWorld, providerName: string) {

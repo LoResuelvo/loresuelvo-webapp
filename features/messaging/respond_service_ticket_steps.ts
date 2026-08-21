@@ -2,9 +2,7 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { AuthSession } from "../../infrastructure/auth/types";
-import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
-
+import { aConversation } from "../support/factories";
 
 const mockJobRequests = [
   {
@@ -30,37 +28,18 @@ const mockJobRequests = [
 ];
 
 async function setProviderSession(world: CustomWorld) {
-  const session: AuthSession = {
-    user: {
-      id: "provider-001",
-      email: "prestador@loresuelvo.test",
-      firstName: "Paula",
-      lastName: "Rios",
-      isOnboarded: true,
-      role: "provider",
-    },
-    accessToken: "mock-access-token",
-  };
-
-  await world.page.context().addCookies([
-    {
-      name: MOCK_SESSION_COOKIE,
-      value: encodeURIComponent(JSON.stringify(session)),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
+  await world.setSession("provider", {
+    id: "provider-001",
+    email: "prestador@loresuelvo.test",
+    firstName: "Paula",
+    lastName: "Rios",
+    isOnboarded: true,
+  });
 }
 
 Given("que existen solicitudes de trabajo pendientes para mí", async function (this: CustomWorld) {
   await setProviderSession(this);
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/job-requests",
-    status: 200,
-    body: mockJobRequests,
-  });
+  await this.stubGet("/job-requests", mockJobRequests);
 });
 
 When("accedo al dashboard de prestador", async function (this: CustomWorld) {
@@ -76,13 +55,7 @@ Then("visualizo las solicitudes pendientes en la sección {string}", async funct
 
 Given("que visualizo una solicitud pendiente", async function (this: CustomWorld) {
   await setProviderSession(this);
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/job-requests",
-    status: 200,
-    body: mockJobRequests,
-  });
+  await this.stubGet("/job-requests", mockJobRequests);
 
   await this.page.goto(APP_URL + ROUTES.provider.home);
   await this.page.waitForLoadState("networkidle");
@@ -125,49 +98,28 @@ Then("visualizo:", async function (this: CustomWorld, dataTable: { raw: () => st
 Given("que me encuentro visualizando el detalle de una solicitud pendiente", async function (this: CustomWorld) {
   await setProviderSession(this);
 
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/job-requests",
-    status: 200,
-    body: mockJobRequests,
+  await this.stubGet("/job-requests", mockJobRequests);
+  await this.stubPost("/job-requests/1/accept", 200, {});
+
+  await this.stubGet("/conversations/1", {
+    id: 1,
+    status: "pending",
+    work: {
+      counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández", category_name: "Plomería" },
+    },
+    messages: [],
+    updated_on: "2026-06-03T12:00:00Z",
   });
 
-  await this.addApiStub({
-    method: "POST",
-    endpoint: "/job-requests/1/accept",
-    status: 200,
-    body: {},
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations/1",
-    status: 200,
-    body: {
+  await this.stubGet("/conversations", [
+    aConversation({
       id: 1,
       status: "pending",
-      work: {
-        counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández", category_name: "Plomería" },
-      },
-      messages: [],
+      counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández", category_name: "Plomería" },
+      last_message: undefined,
       updated_on: "2026-06-03T12:00:00Z",
-    },
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: [
-      {
-        id: 1,
-        status: "pending",
-        counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández", category_name: "Plomería" },
-        last_message: null,
-        updated_on: "2026-06-03T12:00:00Z",
-      },
-    ],
-  });
+    }),
+  ]);
 
   await this.page.goto(APP_URL + ROUTES.provider.home);
   await this.page.waitForLoadState("networkidle");
@@ -195,13 +147,7 @@ Then("deja de aparecer en la lista de solicitudes pendientes", async function (t
 
 Given("que estoy visualizando el detalle de una solicitud", async function (this: CustomWorld) {
   await setProviderSession(this);
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/job-requests",
-    status: 200,
-    body: mockJobRequests,
-  });
+  await this.stubGet("/job-requests", mockJobRequests);
 
   await this.page.goto(APP_URL + ROUTES.provider.home);
   await this.page.waitForLoadState("networkidle");

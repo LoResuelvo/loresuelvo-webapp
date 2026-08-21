@@ -1,35 +1,33 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld } from "../support/world";
+import { aPresignedUpload, aConfirmedFile } from "../support/factories";
 
 let currentAttachedImages: string[] = [];
 
 async function stubFileUpload(world: CustomWorld, fileName: string, fileId: string = "mock-file-123") {
-  await world.addApiStub({
-    method: "POST",
-    endpoint: "/files/presign",
-    status: 200,
-    body: {
+  await world.stubPost(
+    "/files/presign",
+    200,
+    aPresignedUpload({
       file_id: fileId,
       upload_url: "https://mock-upload.test/upload",
-      headers: {},
       key: `conversation_message_image/${fileId}`,
-    },
-  });
+    })
+  );
 
   await world.page.route("https://mock-upload.test/upload", async (route) => {
     await route.fulfill({ status: 204 });
   });
 
-  await world.addApiStub({
-    method: "POST",
-    endpoint: `/files/${fileId}/confirm`,
-    status: 200,
-    body: {
+  await world.stubPost(
+    `/files/${fileId}/confirm`,
+    200,
+    aConfirmedFile({
       id: fileId,
       original_name: fileName,
-    },
-  });
+    })
+  );
 }
 
 async function triggerFileChooser(world: CustomWorld) {
@@ -107,25 +105,20 @@ Given("que eliminé la imagen {string} de los archivos adjuntos", async function
 });
 
 When("envío el mensaje {string}", async function (this: CustomWorld, mensaje: string) {
-  await this.addApiStub({
-    method: "POST",
-    endpoint: "/conversations/1/messages",
-    status: 201,
-    body: {
-      id: 999,
-      conversation_id: 1,
-      sender_role: "consumer",
-      content: mensaje,
-      images: currentAttachedImages.map((name, idx) => ({
-        id: `mock-file-${idx}`,
-        url: `/${name}`,
-        original_name: name,
-      })),
-      created_on: new Date().toISOString(),
-    },
+  await this.stubPost("/conversations/1/messages", 201, {
+    id: 999,
+    conversation_id: 1,
+    sender_role: "consumer",
+    content: mensaje,
+    images: currentAttachedImages.map((name, idx) => ({
+      id: `mock-file-${idx}`,
+      url: `/${name}`,
+      original_name: name,
+    })),
+    created_on: new Date().toISOString(),
   });
 
-  currentAttachedImages = []; // reset after sending
+  currentAttachedImages = [];
 
   const input = this.page.getByRole("textbox", { name: /escribe un mensaje/i });
   await input.fill(mensaje);
@@ -135,25 +128,20 @@ When("envío el mensaje {string}", async function (this: CustomWorld, mensaje: s
 });
 
 When("envío el mensaje sin texto", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "POST",
-    endpoint: "/conversations/1/messages",
-    status: 201,
-    body: {
-      id: 999,
-      conversation_id: 1,
-      sender_role: "consumer",
-      content: "",
-      images: currentAttachedImages.map((name, idx) => ({
-        id: `mock-file-${idx}`,
-        url: `/${name}`,
-        original_name: name,
-      })),
-      created_on: new Date().toISOString(),
-    },
+  await this.stubPost("/conversations/1/messages", 201, {
+    id: 999,
+    conversation_id: 1,
+    sender_role: "consumer",
+    content: "",
+    images: currentAttachedImages.map((name, idx) => ({
+      id: `mock-file-${idx}`,
+      url: `/${name}`,
+      original_name: name,
+    })),
+    created_on: new Date().toISOString(),
   });
 
-  currentAttachedImages = []; // reset after sending
+  currentAttachedImages = [];
 
   const sendButton = this.page.getByRole("button", { name: /enviar/i });
   await sendButton.click();
@@ -180,25 +168,20 @@ Then(
 );
 
 Given("que el consumidor envió un mensaje con la imagen {string}", async function (this: CustomWorld, imagen: string) {
-  await this.addApiStub({
-    method: "GET",
-    endpoint: `/conversations/1`,
-    status: 200,
-    body: {
-      id: 1,
-      status: "accepted",
-      counterpart: { id: "consumer-001", role: "consumer", name: "Ana", surname: "Pérez", category_name: "Plomería" },
-      messages: [
-        {
-          id: 1,
-          sender_role: "consumer",
-          content: "Hola",
-          images: [{ id: "file-xyz", url: "/img.jpg", original_name: imagen }],
-          created_on: new Date().toISOString(),
-        },
-      ],
-      updated_on: new Date().toISOString(),
-    },
+  await this.stubGet(`/conversations/1`, {
+    id: 1,
+    status: "accepted",
+    counterpart: { id: "consumer-001", role: "consumer", name: "Ana", surname: "Pérez", category_name: "Plomería" },
+    messages: [
+      {
+        id: 1,
+        sender_role: "consumer",
+        content: "Hola",
+        images: [{ id: "file-xyz", url: "/img.jpg", original_name: imagen }],
+        created_on: new Date().toISOString(),
+      },
+    ],
+    updated_on: new Date().toISOString(),
   });
   await this.page.reload({ waitUntil: "networkidle" });
 });

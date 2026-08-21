@@ -2,16 +2,11 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
 import { ROUTES } from "../../lib/routes";
+import { aCategory, aConversation } from "../support/factories";
 import { setConsumerSession } from "./initiate_chat_with_provider_steps";
 
-
 Given("existe el rubro Plomería", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/categories",
-    status: 200,
-    body: [{ id: 1, name: "Plomería" }],
-  });
+  await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
 });
 
 Given("estoy en el listado de técnicos del rubro {string}", async function (this: CustomWorld, categoryName: string) {
@@ -56,56 +51,35 @@ Given(
   async function (this: CustomWorld, modalTitle: string, providerName: string) {
     await setConsumerSession(this);
 
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/categories",
-      status: 200,
-      body: [{ id: 1, name: "Plomería" }],
+    await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
+    await this.stubGet("/conversations", []);
+
+    await this.stubPost("/job-requests", 201, {
+      id: 1,
+      conversation_id: 1,
+      title: "Pérdida de agua en termotanque",
+      description: "El termotanque pierde agua por la base. El agua se acumula y el piloto se apaga.",
     });
 
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/conversations",
-      status: 200,
-      body: [],
-    });
-
-    await this.addApiStub({
-      method: "POST",
-      endpoint: "/job-requests",
-      status: 201,
-      body: {
+    await this.stubGet("/conversations/1", {
+      id: 1,
+      status: "pending",
+      counterpart: {
         id: 1,
-        conversation_id: 1,
-        title: "Pérdida de agua en termotanque",
-        description: "El termotanque pierde agua por la base. El agua se acumula y el piloto se apaga.",
+        role: "provider",
+        name: "Juan",
+        surname: "Pérez",
+        category_name: "Plomería",
       },
-    });
-
-    await this.addApiStub({
-      method: "GET",
-      endpoint: "/conversations/1",
-      status: 200,
-      body: {
-        id: 1,
-        status: "pending",
-        counterpart: {
-          id: 1,
-          role: "provider",
-          name: "Juan",
-          surname: "Pérez",
-          category_name: "Plomería",
+      messages: [
+        {
+          id: 100,
+          sender_role: "consumer",
+          content: "Título: Pérdida de agua en termotanque\n\nDescripción: El termotanque pierde agua por la base. El agua se acumula y el piloto se apaga.",
+          created_on: new Date().toISOString(),
         },
-        messages: [
-          {
-            id: 100,
-            sender_role: "consumer",
-            content: "Título: Pérdida de agua en termotanque\n\nDescripción: El termotanque pierde agua por la base. El agua se acumula y el piloto se apaga.",
-            created_on: new Date().toISOString(),
-          },
-        ],
-        updated_on: new Date().toISOString(),
-      },
+      ],
+      updated_on: new Date().toISOString(),
     });
 
     await this.page.goto(APP_URL + ROUTES.consumer.buscar + "?category_id=1");
@@ -144,37 +118,8 @@ Then("soy redirigido a la pantalla de mensajes con {string}", async function (th
 Given("que ya envié la solicitud de trabajo a {string}", async function (this: CustomWorld, providerName: string) {
   await setConsumerSession(this);
 
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: [
-      {
-        id: 1,
-        status: "pending",
-        counterpart: {
-          id: 1,
-          role: "provider",
-          name: "Juan",
-          surname: "Pérez",
-          category_name: "Plomería",
-        },
-        last_message: {
-          id: 100,
-          sender_role: "consumer",
-          content: "Título: Pérdida de agua en termotanque\n\nDescripción: El termotanque pierde agua por la base.",
-          created_on: new Date().toISOString(),
-        },
-        updated_on: new Date().toISOString(),
-      },
-    ],
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations/1",
-    status: 200,
-    body: {
+  await this.stubGet("/conversations", [
+    aConversation({
       id: 1,
       status: "pending",
       counterpart: {
@@ -184,16 +129,35 @@ Given("que ya envié la solicitud de trabajo a {string}", async function (this: 
         surname: "Pérez",
         category_name: "Plomería",
       },
-      messages: [
-        {
-          id: 100,
-          sender_role: "consumer",
-          content: "Título: Pérdida de agua en termotanque\n\nDescripción: El termotanque pierde agua por la base.",
-          created_on: new Date().toISOString(),
-        },
-      ],
+      last_message: {
+        id: 100,
+        sender_role: "consumer",
+        content: "Título: Pérdida de agua en termotanque\n\nDescripción: El termotanque pierde agua por la base.",
+        created_on: new Date().toISOString(),
+      },
       updated_on: new Date().toISOString(),
+    }),
+  ]);
+
+  await this.stubGet("/conversations/1", {
+    id: 1,
+    status: "pending",
+    counterpart: {
+      id: 1,
+      role: "provider",
+      name: "Juan",
+      surname: "Pérez",
+      category_name: "Plomería",
     },
+    messages: [
+      {
+        id: 100,
+        sender_role: "consumer",
+        content: "Título: Pérdida de agua en termotanque\n\nDescripción: El termotanque pierde agua por la base.",
+        created_on: new Date().toISOString(),
+      },
+    ],
+    updated_on: new Date().toISOString(),
   });
 });
 
@@ -206,37 +170,8 @@ Then("visualizo al prestador {string} como contacto en mi lista", async function
 Given("que inicié la conversación con {string}", async function (this: CustomWorld, providerName: string) {
   await setConsumerSession(this);
 
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations",
-    status: 200,
-    body: [
-      {
-        id: 1,
-        status: "pending",
-        counterpart: {
-          id: 1,
-          role: "provider",
-          name: "Juan",
-          surname: "Pérez",
-          category_name: "Plomería",
-        },
-        last_message: {
-          id: 100,
-          sender_role: "consumer",
-          content: "Hola Juan",
-          created_on: new Date().toISOString(),
-        },
-        updated_on: new Date().toISOString(),
-      },
-    ],
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/conversations/1",
-    status: 200,
-    body: {
+  await this.stubGet("/conversations", [
+    aConversation({
       id: 1,
       status: "pending",
       counterpart: {
@@ -246,16 +181,35 @@ Given("que inicié la conversación con {string}", async function (this: CustomW
         surname: "Pérez",
         category_name: "Plomería",
       },
-      messages: [
-        {
-          id: 100,
-          sender_role: "consumer",
-          content: "Hola Juan",
-          created_on: new Date().toISOString(),
-        },
-      ],
+      last_message: {
+        id: 100,
+        sender_role: "consumer",
+        content: "Hola Juan",
+        created_on: new Date().toISOString(),
+      },
       updated_on: new Date().toISOString(),
+    }),
+  ]);
+
+  await this.stubGet("/conversations/1", {
+    id: 1,
+    status: "pending",
+    counterpart: {
+      id: 1,
+      role: "provider",
+      name: "Juan",
+      surname: "Pérez",
+      category_name: "Plomería",
     },
+    messages: [
+      {
+        id: 100,
+        sender_role: "consumer",
+        content: "Hola Juan",
+        created_on: new Date().toISOString(),
+      },
+    ],
+    updated_on: new Date().toISOString(),
   });
 
   await this.page.goto(APP_URL + ROUTES.consumer.messages + "?provider_id=1");

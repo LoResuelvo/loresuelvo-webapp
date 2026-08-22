@@ -19,7 +19,7 @@ interface ReviewWorkOrderModalProps {
 export function ReviewWorkOrderModal({
   open,
   onClose,
-  workOrderId,
+  workOrderId: _workOrderId,
   onSubmitReview,
   onSuccess,
 }: ReviewWorkOrderModalProps) {

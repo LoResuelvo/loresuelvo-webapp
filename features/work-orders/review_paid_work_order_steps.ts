@@ -266,4 +266,55 @@ Then(
   }
 );
 
+// ─── Scenario 05 & Character Count ──────────────────────────────────────────
+
+When(
+  /^escribo una descripción de (\d+) caracteres$/,
+  async function (this: CustomWorld, lengthStr: string) {
+    const length = parseInt(lengthStr, 10);
+    const text = "A".repeat(length);
+    const modal = this.page.getByTestId("review-work-order-modal");
+    const textarea = modal
+      .getByTestId("review-comment-input")
+      .or(modal.locator("textarea"));
+    await textarea.waitFor({ state: "visible", timeout: 5000 });
+    await textarea.fill(text);
+  }
+);
+
+Then(
+  "veo el contador de caracteres en {string}",
+  async function (this: CustomWorld, expectedCount: string) {
+    const modal = this.page.getByTestId("review-work-order-modal");
+    const counter = modal
+      .getByTestId("review-char-counter")
+      .or(modal.getByText(expectedCount));
+    await counter.waitFor({ state: "visible", timeout: 5000 });
+    const text = await counter.textContent();
+    assert.ok(
+      text?.includes(expectedCount),
+      `Contador esperado "${expectedCount}", pero se obtuvo "${text}"`
+    );
+  }
+);
+
+Then(
+  "el campo no permite ingresar más de 500 caracteres",
+  async function (this: CustomWorld) {
+    const modal = this.page.getByTestId("review-work-order-modal");
+    const textarea = modal
+      .getByTestId("review-comment-input")
+      .or(modal.locator("textarea"));
+    await textarea.pressSequentially("EXTRA_CHARS");
+    const value = await textarea.inputValue();
+    assert.ok(
+      value.length <= 500,
+      `El campo contiene ${value.length} caracteres, superando el límite de 500`
+    );
+    const maxLength = await textarea.getAttribute("maxlength");
+    assert.strictEqual(maxLength, "500");
+  }
+);
+
+
 

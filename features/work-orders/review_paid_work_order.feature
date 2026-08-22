@@ -41,7 +41,6 @@ Feature: US-30 Calificar y reseñar una orden de trabajo pagada
       Then el botón de envío se encuentra deshabilitado
 
   Rule: Límites de caracteres y restricciones de rol o estado
-    @wip
     Scenario: 05-RW Contador de caracteres en tiempo real e impedimento de exceder 500 caracteres
       Given tengo abierto el formulario de calificación de la orden
       When escribo una descripción de 500 caracteres

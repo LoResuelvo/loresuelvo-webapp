@@ -237,3 +237,33 @@ Then(
   }
 );
 
+// ─── Scenario 04 & Form Validation ──────────────────────────────────────────
+
+When(
+  "abro el formulario de calificación",
+  async function (this: CustomWorld) {
+    const rateBtn = this.page
+      .getByTestId("open-review-button")
+      .or(this.page.getByRole("button", { name: /calificar( servicio)?/i }))
+      .or(this.page.getByTestId("rate-work-order-button"));
+    await rateBtn.waitFor({ state: "visible", timeout: 10000 });
+    await rateBtn.click();
+
+    const reviewModal = this.page.getByTestId("review-work-order-modal");
+    await reviewModal.waitFor({ state: "visible", timeout: 10000 });
+  }
+);
+
+Then(
+  "el botón de envío se encuentra deshabilitado",
+  async function (this: CustomWorld) {
+    const modal = this.page.getByTestId("review-work-order-modal");
+    const submitBtn = modal
+      .getByTestId("submit-review-button")
+      .or(modal.getByRole("button", { name: /enviar reseña|calificar/i }));
+    await submitBtn.waitFor({ state: "visible", timeout: 5000 });
+    assert.ok(await submitBtn.isDisabled(), "El botón de envío debería estar deshabilitado");
+  }
+);
+
+

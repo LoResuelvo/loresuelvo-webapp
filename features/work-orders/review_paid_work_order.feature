@@ -35,7 +35,6 @@ Feature: US-30 Calificar y reseñar una orden de trabajo pagada
       Then veo el botón de envío en estado "Enviando reseña..." y deshabilitado
 
   Rule: Validación inicial de campos requeridos
-    @wip
     Scenario: 04-RW Botón de enviar deshabilitado mientras no se haya seleccionado ninguna estrella
       Given tengo abierto el detalle de la orden de trabajo
       When abro el formulario de calificación

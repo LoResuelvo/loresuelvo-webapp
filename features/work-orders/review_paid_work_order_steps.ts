@@ -316,5 +316,47 @@ Then(
   }
 );
 
+// ─── Scenario 06 & Role / State Restrictions ────────────────────────────────
+
+Given(
+  "que la orden de trabajo se encuentra en estado {string}",
+  async function (this: CustomWorld, status: string) {
+    await this.setSession("consumer");
+    await this.stubGet("/categories", [aCategory()]);
+    await this.stubGet("/service-proposals", [
+      aProposal("consumer", {
+        id: PROPOSAL_ID,
+        amount_cents: 1500000,
+        status: "accepted",
+      }),
+    ]);
+    const workOrder = aWorkOrder({
+      id: WORK_ORDER_ID,
+      service_proposal_id: PROPOSAL_ID,
+      status: status as "scheduled" | "awaiting_payment" | "paid",
+      amount_cents: 1500000,
+      completion_report: status === "awaiting_payment" ? aCompletionReport() : undefined,
+    });
+
+    await this.stubGet(`/work-orders?service_proposal_id=${PROPOSAL_ID}`, workOrder);
+    await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, workOrder);
+  }
+);
+
+Then(
+  "no veo el botón para calificar el servicio",
+  async function (this: CustomWorld) {
+    const modal = this.page.getByTestId("work-order-detail-modal");
+    await modal.waitFor({ state: "visible", timeout: 10000 });
+    const rateBtn = modal
+      .getByTestId("open-review-button")
+      .or(modal.getByRole("button", { name: /calificar( servicio)?/i }))
+      .or(modal.getByTestId("rate-work-order-button"));
+    const count = await rateBtn.count();
+    assert.strictEqual(count === 0 || !(await rateBtn.isVisible()), true, "El botón para calificar no debería ser visible");
+  }
+);
+
+
 
 

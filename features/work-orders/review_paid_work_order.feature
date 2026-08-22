@@ -47,7 +47,6 @@ Feature: US-30 Calificar y reseñar una orden de trabajo pagada
       Then veo el contador de caracteres en "500/500"
       And el campo no permite ingresar más de 500 caracteres
 
-    @wip
     Scenario: 06-RW No mostrar la opción de calificar si la orden no está pagada o si el usuario es prestador
       Given que la orden de trabajo se encuentra en estado "awaiting_payment"
       When abro el detalle de la orden de trabajo

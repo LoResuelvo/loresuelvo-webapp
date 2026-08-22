@@ -1,13 +1,19 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { WorkOrderDetailModal } from "./WorkOrderDetailModal";
-import { getWorkOrderDetailAction } from "@/app/work-orders/actions";
+import {
+  getWorkOrderDetailAction,
+  createWorkOrderReviewAction,
+} from "@/app/work-orders/actions";
+
 
 vi.mock("@/app/work-orders/actions", () => ({
   getWorkOrderDetailAction: vi.fn(),
   createServiceBalanceCheckoutAction: vi.fn(),
+  createWorkOrderReviewAction: vi.fn(),
 }));
+
 
 describe("WorkOrderDetailModal", () => {
   beforeEach(() => {
@@ -272,4 +278,136 @@ describe("WorkOrderDetailModal", () => {
       expect(screen.getAllByTestId("star-filled")).toHaveLength(5);
     });
   });
+
+  it("should show 'Calificar servicio' button when order is paid, user is consumer and no review exists", async () => {
+    vi.mocked(getWorkOrderDetailAction).mockResolvedValue({
+      ok: true,
+      detail: {
+        id: 10,
+        serviceProposalId: 42,
+        consumerId: 10,
+        providerId: 1,
+        status: "paid",
+        amountCents: 1500000,
+        scheduledOn: "2026-08-20T10:00:00Z",
+        description: "Reparación de cañería",
+        acceptedOn: "2026-08-05T10:00:00Z",
+        paidOn: "2026-08-21T14:30:00Z",
+      },
+    });
+
+    render(
+      <WorkOrderDetailModal
+        open={true}
+        onClose={vi.fn()}
+        workOrderId={10}
+        isConsumer={true}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("open-review-button")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Calificar servicio" })).toBeInTheDocument();
+    });
+  });
+
+  it("should not show 'Calificar servicio' button when user is provider", async () => {
+    vi.mocked(getWorkOrderDetailAction).mockResolvedValue({
+      ok: true,
+      detail: {
+        id: 10,
+        serviceProposalId: 42,
+        consumerId: 10,
+        providerId: 1,
+        status: "paid",
+        amountCents: 1500000,
+        scheduledOn: "2026-08-20T10:00:00Z",
+        description: "Reparación de cañería",
+        acceptedOn: "2026-08-05T10:00:00Z",
+        paidOn: "2026-08-21T14:30:00Z",
+      },
+    });
+
+    render(
+      <WorkOrderDetailModal
+        open={true}
+        onClose={vi.fn()}
+        workOrderId={10}
+        isConsumer={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("open-review-button")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Calificar servicio" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("should open review modal when clicking 'Calificar servicio' and update detail on success", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getWorkOrderDetailAction).mockResolvedValue({
+      ok: true,
+      detail: {
+        id: 10,
+        serviceProposalId: 42,
+        consumerId: 10,
+        providerId: 1,
+        status: "paid",
+        amountCents: 1500000,
+        scheduledOn: "2026-08-20T10:00:00Z",
+        description: "Reparación de cañería",
+        acceptedOn: "2026-08-05T10:00:00Z",
+        paidOn: "2026-08-21T14:30:00Z",
+      },
+    });
+
+    vi.mocked(createWorkOrderReviewAction).mockResolvedValue({
+      ok: true,
+      review: {
+        rating: 5,
+        comment: "Excelente servicio",
+        createdOn: "2026-08-21T15:00:00Z",
+      },
+    });
+
+    render(
+      <WorkOrderDetailModal
+        open={true}
+        onClose={vi.fn()}
+        workOrderId={10}
+        isConsumer={true}
+      />
+    );
+
+    const rateBtn = await screen.findByTestId("open-review-button");
+    await user.click(rateBtn);
+
+    expect(screen.getByTestId("review-work-order-modal")).toBeInTheDocument();
+
+    const star5 = screen.getByRole("radio", { name: "5 estrellas" });
+    await user.click(star5);
+
+    const commentInput = screen.getByTestId("review-comment-input");
+    await user.type(commentInput, "Excelente servicio");
+
+    const submitBtn = screen.getByTestId("submit-review-button");
+    await user.click(submitBtn);
+
+    expect(createWorkOrderReviewAction).toHaveBeenCalledWith(10, {
+      rating: 5,
+      comment: "Excelente servicio",
+    });
+
+    const successBox = await screen.findByTestId("review-success-message");
+    const closeSuccessBtn = within(successBox).getByRole("button", { name: "Cerrar" });
+    await user.click(closeSuccessBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("open-review-button")).not.toBeInTheDocument();
+      expect(screen.getByTestId("work-order-review-section")).toBeInTheDocument();
+      expect(screen.getByText("“Excelente servicio”")).toBeInTheDocument();
+    });
+  });
 });
+
+

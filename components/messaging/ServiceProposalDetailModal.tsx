@@ -231,8 +231,10 @@ export default function ServiceProposalDetailModal({
           initialAmountCents={proposal.amountCents}
           initialScheduledOn={proposal.scheduledOn}
           initialDescription={proposal.description}
+          isConsumer={!isProvider}
         />
       )}
+
     </>
   );
 }

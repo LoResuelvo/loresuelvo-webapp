@@ -10,8 +10,15 @@ import { createServiceBalanceCheckout } from "@/application/payments/create-serv
 import { getWorkOrderByProposal } from "@/application/work-orders/get-work-order";
 import { getWorkOrderDetail } from "@/application/work-orders/get-work-order-detail";
 import { reportWorkCompletion } from "@/application/work-orders/report-work-completion";
+import { createWorkOrderReview } from "@/application/work-orders/create-work-order-review";
 import { CheckoutSession } from "@/domain/payment/types";
-import { WorkOrder, WorkOrderDetail, CompletionReport } from "@/domain/work-order/types";
+import {
+  WorkOrder,
+  WorkOrderDetail,
+  CompletionReport,
+  WorkOrderReview,
+} from "@/domain/work-order/types";
+import { createWorkOrderReviewAction } from "./actions";
 
 vi.mock("@/application/payments/create-service-balance-checkout", () => ({
   createServiceBalanceCheckout: vi.fn(),
@@ -29,6 +36,10 @@ vi.mock("@/application/work-orders/report-work-completion", () => ({
   reportWorkCompletion: vi.fn(),
 }));
 
+vi.mock("@/application/work-orders/create-work-order-review", () => ({
+  createWorkOrderReview: vi.fn(),
+}));
+
 vi.mock("@/infrastructure/repositories/api-payment-repository", () => ({
   ApiPaymentRepository: vi.fn(),
 }));
@@ -36,6 +47,7 @@ vi.mock("@/infrastructure/repositories/api-payment-repository", () => ({
 vi.mock("@/infrastructure/repositories/api-work-order-repository", () => ({
   ApiWorkOrderRepository: vi.fn(),
 }));
+
 
 describe("getWorkOrderByProposalAction", () => {
   beforeEach(() => {
@@ -262,3 +274,62 @@ describe("createServiceBalanceCheckoutAction", () => {
     });
   });
 });
+
+describe("createWorkOrderReviewAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns ok: true and the review when creation succeeds", async () => {
+    const mockReview: WorkOrderReview = {
+      rating: 5,
+      comment: "Excelente servicio",
+      createdOn: "2026-08-21T15:00:00Z",
+    };
+
+    vi.mocked(createWorkOrderReview).mockResolvedValue(mockReview);
+
+    const result = await createWorkOrderReviewAction(10, {
+      rating: 5,
+      comment: "Excelente servicio",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      review: mockReview,
+    });
+  });
+
+  it("returns ok: false with HTTP status and message when ApiClientError occurs", async () => {
+    vi.mocked(createWorkOrderReview).mockRejectedValue(
+      new ApiClientError(409, "Conflict", "Order already reviewed"),
+    );
+
+    const result = await createWorkOrderReviewAction(10, {
+      rating: 5,
+      comment: "Excelente servicio",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      status: 409,
+      message: "Order already reviewed",
+    });
+  });
+
+  it("returns ok: false with status null when unexpected error occurs", async () => {
+    vi.mocked(createWorkOrderReview).mockRejectedValue(new Error("Unexpected error"));
+
+    const result = await createWorkOrderReviewAction(10, {
+      rating: 5,
+      comment: "Excelente servicio",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      status: null,
+      message: "Unexpected error",
+    });
+  });
+});
+

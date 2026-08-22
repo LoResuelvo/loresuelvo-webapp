@@ -4,8 +4,15 @@ import { createServiceBalanceCheckout } from "@/application/payments/create-serv
 import { getWorkOrderByProposal } from "@/application/work-orders/get-work-order";
 import { getWorkOrderDetail } from "@/application/work-orders/get-work-order-detail";
 import { reportWorkCompletion } from "@/application/work-orders/report-work-completion";
+import { createWorkOrderReview } from "@/application/work-orders/create-work-order-review";
 import type { CheckoutSession } from "@/domain/payment/types";
-import type { WorkOrder, WorkOrderDetail, CompletionReport } from "@/domain/work-order/types";
+import type {
+  WorkOrder,
+  WorkOrderDetail,
+  CompletionReport,
+  WorkOrderReview,
+  WorkOrderReviewInput,
+} from "@/domain/work-order/types";
 import { ApiClientError } from "@/infrastructure/api/base-client";
 import { ApiPaymentRepository } from "@/infrastructure/repositories/api-payment-repository";
 import { ApiWorkOrderRepository } from "@/infrastructure/repositories/api-work-order-repository";
@@ -24,6 +31,10 @@ export type GetWorkOrderDetailResult =
 
 export type ReportWorkCompletionResult =
   | { ok: true; report: CompletionReport }
+  | { ok: false; status: number | null; message?: string | null };
+
+export type CreateWorkOrderReviewResult =
+  | { ok: true; review: WorkOrderReview }
   | { ok: false; status: number | null; message?: string | null };
 
 export async function getWorkOrderByProposalAction(
@@ -79,6 +90,23 @@ export async function reportWorkCompletionAction(
   }
 }
 
+export async function createWorkOrderReviewAction(
+  workOrderId: number,
+  input: WorkOrderReviewInput
+): Promise<CreateWorkOrderReviewResult> {
+  try {
+    const repository = new ApiWorkOrderRepository();
+    const review = await createWorkOrderReview(repository, workOrderId, input);
+    return { ok: true, review };
+  } catch (error: unknown) {
+    return {
+      ok: false,
+      status: error instanceof ApiClientError ? error.status : null,
+      message: error instanceof Error ? error.message : null,
+    };
+  }
+}
+
 export async function createServiceBalanceCheckoutAction(
   workOrderId: number,
 ): Promise<CreateServiceBalanceCheckoutResult> {
@@ -93,3 +121,4 @@ export async function createServiceBalanceCheckoutAction(
     };
   }
 }
+

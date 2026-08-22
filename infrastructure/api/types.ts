@@ -317,11 +317,25 @@ export interface ApiCompletionReportDetail {
   images: ApiCompletionImage[];
 }
 
-export interface ApiWorkOrderReview {
+export interface CreateWorkOrderReviewRequest {
   rating: number;
+  description?: string;
+}
+
+export interface CreateWorkOrderReviewResponse {
+  rating: number;
+  description?: string;
   comment?: string;
   created_on?: string;
 }
+
+export interface ApiWorkOrderReview {
+  rating: number;
+  description?: string;
+  comment?: string;
+  created_on?: string;
+}
+
 
 export interface ApiWorkOrderDetail {
   id: number;

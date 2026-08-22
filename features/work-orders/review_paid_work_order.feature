@@ -53,7 +53,6 @@ Feature: US-30 Calificar y reseñar una orden de trabajo pagada
       Then no veo el botón para calificar el servicio
 
   Rule: Manejo de errores y tolerancia a fallos del servidor
-    @wip
     Scenario: 07-RW Mensaje de error cuando la orden ya cuenta con una reseña previa
       Given que el servidor responde con conflicto 409 al registrar la reseña
       And tengo abierto el formulario de calificación de la orden

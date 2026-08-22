@@ -129,22 +129,24 @@ When(
   async function (this: CustomWorld) {
     const rating = (this as any).selectedRating ?? 5;
     const comment = (this as any).reviewComment ?? "";
-    await this.stubPost(
-      `/work-orders/${WORK_ORDER_ID}/reviews`,
-      201,
-      aReview({ rating, comment, description: comment })
-    );
-    await this.stubGet(
-      `/work-orders/${WORK_ORDER_ID}`,
-      aWorkOrder({
-        id: WORK_ORDER_ID,
-        service_proposal_id: PROPOSAL_ID,
-        status: "paid",
-        paid_on: "2026-08-20T14:30:00Z",
-        completion_report: aCompletionReport(),
-        review: aReview({ rating, comment, description: comment }),
-      })
-    );
+    if (!(this as any).hasCustomReviewStub) {
+      await this.stubPost(
+        `/work-orders/${WORK_ORDER_ID}/reviews`,
+        201,
+        aReview({ rating, comment, description: comment })
+      );
+      await this.stubGet(
+        `/work-orders/${WORK_ORDER_ID}`,
+        aWorkOrder({
+          id: WORK_ORDER_ID,
+          service_proposal_id: PROPOSAL_ID,
+          status: "paid",
+          paid_on: "2026-08-20T14:30:00Z",
+          completion_report: aCompletionReport(),
+          review: aReview({ rating, comment, description: comment }),
+        })
+      );
+    }
 
     const modal = this.page.getByTestId("review-work-order-modal");
     const submitBtn = modal
@@ -154,6 +156,7 @@ When(
     await submitBtn.click();
   }
 );
+
 
 Then(
   "veo el botón de envío en estado {string} y deshabilitado",
@@ -356,6 +359,39 @@ Then(
     assert.strictEqual(count === 0 || !(await rateBtn.isVisible()), true, "El botón para calificar no debería ser visible");
   }
 );
+
+// ─── Scenario 07 & 409 Conflict Handling ────────────────────────────────────
+
+Given(
+  "que el servidor responde con conflicto 409 al registrar la reseña",
+  async function (this: CustomWorld) {
+    (this as any).hasCustomReviewStub = true;
+    await this.stubPost(
+      `/work-orders/${WORK_ORDER_ID}/reviews`,
+      409,
+      { code: "ALREADY_REVIEWED", message: "Esta orden de trabajo ya cuenta con una reseña registrada." }
+    );
+  }
+);
+
+Then(
+  "veo un mensaje de error indicando que la orden ya fue calificada",
+  async function (this: CustomWorld) {
+    const modal = this.page.getByTestId("review-work-order-modal");
+    const errorBox = modal
+      .getByTestId("review-error-message")
+      .or(modal.getByRole("alert"));
+    await errorBox.waitFor({ state: "visible", timeout: 10000 });
+    assert.ok(await errorBox.isVisible(), "El mensaje de error no es visible");
+    const text = await errorBox.textContent();
+    assert.ok(
+      text?.toLowerCase().includes("ya cuenta con una reseña") ||
+      text?.toLowerCase().includes("ya fue calificada"),
+      `Texto de error inesperado: "${text}"`
+    );
+  }
+);
+
 
 
 

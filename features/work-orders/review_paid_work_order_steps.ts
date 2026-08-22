@@ -168,6 +168,19 @@ Then(
 );
 
 Then(
+  "no se muestra ningún comentario en la reseña",
+  async function (this: CustomWorld) {
+    const modal = this.page.getByTestId("work-order-detail-modal");
+    await modal.waitFor({ state: "visible", timeout: 10000 });
+    const reviewSection = modal.getByTestId("work-order-review-section");
+    await reviewSection.waitFor({ state: "visible", timeout: 10000 });
+    const commentParagraph = reviewSection.locator("p");
+    const count = await commentParagraph.count();
+    assert.strictEqual(count, 0, "Se visualiza un comentario cuando no debería");
+  }
+);
+
+Then(
   "no se muestra la opción para volver a calificar",
   async function (this: CustomWorld) {
     const modal = this.page.getByTestId("work-order-detail-modal");
@@ -179,3 +192,4 @@ Then(
     assert.strictEqual(count === 0 || !(await rateBtn.isVisible()), true);
   }
 );
+

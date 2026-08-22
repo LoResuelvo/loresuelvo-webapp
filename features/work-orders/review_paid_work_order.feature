@@ -17,13 +17,13 @@ Feature: US-30 Calificar y reseñar una orden de trabajo pagada
       And el detalle de la orden muestra el comentario "Excelente servicio, muy puntual y prolijo"
       And no se muestra la opción para volver a calificar
 
-    @wip
     Scenario: 02-RW Consumidor califica únicamente con estrellas dejando el comentario vacío
       Given tengo abierto el formulario de calificación de la orden
       And seleccioné una calificación de 4 estrellas
       When envío la reseña
       Then veo el mensaje de confirmación de reseña registrada
       And el detalle de la orden muestra la calificación de 4 estrellas
+      And no se muestra ningún comentario en la reseña
       And no se muestra la opción para volver a calificar
 
   Rule: Prevención de envíos duplicados durante el procesamiento

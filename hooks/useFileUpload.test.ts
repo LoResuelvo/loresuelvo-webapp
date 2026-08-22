@@ -22,18 +22,24 @@ describe("useFileUpload", () => {
 
   it("uploads a single file successfully through the 3-step pipeline", async () => {
     vi.mocked(fileActions.getPresignedUrlAction).mockResolvedValue({
-      file_id: "file-123",
-      key: "work_order_completion_image/file-123",
-      upload_url: "https://s3.aws.com/upload/file-123",
-      headers: { "x-amz-acl": "public-read" },
+      success: true,
+      data: {
+        file_id: "file-123",
+        key: "work_order_completion_image/file-123",
+        upload_url: "https://s3.aws.com/upload/file-123",
+        headers: { "x-amz-acl": "public-read" },
+      },
     });
 
     vi.mocked(storageClient.uploadFile).mockResolvedValue();
 
     vi.mocked(fileActions.confirmUploadAction).mockResolvedValue({
-      id: "file-123",
-      url: "https://storage.loresuelvo.test/file-123.jpg",
-      original_name: "evidencia.jpg",
+      success: true,
+      data: {
+        id: "file-123",
+        url: "https://storage.loresuelvo.test/file-123.jpg",
+        original_name: "evidencia.jpg",
+      },
     });
 
     const { result } = renderHook(() => useFileUpload());
@@ -80,30 +86,42 @@ describe("useFileUpload", () => {
   it("handles multiple files upload with uploadMultipleFiles", async () => {
     vi.mocked(fileActions.getPresignedUrlAction)
       .mockResolvedValueOnce({
-        file_id: "file-1",
-        key: "work_order_completion_image/file-1",
-        upload_url: "https://s3.aws.com/upload/file-1",
-        headers: {},
+        success: true,
+        data: {
+          file_id: "file-1",
+          key: "work_order_completion_image/file-1",
+          upload_url: "https://s3.aws.com/upload/file-1",
+          headers: {},
+        },
       })
       .mockResolvedValueOnce({
-        file_id: "file-2",
-        key: "work_order_completion_image/file-2",
-        upload_url: "https://s3.aws.com/upload/file-2",
-        headers: {},
+        success: true,
+        data: {
+          file_id: "file-2",
+          key: "work_order_completion_image/file-2",
+          upload_url: "https://s3.aws.com/upload/file-2",
+          headers: {},
+        },
       });
 
     vi.mocked(storageClient.uploadFile).mockResolvedValue();
 
     vi.mocked(fileActions.confirmUploadAction)
       .mockResolvedValueOnce({
-        id: "file-1",
-        url: "https://storage.loresuelvo.test/file-1.jpg",
-        original_name: "foto1.jpg",
+        success: true,
+        data: {
+          id: "file-1",
+          url: "https://storage.loresuelvo.test/file-1.jpg",
+          original_name: "foto1.jpg",
+        },
       })
       .mockResolvedValueOnce({
-        id: "file-2",
-        url: "https://storage.loresuelvo.test/file-2.jpg",
-        original_name: "foto2.jpg",
+        success: true,
+        data: {
+          id: "file-2",
+          url: "https://storage.loresuelvo.test/file-2.jpg",
+          original_name: "foto2.jpg",
+        },
       });
 
     const { result } = renderHook(() => useFileUpload());

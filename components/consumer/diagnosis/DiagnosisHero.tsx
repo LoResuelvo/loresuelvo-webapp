@@ -12,6 +12,7 @@ import { createAiConversationAction } from "@/app/consumidor/mensajes-ia/actions
 import { getPresignedUrlAction, confirmUploadAction } from "@/app/files/actions";
 import { ImagePreviewModal } from "@/components/messaging/ImagePreviewModal";
 import { cn } from "@/lib/utils";
+import { logger } from "@/infrastructure/logging/logger";
 
 const HERO_IMAGE = "/illustrations/hero-home-ai-diagnosis.png";
 
@@ -107,23 +108,28 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
     try {
       if (attachedFiles.length > 0) {
         for (const file of attachedFiles) {
-          const presigned = await getPresignedUrlAction(file.name, file.type, file.size, "conversation_message_image");
+          const presignedRes = await getPresignedUrlAction(file.name, file.type, file.size, "conversation_message_image");
+          if (!presignedRes.success) throw new Error(presignedRes.error);
+          const presigned = presignedRes.data;
+
           const uploadRes = await fetch(presigned.upload_url, {
             method: "PUT",
             body: file,
             headers: presigned.headers,
           });
           if (!uploadRes.ok) throw new Error("Error al subir archivo a R2");
-          const confirm = await confirmUploadAction(presigned.file_id, presigned.key, file.type, file.size);
-          uploadedImageIds.push(confirm.id);
+          const confirmRes = await confirmUploadAction(presigned.file_id, presigned.key, file.type, file.size);
+          if (!confirmRes.success) throw new Error(confirmRes.error);
+          uploadedImageIds.push(confirmRes.data.id);
         }
       }
 
-      const conversation = await createAiConversationAction(trimmed, uploadedImageIds.length > 0 ? uploadedImageIds : undefined);
+      const convRes = await createAiConversationAction(trimmed, uploadedImageIds.length > 0 ? uploadedImageIds : undefined);
+      if (!convRes.success) throw new Error(convRes.error);
 
-      window.location.href = `${ROUTES.consumer.aiMessages}?id=${conversation.id}`;
+      window.location.href = `${ROUTES.consumer.aiMessages}?id=${convRes.data.id}`;
     } catch (err) {
-      console.error("[DiagnosisHero] Failed to create conversation:", err);
+      logger.debug("[DiagnosisHero] Failed to create conversation:", { err });
       setError(t.aiDiagnosis.errors.startDiagnosis);
       setIsSubmitting(false);
     }

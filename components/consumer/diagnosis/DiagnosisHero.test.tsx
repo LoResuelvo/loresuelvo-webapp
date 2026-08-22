@@ -31,18 +31,24 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/app/consumidor/mensajes-ia/actions", () => ({
-  createAiConversationAction: vi.fn().mockResolvedValue({ id: 1 }),
+  createAiConversationAction: vi.fn().mockResolvedValue({ success: true, data: { id: 1 } }),
 }));
 
 vi.mock("@/app/files/actions", () => ({
   getPresignedUrlAction: vi.fn().mockResolvedValue({
-    file_id: "file-id-123",
-    key: "key-123",
-    upload_url: "https://upload.url",
-    headers: {},
+    success: true,
+    data: {
+      file_id: "file-id-123",
+      key: "key-123",
+      upload_url: "https://upload.url",
+      headers: {},
+    },
   }),
   confirmUploadAction: vi.fn().mockResolvedValue({
-    id: "confirmed-file-id-123",
+    success: true,
+    data: {
+      id: "confirmed-file-id-123",
+    },
   }),
 }));
 
@@ -101,9 +107,9 @@ describe("DiagnosisHero", () => {
   });
 
   it("muestra spinner en el botón mientras espera la respuesta del AI", async () => {
-    let resolveCreate: (value: { id: number }) => void = () => undefined;
+    let resolveCreate: (value: { success: boolean; data: { id: number } }) => void = () => undefined;
     (createAiConversationAction as ReturnType<typeof vi.fn>).mockImplementationOnce(
-      () => new Promise<{ id: number }>((resolve) => { resolveCreate = resolve; })
+      () => new Promise<{ success: boolean; data: { id: number } }>((resolve) => { resolveCreate = resolve; })
     );
 
     render(<DiagnosisHero />);
@@ -117,7 +123,7 @@ describe("DiagnosisHero", () => {
       expect(screen.getByRole("button", { name: /diagnosticando/i })).toBeInTheDocument();
     });
 
-    resolveCreate({ id: 1 });
+    resolveCreate({ success: true, data: { id: 1 } });
   });
 
   it("no navega si el mensaje está vacío", () => {

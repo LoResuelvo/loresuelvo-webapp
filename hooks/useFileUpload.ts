@@ -19,21 +19,29 @@ async function uploadSingleFilePipeline(
   file: File,
   options: UploadFileOptions
 ): Promise<UploadedFileResult> {
-  const presigned = await getPresignedUrlAction(
+  const presignedRes = await getPresignedUrlAction(
     file.name,
     file.type,
     file.size,
     options.purpose
   );
+  if (!presignedRes.success) {
+    throw new Error(presignedRes.error);
+  }
+  const presigned = presignedRes.data;
 
   await storageClient.uploadFile(file, presigned.upload_url, presigned.headers);
 
-  const confirmed = await confirmUploadAction(
+  const confirmedRes = await confirmUploadAction(
     presigned.file_id,
     presigned.key,
     file.type,
     file.size
   );
+  if (!confirmedRes.success) {
+    throw new Error(confirmedRes.error);
+  }
+  const confirmed = confirmedRes.data;
 
   return {
     fileId: confirmed.id,

@@ -10,7 +10,11 @@ export class ClientFileRepository implements FileRepository {
     sizeBytes: number,
     purpose: string
   ): Promise<PresignedUrlResponse> {
-    return getPresignedUrlAction(originalName, mimeType, sizeBytes, purpose);
+    const res = await getPresignedUrlAction(originalName, mimeType, sizeBytes, purpose);
+    if (!res.success) {
+      throw new Error(res.error);
+    }
+    return res.data;
   }
 
   async confirmUpload(
@@ -19,7 +23,11 @@ export class ClientFileRepository implements FileRepository {
     mimeType: string,
     sizeBytes: number
   ): Promise<ConfirmUploadResponse> {
-    return confirmUploadAction(fileId, key, mimeType, sizeBytes);
+    const res = await confirmUploadAction(fileId, key, mimeType, sizeBytes);
+    if (!res.success) {
+      throw new Error(res.error);
+    }
+    return res.data;
   }
 
   async uploadFile(

@@ -11,15 +11,21 @@ vi.mock("@/app/onboarding/actions", () => ({
 
 vi.mock("@/app/files/actions", () => ({
   getPresignedUrlAction: vi.fn().mockResolvedValue({
-    upload_url: "http://mock-upload.test/url",
-    file_id: "mock-file-id",
-    key: "mock-key",
-    headers: {},
+    success: true,
+    data: {
+      upload_url: "http://mock-upload.test/url",
+      file_id: "mock-file-id",
+      key: "mock-key",
+      headers: {},
+    },
   }),
   confirmUploadAction: vi.fn().mockResolvedValue({
-    id: "mock-file-id",
-    url: "http://mock-cdn.test/url.jpg",
-    original_name: "mock.png",
+    success: true,
+    data: {
+      id: "mock-file-id",
+      url: "http://mock-cdn.test/url.jpg",
+      original_name: "mock.png",
+    },
   }),
 }));
 

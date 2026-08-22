@@ -26,16 +26,41 @@ export default function AiDiagnosisChatWrapper({ initialConversations: initial }
   useEffect(() => {
     if (initial.length > 0 && !selectedId) return;
     getAiConversationsAction()
-      .then((data) => setConversations(data))
+      .then((res) => {
+        if (res.success) {
+          setConversations(res.data);
+        }
+      })
       .catch((err) => logger.debug("Failed to fetch conversations:", { err }));
   }, [selectedId, initial.length]);
 
   const assistantClient = useMemo(() => createApiAssistantClient(), []);
   const chatRepository = useMemo(() => ({
-    create: createAiConversationAction,
-    sendMessage: sendAiMessageAction,
-    getById: getAiConversationByIdAction,
-    createJobRequest: createAiJobRequestAction,
+    create: async (content: string, imageFileIds?: string[]) => {
+      const res = await createAiConversationAction(content, imageFileIds);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    sendMessage: async (conversationId: string, content: string, imageFileIds?: string[]) => {
+      const res = await sendAiMessageAction(conversationId, content, imageFileIds);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    getById: async (id: string) => {
+      const res = await getAiConversationByIdAction(id);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    createJobRequest: async (conversationId: string, providerId: number) => {
+      const res = await createAiJobRequestAction(conversationId, providerId);
+      if (!res.success) {
+        if (res.statusCode === 409 || res.error.includes("Ya existe")) {
+          return { status: 409, error: res.error } as unknown as { id: number; conversationId: number; title: string; description: string };
+        }
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
     getConversations: async () => []
   }), []);
 

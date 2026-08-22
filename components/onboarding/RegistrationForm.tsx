@@ -87,21 +87,25 @@ export default function RegistrationForm({
   async function handleProfilePhotoUpload(formData: FormData) {
     const profilePhoto = formData.get("profilePhoto") as File | null;
     if (profilePhoto && profilePhoto.size > 0 && profilePhoto.name !== "") {
-      const presigned = await getPresignedUrlAction(
+      const presignedRes = await getPresignedUrlAction(
         profilePhoto.name,
         profilePhoto.type,
         profilePhoto.size,
         "profile_photo"
       );
+      if (!presignedRes.success) throw new Error(presignedRes.error);
+      const presigned = presignedRes.data;
 
       await storageClient.uploadFile(profilePhoto, presigned.upload_url, presigned.headers);
 
-      const confirmed = await confirmUploadAction(
+      const confirmedRes = await confirmUploadAction(
         presigned.file_id,
         presigned.key,
         profilePhoto.type,
         profilePhoto.size
       );
+      if (!confirmedRes.success) throw new Error(confirmedRes.error);
+      const confirmed = confirmedRes.data;
 
       formData.delete("profilePhoto");
       formData.append("profilePhotoId", confirmed.id);

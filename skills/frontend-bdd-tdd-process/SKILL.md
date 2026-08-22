@@ -47,10 +47,11 @@ El desarrollo se realiza en dos bucles sincronizados:
 
 - **Prohibido implementar múltiples escenarios de golpe:** Avanzar estrictamente escenario por escenario (Escenario 1 -> GREEN -> Escenario 2 -> GREEN...).
 - **Entrega por Micro-Paso (Step) Outside-In:** Cada escenario se construye en pasos atómicos individuales de afuera hacia adentro (1 commit por micro-paso):
-  1. `UI TSX inicial` con lo mínimo indispensable y props/mocks para renderizar (+ screenshot).
-  2. `Aplicación & Dominio` (use case, types, ports) guiado por unit tests RED -> GREEN.
-  3. `Infraestructura` (DTOs, mapper, repo, server action).
-  4. `Integración & E2E` (conexión de TSX con server action, confirmación de E2E GREEN y retiro de `@wip`).
+  0. `Step Definitions en RED (Outer Loop)`: Si el escenario actual contiene frases Gherkin nuevas o no mapeadas, se implementan primero sus steps (3-5 líneas usando helpers y factories) y se confirma que falle por la razón observable esperada.
+  1. `UI TSX inicial (Outside)` con lo mínimo indispensable y props/mocks para renderizar (+ screenshot).
+  2. `Aplicación & Dominio (Middle)` (use case, types, ports) guiado por unit tests RED -> GREEN.
+  3. `Infraestructura (Inside)` (DTOs, mapper, repo, server action).
+  4. `Integración & E2E (Cierre)` (conexión de TSX con server action, confirmación de E2E GREEN y retiro de `@wip`).
 - **Por cada paso completado, el agente DEBE:**
   1. Indicar brevemente los cambios realizados y archivos tocados.
   2. Sugerir o ejecutar el comando de commit correspondiente (`git add <archivos>` y `git commit -m "<type>[<issue>]: <descripción>"`), sin descripciones redundantes (ej: sin "and i18n keys").

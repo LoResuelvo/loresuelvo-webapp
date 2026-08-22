@@ -46,12 +46,17 @@ Para maximizar la velocidad sin comprometer jamás la estabilidad del pipeline, 
 
 ---
 
-## 3. Disciplina Outside-In y Commits Atómicos
+## 3. Disciplina Outside-In (Double-Loop TDD) por Micro-Paso
 
-Cada escenario de la User Story se implementa en 4 micro-pasos atómicos (1 commit por micro-paso):
+Para que el desarrollo sea genuinamente **Outside-In**, cada escenario se aborda en pasos atómicos estructurados (1 commit por micro-paso):
+
+0. **Outer Loop Setup (Step Definitions en RED)**:
+   - Si el escenario actual contiene frases Gherkin nuevas o no mapeadas, **se crean primero los step definitions** en `features/*/*_steps.ts` (3-5 líneas usando helpers y factories).
+   - Se confirma que el test falle por el motivo correcto (RED externo: el elemento visual, texto o acción aún no existen).
+   - *Commit (si aplica)*: `test[XX]: add step definitions for scenario <NN>`
 
 1. **Outside (Presentación TSX & i18n)**:
-   - Componente visual delgado (`< 80 líneas`) con props iniciales y mock callbacks.
+   - Componente visual delgado (`< 80 líneas`) con props iniciales y mock callbacks para satisfacer la vista.
    - Textos visibles en `infrastructure/i18n/translations.ts`.
    - Unit tests en `*.test.tsx` con React Testing Library cubriendo la matriz de estados.
    - *Commit*: `feat[XX]: add <component> presentation component`
@@ -70,8 +75,8 @@ Cada escenario de la User Story se implementa en 4 micro-pasos atómicos (1 comm
 
 4. **Integración & Cierre BDD**:
    - Conexión del TSX con la Server Action.
-   - Definición de steps en `features/*/*_steps.ts`.
-   - Retiro de `@wip` del escenario actual y verificación en verde.
+   - Ejecución del test E2E de la feature (`make test-e2e-file FILE=...`) pasando a **GREEN**.
+   - Retiro de `@wip` del escenario actual.
    - *Commit*: `feat[XX]: pass scenario <NN> for <description>`
 
 ---

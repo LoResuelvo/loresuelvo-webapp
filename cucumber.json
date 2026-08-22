@@ -1,7 +1,6 @@
 {
   "default": {
     "parallel": 2,
-    "paths": ["features/**/*.feature"],
     "require": [
       "features/support/**/*.ts",
       "features/**/*.ts"
@@ -12,11 +11,9 @@
       "html:reports/cucumber-report.html",
       "json:reports/cucumber-report.json"
     ],
-    "publishQuiet": true,
-    "tags": "not @wip"
+    "publishQuiet": true
   },
   "wip": {
-    "paths": ["features/**/*.feature"],
     "require": [
       "features/support/**/*.ts",
       "features/**/*.ts"

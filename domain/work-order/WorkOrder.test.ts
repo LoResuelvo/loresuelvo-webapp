@@ -85,6 +85,38 @@ describe("WorkOrder Domain Module", () => {
     });
   });
 
+  describe("canReview", () => {
+    it("allows consumer to review when order is paid and has no prior review", () => {
+      const paidOrder = { ...sampleWorkOrder, status: "paid" as const };
+      expect(WorkOrderModule.canReview(paidOrder, true)).toBe(true);
+    });
+
+    it("prevents provider from reviewing a work order", () => {
+      const paidOrder = { ...sampleWorkOrder, status: "paid" as const };
+      expect(WorkOrderModule.canReview(paidOrder, false)).toBe(false);
+    });
+
+    it("prevents consumer from reviewing when order is scheduled or awaiting payment", () => {
+      const scheduled = { ...sampleWorkOrder, status: "scheduled" as const };
+      expect(WorkOrderModule.canReview(scheduled, true)).toBe(false);
+
+      const awaiting = { ...sampleWorkOrder, status: "awaiting_payment" as const };
+      expect(WorkOrderModule.canReview(awaiting, true)).toBe(false);
+    });
+
+    it("prevents consumer from reviewing if order already has a review", () => {
+      const alreadyReviewed = {
+        ...sampleWorkOrder,
+        status: "paid" as const,
+        review: {
+          rating: 5,
+          comment: "Excelente servicio",
+        },
+      };
+      expect(WorkOrderModule.canReview(alreadyReviewed, true)).toBe(false);
+    });
+  });
+
   describe("getStatusBadge", () => {
     it("returns correct badge for scheduled", () => {
       expect(WorkOrderModule.getStatusBadge("scheduled")).toEqual({
@@ -108,3 +140,4 @@ describe("WorkOrder Domain Module", () => {
     });
   });
 });
+

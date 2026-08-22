@@ -36,9 +36,16 @@ export interface CompletionReportDetail {
   images: CompletionImage[];
 }
 
+export interface WorkOrderReviewInput {
+  rating: number;
+  comment?: string;
+  description?: string;
+}
+
 export interface WorkOrderReview {
   rating: number;
   comment?: string;
+  description?: string;
   createdOn?: string;
 }
 

@@ -19,28 +19,38 @@ npm run test -- <patron-o-archivo>  # Vitest focalizado en milisegundos
 make test                           # Suite unitaria completa
 ```
 
-### B. Quality Gates Obligatorios antes de CADA Commit + Push (Regla 1 Commit = 1 Push)
-Como cada commit se pushea inmediatamente a `main` y dispara el pipeline de GitHub Actions, **es OBLIGATORIO correr la suite completa en orden** antes de hacer `git commit` y `git push`:
+### B. Quality Gates antes de Commit + Push (Matriz de Riesgo)
+Aplicar las validaciones correspondientes según el tipo de cambio antes de hacer `git commit` y `git push`:
 
-```bash
-# 1. Linter (0 warnings, 0 errors)
-npm run lint
+1. **Caso A (Código Nuevo Aislado)** — TSX nuevo, función de dominio o mapper no conectado aún a un escenario activo:
+   ```bash
+   npx tsc --noEmit && npm run test -- <archivo>
+   ```
 
-# 2. Tipado TypeScript Estricto (App y Tests Cucumber)
-npx tsc --noEmit && npx tsc --project tsconfig.cucumber.json --noEmit
+2. **Caso B (Integración de Escenario de Feature)** — Conexión con Server Action y step definitions del escenario actual:
+   ```bash
+   make test-e2e-file FILE=features/...feature
+   ```
 
-# 3. Tests Unitarios y de Dominio (100% pasando)
-npm run test
+3. **Caso C (Modificación de Componente Compartido o Cierre de Regla / US)** — Cambios en `PaymentResultPage`, `Header`, `api-client`, o entrega final de la User Story:
+   ```bash
+   # 1. Linter (0 warnings, 0 errors)
+   npm run lint
 
-# 4. Compilación de Producción (19/19 páginas)
-make build
+   # 2. Tipado TypeScript Estricto (App y Tests Cucumber)
+   npx tsc --noEmit && npx tsc --project tsconfig.cucumber.json --noEmit
 
-# 5. Suite E2E Completa (165 escenarios / 888 steps en verde)
-# Asegurar puerto 3001 libre -> Iniciar servidor -> Correr Playwright/Cucumber
-fuser -k 3001/tcp || true
-make start-test &
-make test-e2e
-```
+   # 3. Tests Unitarios y de Dominio (100% pasando)
+   npm run test
+
+   # 4. Compilación de Producción
+   npm run build
+
+   # 5. Suite E2E Completa (servidor en puerto 3001)
+   fuser -k 3001/tcp || true
+   make start-test &
+   make test-e2e
+   ```
 
 ---
 

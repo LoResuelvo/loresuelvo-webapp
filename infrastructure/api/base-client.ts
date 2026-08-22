@@ -82,6 +82,19 @@ export class ApiClient {
     const e2eResult = await this.resolveE2EStub<T>(options.method ?? "", endpoint);
     if (e2eResult !== null) return e2eResult;
 
+    if (process.env.APP_ENV !== "production") {
+      try {
+        const { cookies } = await import("next/headers");
+        const cookieStore = await cookies();
+        if (cookieStore.has("__e2e_session")) {
+          logger.warn(`[ApiClient] [E2E] No stub provided for ${options.method || "GET"} ${endpoint}`);
+          throw new ApiClientError(404, "Not Found", `No E2E stub found for ${endpoint}`, null);
+        }
+      } catch (e) {
+        if (e instanceof ApiClientError) throw e;
+      }
+    }
+
     // Default timeout of 5000ms for all API calls to prevent hanging
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);

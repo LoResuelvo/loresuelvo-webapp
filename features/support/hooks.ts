@@ -44,6 +44,18 @@ Before(async function (this: CustomWorld) {
     status: 200,
     body: [],
   });
+
+  await this.addApiStub({
+    method: "GET",
+    endpoint: "/categories",
+    status: 200,
+    body: [
+      { id: 1, name: "Plomería", description: "Servicios de plomería", icon_name: "Wrench" },
+      { id: 2, name: "Electricidad", description: "Servicios eléctricos", icon_name: "Zap" },
+      { id: 3, name: "Gas", description: "Instalaciones de gas", icon_name: "Flame" },
+      { id: 4, name: "Pintura", description: "Pintura de interiores y exteriores", icon_name: "Paintbrush" },
+    ],
+  });
 });
 
 After(async function (this: CustomWorld) {

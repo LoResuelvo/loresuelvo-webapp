@@ -8,7 +8,7 @@
     ],
     "requireModule": ["ts-node/register", "tsconfig-paths/register"],
     "format": [
-      "progress-bar",
+      "summary",
       "html:reports/cucumber-report.html",
       "json:reports/cucumber-report.json"
     ],
@@ -22,7 +22,7 @@
       "features/**/*.ts"
     ],
     "requireModule": ["ts-node/register", "tsconfig-paths/register"],
-    "format": ["progress"],
+    "format": ["summary"],
     "publishQuiet": true,
     "tags": "@wip"
   }

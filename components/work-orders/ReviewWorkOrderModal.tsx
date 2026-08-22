@@ -11,9 +11,10 @@ interface ReviewWorkOrderModalProps {
   open: boolean;
   onClose: () => void;
   workOrderId: number;
-  onSubmitReview: (input: { rating: number; comment?: string }) => Promise<{ ok: boolean; message?: string; status?: number }>;
+  onSubmitReview: (input: { rating: number; comment?: string }) => Promise<{ ok: boolean; message?: string | null; status?: number | null }>;
   onSuccess?: () => void;
 }
+
 
 export function ReviewWorkOrderModal({
   open,

@@ -1,6 +1,7 @@
 import { getAuthService } from "@/infrastructure/auth";
 import type { ApiStub } from "./types";
 import { parseE2EStubsFromCookies } from "./e2e-stubs-utils";
+import { logger } from "@/infrastructure/logging/logger";
 
 export class ApiClientError extends Error {
   constructor(
@@ -58,7 +59,7 @@ export class ApiClient {
 
       if (!match) return null;
 
-      console.log(`[ApiClient] [E2E] Stub found: ${match.status} for ${method} ${endpoint}`);
+      logger.debug(`[ApiClient] [E2E] Stub found: ${match.status} for ${method} ${endpoint}`);
 
       const isSuccess = match.status >= 200 && match.status < 300;
       if (isSuccess) return match.body as T;

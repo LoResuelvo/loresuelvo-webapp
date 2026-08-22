@@ -1,5 +1,6 @@
 import { AssistantClient } from "@/ports/assistant-client";
 import type { ApiStub } from "@/infrastructure/api/types";
+import { logger } from "@/infrastructure/logging/logger";
 
 import { parseE2EStubsFromCookies, E2E_SESSION_COOKIE } from "@/infrastructure/api/e2e-stubs-utils";
 
@@ -28,7 +29,7 @@ export function createApiAssistantClient(accessToken?: string): AssistantClient 
 
       const stub = getE2EStub("POST", "/chatbot/conversations");
       if (stub) {
-        console.log(`[ApiAssistantClient] [E2E] Stub found: ${stub.status} for POST /chatbot/conversations`);
+        logger.debug(`[ApiAssistantClient] [E2E] Stub found: ${stub.status} for POST /chatbot/conversations`);
         await new Promise((resolve) => setTimeout(resolve, 1000));
         if (stub.status >= 400) {
           throw new Error(`API Error: ${stub.status}`);

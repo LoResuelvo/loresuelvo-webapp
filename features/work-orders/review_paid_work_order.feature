@@ -7,7 +7,6 @@ Feature: US-30 Calificar y reseñar una orden de trabajo pagada
     Given que soy un consumidor autenticado con una orden de trabajo pagada
 
   Rule: Calificación exitosa de órdenes de trabajo pagadas
-    @wip
     Scenario: 01-RW Consumidor califica exitosamente con 5 estrellas y comentario descriptivo
       Given tengo abierto el formulario de calificación de la orden
       And seleccioné una calificación de 5 estrellas

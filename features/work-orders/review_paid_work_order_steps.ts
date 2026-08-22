@@ -41,7 +41,8 @@ export async function openReviewWorkOrderModal(world: CustomWorld) {
     await openWorkOrderDetailModal(world);
   }
   const rateButton = world.page
-    .getByRole("button", { name: /calificar( servicio)?/i })
+    .getByTestId("open-review-button")
+    .or(world.page.getByRole("button", { name: /calificar( servicio)?/i }))
     .or(world.page.getByTestId("rate-work-order-button"));
   await rateButton.waitFor({ state: "visible", timeout: 10000 });
   await rateButton.click();
@@ -131,11 +132,14 @@ When(
 Then(
   "veo el mensaje de confirmación de reseña registrada",
   async function (this: CustomWorld) {
-    const successMsg = this.page
-      .getByText(/reseña registrada|calificación guardada|calificación registrada|gracias por calificar/i)
-      .or(this.page.getByTestId("review-success-message"));
+    const successMsg = this.page.getByTestId("review-success-message");
     await successMsg.waitFor({ state: "visible", timeout: 10000 });
     assert.ok(await successMsg.isVisible());
+
+    const closeBtn = successMsg.getByRole("button", { name: /cerrar/i });
+    if (await closeBtn.isVisible().catch(() => false)) {
+      await closeBtn.click();
+    }
   }
 );
 
@@ -168,7 +172,8 @@ Then(
   async function (this: CustomWorld) {
     const modal = this.page.getByTestId("work-order-detail-modal");
     const rateBtn = modal
-      .getByRole("button", { name: /calificar( servicio)?/i })
+      .getByTestId("open-review-button")
+      .or(modal.getByRole("button", { name: /calificar( servicio)?/i }))
       .or(modal.getByTestId("rate-work-order-button"));
     const count = await rateBtn.count();
     assert.strictEqual(count === 0 || !(await rateBtn.isVisible()), true);

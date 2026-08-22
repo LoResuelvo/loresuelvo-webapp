@@ -45,10 +45,34 @@ API Backend (snake_case JSON)
 
 ## Manejo de Errores
 
-- **Use cases NO deben tragar errores** con `console.error + return []`. Deben propagar la excepción.
+- **Use cases en `application/` NO deben tragar errores** con `console.error + return []`. Deben propagar la excepción para que las capas externas decidan.
 - La decisión de mostrar un empty state vs error state es responsabilidad de la UI, no del use case.
-- Excepciones permitidas: use cases que devuelven un tipo `Result` explícito (ej: `createWorkRequest` con `{ success: true, data }` o `{ success: false, errorCode, message }`).
 - Usar `catch (error: unknown)` en vez de `catch (error: any)` — TypeScript strict.
+
+## Server Actions y Result Pattern (Boundary Seguro)
+
+Las Server Actions (`app/**/actions.ts`) actúan como el **Boundary / Adaptador de Entrada** entre el servidor Node.js y los componentes cliente de React:
+
+1. **Captura Obligatoria en la Frontera**: Toda Server Action que invoque use cases o repositorios **DEBE** capturar las excepciones con `try / catch` y retornar un objeto tipado bajo el Result Pattern:
+   ```ts
+   export type ActionResult<T> =
+     | { success: true; data: T }
+     | { success: false; error: string; statusCode?: number };
+   ```
+   *(Alternativa canónica usada en pagos/órdenes: `{ ok: true, [key]: T } | { ok: false, status: number | null, message?: string }`)*.
+
+2. **Prohibido dejar escapar `throw` no capturados al runtime de Next.js**:
+   - Previene que Next.js registre `⨯ Error [ApiClientError]` en la consola del servidor durante tests o caídas simuladas.
+   - Previene que Next.js en producción (`NODE_ENV=production`) censure el mensaje de error reemplazándolo por un digest hash opaco.
+   - Otorga tipado seguro al cliente con *Discriminated Unions*:
+     ```ts
+     const res = await miServerAction();
+     if (!res.success) {
+       setError(res.error);
+       return;
+     }
+     // res.data está 100% inferido por TypeScript
+     ```
 
 ## Reglas Críticas
 

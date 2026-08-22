@@ -225,8 +225,18 @@ skills/                      Skills locales para agentes de IA cargadas bajo dem
 - **Navegación y Rutas en E2E:**
   - Usar siempre las constantes de `ROUTES` de `@/lib/routes` (ej: `ROUTES.provider.jobs`, `ROUTES.consumer.services`) en los steps de navegación en lugar de URLs hardcodeadas.
   - Para cambios de pestañas o filtros interactivos, verificar hidratación con polling/reintentos sobre `aria-selected` antes de buscar elementos hijos.
-- **Manejo de Imágenes en E2E:**
-  - Componentes de preview/galería con imágenes mockeadas o dinámicas deben usar `unoptimized` en `<Image />` o declarar sus dominios en `next.config.ts` para no provocar caídas de Error Boundary en Next.js.
+- **Regla de las 3 a 5 líneas por Step y Extracción Obligatoria de Helpers:**
+  - Todo step definition en `features/*/*_steps.ts` debe ser conciso y declarativo (3 a 5 líneas).
+  - **PROHIBIDO duplicar bloques de configuración en múltiples steps:** Extraer funciones helpers privadas al inicio del archivo (`setupWorkOrder...`, `seedActivePayment...`).
+  - Usar siempre las factories de `features/support/factories.ts`. Prohibido incrustar JSONs crudos dentro de los steps.
+- **Logging Estructurado y Silenciado de Trazas:**
+  - Usar siempre `@/infrastructure/logging/logger` (`logger.debug`, `logger.info`, `logger.warn`, `logger.error`).
+  - **PROHIBIDO** usar `console.log` crudo en código de producción, clientes o adapters.
+- **Inspección Quirúrgica de Código:**
+  - Usar `grep_search` para ubicar el símbolo o función y `view_file` con `StartLine` y `EndLine` (30 a 60 líneas).
+  - **PROHIBIDO** leer archivos enteros (>100 líneas) si solo se va a inspeccionar o editar una sección.
+- **Patrón Orquestador + 1 Subagente Desarrollador Persistente:**
+  - Mantener **un único Subagente Desarrollador Persistente** por User Story y comunicarse mediante `send_message` para evitar el gasto de inicializaciones repetidas.
 - **Gestión del tag `@wip`:**
   - Retirar la etiqueta `@wip` de un escenario únicamente cuando dicho escenario ya esté completamente implementado y verificado en verde localmente.
 

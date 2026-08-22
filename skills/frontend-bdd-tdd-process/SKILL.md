@@ -124,8 +124,9 @@ npm run test -- <patron>
   ```
 - **Prohibido `let page: Page` a nivel de módulo**: Nunca declarar variables de `page` globales o singletons en archivos de steps. Rompe el aislamiento en paralelo.
 - **Hooks centralizados**: Toda la inicialización y cierre de navegadores/contextos se maneja exclusivamente en `features/support/hooks.ts`. Nunca definir hooks locales en step files.
-- **Regla de las 3 a 5 líneas por Step (Legibilidad Humana y Cero JSONs en Crudo):**
-  - Un step definition **solo es pegamento de orquestación**: debe ser declarativo y conciso (guía de 3 a 5 líneas).
+- **Regla de las 3 a 5 líneas por Step y Extracción Obligatoria de Helpers:**
+  - Un step definition **solo es pegamento de orquestación**: debe ser declarativo y conciso (guía estricta de 3 a 5 líneas).
+  - **PROHIBIDO duplicar bloques de configuración en múltiples steps:** Si varios steps requieren configurar sesión, stubs de órdenes, pagos activos o rutas, **se DEBE extraer una función helper privada al inicio del archivo** (ej: `setupWorkOrderAwaitingPayment(world)`, `seedActivePayment(world, intentId)`).
   - **PROHIBIDO pegar bloques de JSON crudo dentro de un step:** Toda la data de prueba debe delegarse obligatoriamente a las funciones de `features/support/factories.ts` y a los helpers fluent de `CustomWorld` (`this.stubGet(...)`, `this.stubPost(...)`, `this.setSession(...)`).
 
 ### Catálogo Centralizado de Factories (`features/support/factories.ts`)
@@ -134,7 +135,7 @@ Siempre utilizar las factories predefinidas, pasando únicamente los overrides `
 
 - **Usuarios y Auth**: `aCurrentUser()`, `aConsumer()`, `aProvider()`, `aSession()`
 - **Cuentas de Pago**: `aPaymentAccount()`, `aConnectedPaymentAccount()`, `aPaymentAuthorization()`
-- **Propuestas y Pagos**: `aProposal()`, `aBookingTerms()`, `aPaymentIntent()`, `aCheckoutSession()`
+- **Propuestas y Pagos**: `aProposal()`, `aBookingTerms()`, `aPaymentIntent()`, `aCheckoutSession()`, `aServiceBalanceCheckoutSession()`
 - **Órdenes y Solicitudes**: `aWorkOrder()`, `aJobRequest()`, `aCategory()`
 - **Mensajería**: `aConversation()`, `aConversationDetail()`, `aConversationMessage()`, `aCounterpart()`, `aMessageImage()`
 - **Diagnóstico IA**: `aAiConversation()`, `aAiConversationDetail()`, `anAiMessage()`
@@ -143,24 +144,44 @@ Siempre utilizar las factories predefinidas, pasando únicamente los overrides `
 ### Golden Example: Step Definitions Limpios vs. Prohibidos
 
 ```ts
-// PROHIBIDO PARA AGENTES: Bloques de 30 líneas de JSON crudo dentro del step
-Given("que soy un consumidor autenticado con una propuesta de servicio", async function (this: CustomWorld) {
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/service-proposals",
-    status: 200,
-    body: [{ id: 42, amount_cents: 1500000, description: "...", counterpart: { id: 1, ... } }]
-  });
+// PROHIBIDO PARA AGENTES: Bloques de 20 líneas de setup duplicadas dentro del step
+Given("que soy un consumidor autenticado con una orden pendiente", async function (this: CustomWorld) {
+  await this.setSession("consumer");
+  await this.stubGet("/service-proposals", [aProposal("consumer", { id: 10, amount_cents: 10000000 })]);
+  const workOrder = aWorkOrder({ id: 10, service_proposal_id: 10, amount_cents: 10000000, status: "awaiting_payment" });
+  await this.stubGet("/work-orders?service_proposal_id=10", workOrder);
+  await this.stubGet("/work-orders/10", workOrder);
 });
 
-// OBLIGATORIO PARA AGENTES: Usar Factory + Fluent Helper (Declarativo y legible)
-Given("que soy un consumidor autenticado con una propuesta de servicio", async function (this: CustomWorld) {
-  await this.setSession("consumer");
-  await this.stubGet("/service-proposals", [aProposal("consumer", { id: 42 })]);
+// OBLIGATORIO PARA AGENTES: Extraer Helper de Setup (3 líneas declarativas)
+async function setupWorkOrderAwaitingPayment(world: CustomWorld) {
+  await world.setSession("consumer");
+  await world.stubGet("/service-proposals", [aProposal("consumer", { id: 10, amount_cents: 10000000 })]);
+  const workOrder = aWorkOrder({ id: 10, service_proposal_id: 10, amount_cents: 10000000, status: "awaiting_payment" });
+  await world.stubGet("/work-orders?service_proposal_id=10", workOrder);
+  await world.stubGet("/work-orders/10", workOrder);
+}
+
+Given("que soy un consumidor autenticado con una orden pendiente", async function (this: CustomWorld) {
+  await setupWorkOrderAwaitingPayment(this);
 });
 ```
 
 - **Mocks dinámicos vía cookies**: Usar `addApiStub` y `setMockSession` que inyectan cookies `__e2e_*` por escenario de forma aislada.
+
+## Logging y Eficiencia de Contexto
+
+- **Logging Estructurado Obligatorio**: Usar siempre el módulo `logger` (`import { logger } from "@/infrastructure/logging/logger"`).
+  - Usar `logger.debug(...)` para trazas de testing/desarrollo (stubs, cache hits, requests internos).
+  - Usar `logger.info(...)` para eventos clave del ciclo de vida.
+  - Usar `logger.warn(...)` y `logger.error(...)` para anomalías y fallos.
+  - **PROHIBIDO** usar `console.log` crudo en código de producción o adapters.
+- **Inspección Quirúrgica de Código**:
+  - Usar `grep_search` para ubicar el símbolo o función deseada y su número de línea.
+  - Usar `view_file` con `StartLine` y `EndLine` (ventanas de 30 a 60 líneas).
+  - **PROHIBIDO** leer archivos enteros (>100 líneas) si solo se va a inspeccionar o editar una sección.
+- **Gestión de Subagentes Persistentes**:
+  - Para implementar una User Story, mantener **un único Subagente Desarrollador Persistente** y comunicarse con él mediante `send_message` para evitar el overhead de inicializar agentes descartables en cada micro-paso.
 
 ## Disciplina de Commits y Pipeline (Regla 1 Commit = 1 Push)
 

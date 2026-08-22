@@ -392,6 +392,50 @@ Then(
   }
 );
 
+// ─── Scenario 08 & 500 Error Handling and Retry Preservation ───────────────
+
+Given(
+  "que el servidor responde con error 500 al registrar la reseña",
+  async function (this: CustomWorld) {
+    (this as any).hasCustomReviewStub = true;
+    await this.stubPost(
+      `/work-orders/${WORK_ORDER_ID}/reviews`,
+      500,
+      { code: "SERVER_ERROR", message: "Error interno del servidor" }
+    );
+  }
+);
+
+Then(
+  "veo un mensaje de error por falla de servidor",
+  async function (this: CustomWorld) {
+    const modal = this.page.getByTestId("review-work-order-modal");
+    const errorBox = modal
+      .getByTestId("review-error-message")
+      .or(modal.getByRole("alert"));
+    await errorBox.waitFor({ state: "visible", timeout: 10000 });
+    assert.ok(await errorBox.isVisible(), "El mensaje de error de servidor no es visible");
+  }
+);
+
+Then(
+  "el comentario {string} se mantiene en el campo",
+  async function (this: CustomWorld, expectedComment: string) {
+    const modal = this.page.getByTestId("review-work-order-modal");
+    const textarea = modal
+      .getByTestId("review-comment-input")
+      .or(modal.locator("textarea"));
+    await textarea.waitFor({ state: "visible", timeout: 5000 });
+    const value = await textarea.inputValue();
+    assert.strictEqual(
+      value,
+      expectedComment,
+      `El valor en el campo es "${value}" en lugar de "${expectedComment}"`
+    );
+  }
+);
+
+
 
 
 

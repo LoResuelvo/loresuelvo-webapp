@@ -60,7 +60,6 @@ Feature: US-30 Calificar y reseñar una orden de trabajo pagada
       When envío la reseña
       Then veo un mensaje de error indicando que la orden ya fue calificada
 
-    @wip
     Scenario: 08-RW Mensaje de error y reintento ante fallo del servidor sin perder el texto ingresado
       Given que el servidor responde con error 500 al registrar la reseña
       And tengo abierto el formulario de calificación de la orden

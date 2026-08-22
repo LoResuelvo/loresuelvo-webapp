@@ -3,12 +3,17 @@ import {
   ApiWorkOrderDetail,
   ApiCompletionReport,
   ApiCompletionReportDetail,
+  CreateWorkOrderReviewRequest,
+  CreateWorkOrderReviewResponse,
+  ApiWorkOrderReview,
 } from "@/infrastructure/api/types";
 import {
   WorkOrder,
   WorkOrderDetail,
   CompletionReport,
   CompletionReportDetail,
+  WorkOrderReview,
+  WorkOrderReviewInput,
 } from "@/domain/work-order/types";
 import { Money } from "@/domain/shared/Money";
 import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
@@ -46,6 +51,27 @@ export function transformApiToCompletionReportDetail(
   };
 }
 
+export function toCreateReviewRequest(
+  input: WorkOrderReviewInput
+): CreateWorkOrderReviewRequest {
+  const desc = (input.description ?? input.comment ?? "").trim();
+  return {
+    rating: input.rating,
+    ...(desc ? { description: desc } : {}),
+  };
+}
+
+export function toWorkOrderReview(
+  api: CreateWorkOrderReviewResponse | ApiWorkOrderReview
+): WorkOrderReview {
+  const text = api.description ?? api.comment;
+  return {
+    rating: Rating.create(api.rating).value,
+    ...(text ? { comment: text, description: text } : {}),
+    ...(api.created_on ? { createdOn: ScheduledDateTime.create(api.created_on).isoString } : {}),
+  };
+}
+
 export function transformApiToWorkOrderDetail(api: ApiWorkOrderDetail): WorkOrderDetail {
   const money = Money.create(api.amount_cents);
   const scheduledOn = ScheduledDateTime.create(api.scheduled_on);
@@ -73,11 +99,7 @@ export function transformApiToWorkOrderDetail(api: ApiWorkOrderDetail): WorkOrde
     result.completionReport = transformApiToCompletionReportDetail(api.completion_report);
   }
   if (api.review) {
-    result.review = {
-      rating: Rating.create(api.review.rating).value,
-      ...(api.review.comment ? { comment: api.review.comment } : {}),
-      ...(api.review.created_on ? { createdOn: api.review.created_on } : {}),
-    };
+    result.review = toWorkOrderReview(api.review);
   }
 
   return result;
@@ -93,3 +115,4 @@ export function transformApiToCompletionReport(api: ApiCompletionReport): Comple
     createdOn: createdOn.isoString,
   };
 }
+

@@ -3,8 +3,15 @@ import {
   transformApiToWorkOrder,
   transformApiToWorkOrderDetail,
   transformApiToCompletionReport,
+  toCreateReviewRequest,
+  toWorkOrderReview,
 } from "./work-order-mapper";
-import { ApiWorkOrder, ApiWorkOrderDetail, ApiCompletionReport } from "@/infrastructure/api/types";
+import {
+  ApiWorkOrder,
+  ApiWorkOrderDetail,
+  ApiCompletionReport,
+  CreateWorkOrderReviewResponse,
+} from "@/infrastructure/api/types";
 
 describe("work-order-mapper", () => {
   it("transforms ApiWorkOrder to WorkOrder", () => {
@@ -124,6 +131,7 @@ describe("work-order-mapper", () => {
     expect(result.review).toEqual({
       rating: 5,
       comment: "Excelente trabajo",
+      description: "Excelente trabajo",
       createdOn: "2026-08-21T15:00:00Z",
     });
   });
@@ -147,4 +155,52 @@ describe("work-order-mapper", () => {
       createdOn: "2026-08-20T12:00:00Z",
     });
   });
+
+  describe("toCreateReviewRequest", () => {
+    it("transforms WorkOrderReviewInput to CreateWorkOrderReviewRequest with trimmed description", () => {
+      const input = {
+        rating: 5,
+        comment: "  Gran trabajo  ",
+      };
+
+      const result = toCreateReviewRequest(input);
+
+      expect(result).toEqual({
+        rating: 5,
+        description: "Gran trabajo",
+      });
+    });
+
+    it("transforms WorkOrderReviewInput with rating only", () => {
+      const input = {
+        rating: 4,
+      };
+
+      const result = toCreateReviewRequest(input);
+
+      expect(result).toEqual({
+        rating: 4,
+      });
+    });
+  });
+
+  describe("toWorkOrderReview", () => {
+    it("transforms CreateWorkOrderReviewResponse to WorkOrderReview", () => {
+      const apiResponse: CreateWorkOrderReviewResponse = {
+        rating: 5,
+        description: "Excelente servicio",
+        created_on: "2026-08-21T16:00:00Z",
+      };
+
+      const result = toWorkOrderReview(apiResponse);
+
+      expect(result).toEqual({
+        rating: 5,
+        comment: "Excelente servicio",
+        description: "Excelente servicio",
+        createdOn: "2026-08-21T16:00:00Z",
+      });
+    });
+  });
 });
+

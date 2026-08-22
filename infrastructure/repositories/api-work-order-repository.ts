@@ -5,17 +5,22 @@ import {
   WorkOrderDetail,
   CompletionReport,
   CompletionReportInput,
+  WorkOrderReview,
+  WorkOrderReviewInput,
 } from "@/domain/work-order/types";
 import {
   ApiWorkOrder,
   ApiWorkOrderDetail,
   ApiCompletionReport,
   ApiCompletionReportInput,
+  CreateWorkOrderReviewResponse,
 } from "@/infrastructure/api/types";
 import {
   transformApiToWorkOrder,
   transformApiToWorkOrderDetail,
   transformApiToCompletionReport,
+  toCreateReviewRequest,
+  toWorkOrderReview,
 } from "./work-order-mapper";
 
 export class ApiWorkOrderRepository implements WorkOrderRepository {
@@ -66,4 +71,17 @@ export class ApiWorkOrderRepository implements WorkOrderRepository {
 
     return transformApiToCompletionReport(res);
   }
+
+  async createReview(
+    workOrderId: number,
+    input: WorkOrderReviewInput
+  ): Promise<WorkOrderReview> {
+    const payload = toCreateReviewRequest(input);
+    const res = await api.post<CreateWorkOrderReviewResponse>(
+      `/work-orders/${workOrderId}/reviews`,
+      payload
+    );
+    return toWorkOrderReview(res);
+  }
 }
+

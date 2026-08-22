@@ -185,4 +185,34 @@ describe("ApiWorkOrderRepository", () => {
       });
     });
   });
+
+  describe("createReview", () => {
+    it("calls POST /work-orders/:id/reviews with correct snake_case body and maps response to WorkOrderReview", async () => {
+      const mockApiResponse = {
+        rating: 5,
+        description: "Excelente servicio",
+        created_on: "2026-08-21T15:00:00Z",
+      };
+
+      vi.mocked(baseClient.api.post).mockResolvedValue(mockApiResponse);
+
+      const result = await repository.createReview(10, {
+        rating: 5,
+        comment: "Excelente servicio",
+      });
+
+      expect(baseClient.api.post).toHaveBeenCalledWith("/work-orders/10/reviews", {
+        rating: 5,
+        description: "Excelente servicio",
+      });
+
+      expect(result).toEqual({
+        rating: 5,
+        comment: "Excelente servicio",
+        description: "Excelente servicio",
+        createdOn: "2026-08-21T15:00:00Z",
+      });
+    });
+  });
 });
+

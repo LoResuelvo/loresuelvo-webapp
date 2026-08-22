@@ -27,7 +27,6 @@ Feature: US-30 Calificar y reseñar una orden de trabajo pagada
       And no se muestra la opción para volver a calificar
 
   Rule: Prevención de envíos duplicados durante el procesamiento
-    @wip
     Scenario: 03-RW Botón en estado enviando reseña y deshabilitado durante el guardado
       Given que el registro de la reseña demora en responder
       And tengo abierto el formulario de calificación de la orden

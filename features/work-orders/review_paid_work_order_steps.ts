@@ -9,6 +9,7 @@ import {
   aCategory,
 } from "../support/factories";
 import { openWorkOrderDetailModal } from "./view_work_order_detail_steps";
+import { ROUTES } from "../../lib/routes";
 
 const PROPOSAL_ID = 10;
 const WORK_ORDER_ID = 10;
@@ -60,6 +61,31 @@ Given(
   }
 );
 
+Given(
+  "que el registro de la reseña demora en responder",
+  async function (this: CustomWorld) {
+    await this.stubPost(
+      `/work-orders/${WORK_ORDER_ID}/reviews`,
+      201,
+      aReview({ rating: 5, comment: "Excelente servicio", description: "Excelente servicio" })
+    );
+    await this.page.route("**/*", async (route) => {
+      const req = route.request();
+      const isServerAction =
+        req.method() === "POST" &&
+        (Boolean(req.headers()["next-action"]) ||
+          req.url().includes(ROUTES.consumer.services));
+      const isDirectReview =
+        req.method() === "POST" && req.url().includes("/reviews");
+
+      if (isServerAction || isDirectReview) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+      await route.continue();
+    });
+  }
+);
+
 // ─── Scenario 01 & Form Interactions ────────────────────────────────────────
 
 Given(
@@ -99,7 +125,7 @@ Given(
 );
 
 When(
-  "envío la reseña",
+  /^(?:envío|hago clic en enviar) (?:la )?reseña$/,
   async function (this: CustomWorld) {
     const rating = (this as any).selectedRating ?? 5;
     const comment = (this as any).reviewComment ?? "";
@@ -122,12 +148,30 @@ When(
 
     const modal = this.page.getByTestId("review-work-order-modal");
     const submitBtn = modal
-      .getByRole("button", { name: /enviar reseña|calificar/i })
-      .or(modal.getByTestId("submit-review-button"));
+      .getByTestId("submit-review-button")
+      .or(modal.getByRole("button", { name: /enviar reseña|calificar/i }));
     await submitBtn.waitFor({ state: "visible", timeout: 5000 });
     await submitBtn.click();
   }
 );
+
+Then(
+  "veo el botón de envío en estado {string} y deshabilitado",
+  async function (this: CustomWorld, expectedText: string) {
+    const modal = this.page.getByTestId("review-work-order-modal");
+    const submitBtn = modal
+      .getByTestId("submit-review-button")
+      .or(modal.getByRole("button", { name: new RegExp(expectedText, "i") }));
+    await submitBtn.waitFor({ state: "visible", timeout: 5000 });
+    assert.ok(await submitBtn.isDisabled(), "El botón de envío no está deshabilitado");
+    const text = await submitBtn.textContent();
+    assert.ok(
+      text?.toLowerCase().includes(expectedText.toLowerCase()),
+      `El texto del botón no incluye "${expectedText}" (recibido: "${text}")`
+    );
+  }
+);
+
 
 Then(
   "veo el mensaje de confirmación de reseña registrada",

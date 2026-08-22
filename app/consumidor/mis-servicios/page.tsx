@@ -5,6 +5,8 @@ import Sidebar from "@/components/consumer/Sidebar";
 import { ProposalHistoryView } from "@/components/shared/ProposalHistoryView";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 
+import { logger } from "@/infrastructure/logging/logger";
+
 export default async function ConsumerServicesPage() {
   const session = await getAuthService().getSession();
 
@@ -12,7 +14,7 @@ export default async function ConsumerServicesPage() {
   try {
     proposals = await getServiceProposalsAction();
   } catch (error) {
-    console.error("Failed to fetch proposals", error);
+    logger.debug("Failed to fetch proposals", { error });
   }
 
   return (

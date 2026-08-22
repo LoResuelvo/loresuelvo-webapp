@@ -7,6 +7,7 @@ import {
   aServiceBalanceCheckoutSession,
   aPaymentIntent,
   anApiError,
+  aCategory,
 } from "../support/factories";
 import { openWorkOrderDetailModal } from "./view_work_order_detail_steps";
 import { ROUTES } from "../../lib/routes";
@@ -29,6 +30,7 @@ async function setupWorkOrderAwaitingPayment(
   status: "awaiting_payment" | "paid" = "awaiting_payment"
 ) {
   await world.setSession("consumer");
+  await world.stubGet("/categories", [aCategory()]);
   await world.stubGet("/service-proposals", [
     aProposal("consumer", {
       id: PROPOSAL_ID,

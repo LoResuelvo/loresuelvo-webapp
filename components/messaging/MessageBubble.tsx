@@ -51,6 +51,7 @@ export default function MessageBubble({
                   alt={`${t.messaging.attachedImage} ${img.originalName}`}
                   fill
                   className="object-cover"
+                  unoptimized
                 />
               </button>
             ))}

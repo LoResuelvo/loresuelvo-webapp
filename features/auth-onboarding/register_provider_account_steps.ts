@@ -8,6 +8,7 @@ import { ROUTES } from "../../lib/routes";
 const PROVIDER_URL = APP_URL + ROUTES.provider.home;
 
 When("entro al home de prestadores", async function (this: CustomWorld) {
+  await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
   await this.page.goto(PROVIDER_URL);
 });
 
@@ -26,6 +27,8 @@ Given("elegí la opción de prestador en la pagina de registro", async function 
 Given(
   "ingreso mi nombre {string} y apellido {string} en el formulario",
   async function (this: CustomWorld, firstName: string, lastName: string) {
+    (this as any).registeredFirstName = firstName;
+    (this as any).registeredLastName = lastName;
     await this.page.getByLabel("Nombre").fill(firstName);
     await this.page.getByLabel("Apellido").fill(lastName);
   }

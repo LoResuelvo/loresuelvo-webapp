@@ -5,6 +5,7 @@ import { ApiCategoryRepository } from "@/infrastructure/repositories/api-categor
 import { getServiceProposalsAction } from "@/app/prestador/mensajes/actions";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 import { getCurrentUserAction } from "@/app/api/me/actions";
+import { logger } from "@/infrastructure/logging/logger";
 
 export default async function ConsumerHomePage() {
   let session = await getAuthService().getSession();
@@ -16,10 +17,10 @@ export default async function ConsumerHomePage() {
         ...session,
         user: {
           ...session.user,
-          firstName: currentUser.firstName,
-          lastName: currentUser.lastName,
+          firstName: currentUser.firstName || session.user.firstName,
+          lastName: currentUser.lastName || session.user.lastName,
           profilePhotoUrl: currentUser.profilePhoto?.url ?? session.user.profilePhotoUrl,
-          role: currentUser.role,
+          role: currentUser.role || session.user.role,
         },
       };
     }
@@ -38,7 +39,7 @@ export default async function ConsumerHomePage() {
     pendingProposals = allProposals.filter(p => p.status === "pending");
     acceptedProposals = allProposals.filter(p => p.status === "accepted");
   } catch (error) {
-    console.error("Failed to fetch service proposals:", error);
+    logger.debug("Failed to fetch service proposals:", { error });
   }
 
   return (

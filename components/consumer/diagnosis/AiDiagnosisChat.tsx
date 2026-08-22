@@ -248,6 +248,7 @@ export default function AiDiagnosisChat({ client, chatRepository, simulateError 
                       alt={`Vista previa de ${file.name}`}
                       fill
                       className="object-cover"
+                      unoptimized
                     />
                   </button>
                   <button

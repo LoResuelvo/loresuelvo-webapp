@@ -15,6 +15,7 @@ interface AiDiagnosisChatWrapperProps {
 
 import { t } from "@/infrastructure/i18n/translations";
 import { Button } from "@/components/ui/button";
+import { logger } from "@/infrastructure/logging/logger";
 
 export default function AiDiagnosisChatWrapper({ initialConversations: initial }: AiDiagnosisChatWrapperProps) {
   const router = useRouter();
@@ -26,7 +27,7 @@ export default function AiDiagnosisChatWrapper({ initialConversations: initial }
     if (initial.length > 0 && !selectedId) return;
     getAiConversationsAction()
       .then((data) => setConversations(data))
-      .catch((err) => console.error("Failed to fetch conversations:", err));
+      .catch((err) => logger.debug("Failed to fetch conversations:", { err }));
   }, [selectedId, initial.length]);
 
   const assistantClient = useMemo(() => createApiAssistantClient(), []);

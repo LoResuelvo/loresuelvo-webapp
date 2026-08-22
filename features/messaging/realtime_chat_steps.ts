@@ -90,6 +90,8 @@ async function stubConversationApi(world: CustomWorld, conversationId: number = 
   }));
 
   await world.stubPost("/ws-tickets", 201, aWsTicket("mock-ws-ticket-abc123"));
+  await world.stubGet("/job-requests", []);
+  await world.stubGet("/service-proposals", []);
 }
 
 async function interceptWebSocket(world: CustomWorld) {
@@ -182,6 +184,8 @@ Given(
     }));
 
     await this.stubPost("/ws-tickets", 201, aWsTicket("mock-ws-ticket-abc123"));
+    await this.stubGet("/job-requests", []);
+    await this.stubGet("/service-proposals", []);
 
     await interceptWebSocket(this);
     await this.page.goto(APP_URL + ROUTES.provider.messages + `?consumer_id=1`, {

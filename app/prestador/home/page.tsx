@@ -7,6 +7,8 @@ import { ServiceProposalSummary } from "@/domain/messaging/types";
 import { getCurrentUserAction } from "@/app/api/me/actions";
 import { ProviderCurrentUser } from "@/domain/user/types";
 
+import { logger } from "@/infrastructure/logging/logger";
+
 export default async function PrestadorHomePage() {
   let session = await getAuthService().getSession();
   let currentUser = null;
@@ -17,10 +19,10 @@ export default async function PrestadorHomePage() {
         ...session,
         user: {
           ...session.user,
-          firstName: currentUser.firstName,
-          lastName: currentUser.lastName,
+          firstName: currentUser.firstName || session.user.firstName,
+          lastName: currentUser.lastName || session.user.lastName,
           profilePhotoUrl: currentUser.profilePhoto?.url ?? session.user.profilePhotoUrl,
-          role: currentUser.role,
+          role: currentUser.role || session.user.role,
         },
       };
     }
@@ -36,7 +38,7 @@ export default async function PrestadorHomePage() {
     const allProposals = await getServiceProposalsAction();
     acceptedProposals = allProposals.filter((p) => p.status === "accepted");
   } catch (error) {
-    console.error("Error fetching service proposals:", error);
+    logger.debug("Error fetching service proposals:", { error });
   }
 
   const categoryName = currentUser?.role === "provider"

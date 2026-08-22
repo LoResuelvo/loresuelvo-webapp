@@ -87,8 +87,10 @@ export class ApiClient {
         const { cookies } = await import("next/headers");
         const cookieStore = await cookies();
         if (cookieStore.has("__e2e_session")) {
-          logger.warn(`[ApiClient] [E2E] No stub provided for ${options.method || "GET"} ${endpoint}`);
-          throw new ApiClientError(404, "Not Found", `No E2E stub found for ${endpoint}`, null);
+          const scenarioCookie = cookieStore.get("__e2e_scenario");
+          const scenarioInfo = scenarioCookie ? decodeURIComponent(scenarioCookie.value) : "Unknown Scenario";
+          logger.warn(`[ApiClient] [E2E] [${scenarioInfo}] No stub provided for ${options.method || "GET"} ${endpoint}`);
+          throw new ApiClientError(404, "Not Found", `[${scenarioInfo}] No E2E stub found for ${options.method || "GET"} ${endpoint}`, null);
         }
       } catch (e) {
         if (e instanceof ApiClientError) throw e;

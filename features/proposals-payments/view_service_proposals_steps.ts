@@ -9,6 +9,7 @@ import {
   aConversation,
   aConversationDetail,
   anApiError,
+  aCategory,
 } from "../support/factories";
 
 async function setSession(world: CustomWorld, role: "consumer" | "provider") {
@@ -19,6 +20,8 @@ async function setSession(world: CustomWorld, role: "consumer" | "provider") {
     lastName: "User",
     isOnboarded: true,
   });
+  await world.stubGet("/categories", [aCategory()]);
+  await world.stubGet("/job-requests", []);
 }
 
 Given(
@@ -414,7 +417,7 @@ Given("que estoy en el chat del prestador con una propuesta de servicio asociada
       updated_on: new Date().toISOString(),
     })
   );
-  await this.stubGet("/job-requests?conversation_id=1", []);
+  await this.stubGet("/job-requests", []);
   await this.stubGet("/service-proposals", [
     aProposal("provider", {
       id: 1,

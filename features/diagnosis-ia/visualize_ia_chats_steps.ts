@@ -112,6 +112,7 @@ When("selecciono nuevo chat", async function (this: CustomWorld) {
   });
 
   await this.stubPost("/chatbot/conversations", 201, detail);
+  await this.stubGet("/conversations/3", detail);
 
   await button.click();
 });
@@ -144,6 +145,14 @@ Given("existe una conversación con la IA", async function (this: CustomWorld) {
     messages: CONV_1_MESSAGES,
   });
 
+  const conv1 = aAiConversation({
+    id: 1,
+    title: "Pérdida de agua en la cocina",
+    updated_on: "2026-06-18T10:00:00Z",
+    last_message: anAiMessage({ id: 2, sender_role: "chatbot", content: "Revisá si el agua sale desde la rosca del sifón.", created_on: "2026-06-18T10:00:01Z" }),
+  });
+
+  await this.stubGet("/chatbot/conversations", [conv1]);
   await this.stubGet("/conversations/1", detail);
 
   await this.page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);

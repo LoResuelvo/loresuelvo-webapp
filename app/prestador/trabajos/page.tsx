@@ -5,6 +5,8 @@ import ProviderSidebar from "@/components/provider/home/ProviderSidebar";
 import { ProposalHistoryView } from "@/components/shared/ProposalHistoryView";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 
+import { logger } from "@/infrastructure/logging/logger";
+
 export default async function ProviderJobsPage() {
   const session = await getAuthService().getSession();
   
@@ -12,7 +14,7 @@ export default async function ProviderJobsPage() {
   try {
     proposals = await getServiceProposalsAction();
   } catch (error) {
-    console.error("E2E_DEBUG Failed to fetch proposals", error);
+    logger.debug("Failed to fetch proposals", { error });
   }
 
   return (

@@ -45,7 +45,7 @@ async function setupChatWithStatus(world: CustomWorld, status: "accepted" | "pen
     })
   );
 
-  await world.stubGet("/job-requests?conversation_id=1", null);
+  await world.stubGet("/job-requests", []);
   await world.stubGet("/service-proposals", []);
 
   await world.page.goto(APP_URL + ROUTES.provider.messages + "?consumer_id=10", { waitUntil: "domcontentloaded" });
@@ -175,6 +175,8 @@ When(
     const alreadyStubbed = await this.hasApiStub("POST", "/service-proposals");
     if (!alreadyStubbed) {
       const amountCents = parseFloat(monto) * 100;
+      const futureDate = new Date(Date.now() + 86400000 * 5).toISOString();
+      const deadlineDate = new Date(Date.now() + 86400000 * 4).toISOString();
       await this.stubPost(
         "/service-proposals",
         201,
@@ -184,7 +186,7 @@ When(
           consumer_id: 10,
           provider_id: 1,
           amount_cents: amountCents,
-          scheduled_on: "2026-07-20T12:00:00Z",
+          scheduled_on: futureDate,
           description: motivo,
           status: "pending",
           booking_terms: aBookingTerms(amountCents, {
@@ -196,7 +198,7 @@ When(
             amount_due_now_cents: Math.round(parseFloat(monto) * 22),
             remaining_amount_due_cents: Math.round(parseFloat(monto) * 88),
             contract_total_cents: Math.round(parseFloat(monto) * 110),
-            booking_payment_deadline: "2026-07-19T12:00:00Z",
+            booking_payment_deadline: deadlineDate,
           }),
         })
       );

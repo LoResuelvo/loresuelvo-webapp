@@ -172,13 +172,7 @@ When("la carga de la imagen {string} falla por un error del servidor", async fun
 });
 
 When("envío el mensaje de diagnóstico {string} y el procesamiento falla", async function (this: CustomWorld, mensaje: string) {
-  await this.page.route("**/chatbot/conversations/1/messages", async (route) => {
-    await route.fulfill({
-      status: 500,
-      contentType: "application/json",
-      body: JSON.stringify(anApiError("Internal Server Error")),
-    });
-  });
+  await this.stubPost("/chatbot/conversations/1/messages", 500, anApiError("Internal Server Error"));
 
   currentDiagnosisImages = [];
 

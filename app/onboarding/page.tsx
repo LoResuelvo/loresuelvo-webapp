@@ -1,17 +1,12 @@
 import { getAuthService } from "@/infrastructure/auth";
 import RegistrationForm from "@/components/onboarding/RegistrationForm";
-import { api } from "@/infrastructure/api/base-client";
-import { Category } from "@/domain/shared/types";
+import { ApiCategoryRepository } from "@/infrastructure/repositories/api-category-repository";
+import { getConsumerHome } from "@/application/consumer/get-consumer-home";
 
 export default async function OnboardingPage() {
   const session = await getAuthService().getSession();
-
-  let categories: Category[] = [];
-  try {
-    categories = await api.get<Category[]>("/categories");
-  } catch (error) {
-    console.error("Error fetching categories:", error);
-  }
+  const categoryRepo = new ApiCategoryRepository();
+  const categories = await getConsumerHome(categoryRepo);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-brand-neutral p-4 font-sans text-brand-primary">

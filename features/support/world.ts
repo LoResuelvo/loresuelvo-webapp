@@ -67,6 +67,18 @@ export class CustomWorld extends World {
         path: "/",
       },
     ]);
+
+    if (session.user.firstName) {
+      await this.stubGet("/me", {
+        id: session.user.id,
+        name: session.user.firstName,
+        surname: session.user.lastName,
+        email: session.user.email,
+        role: session.user.role,
+        category: session.user.role === "provider" ? { id: 1, name: "Plomería" } : undefined,
+        profile_photo: session.user.profilePhotoUrl ? { url: session.user.profilePhotoUrl, original_name: "photo.jpg" } : null,
+      });
+    }
   }
 }
 

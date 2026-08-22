@@ -110,6 +110,7 @@ Given("estoy en una conversación con el asistente", async function (this: Custo
 });
 
 When("envío un nuevo mensaje y la respuesta tarda en llegar", async function (this: CustomWorld) {
+  await this.stubPost("/chatbot/conversations/1/messages", 200, aAiConversationDetail());
   let delayed = false;
   await this.page.route("**/consumidor/mensajes-ia*", async (route) => {
     if (route.request().method() === "POST" && !delayed) {
@@ -126,13 +127,7 @@ When("envío un nuevo mensaje y la respuesta tarda en llegar", async function (t
 });
 
 When("envío un nuevo mensaje y el servicio falla", async function (this: CustomWorld) {
-  await this.page.route("**/chatbot/conversations/1/messages", async (route) => {
-    await route.fulfill({
-      status: 500,
-      contentType: "application/json",
-      body: JSON.stringify(anApiError("Internal Server Error")),
-    });
-  });
+  await this.stubPost("/chatbot/conversations/1/messages", 500, anApiError("Internal Server Error"));
 
   const input = this.page.getByPlaceholder(/escribe un mensaje/i);
   await input.fill("Sigue perdiendo agua");

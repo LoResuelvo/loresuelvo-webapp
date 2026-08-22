@@ -16,6 +16,7 @@ import { getServiceProposals } from "@/application/messaging/get-service-proposa
 import { acceptWorkRequest } from "@/application/provider/accept-work-request";
 import { ConversationDetailInfo, CreateServiceProposalInput, ServiceProposal, ServiceProposalSummary } from "@/domain/messaging/types";
 import { JobRequestSummary } from "@/ports/job-request-repository";
+import { logger } from "@/infrastructure/logging/logger";
 
 export async function getConversationDetail(id: string): Promise<ConversationDetailInfo> {
   const repository = new ApiConversationRepository();
@@ -48,7 +49,7 @@ export async function createServiceProposal(input: CreateServiceProposalInput): 
     const data = await sendServiceProposalUseCase(repository, input);
     return { success: true, data };
   } catch (error) {
-    console.error("[actions] createServiceProposal error:", error);
+    logger.debug("[actions] createServiceProposal error:", { error });
     const message = error instanceof Error ? error.message : "Error";
     return { success: false, error: message };
   }

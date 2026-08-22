@@ -12,6 +12,15 @@ async function setProviderSession(world: CustomWorld) {
     lastName: "Rios",
     isOnboarded: true,
   });
+  await world.stubGet("/job-requests", []);
+  await world.stubGet("/service-proposals", []);
+  await world.stubGet("/conversations/1", {
+    id: 1,
+    title: "Consulta general",
+    status: "accepted",
+    messages: [],
+    counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández" },
+  });
 }
 
 const mockConversations = [

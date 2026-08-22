@@ -13,6 +13,7 @@ import { ClientFileRepository } from "@/infrastructure/repositories/client-repos
 import { formatToLocalShortDateTime } from "@/infrastructure/repositories/conversation-mapper";
 import { createAiJobRequest } from "@/application/ai-chat/create-ai-job-request";
 import { useClock } from "@/hooks/useClock";
+import { logger } from "@/infrastructure/logging/logger";
 
 const fileRepository = new ClientFileRepository();
 
@@ -91,7 +92,7 @@ export function useAiDiagnosisChat({ client, chatRepository, simulateError = fal
               router.replace(`${ROUTES.consumer.aiMessages}?id=${conversation.id}`);
             })
             .catch((err) => {
-              console.error("Failed to create conversation:", err);
+              logger.debug("Failed to create conversation:", { err });
               setChatError(t.aiDiagnosis.errors.noResponse);
               setIsWaitingForReply(false);
             });

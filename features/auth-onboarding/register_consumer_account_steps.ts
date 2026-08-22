@@ -2,7 +2,7 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import { CustomWorld, APP_URL, visibleTimeout, attachedTimeout, waitTimeout, attachedState } from "../support/world";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
-import { aConsumer, aProvider } from "../support/factories";
+import { aConsumer, aProvider, aCategory } from "../support/factories";
 
 const CONSUMER_URL = APP_URL + "/consumidor/home";
 const AUTH0_SIGNUP_URL = "/auth/login?screen_hint=signup";
@@ -36,11 +36,25 @@ When("hago clic en el botón {string}", async function (this: CustomWorld, butto
 
 When("finalizo el registro", async function (this: CustomWorld) {
   const endpoint = selectedRole === "provider" ? "/providers" : "/consumers";
+  const firstName = (this as any).registeredFirstName || (selectedRole === "provider" ? "Carlos" : "Andres");
+  const lastName = (this as any).registeredLastName || (selectedRole === "provider" ? "López" : "Colina");
 
   if (!(await this.hasApiStub("POST", endpoint))) {
-    const user = selectedRole === "provider" ? aProvider() : aConsumer();
+    const user = selectedRole === "provider" 
+      ? aProvider({ name: firstName, surname: lastName }) 
+      : aConsumer({ name: firstName, surname: lastName });
     await this.stubPost(endpoint, 201, user);
   }
+
+  await this.stubGet("/me", {
+    id: "mock-001",
+    name: firstName,
+    surname: lastName,
+    email: "andy@pro.com",
+    role: selectedRole === "provider" ? "provider" : "consumer",
+    category: selectedRole === "provider" ? { id: 1, name: "Plomería" } : undefined,
+    profile_photo: null,
+  });
 
   const finalizeOptions = { name: "Finalizar Registro" };
   const button = this.page.getByRole("button", finalizeOptions).first();
@@ -70,6 +84,10 @@ Given(
       lastName: "",
       isOnboarded: false,
     });
+    await this.stubGet("/categories", [
+      aCategory({ id: 1, name: "Plomería" }),
+      aCategory({ id: 2, name: "Electricista" }),
+    ]);
   }
 );
 

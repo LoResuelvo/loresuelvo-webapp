@@ -7,6 +7,8 @@ import { ApiAiChatRepository } from "@/infrastructure/repositories/api-ai-chat-r
 import { getAiConversations } from "@/application/ai-chat/get-ai-conversations";
 import type { AiConversationContact } from "@/domain/messaging/types";
 
+import { logger } from "@/infrastructure/logging/logger";
+
 export default async function ConsumerAiMessagesPage() {
   const session = await getAuthService().getSession();
 
@@ -15,7 +17,7 @@ export default async function ConsumerAiMessagesPage() {
     const repository = new ApiAiChatRepository();
     conversations = await getAiConversations(repository);
   } catch (error) {
-    console.error("Failed to fetch AI conversations:", error);
+    logger.debug("Failed to fetch AI conversations:", { error });
   }
 
   return (

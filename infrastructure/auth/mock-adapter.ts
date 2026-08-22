@@ -30,8 +30,9 @@ export class MockAuthAdapter implements AuthService {
       };
 
       cookieStore.set(MOCK_SESSION_COOKIE, encodeURIComponent(JSON.stringify(session)), { path: "/" });
-    } catch (e) {
-      console.error("[MockAuthAdapter] Error al actualizar la sesión mockeada:", e);
+    } catch {
+      // Cookies can only be modified in a Server Action or Route Handler in Next.js.
+      // During server component rendering, cookie update is a graceful no-op.
     }
   }
 }

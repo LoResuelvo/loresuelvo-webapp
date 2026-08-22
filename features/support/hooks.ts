@@ -1,4 +1,4 @@
-import { BeforeAll, AfterAll, Before, After, setDefaultTimeout } from "@cucumber/cucumber";
+import { BeforeAll, AfterAll, Before, After, setDefaultTimeout, ITestCaseHookParameter } from "@cucumber/cucumber";
 import { Browser, chromium } from "playwright";
 import { CustomWorld } from "./world";
 
@@ -14,13 +14,24 @@ AfterAll(async () => {
   await globalBrowser?.close();
 });
 
-Before(async function (this: CustomWorld) {
+Before(async function (this: CustomWorld, scenario: ITestCaseHookParameter) {
   if (!globalBrowser) {
     globalBrowser = await chromium.launch({ headless: true });
   }
   this.browser = globalBrowser;
   this.context = await globalBrowser.newContext();
   this.page = await this.context.newPage();
+
+  const scenarioName = scenario.pickle?.name || "Unknown Scenario";
+  const featureUri = scenario.gherkinDocument?.uri || "";
+  await this.context.addCookies([
+    {
+      name: "__e2e_scenario",
+      value: encodeURIComponent(`${scenarioName} (${featureUri})`),
+      domain: "localhost",
+      path: "/",
+    },
+  ]);
 
   await this.page.route("**/api/ws-tickets", async (route) => {
     await route.fulfill({
@@ -43,18 +54,6 @@ Before(async function (this: CustomWorld) {
     endpoint: "/service-proposals",
     status: 200,
     body: [],
-  });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/categories",
-    status: 200,
-    body: [
-      { id: 1, name: "Plomería", description: "Servicios de plomería", icon_name: "Wrench" },
-      { id: 2, name: "Electricidad", description: "Servicios eléctricos", icon_name: "Zap" },
-      { id: 3, name: "Gas", description: "Instalaciones de gas", icon_name: "Flame" },
-      { id: 4, name: "Pintura", description: "Pintura de interiores y exteriores", icon_name: "Paintbrush" },
-    ],
   });
 });
 

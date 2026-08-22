@@ -12,6 +12,7 @@ import {
   aCheckoutSession,
   aPaymentIntent,
   anApiError,
+  aCategory,
 } from "../support/factories";
 
 const PROPOSAL_ID = 42;
@@ -107,6 +108,7 @@ async function stubPendingProposal(world: CustomWorld): Promise<void> {
     })
   );
   await world.stubGet("/job-requests", []);
+  await world.stubGet("/categories", [aCategory()]);
   await world.stubGet("/service-proposals", [proposalFixture()]);
 }
 

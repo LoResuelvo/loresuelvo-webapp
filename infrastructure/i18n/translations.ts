@@ -235,6 +235,7 @@ export const t = {
       title: "Perfil del prestador",
       categoryLabel: "Rubro",
       photoAlt: "Foto de perfil de",
+      loading: "Cargando perfil del prestador...",
     },
     providerCard: {
       reviews: "reseñas",

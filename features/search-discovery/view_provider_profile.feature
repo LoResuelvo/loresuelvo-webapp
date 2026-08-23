@@ -25,7 +25,6 @@ Feature: [WEB] US-14 - Ver información de perfil de un prestador
       Then no visualizo el correo del prestador
       And no visualizo documentos privados del prestador
 
-    @wip
     Scenario: 14.3-VPP Informar que el perfil se está cargando
       Given que la consulta del perfil de "Juan Gómez" permanece pendiente
       When ingreso al perfil de "Juan Gómez"

@@ -101,7 +101,7 @@ When(
   "ingreso al perfil de {string}",
   async function (this: CustomWorld, _providerName: string) {
     await this.page.goto(`${APP_URL}${ROUTES.consumer.providerProfile(1)}`);
-    await this.page.waitForLoadState("networkidle");
+    await this.page.waitForLoadState("domcontentloaded");
   },
 );
 
@@ -124,4 +124,24 @@ Then(
     assert.ok(!/documento|dni|cuit|archivo/i.test(profileText));
   },
 );
+
+Given(
+  "que la consulta del perfil de {string} permanece pendiente",
+  async function (this: CustomWorld, _providerName: string) {
+    await this.page.route("**/consumidor/prestadores/*", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await route.continue();
+    });
+  },
+);
+
+Then(
+  "visualizo que el perfil se está cargando",
+  async function (this: CustomWorld) {
+    const skeleton = this.page.getByTestId("provider-profile-skeleton");
+    await skeleton.waitFor({ state: "attached" });
+    assert.ok(await skeleton.isVisible());
+  },
+);
+
 

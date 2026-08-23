@@ -48,7 +48,7 @@ When(
     await this.page.waitForLoadState("networkidle");
 
     const providerCard = this.page.locator(".provider-card").filter({ hasText: providerName }).first();
-    await providerCard.getByRole("button", { name: /ver perfil/i }).click();
+    await providerCard.getByRole("link", { name: /ver perfil/i }).click();
   },
 );
 

@@ -45,6 +45,20 @@ export interface ApiProvider {
   profile_photo_url?: string;
 }
 
+export interface ApiProviderProfile {
+  id: number;
+  name: string;
+  surname: string;
+  profile_photo: {
+    original_name: string;
+    url: string;
+  };
+  category: {
+    id: number;
+    name: string;
+  };
+}
+
 export interface ApiMessageImage {
   id: string;
   url: string;

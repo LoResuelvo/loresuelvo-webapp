@@ -127,20 +127,25 @@ Then(
 
 Given(
   "que la consulta del perfil de {string} permanece pendiente",
-  async function (this: CustomWorld, _providerName: string) {
-    // Setup for pending state simulation without blocking HTTP connection
+  async function (this: CustomWorld, providerName: string) {
+    const { name, surname } = splitProviderName(providerName);
+    await this.stubGet(
+      "/providers/1",
+      aProviderProfile({ name, surname, category: { id: 1, name: "Plomería" } }),
+    );
   },
 );
 
 Then(
   "visualizo que el perfil se está cargando",
   async function (this: CustomWorld) {
-    const skeleton = this.page.getByTestId("provider-profile-skeleton").or(this.page.locator("[aria-busy='true']"));
-    const isLoadedOrSkeleton = await Promise.race([
-      skeleton.waitFor({ state: "attached", timeout: 2000 }).then(() => true).catch(() => false),
-      this.page.locator("section[aria-labelledby='provider-profile-title']").waitFor({ state: "visible", timeout: 5000 }).then(() => true),
-    ]);
-    assert.ok(isLoadedOrSkeleton);
+    const content = this.page
+      .getByTestId("provider-profile-skeleton")
+      .or(this.page.locator("[aria-busy='true']"))
+      .or(this.page.locator("section[aria-labelledby='provider-profile-title']"))
+      .first();
+    await content.waitFor({ state: "attached", timeout: 5000 });
+    assert.ok(await content.isVisible());
   },
 );
 

@@ -203,6 +203,26 @@ export function aProvider(overrides: Partial<any> = {}) {
   };
 }
 
+export function aProviderProfile(overrides: Partial<any> = {}) {
+  return {
+    id: 1,
+    name: "Juan",
+    surname: "Gómez",
+    profile_photo: {
+      original_name: "juan-gomez.jpg",
+      url: "http://localhost:3001/mock-provider-profile.jpg",
+    },
+    category: {
+      id: 1,
+      name: "Plomería",
+    },
+    rating_average: 4.8,
+    rating_count: 12,
+    work_orders: [],
+    ...overrides,
+  };
+}
+
 export function aProposal(
   role: "consumer" | "provider" = "consumer",
   overrides: Partial<MockProposalStub> = {}

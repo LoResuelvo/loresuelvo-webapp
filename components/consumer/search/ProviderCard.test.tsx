@@ -72,4 +72,20 @@ describe('ProviderCard', () => {
         expect(mockOnContact).toHaveBeenCalledTimes(1);
         expect(mockOnContact).toHaveBeenCalledWith(mockProvider);
     });
+
+    it("renders an accessible link to the provider profile", () => {
+        const mockProvider = {
+            id: 7,
+            name: "Juan",
+            surname: "Gómez",
+            categoryName: "Plomería",
+        };
+
+        render(<ProviderCard provider={mockProvider} />);
+
+        expect(screen.getByRole("link", { name: /ver perfil/i })).toHaveAttribute(
+            "href",
+            "/consumidor/prestadores/7",
+        );
+    });
 });

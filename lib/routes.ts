@@ -18,6 +18,7 @@ export const ROUTES = {
     aiMessages: "/consumidor/mensajes-ia",
     diagnostico: "/consumidor/diagnostico",
     services: "/consumidor/mis-servicios",
+    providerProfile: (providerId: number | string) => `/consumidor/prestadores/${providerId}`,
   },
   provider: {
     home: "/prestador/home",

@@ -231,6 +231,11 @@ export const t = {
     noResults: "No se encontraron profesionales para esta categoría.",
     contactBtn: "Contactar",
     profileBtn: "Ver perfil",
+    profile: {
+      title: "Perfil del prestador",
+      categoryLabel: "Rubro",
+      photoAlt: "Foto de perfil de",
+    },
     providerCard: {
       reviews: "reseñas",
       jobs: "trabajos",

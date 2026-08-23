@@ -1,9 +1,11 @@
 import { MessageCircle, User, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import type { Provider as ProviderType } from "@/domain/provider/types";
 import { Provider } from "@/domain/provider/Provider";
 import { Button } from "@/components/ui/button";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { t } from "@/infrastructure/i18n/translations";
+import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 interface ProviderCardProps {
@@ -70,12 +72,17 @@ export default function ProviderCard({ provider, className, onContact }: Provide
             </Button>
 
             <Button
+              asChild
               variant="link"
-              type="button"
               className="text-brand-secondary font-bold text-small p-0 h-auto flex items-center gap-0.5 group/link"
             >
-              {t.consumerSearch.profileBtn}
-              <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/link:translate-x-0.5" />
+              <Link
+                href={ROUTES.consumer.providerProfile(provider.id)}
+                aria-label={`${t.consumerSearch.profileBtn} ${displayName}`}
+              >
+                {t.consumerSearch.profileBtn}
+                <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/link:translate-x-0.5" />
+              </Link>
             </Button>
           </div>
         </div>

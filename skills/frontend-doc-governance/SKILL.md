@@ -20,7 +20,7 @@ Mantener documentación útil, compacta y lazy-load friendly.
 
 ## Flujo
 
-1. Revisar estructura actual y scripts de `package.json`/`makefile` antes de documentar comandos.
+1. Revisar estructura actual y scripts de `package.json`/`Makefile` antes de documentar comandos.
 2. Actualizar primero la fuente canónica; evitar duplicar la misma regla en múltiples archivos.
 3. Si una regla es específica de una tarea, ponerla en una skill; si aplica siempre, en `AGENTS.md`.
 4. Validar Markdown con revisión manual y, si hay formatter configurado, ejecutarlo.

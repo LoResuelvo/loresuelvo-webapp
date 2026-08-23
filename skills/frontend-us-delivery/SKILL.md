@@ -16,12 +16,13 @@ Usar para implementar una User Story o feature completa. Esta skill define el ci
 
 ## Desarrollo
 
-1. Elegir un único escenario activo.
-2. Avanzar Outside-In: steps en RED, presentación mínima, dominio/contratos, infraestructura/aplicación e integración E2E.
-3. En cada micro-paso agregar solamente el código requerido por ese escenario. No preparar capas completas para escenarios futuros.
-4. Ejecutar el gate correspondiente antes del commit; el orquestador commitea y pushea.
-5. Retirar `@wip` solo cuando el E2E del escenario esté en GREEN.
-6. Repetir con el siguiente escenario.
+1. Declarar la conducción de la US y elegir un batch activo: un micro-paso, un escenario o 2–3 escenarios consecutivos aprobados.
+2. Avanzar Outside-In: steps en RED; presentación mínima aislada con props o mocks; dominio/contratos; infraestructura/aplicación; conexión de ruta o Server Action e integración E2E.
+3. Cada micro-paso agrega un único comportamiento observable. No conectar la presentación a rutas, fetch, repositorios o Server Actions antes del paso de integración correspondiente.
+4. Agregar solamente el código requerido por el escenario actual dentro del batch. No preparar capas completas para escenarios futuros ni saltar al siguiente antes de cerrar el actual en GREEN.
+5. Ejecutar el gate correspondiente antes del commit; quién commitea y pushea depende de la granularidad de delegación declarada.
+6. Retirar `@wip` solo cuando el E2E del escenario esté en GREEN.
+7. Continuar con el siguiente escenario solo si pertenece al batch aprobado y se cumplen sus condiciones de continuación; de lo contrario, cerrar el batch y reportar.
 
 ## Cierre
 

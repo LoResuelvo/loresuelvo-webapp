@@ -9,7 +9,11 @@ Usar al preparar un commit o push.
 
 ## Ownership
 
-El desarrollador implementa y valida. El orquestador revisa el diff, crea el commit y hace push a `main`.
+- `MICROSTEP`: el desarrollador implementa y valida; el orquestador revisa, commitea, pushea y monitorea CI.
+- `SCENARIO`: el desarrollador implementa, valida, commitea, pushea y monitorea los SHAs del escenario aprobado.
+- `SCENARIO_GROUP`: el desarrollador hace lo mismo para 2–3 escenarios consecutivos, cerrando cada uno en GREEN antes de avanzar.
+
+La conducción `USER_GUIDED` o `AGENT_ORCHESTRATED` define quién guía la US, no cambia por sí sola el ownership de commits. El contrato debe declarar ambos ejes y sus owners. Sin granularidad explícita, usar `MICROSTEP`.
 
 ## Commit atómico
 
@@ -42,4 +46,6 @@ docs: clarify local E2E setup
 
 ## Dependencias y push
 
-No pushear un commit intermedio que requiera archivos aún no presentes en `main`. Validar el gate indicado por `frontend-testing-gates`, crear el commit y pushear. CI se sigue por SHA dentro de la ventana de commits en vuelo.
+No pushear un commit intermedio que requiera archivos aún no presentes en `main`. Validar el gate indicado por `frontend-testing-gates`, crear el commit y pushearlo inmediatamente; no acumular varios commits locales para un único push. CI se sigue por SHA dentro de la ventana de commits en vuelo.
+
+En `SCENARIO` y `SCENARIO_GROUP`, el desarrollador registra cada SHA y continúa sin reportes ordinarios mientras respete la ventana de CI. El presupuesto es de hasta 6 commits atómicos por reporte ordinario. No fusionar cambios independientes ni agrandar commits para alcanzar la relación 6:1; si el batch necesita más, terminar en una frontera segura y abrir otro batch. Si CI falla, detener nuevos pushes y escalar según `frontend-ai-development-workflow`.

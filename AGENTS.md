@@ -46,12 +46,17 @@ Las capas internas no dependen de las externas. `domain/` y `ports/` no importan
 1. Revisar estado del repositorio y entender alcance, rol y rutas afectadas.
 2. Escribir todos los escenarios de aceptación antes de implementar. Cada escenario tiene exactamente un `When`.
 3. Esperar la aprobación funcional del usuario y crear `docs[XX]: ...`.
-4. Implementar un solo escenario activo, por micro-pasos Outside-In: steps, presentación, dominio/contratos, infraestructura/aplicación e integración.
-5. Agregar solo lo necesario para el escenario activo; no preparar capas completas para escenarios futuros.
-6. El subagente desarrolla y ejecuta validaciones focalizadas. El orquestador revisa, commitea, pushea y monitorea CI.
-7. Cada commit debe ser coherente, compilable y testeable. Se hace push a `main` tras pasar el gate local aplicable.
-8. CI se monitorea por SHA en paralelo. Se permite una ventana acotada de commits pendientes; ante una falla se detienen nuevos pushes y se corrige la causa.
-9. Un escenario pierde `@wip` solo al pasar su E2E. La US se cierra con sus gates completos y CI verde.
+4. Definir la conducción de la US (`USER_GUIDED` o `AGENT_ORCHESTRATED`) y particionar provisionalmente el plan en delegaciones `MICROSTEP`, `SCENARIO` o `SCENARIO_GROUP`.
+5. Una delegación tiene un único batch activo. Puede abarcar un micro-paso, un escenario o un grupo aprobado de 2–3 escenarios consecutivos; dentro de un grupo, cada escenario se cierra en GREEN antes de iniciar el siguiente.
+6. La presentación inicial se implementa aislada con props o mocks y sin anticipar rutas, fetch, repositorios, Server Actions ni integración. Esas dependencias se incorporan al avanzar hacia adentro.
+7. Ownership, commits, push, reportes y escalamiento se rigen por la granularidad declarada en `frontend-ai-development-workflow`. En `SCENARIO` y `SCENARIO_GROUP`, el desarrollador persistente puede completar, commitear, pushear y monitorear únicamente el batch aprobado.
+8. Cada commit debe ser coherente, compilable y testeable. Se hace push a `main` tras pasar el gate local aplicable.
+9. CI se monitorea por SHA en paralelo. Se permite una ventana acotada de commits pendientes; ante una falla se detienen nuevos pushes y se corrige la causa.
+10. Un escenario pierde `@wip` solo al pasar su E2E. La US se cierra con sus gates completos y CI verde.
+
+La meta operativa para batches autónomos es hasta 6 commits atómicos por reporte ordinario. Es un presupuesto de coordinación, no una cuota: no agrupar cambios no relacionados ni omitir escalaciones para alcanzarlo.
+
+El presupuesto de reparación pertenece a la firma de falla y se comparte entre todos los agentes: los handoffs, subagentes y compactaciones no lo reinician. Al alcanzar `STOP_USER`, quedan prohibidos nuevos intentos, cambios, commits y pushes hasta recibir instrucciones del usuario.
 
 ## Commits
 
@@ -66,6 +71,7 @@ Para una US, cargar `frontend-us-delivery`, `frontend-ai-development-workflow`, 
 
 Cargar además, solo si aplica:
 
+- Exploración estructural, callers, dependencias o impacto: `codebase-memory`.
 - API, auth, Server Actions o mappers: `frontend-api-client-governance`.
 - Reglas de negocio o tipos de dominio: `frontend-domain-governance`.
 - Diseño o nuevas pantallas: `frontend-design`.
@@ -77,6 +83,15 @@ Cargar además, solo si aplica:
 - Documentación operativa: `frontend-doc-governance`.
 
 Las referencias de una skill se leen únicamente cuando la tarea coincide con su propósito indicado.
+
+## Codebase Memory
+
+- Para arquitectura, símbolos, callers, dependencias e impacto, cargar `codebase-memory` y usar primero el grafo.
+- Al iniciar una exploración estructural o después de una compactación, comprobar `list_projects` o `index_status` y declarar el tier `Scout`, `Verify` —predeterminado— o `Auditor`.
+- Después de descubrir rutas relevantes, ejecutar una sola verificación de `check_index_coverage` para todas ellas. Para afirmaciones negativas o exhaustivas, incluir además el scope investigado.
+- Usar búsqueda textual o lectura focalizada para literales, configuración, archivos no-code y rangos con cobertura parcial, omitida, stale o desconocida.
+- Antes de delegar, el orquestador pasa proyecto/generación, tier, scope, queries y paginación, símbolos calificados, rutas, trazas, cobertura, fallback ya realizado y preguntas abiertas. El developer no repite esa exploración salvo que aparezca una pregunta estructural nueva.
+- Un resultado vacío o `indexed_no_recorded_gap` no demuestra por sí solo ausencia ni completitud.
 
 ## E2E y calidad
 
@@ -92,6 +107,9 @@ Las referencias de una skill se leen únicamente cuando la tarea coincide con su
 npm run test
 npm run lint
 npm run build
-make test-e2e
-make test-e2e-file FILE=features/<feature>.feature
+make test-e2e-managed
+make test-e2e-wip-file-managed FILE=features/<feature>.feature NAME='<scenario>'
+make test-e2e-file-managed FILE=features/<feature>.feature NAME='<scenario>'
 ```
+
+Los targets `*-managed` son el camino canónico para agentes en ejecución local: administran el puerto 3001, el build, el servidor, readiness, Cucumber y cleanup. Los targets sin `-managed` se reservan para ejecución contra un servidor ya levantado por la persona desarrolladora. CI mantiene pasos separados para distinguir fallas de build, arranque, readiness y Cucumber.

@@ -239,6 +239,9 @@ export const t = {
       notFoundTitle: "Perfil no encontrado",
       notFoundDescription: "El prestador solicitado no existe o no está disponible.",
       backToSearch: "Volver a la búsqueda",
+      errorTitle: "No pudimos cargar el perfil",
+      errorDescription: "Ocurrió una falla temporal al consultar el perfil. Por favor, intentá nuevamente.",
+      retry: "Reintentar",
     },
     providerCard: {
       reviews: "reseñas",

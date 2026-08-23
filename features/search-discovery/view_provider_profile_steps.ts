@@ -177,5 +177,31 @@ Then(
   },
 );
 
+Given(
+  "que el servicio de perfiles no está disponible",
+  async function (this: CustomWorld) {
+    await this.stubGet("/providers/1", { error: "Service Unavailable" }, 500);
+  },
+);
+
+Then(
+  "visualizo un mensaje de error seguro",
+  async function (this: CustomWorld) {
+    const heading = this.page.getByRole("heading", { name: /no pudimos cargar el perfil/i });
+    await heading.waitFor({ state: "visible" });
+    assert.ok(await heading.isVisible());
+  },
+);
+
+Then(
+  "puedo reintentar la consulta",
+  async function (this: CustomWorld) {
+    const retryBtn = this.page.getByRole("button", { name: /reintentar/i });
+    await retryBtn.waitFor({ state: "visible" });
+    assert.ok(await retryBtn.isVisible());
+  },
+);
+
+
 
 

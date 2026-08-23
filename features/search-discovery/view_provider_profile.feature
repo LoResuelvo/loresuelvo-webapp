@@ -36,7 +36,6 @@ Feature: [WEB] US-14 - Ver información de perfil de un prestador
       Then visualizo que el perfil no fue encontrado
       And puedo volver a la búsqueda de prestadores
 
-    @wip
     Scenario: 14.5-VPP Informar una falla temporal al consultar el perfil
       Given que el servicio de perfiles no está disponible
       When ingreso al perfil de "Juan Gómez"

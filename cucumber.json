@@ -1,7 +1,6 @@
 {
   "default": {
     "parallel": 2,
-    "paths": ["features/**/*.feature"],
     "require": [
       "features/support/**/*.ts",
       "features/**/*.ts"
@@ -16,7 +15,6 @@
     "tags": "not @wip"
   },
   "wip": {
-    "paths": ["features/**/*.feature"],
     "require": [
       "features/support/**/*.ts",
       "features/**/*.ts"

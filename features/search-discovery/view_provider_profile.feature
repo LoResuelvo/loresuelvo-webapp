@@ -44,7 +44,6 @@ Feature: [WEB] US-14 - Ver información de perfil de un prestador
 
   Rule: El perfil requiere una sesión válida
 
-    @wip
     Scenario: 14.6-VPP Impedir el acceso sin autenticación
       Given que no tengo una sesión válida
       When intento ingresar al perfil de "Juan Gómez"

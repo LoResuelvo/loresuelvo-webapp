@@ -85,3 +85,43 @@ Then(
     assert.ok(await category.isVisible());
   },
 );
+
+Given(
+  "que el perfil público de {string} está disponible",
+  async function (this: CustomWorld, providerName: string) {
+    const { name, surname } = splitProviderName(providerName);
+    await this.stubGet(
+      "/providers/1",
+      aProviderProfile({ name, surname, category: { id: 1, name: "Plomería" } }),
+    );
+  },
+);
+
+When(
+  "ingreso al perfil de {string}",
+  async function (this: CustomWorld, _providerName: string) {
+    await this.page.goto(`${APP_URL}${ROUTES.consumer.providerProfile(1)}`);
+    await this.page.waitForLoadState("networkidle");
+  },
+);
+
+Then(
+  "no visualizo el correo del prestador",
+  async function (this: CustomWorld) {
+    const profileSection = this.page.locator("section[aria-labelledby='provider-profile-title']");
+    await profileSection.waitFor({ state: "visible" });
+    const profileText = await profileSection.innerText();
+    assert.ok(!profileText.includes("@"));
+  },
+);
+
+Then(
+  "no visualizo documentos privados del prestador",
+  async function (this: CustomWorld) {
+    const profileSection = this.page.locator("section[aria-labelledby='provider-profile-title']");
+    await profileSection.waitFor({ state: "visible" });
+    const profileText = await profileSection.innerText();
+    assert.ok(!/documento|dni|cuit|archivo/i.test(profileText));
+  },
+);
+

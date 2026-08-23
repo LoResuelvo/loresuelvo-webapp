@@ -32,4 +32,24 @@ describe("ProviderProfileView", () => {
       "/consumidor/home",
     );
   });
+
+  it("does not render private provider data such as email or documents", () => {
+    render(
+      <ProviderProfileView
+        session={null}
+        provider={{
+          id: 7,
+          name: "Juan",
+          surname: "Gómez",
+          categoryName: "Plomería",
+          profilePhotoUrl: "https://example.com/juan.jpg",
+        }}
+      />,
+    );
+
+    expect(screen.queryByText(/@/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/documento/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/dni/i)).not.toBeInTheDocument();
+  });
 });
+

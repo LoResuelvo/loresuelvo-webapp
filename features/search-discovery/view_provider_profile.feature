@@ -19,7 +19,6 @@ Feature: [WEB] US-14 - Ver información de perfil de un prestador
       And visualizo la foto de perfil de "Juan Gómez"
       And visualizo el rubro "Plomería"
 
-    @wip
     Scenario: 14.2-VPP Ocultar datos privados del prestador
       Given que el perfil público de "Juan Gómez" está disponible
       When ingreso al perfil de "Juan Gómez"

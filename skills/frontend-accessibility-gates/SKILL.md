@@ -1,60 +1,28 @@
 ---
 name: frontend-accessibility-gates
-description: "Checklist operativo de accesibilidad para componentes y flujos frontend: foco, teclado, semantica, formularios, dialogos, menus, estados interactivos y mensajes de error. Usar al crear o cerrar UI interactiva."
+description: "Validar accesibilidad de interacciones, formularios, diálogos y estados de Lo Resuelvo."
 ---
 
 # Frontend Accessibility Gates
 
-Aplicar cuando la tarea toque formularios, botones, links, modales, banners, mensajeria, navegación, onboarding o cualquier interacción.
+Usar al crear o modificar formularios, botones, links, modales, menús, banners, mensajería o navegación interactiva.
 
-## Gates minimos
+## Gates
 
-1. Navegacion por teclado: `Tab`, `Shift+Tab`, `Enter`, `Space`; `Escape` en overlays.
-2. Foco visible y retorno de foco al cerrar modales/drawers.
-3. Semantica correcta: `button` para acciones, `Link`/`a` para navegación.
-4. ARIA solo cuando mejora semantica: `aria-expanded`, `aria-controls`, `aria-current`, `aria-describedby`, `aria-live`.
-5. Estados `loading`, `error`, `empty`, `disabled`, `success` entendibles sin depender solo del color.
-6. Icon-only actions con `aria-label`.
+- Navegación usable con `Tab`, `Shift+Tab`, `Enter`, `Space` y `Escape` cuando aplique.
+- Foco visible y retorno de foco al cerrar un diálogo.
+- Semántica correcta: botones para acciones y links para navegación.
+- ARIA solo cuando agrega significado; acciones solo con ícono tienen nombre accesible.
+- Loading, error, empty, disabled y success deben entenderse sin depender solo del color.
+- Los campos tienen label, ayuda o error asociado, y las confirmaciones o errores asíncronos se anuncian cuando el foco no los revela.
 
-## Modales y Overlays
+## Componentes
 
-- **Usar siempre `<Modal>` de `components/ui/modal.tsx`** (basado en Radix Dialog).
-- El componente `Modal` provee automáticamente:
-  - ✅ Focus trap (el usuario no puede tabear fuera del modal)
-  - ✅ Cierre con tecla Escape
-  - ✅ Bloqueo de scroll del body
-  - ✅ Rendering en portal (evita problemas de z-index)
-  - ✅ `role="dialog"` y `aria-modal="true"` automáticos
-  - ✅ Retorno de foco al cerrar
-- **Nunca crear modales caseros** con `div fixed inset-0` — les falta focus trap, Escape, scroll lock.
-- Props disponibles: `open`, `onClose`, `title`, `titleId`, `closeLabel`, `children`, `footer`, `className`.
+- Usar `Modal` para diálogos y overlays; no recrear manualmente focus trap, Escape, portal o scroll lock.
+- Usar `InfoBanner` para avisos reutilizables cuando corresponda.
+- Mantener textos visibles en las traducciones del proyecto.
 
-## Formularios
+## Validación
 
-- Todo campo tiene label accesible.
-- Error asociado al campo o visible junto al control.
-- Mensajes en español, centralizados en `infrastructure/i18n/translations.ts`.
-- Botones deshabilitados explican el motivo cuando el bloqueo no es obvio.
-
-## Mensajeria y cambios asincronos
-
-- Nuevos errores o confirmaciones importantes usan region anunciable si no son visibles por foco.
-- Inputs de chat conservan foco al enviar salvo navegación intencional.
-- No mover foco inesperadamente durante polling/websocket/refetch.
-
-## Banners informativos
-
-- Usar `InfoBanner` (`components/messaging/InfoBanner.tsx`) para mensajes informativos y warnings.
-- No crear SVGs inline para banners — reutilizar componentes existentes.
-
-## Identificadores de test
-
-- Usar `data-testid` para testing — no `data-field` ni atributos custom sin documentar.
-- Cada elemento interactivo relevante debe tener un `data-testid` o ser consultable por rol/label.
-
-## Validacion recomendada
-
-1. Agregar tests RTL para apertura/cierre, labels, roles, errores y estados bloqueados.
-2. Ejecutar prueba focalizada: `npm run test -- <archivo-o-patron>`.
-3. Ejecutar `npm run lint`.
-4. Ejecutar `npm run test:e2e` si el cambio toca flujo Gherkin de navegador.
+- Agregar tests RTL o E2E cuando la interacción cambie.
+- Seleccionar el gate de `frontend-testing-gates` según el alcance.

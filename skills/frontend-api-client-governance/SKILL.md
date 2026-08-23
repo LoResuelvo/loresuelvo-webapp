@@ -1,97 +1,41 @@
 ---
 name: frontend-api-client-governance
-description: "Gobernanza de integraciones API y lógica de negocio bajo Clean Architecture: contratos en ports/, lógica en application/, mappers y adaptadores en infrastructure/. Usar al crear o modificar endpoints, mappers, servicios, casos de uso, tipos, auth o flujos de mensajería/solicitudes."
+description: "Integrar APIs, Server Actions y datos externos de Lo Resuelvo respetando Clean Architecture y fronteras tipadas."
 ---
 
-# Frontend API Client Governance (Clean Architecture)
+# Frontend API Client Governance
 
-## Arquitectura esperada
+Usar al crear o modificar endpoints, mappers, repositorios, casos de uso, auth, Server Actions o integraciones en tiempo real.
 
-- **Contratos/Interfaces**: Definidos exclusivamente en `ports/` (ej. `ports/conversation-repository.ts`). Los tipos en ports deben usar tipos del dominio (camelCase), no DTOs de la API.
-- **Lógica de Negocio/Casos de Uso**: Definidos en `application/` (ej. `application/messaging/get-conversations.ts`), orquestando llamadas a las interfaces de `ports/` y aplicando reglas del dominio (`domain/`).
-- **Implementación Concreta/Infraestructura**: Definida en `infrastructure/` (ej. `infrastructure/repositories/api-conversation-repository.ts`), realizando las llamadas a la red/base de datos y transformando DTOs a modelos de dominio mediante mappers.
-- **Autenticación**: Interfaces en `ports/auth-service.ts` y adaptadores (como Auth0 y de desarrollo) en `infrastructure/auth/`.
-- **Mensajería en Tiempo Real**: WebSocket en `infrastructure/websocket/` e integraciones API correspondientes.
+## Flujo de datos
 
-## Separación de DTOs vs Dominio
-
-Esta es una regla estricta del proyecto:
-
-1. **DTOs del backend** (snake_case): viven **exclusivamente** en `infrastructure/api/types.ts` (ej: `ApiProvider`, `ApiConversation`, `ApiConversationMessage`).
-2. **Modelos de dominio** (Functional DDD): viven en `domain/` y siguen estrictamente la skill [`frontend-domain-governance`](file:///home/matexore/Desktop/Facultad/tpp/loresuelvo-webapp/skills/frontend-domain-governance/SKILL.md) (Value Objects inmutables, Smart Constructors con invariantes y módulos de comportamiento, evitando modelos anémicos y obsesión por primitivos).
-3. **Mappers**: viven en `infrastructure/repositories/` (ej: `provider-mapper.ts`, `service-proposal-mapper.ts`) y transforman `ApiXxx → DomainXxx` aplicando el principio *Parse, don't validate* con los Smart Constructors de dominio.
-4. **Nunca** consumir DTOs directamente en componentes UI ni en `application/`.
-
-### Ejemplo de flujo correcto
-
-```
-API Backend (snake_case JSON)
-  → infrastructure/api/types.ts (ApiProvider: category_name)
-  → infrastructure/repositories/provider-mapper.ts (mapApiToProvider)
-  → domain/provider/types.ts (Provider: categoryName)
-  → ports/provider-repository.ts (contrato con tipo Provider)
-  → application/consumer/search-providers.ts (use case)
-  → components/ (UI)
+```text
+API DTO snake_case
+→ infrastructure/api/types.ts
+→ mapper en infrastructure/repositories/
+→ modelo de dominio camelCase
+→ port
+→ application use case
+→ Server Action o UI
 ```
 
-## Flujo de Integración
+- Los DTOs viven solo en `infrastructure/api/types.ts`.
+- Los puertos usan tipos de dominio y no conocen DTOs.
+- Los casos de uso orquestan puertos y propagan errores; no devuelven silenciosamente valores vacíos ante un fallo.
+- La infraestructura implementa puertos, centraliza llamadas de red y transforma los datos externos.
+- No consumir DTOs ni hacer `fetch` ad hoc desde componentes o casos de uso.
 
-1. **Definir el Contrato**: Identificar el endpoint/servicio a consumir y crear su interfaz TypeScript en `ports/` usando tipos de dominio (camelCase).
-2. **Definir Tipos del Dominio**: Asegurarse de que los modelos de negocio estén en `domain/` con camelCase puro. Si el backend usa snake_case, definir el DTO correspondiente en `infrastructure/api/types.ts`.
-3. **Crear o Modificar Caso de Uso**: Añadir funciones en `application/` que orquesten la operación utilizando el puerto correspondiente. **No atrapar errores silenciosamente** — propagar la excepción.
-4. **Implementar el Adaptador en Infraestructura**: Escribir la llamada de red en `infrastructure/`. Crear o actualizar mappers para convertir la respuesta JSON del servidor (snake_case) a las interfaces puras de `domain/` (camelCase).
-5. **Escribir Pruebas**: Crear tests unitarios en inglés para el caso de uso (`application/**/*.test.ts`) mockeando sus dependencias en `ports/`, y para los mappers en `infrastructure/**/*.test.ts`.
-6. **Conectar con la UI**: Consumir el caso de uso en componentes o Server Actions inyectando el adaptador adecuado de `infrastructure/`.
+## Errores y Server Actions
 
-## Manejo de Errores
-
-- **Use cases en `application/` NO deben tragar errores** con `console.error + return []`. Deben propagar la excepción para que las capas externas decidan.
-- La decisión de mostrar un empty state vs error state es responsabilidad de la UI, no del use case.
-- Usar `catch (error: unknown)` en vez de `catch (error: any)` — TypeScript strict.
-
-## Server Actions y Result Pattern (Boundary Seguro)
-
-Las Server Actions (`app/**/actions.ts`) actúan como el **Boundary / Adaptador de Entrada** entre el servidor Node.js y los componentes cliente de React:
-
-1. **Captura Obligatoria en la Frontera**: Toda Server Action que invoque use cases o repositorios **DEBE** capturar las excepciones con `try / catch` y retornar un objeto tipado bajo el Result Pattern:
-   ```ts
-   export type ActionResult<T> =
-     | { success: true; data: T }
-     | { success: false; error: string; statusCode?: number };
-   ```
-   *(Alternativa canónica usada en pagos/órdenes: `{ ok: true, [key]: T } | { ok: false, status: number | null, message?: string }`)*.
-
-2. **Prohibido dejar escapar `throw` no capturados al runtime de Next.js**:
-   - Previene que Next.js registre `⨯ Error [ApiClientError]` en la consola del servidor durante tests o caídas simuladas.
-   - Previene que Next.js en producción (`NODE_ENV=production`) censure el mensaje de error reemplazándolo por un digest hash opaco.
-   - Otorga tipado seguro al cliente con *Discriminated Unions*:
-     ```ts
-     const res = await miServerAction();
-     if (!res.success) {
-       setError(res.error);
-       return;
-     }
-     // res.data está 100% inferido por TypeScript
-     ```
-
-## Reglas Críticas
-
-- **Sin Acoplamiento Inverso**: Las carpetas `domain/` y `ports/` no deben importar nada de capas externas bajo ninguna circunstancia.
-- **Sin DTOs en el dominio**: Nunca definir tipos con snake_case en `domain/` ni en `ports/`.
-- **Sin fetch ad-hoc**: No duplicar llamadas `fetch` ni armar encabezados de autorización ad-hoc. Utilizar el cliente centralizado en la infraestructura.
-- **Errores Amigables**: Normalizar los errores provenientes del backend a mensajes genéricos legibles por el usuario en español, usando claves de `infrastructure/i18n/translations.ts`.
-- **Sin Secretos**: Nunca hardcodear secretos, tokens ni URLs de servidores; usar siempre variables de entorno.
-
-## Mappers existentes (referencia)
-
-| Mapper | Ubicación | Transforma |
-|--------|-----------|------------|
-| `mapApiToProvider` | `infrastructure/repositories/provider-mapper.ts` | `ApiProvider` → `Provider` |
-| Conversation mapper | `infrastructure/repositories/conversation-mapper.ts` | `ApiConversation` → `ConversationContact` |
-| Work request transform | `infrastructure/repositories/api-provider-home-repository.ts` | `ApiWorkRequest` → `ProviderWorkRequest` |
+- Una Server Action que cruza la frontera hacia el cliente captura excepciones y devuelve un resultado tipado, con mensaje seguro para el usuario.
+- Usar `catch (error: unknown)`.
+- La UI decide entre estados empty, error y retry; el caso de uso no oculta el error.
+- Textos de error visibles usan claves de `infrastructure/i18n/translations.ts`.
 
 ## Validación
 
-1. `npm run test -- <archivo-de-test>` para verificar unitariamente la lógica nueva o modificada.
-2. `npm run test:e2e` para validar la paridad de flujos funcionales completos.
-3. `npm run lint` y `npm run build` para asegurar la integridad de tipos y compilación limpia del proyecto.
+- Testear mappers y casos de uso de manera aislada.
+- Ejecutar el gate que corresponda según `frontend-testing-gates`.
+- Cargar `frontend-domain-governance` solo si el cambio introduce invariantes de negocio.
+
+Leer [patrones de integración](references/integration-patterns.md) cuando se diseñen DTOs, mappers o resultados de Server Actions.

@@ -1,5 +1,5 @@
-# Usage: make help | make dev | make test | make test-e2e
-#        make test-e2e-file FILE=features/login.feature
+# Usage: make help | make dev | make test | make test-e2e-managed
+#        make test-e2e-file-managed FILE=features/login.feature NAME='scenario name'
 #        make docker-dev | make docker-dev-d | make docker-dev-down
 
 .DEFAULT_GOAL := help
@@ -14,11 +14,14 @@ endif
 PORT ?= 3000
 TEST_PORT ?= 3001
 APP_URL ?= http://localhost:$(TEST_PORT)
+E2E_MANAGED_APP_URL := http://localhost:$(TEST_PORT)
+E2E_SERVER_LOG ?= .next/e2e-server-$(TEST_PORT).log
+E2E_SCENARIO_REPORT ?= .next/cucumber-managed-report.json
 
 DOCKER_TEST_IMAGE     ?= loresuelvo-webapp-test
 DOCKER_TEST_CONTAINER ?= loresuelvo-webapp-test-container
 
-.PHONY: help install dev build start start-test lint test test-e2e test-e2e-port test-e2e-file test-e2e-file-port test-e2e-wip test-e2e-report test-all-once \
+.PHONY: help install dev build start start-test lint test test-e2e test-e2e-port test-e2e-file test-e2e-file-port test-e2e-managed test-e2e-file-managed test-e2e-wip-file-managed test-e2e-wip test-e2e-report test-all-once \
 	docker-dev docker-dev-d docker-dev-down docker-build docker-sh docker-lint docker-test \
 	docker-start-test docker-stop-test docker-test-e2e
 
@@ -37,6 +40,9 @@ help:
 	@echo "    make test                Unitarios con Vitest (npm run test)"
 	@echo "    make test-e2e            Gherkin + Playwright (contra $(APP_URL))"
 	@echo "    make test-e2e-file       Gherkin de un solo archivo (ej: make test-e2e-file FILE=features/login.feature)"
+	@echo "    make test-e2e-managed    Build + servidor en $(TEST_PORT) + suite E2E + cleanup (canónico para agentes locales)"
+	@echo "    make test-e2e-file-managed FILE=... NAME=...      Ejecutar un escenario terminado y exigir que exista"
+	@echo "    make test-e2e-wip-file-managed FILE=... NAME=...  Ejecutar un escenario @wip y exigir que exista"
 	@echo "    make test-e2e-wip        Gherkin con tag @wip"
 	@echo "    make test-e2e-report     Gherkin con reporte HTML en reports/"
 	@echo ""
@@ -98,6 +104,70 @@ test-e2e-file-port:
 		exit 1; \
 	fi
 	APP_URL=http://localhost:$(TEST_PORT) TS_NODE_PROJECT=tsconfig.cucumber.json npx cucumber-js $(FILE)
+
+test-e2e-managed:
+	@command -v fuser >/dev/null 2>&1 || { echo "Error: fuser es requerido para administrar el puerto $(TEST_PORT)."; exit 1; }
+	@if fuser $(TEST_PORT)/tcp >/dev/null 2>&1; then \
+		echo "Liberando puerto de test $(TEST_PORT)..."; \
+		fuser -k $(TEST_PORT)/tcp; \
+	fi
+	@attempts=0; \
+	while fuser $(TEST_PORT)/tcp >/dev/null 2>&1; do \
+		attempts=$$((attempts + 1)); \
+		if [ $$attempts -ge 50 ]; then \
+			echo "Error: el puerto $(TEST_PORT) continúa ocupado después de intentar liberarlo."; \
+			exit 1; \
+		fi; \
+		sleep 0.1; \
+	done
+	@$(MAKE) build
+	@set -eu; \
+		mkdir -p .next; \
+		: > "$(E2E_SERVER_LOG)"; \
+		PORT=$(TEST_PORT) ./node_modules/.bin/next start > "$(E2E_SERVER_LOG)" 2>&1 & \
+		server_pid=$$!; \
+		cleanup() { kill $$server_pid >/dev/null 2>&1 || true; wait $$server_pid >/dev/null 2>&1 || true; }; \
+		trap cleanup EXIT INT TERM; \
+		echo "Esperando servidor E2E en $(E2E_MANAGED_APP_URL)..."; \
+		if ! npx wait-on "$(E2E_MANAGED_APP_URL)" --timeout 60000; then \
+			echo "El servidor E2E no inició. Log:"; \
+			tail -n 100 "$(E2E_SERVER_LOG)"; \
+			exit 1; \
+		fi; \
+		set --; \
+		if [ -n "$(E2E_PROFILE)" ]; then set -- "$$@" --profile "$(E2E_PROFILE)"; fi; \
+		if [ -n "$(E2E_FILE)" ]; then set -- "$$@" "$(E2E_FILE)"; fi; \
+		if [ -n "$(E2E_NAME)" ]; then set -- "$$@" --name "$(E2E_NAME)"; fi; \
+		if [ "$(E2E_REQUIRE_SCENARIO)" = "1" ]; then \
+			rm -f "$(E2E_SCENARIO_REPORT)"; \
+			set -- "$$@" --format "json:$(E2E_SCENARIO_REPORT)"; \
+		fi; \
+		set +e; \
+		APP_URL="$(E2E_MANAGED_APP_URL)" npm run test:e2e -- "$$@"; \
+		e2e_status=$$?; \
+		set -e; \
+		if [ "$(E2E_REQUIRE_SCENARIO)" = "1" ]; then \
+			if [ ! -s "$(E2E_SCENARIO_REPORT)" ]; then \
+				echo "Error: Cucumber no generó el reporte del escenario solicitado."; \
+				exit 1; \
+			fi; \
+			node -e 'const fs=require("fs"); const report=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); const count=report.reduce((total, feature) => total + (feature.elements?.length ?? 0), 0); if (count === 0) { console.error("Error: Cucumber ejecutó cero escenarios para FILE/NAME."); process.exit(1); }' "$(E2E_SCENARIO_REPORT)"; \
+		fi; \
+		exit $$e2e_status
+
+test-e2e-file-managed:
+	@if [ -z "$(FILE)" ] || [ -z "$(NAME)" ]; then \
+		echo "Uso: make test-e2e-file-managed FILE=features/login.feature NAME='scenario name'"; \
+		exit 1; \
+	fi
+	@$(MAKE) test-e2e-managed E2E_FILE="$(FILE)" E2E_NAME="$(NAME)" E2E_REQUIRE_SCENARIO=1
+
+test-e2e-wip-file-managed:
+	@if [ -z "$(FILE)" ] || [ -z "$(NAME)" ]; then \
+		echo "Uso: make test-e2e-wip-file-managed FILE=features/login.feature NAME='scenario name'"; \
+		exit 1; \
+	fi
+	@$(MAKE) test-e2e-managed E2E_PROFILE=wip E2E_FILE="$(FILE)" E2E_NAME="$(NAME)" E2E_REQUIRE_SCENARIO=1
 
 test-e2e-wip:
 	APP_URL=$(APP_URL) npm run test:e2e:wip

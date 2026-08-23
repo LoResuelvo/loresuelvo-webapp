@@ -9,7 +9,6 @@ Feature: [WEB] US-14 - Ver información de perfil de un prestador
     Background:
       Given que soy un consumidor autenticado
 
-    @wip
     Scenario: 14.1-VPP Consultar el perfil público de un prestador
       Given que estoy viendo los resultados de prestadores de "Plomería"
       And el resultado incluye al prestador "Juan Gómez"

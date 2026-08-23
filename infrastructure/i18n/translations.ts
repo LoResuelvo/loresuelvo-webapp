@@ -236,6 +236,9 @@ export const t = {
       categoryLabel: "Rubro",
       photoAlt: "Foto de perfil de",
       loading: "Cargando perfil del prestador...",
+      notFoundTitle: "Perfil no encontrado",
+      notFoundDescription: "El prestador solicitado no existe o no está disponible.",
+      backToSearch: "Volver a la búsqueda",
     },
     providerCard: {
       reviews: "reseñas",

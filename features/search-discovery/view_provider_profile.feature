@@ -30,7 +30,6 @@ Feature: [WEB] US-14 - Ver información de perfil de un prestador
       When ingreso al perfil de "Juan Gómez"
       Then visualizo que el perfil se está cargando
 
-    @wip
     Scenario: 14.4-VPP Informar que el prestador no existe
       Given que no existe el prestador solicitado
       When ingreso al perfil del prestador inexistente

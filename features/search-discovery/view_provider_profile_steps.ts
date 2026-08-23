@@ -144,4 +144,38 @@ Then(
   },
 );
 
+Given(
+  "que no existe el prestador solicitado",
+  async function (this: CustomWorld) {
+    await this.stubGet("/providers/9999", { error: "Provider not found" }, 404);
+  },
+);
+
+When(
+  "ingreso al perfil del prestador inexistente",
+  async function (this: CustomWorld) {
+    await this.page.goto(`${APP_URL}${ROUTES.consumer.providerProfile(9999)}`);
+    await this.page.waitForLoadState("domcontentloaded");
+  },
+);
+
+Then(
+  "visualizo que el perfil no fue encontrado",
+  async function (this: CustomWorld) {
+    const heading = this.page.getByRole("heading", { name: /perfil no encontrado/i });
+    await heading.waitFor({ state: "visible" });
+    assert.ok(await heading.isVisible());
+  },
+);
+
+Then(
+  "puedo volver a la búsqueda de prestadores",
+  async function (this: CustomWorld) {
+    const link = this.page.getByRole("link", { name: /volver a la búsqueda/i });
+    await link.waitFor({ state: "visible" });
+    assert.ok(await link.isVisible());
+  },
+);
+
+
 

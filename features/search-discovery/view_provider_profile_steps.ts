@@ -80,7 +80,7 @@ Then(
 Then(
   "visualizo el rubro {string}",
   async function (this: CustomWorld, categoryName: string) {
-    const category = this.page.getByText(categoryName, { exact: true });
+    const category = this.page.getByText(new RegExp(categoryName, "i"));
     await category.waitFor({ state: "visible" });
     assert.ok(await category.isVisible());
   },

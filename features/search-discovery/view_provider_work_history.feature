@@ -39,7 +39,6 @@ Feature: [WEB] US-16 - Consultar reputación e historial público de un prestado
 
   Rule: El historial conserva el orden recibido desde la API.
 
-    @wip
     Scenario: 16.5-VPWH Conservar el orden del historial público
       Given que el perfil público de "Juan Gómez" incluye los trabajos pagados "Reparación de cañería" y "Cambio de grifería" en ese orden
       When ingreso al perfil de "Juan Gómez"

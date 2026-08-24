@@ -199,7 +199,9 @@ Given(
 Then(
   "visualizo {string} antes que {string}",
   async function (this: CustomWorld, firstDescription: string, secondDescription: string) {
-    const headings = await this.page.getByRole("heading", { level: 3 }).allTextContents();
+    const headings = await this.page
+      .locator("section[aria-labelledby='provider-work-history-title'] article h3")
+      .allTextContents();
     assert.ok(headings.indexOf(firstDescription) >= 0);
     assert.ok(headings.indexOf(secondDescription) >= 0);
     assert.ok(headings.indexOf(firstDescription) < headings.indexOf(secondDescription));

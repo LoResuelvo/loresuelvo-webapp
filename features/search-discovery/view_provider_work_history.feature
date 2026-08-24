@@ -9,7 +9,6 @@ Feature: [WEB] US-16 - Consultar reputación e historial público de un prestado
 
   Rule: La reputación pública se expresa mediante el promedio y la cantidad de reseñas.
 
-    @wip
     Scenario: 16.1-VPWH Consultar la reputación pública de un prestador
       Given que el perfil público de "Juan Gómez" está disponible con promedio de 4.8 y 12 reseñas
       When ingreso al perfil de "Juan Gómez"

@@ -40,7 +40,9 @@ Then(
 Then(
   "visualizo las estrellas de la calificación de forma decorativa",
   async function (this: CustomWorld) {
-    const stars = this.page.locator("section[aria-labelledby='provider-rating-title'] [aria-hidden='true']");
+    const stars = this.page
+      .locator("section[aria-labelledby='provider-rating-title'] [aria-hidden='true']")
+      .first();
     await stars.waitFor({ state: "visible" });
     assert.strictEqual(await stars.getAttribute("aria-hidden"), "true");
   },

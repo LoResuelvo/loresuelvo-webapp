@@ -169,3 +169,39 @@ Then(
     assert.ok(await emptyHistory.isVisible());
   },
 );
+
+Given(
+  "que el perfil público de {string} incluye los trabajos pagados {string} y {string} en ese orden",
+  async function (this: CustomWorld, providerName: string, firstDescription: string, secondDescription: string) {
+    const [name, ...surnameParts] = providerName.trim().split(/\s+/);
+    const workOrder = (id: number, description: string) => ({
+      id,
+      scheduled_on: `2026-08-${19 + id}T10:00:00Z`,
+      description,
+      status: "paid" as const,
+      completion_report: {
+        description: "Trabajo finalizado correctamente.",
+        reported_on: `2026-08-${19 + id}T12:00:00Z`,
+      },
+    });
+
+    await this.stubGet(
+      "/providers/1",
+      aProviderProfile({
+        name,
+        surname: surnameParts.join(" "),
+        work_orders: [workOrder(1, firstDescription), workOrder(2, secondDescription)],
+      }),
+    );
+  },
+);
+
+Then(
+  "visualizo {string} antes que {string}",
+  async function (this: CustomWorld, firstDescription: string, secondDescription: string) {
+    const headings = await this.page.getByRole("heading", { level: 3 }).allTextContents();
+    assert.ok(headings.indexOf(firstDescription) >= 0);
+    assert.ok(headings.indexOf(secondDescription) >= 0);
+    assert.ok(headings.indexOf(firstDescription) < headings.indexOf(secondDescription));
+  },
+);

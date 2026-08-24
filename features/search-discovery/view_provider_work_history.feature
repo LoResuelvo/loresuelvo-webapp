@@ -46,7 +46,6 @@ Feature: [WEB] US-16 - Consultar reputación e historial público de un prestado
 
   Rule: El historial público nunca expone datos privados del trabajo.
 
-    @wip
     Scenario: 16.6-VPWH Ocultar datos privados del historial público
       Given que el perfil público de "Juan Gómez" incluye un trabajo pagado con datos privados
       When ingreso al perfil de "Juan Gómez"

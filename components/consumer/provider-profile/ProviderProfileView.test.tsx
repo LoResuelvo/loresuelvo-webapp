@@ -164,4 +164,45 @@ describe("ProviderProfileView", () => {
     expect(screen.getByRole("heading", { name: /historial de trabajos/i })).toBeInTheDocument();
     expect(screen.getByText("Este prestador todavía no tiene historial público.", { exact: true })).toBeInTheDocument();
   });
+
+  it("preserves the work order received from the public profile", () => {
+    render(
+      <ProviderProfileView
+        session={null}
+        provider={
+          {
+            id: 7,
+            name: "Juan",
+            surname: "Gómez",
+            categoryName: "Plomería",
+            rating: 4.8,
+            reviews: 12,
+            workOrders: [
+              {
+                id: 10,
+                scheduledOn: { isoString: "2026-08-20T10:00:00Z" },
+                description: "Reparación de cañería",
+                completionReport: {
+                  description: "Trabajo finalizado.",
+                  reportedOn: { isoString: "2026-08-20T12:00:00Z" },
+                },
+              },
+              {
+                id: 11,
+                scheduledOn: { isoString: "2026-08-21T10:00:00Z" },
+                description: "Cambio de grifería",
+                completionReport: {
+                  description: "Trabajo finalizado.",
+                  reportedOn: { isoString: "2026-08-21T12:00:00Z" },
+                },
+              },
+            ],
+          } as never
+        }
+      />,
+    );
+
+    const headings = screen.getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent);
+    expect(headings).toEqual(["Reparación de cañería", "Cambio de grifería"]);
+  });
 });

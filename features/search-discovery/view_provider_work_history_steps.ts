@@ -142,3 +142,30 @@ Then(
     assert.ok(await emptyReview.isVisible());
   },
 );
+
+Given(
+  "que el perfil público de {string} no tiene trabajos pagados",
+  async function (this: CustomWorld, providerName: string) {
+    const [name, ...surnameParts] = providerName.trim().split(/\s+/);
+    await this.stubGet(
+      "/providers/1",
+      aProviderProfile({
+        name,
+        surname: surnameParts.join(" "),
+        work_orders: [],
+      }),
+    );
+  },
+);
+
+Then(
+  "visualizo que todavía no tiene historial público",
+  async function (this: CustomWorld) {
+    const emptyHistory = this.page.getByText(
+      "Este prestador todavía no tiene historial público.",
+      { exact: true },
+    );
+    await emptyHistory.waitFor({ state: "visible" });
+    assert.ok(await emptyHistory.isVisible());
+  },
+);

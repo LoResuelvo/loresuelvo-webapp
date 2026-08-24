@@ -114,4 +114,35 @@ describe("ProviderProfileView", () => {
     expect(screen.getByRole("heading", { name: /reseña del consumidor/i })).toBeInTheDocument();
     expect(screen.getByText(/calificación: 5\.0/i)).toBeInTheDocument();
   });
+
+  it("renders an explicit empty state when a work has no review", () => {
+    render(
+      <ProviderProfileView
+        session={null}
+        provider={
+          {
+            id: 7,
+            name: "Juan",
+            surname: "Gómez",
+            categoryName: "Plomería",
+            rating: 4.8,
+            reviews: 12,
+            workOrders: [
+              {
+                id: 10,
+                scheduledOn: { isoString: "2026-08-20T10:00:00Z" },
+                description: "Reparación de cañería en cocina",
+                completionReport: {
+                  description: "Trabajo finalizado correctamente y verificado.",
+                  reportedOn: { isoString: "2026-08-20T12:00:00Z" },
+                },
+              },
+            ],
+          } as never
+        }
+      />,
+    );
+
+    expect(screen.getByText("Este trabajo todavía no tiene reseña.", { exact: true })).toBeInTheDocument();
+  });
 });

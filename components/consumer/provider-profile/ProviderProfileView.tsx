@@ -68,7 +68,11 @@ function WorkOrderArticle({ workOrder }: { workOrder: PublicWorkOrderView }) {
                 {workOrder.review.description}
               </p>
             </div>
-          ) : null}
+          ) : (
+            <p className="mt-2 break-words text-body text-slate-600">
+              {t.consumerSearch.profile.reviewEmpty}
+            </p>
+          )}
         </section>
       </article>
     </li>

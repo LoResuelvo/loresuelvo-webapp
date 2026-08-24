@@ -242,6 +242,7 @@ export const t = {
       reportedOnLabel: "Reportado el",
       reviewLabel: "Reseña del consumidor",
       reviewRatingLabel: "Calificación",
+      reviewEmpty: "Este trabajo todavía no tiene reseña.",
       loading: "Cargando perfil del prestador...",
       notFoundTitle: "Perfil no encontrado",
       notFoundDescription: "El prestador solicitado no existe o no está disponible.",

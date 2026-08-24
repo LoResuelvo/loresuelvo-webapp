@@ -107,3 +107,38 @@ Then(
     assert.ok(await rating.isVisible());
   },
 );
+
+Given(
+  "que el perfil público de {string} incluye un trabajo pagado sin reseña",
+  async function (this: CustomWorld, providerName: string) {
+    const [name, ...surnameParts] = providerName.trim().split(/\s+/);
+    await this.stubGet(
+      "/providers/1",
+      aProviderProfile({
+        name,
+        surname: surnameParts.join(" "),
+        work_orders: [
+          {
+            id: 10,
+            scheduled_on: "2026-08-20T10:00:00Z",
+            description: "Reparación de cañería en cocina",
+            status: "paid",
+            completion_report: {
+              description: "Trabajo finalizado correctamente y verificado.",
+              reported_on: "2026-08-20T12:00:00Z",
+            },
+          },
+        ],
+      }),
+    );
+  },
+);
+
+Then(
+  "visualizo que el trabajo todavía no tiene reseña",
+  async function (this: CustomWorld) {
+    const emptyReview = this.page.getByText("Este trabajo todavía no tiene reseña.", { exact: true });
+    await emptyReview.waitFor({ state: "visible" });
+    assert.ok(await emptyReview.isVisible());
+  },
+);

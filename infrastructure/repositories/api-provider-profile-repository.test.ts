@@ -28,6 +28,7 @@ describe("ApiProviderProfileRepository", () => {
       },
       rating_average: 4.8,
       rating_count: 12,
+      work_orders: [],
     });
 
     const result = await new ApiProviderProfileRepository().getById(7);
@@ -42,6 +43,7 @@ describe("ApiProviderProfileRepository", () => {
       profilePhotoUrl: "https://example.com/juan-gomez.jpg",
       rating: 4.8,
       reviews: 12,
+      workOrders: [],
     });
   });
 });

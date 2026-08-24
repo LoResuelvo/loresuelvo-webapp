@@ -18,6 +18,32 @@ describe("mapApiProviderProfileToProvider", () => {
       },
       rating_average: 4.8,
       rating_count: 12,
+      work_orders: [
+        {
+          id: 10,
+          scheduled_on: "2026-08-20T10:00:00Z",
+          description: "Reparación de cañería en cocina",
+          status: "paid",
+          completion_report: {
+            description: "Trabajo finalizado correctamente y verificado.",
+            reported_on: "2026-08-20T12:00:00Z",
+          },
+          review: {
+            rating: 5,
+            description: "Excelente servicio.",
+          },
+        },
+        {
+          id: 11,
+          scheduled_on: "2026-08-21T10:00:00Z",
+          description: "Trabajo no pagado",
+          status: "scheduled",
+          completion_report: {
+            description: "Sin reporte",
+            reported_on: "2026-08-21T12:00:00Z",
+          },
+        },
+      ],
     };
 
     expect(mapApiProviderProfileToProvider(apiProfile)).toEqual({
@@ -29,6 +55,21 @@ describe("mapApiProviderProfileToProvider", () => {
       profilePhotoUrl: "https://example.com/juan-gomez.jpg",
       rating: 4.8,
       reviews: 12,
+      workOrders: [
+        {
+          id: 10,
+          scheduledOn: { isoString: "2026-08-20T10:00:00Z" },
+          description: "Reparación de cañería en cocina",
+          completionReport: {
+            description: "Trabajo finalizado correctamente y verificado.",
+            reportedOn: { isoString: "2026-08-20T12:00:00Z" },
+          },
+          review: {
+            rating: 5,
+            description: "Excelente servicio.",
+          },
+        },
+      ],
     });
   });
 });

@@ -1,5 +1,5 @@
-import { Provider } from "@/domain/provider/types";
+import { ProviderProfile } from "@/domain/provider/types";
 
 export interface ProviderProfileRepository {
-  getById(providerId: number): Promise<Provider>;
+  getById(providerId: number): Promise<ProviderProfile>;
 }

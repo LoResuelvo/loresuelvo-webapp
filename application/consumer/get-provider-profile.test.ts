@@ -1,15 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Provider } from "@/domain/provider/types";
+import type { ProviderProfile } from "@/domain/provider/types";
 import type { ProviderProfileRepository } from "@/ports/provider-profile-repository";
 import { getProviderProfile } from "./get-provider-profile";
 
-const provider: Provider = {
+const provider: ProviderProfile = {
   id: 7,
   name: "Juan",
   surname: "Gómez",
   categoryName: "Plomería",
   categoryId: 1,
   profilePhotoUrl: "https://example.com/juan-gomez.jpg",
+  rating: 4.8,
+  reviews: 12,
+  workOrders: [],
 };
 
 describe("getProviderProfile", () => {

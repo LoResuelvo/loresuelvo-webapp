@@ -1,4 +1,5 @@
 import { MessageImage } from "../messaging/types";
+import type { ScheduledDateTime } from "../shared/ScheduledDateTime";
 
 export interface Provider {
   id: number;
@@ -11,6 +12,30 @@ export interface Provider {
   reviews?: number;
   jobs?: number;
   profilePhotoUrl?: string;
+}
+
+export interface ProviderProfileCompletionReport {
+  description: string;
+  reportedOn: ScheduledDateTime;
+}
+
+export interface ProviderProfileReview {
+  rating: number;
+  description: string;
+}
+
+export interface ProviderProfileWorkOrder {
+  id: number;
+  scheduledOn: ScheduledDateTime;
+  description: string;
+  completionReport: ProviderProfileCompletionReport;
+  review?: ProviderProfileReview;
+}
+
+export interface ProviderProfile extends Provider {
+  rating: number;
+  reviews: number;
+  workOrders: ProviderProfileWorkOrder[];
 }
 
 export interface ProviderWorkRequest {

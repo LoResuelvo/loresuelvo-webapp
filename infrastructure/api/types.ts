@@ -59,6 +59,26 @@ export interface ApiProviderProfile {
   };
   rating_average: number;
   rating_count: number;
+  work_orders: ApiProviderProfileWorkOrder[];
+}
+
+export interface ApiProviderProfileWorkOrder {
+  id: number;
+  scheduled_on: string;
+  description: string;
+  status: "scheduled" | "awaiting_payment" | "paid";
+  completion_report: ApiProviderProfileCompletionReport;
+  review?: ApiProviderProfileReview;
+}
+
+export interface ApiProviderProfileCompletionReport {
+  description: string;
+  reported_on: string;
+}
+
+export interface ApiProviderProfileReview {
+  rating: number;
+  description: string;
 }
 
 export interface ApiMessageImage {

@@ -27,7 +27,6 @@ Feature: [WEB] US-16 - Consultar reputación e historial público de un prestado
 
   Rule: Los trabajos sin reseña y los perfiles sin historial informan su estado de manera explícita.
 
-    @wip
     Scenario: 16.3-VPWH Informar un trabajo pagado sin reseña
       Given que el perfil público de "Juan Gómez" incluye un trabajo pagado sin reseña
       When ingreso al perfil de "Juan Gómez"

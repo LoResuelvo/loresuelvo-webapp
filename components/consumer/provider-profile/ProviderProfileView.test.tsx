@@ -51,5 +51,27 @@ describe("ProviderProfileView", () => {
     expect(screen.queryByText(/documento/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/dni/i)).not.toBeInTheDocument();
   });
-});
 
+  it("renders the public rating summary with decorative stars", () => {
+    render(
+      <ProviderProfileView
+        session={null}
+        provider={{
+          id: 7,
+          name: "Juan",
+          surname: "Gómez",
+          categoryName: "Plomería",
+          profilePhotoUrl: "https://example.com/juan.jpg",
+          rating: 4.8,
+          reviews: 12,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: /reputación/i })).toBeInTheDocument();
+    expect(screen.getByText("4.8", { exact: true })).toBeInTheDocument();
+    expect(screen.getByText("(12 reseñas)", { exact: true })).toBeInTheDocument();
+    const ratingSection = screen.getByRole("region", { name: /reputación/i });
+    expect(ratingSection.querySelector("[aria-hidden='true']")).not.toBeNull();
+  });
+});

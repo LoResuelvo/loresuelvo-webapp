@@ -3,6 +3,7 @@ import type { Provider } from "@/domain/provider/types";
 import type { AuthSession } from "@/infrastructure/auth/types";
 import { t } from "@/infrastructure/i18n/translations";
 import { Avatar } from "@/components/ui/avatar";
+import { RatingStars } from "@/components/ui/rating-stars";
 import Sidebar from "@/components/consumer/Sidebar";
 import ConsumerHeader from "@/components/consumer/home/ConsumerHeader";
 import Link from "next/link";
@@ -15,6 +16,8 @@ interface ProviderProfileViewProps {
 
 export default function ProviderProfileView({ provider, session }: ProviderProfileViewProps) {
   const displayName = ProviderModule.getDisplayName(provider);
+  const rating = typeof provider.rating === "number" ? provider.rating : 0;
+  const reviews = typeof provider.reviews === "number" ? provider.reviews : 0;
 
   return (
     <div className="min-h-screen bg-brand-neutral/30 flex font-sans text-brand-primary">
@@ -60,6 +63,24 @@ export default function ProviderProfileView({ provider, session }: ProviderProfi
                     {provider.categoryName}
                   </p>
                 </div>
+              </div>
+            </section>
+
+            <section
+              aria-labelledby="provider-rating-title"
+              className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
+            >
+              <h2 id="provider-rating-title" className="text-subtitle font-bold text-brand-primary">
+                {t.consumerSearch.profile.ratingLabel}
+              </h2>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <RatingStars rating={rating} />
+                <span className="text-title font-bold text-brand-primary">
+                  {rating.toFixed(1)}
+                </span>
+                <span className="text-body text-slate-600">
+                  ({reviews} {t.consumerSearch.profile.reviewsLabel})
+                </span>
               </div>
             </section>
           </div>

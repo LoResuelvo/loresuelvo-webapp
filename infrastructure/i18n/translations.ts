@@ -235,6 +235,8 @@ export const t = {
       title: "Perfil del prestador",
       categoryLabel: "Rubro",
       photoAlt: "Foto de perfil de",
+      ratingLabel: "Reputación",
+      reviewsLabel: "reseñas",
       loading: "Cargando perfil del prestador...",
       notFoundTitle: "Perfil no encontrado",
       notFoundDescription: "El prestador solicitado no existe o no está disponible.",
@@ -491,4 +493,3 @@ export const t = {
     },
   },
 };
-

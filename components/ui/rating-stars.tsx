@@ -7,7 +7,7 @@ interface RatingStarsProps {
 
 export function RatingStars({ rating, maxStars = 5 }: RatingStarsProps) {
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-0.5" aria-hidden="true">
       {[...Array(maxStars)].map((_, i) => (
         <Star
           key={i}

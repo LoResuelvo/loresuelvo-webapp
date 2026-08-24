@@ -52,6 +52,47 @@ describe("ProviderProfileView", () => {
     expect(screen.queryByText(/dni/i)).not.toBeInTheDocument();
   });
 
+  it("does not render private work-order payload fields", () => {
+    render(
+      <ProviderProfileView
+        session={null}
+        provider={
+          {
+            id: 7,
+            name: "Juan",
+            surname: "Gómez",
+            categoryName: "Plomería",
+            profilePhotoUrl: "https://example.com/juan.jpg",
+            rating: 4.8,
+            reviews: 12,
+            workOrders: [
+              {
+                id: 10,
+                scheduledOn: { isoString: "2026-08-20T10:00:00Z" },
+                description: "Reparación de cañería en cocina",
+                completionReport: {
+                  description: "Trabajo finalizado correctamente y verificado.",
+                  reportedOn: { isoString: "2026-08-20T12:00:00Z" },
+                  images: [{ fileId: "private-evidence-1", url: "private-evidence.jpg" }],
+                },
+                consumer: { name: "María López", email: "maria.lopez@example.com" },
+                amountCents: 150000,
+              },
+            ],
+          } as never
+        }
+      />,
+    );
+
+    const history = screen.getByRole("region", { name: /historial de trabajos/i });
+    expect(history).toHaveTextContent("Reparación de cañería en cocina");
+    expect(history).not.toHaveTextContent("María López");
+    expect(history).not.toHaveTextContent("maria.lopez@example.com");
+    expect(history).not.toHaveTextContent("150000");
+    expect(history).not.toHaveTextContent("private-evidence.jpg");
+    expect(history.querySelector("img")).toBeNull();
+  });
+
   it("renders the public rating summary with decorative stars", () => {
     render(
       <ProviderProfileView

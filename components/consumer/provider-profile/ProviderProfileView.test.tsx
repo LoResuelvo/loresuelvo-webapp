@@ -74,4 +74,44 @@ describe("ProviderProfileView", () => {
     const ratingSection = screen.getByRole("region", { name: /reputación/i });
     expect(ratingSection.querySelector("[aria-hidden='true']")).not.toBeNull();
   });
+
+  it("renders a paid work with its completion report and review", () => {
+    render(
+      <ProviderProfileView
+        session={null}
+        provider={
+          {
+            id: 7,
+            name: "Juan",
+            surname: "Gómez",
+            categoryName: "Plomería",
+            profilePhotoUrl: "https://example.com/juan.jpg",
+            rating: 4.8,
+            reviews: 12,
+            workOrders: [
+              {
+                id: 10,
+                scheduledOn: { isoString: "2026-08-20T10:00:00Z" },
+                description: "Reparación de cañería en cocina",
+                completionReport: {
+                  description: "Trabajo finalizado correctamente y verificado.",
+                  reportedOn: { isoString: "2026-08-20T12:00:00Z" },
+                },
+                review: {
+                  rating: 5,
+                  description: "Excelente servicio, muy puntual y prolijo.",
+                },
+              },
+            ],
+          } as never
+        }
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: /historial de trabajos/i })).toBeInTheDocument();
+    expect(screen.getByRole("article")).toHaveTextContent("Reparación de cañería en cocina");
+    expect(screen.getByRole("heading", { name: /reporte de finalización/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /reseña del consumidor/i })).toBeInTheDocument();
+    expect(screen.getByText(/calificación: 5\.0/i)).toBeInTheDocument();
+  });
 });

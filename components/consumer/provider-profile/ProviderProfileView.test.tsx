@@ -145,4 +145,23 @@ describe("ProviderProfileView", () => {
 
     expect(screen.getByText("Este trabajo todavía no tiene reseña.", { exact: true })).toBeInTheDocument();
   });
+
+  it("renders an explicit empty state when the provider has no public work history", () => {
+    render(
+      <ProviderProfileView
+        session={null}
+        provider={{
+          id: 7,
+          name: "Juan",
+          surname: "Gómez",
+          categoryName: "Plomería",
+          rating: 0,
+          reviews: 0,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: /historial de trabajos/i })).toBeInTheDocument();
+    expect(screen.getByText("Este prestador todavía no tiene historial público.", { exact: true })).toBeInTheDocument();
+  });
 });

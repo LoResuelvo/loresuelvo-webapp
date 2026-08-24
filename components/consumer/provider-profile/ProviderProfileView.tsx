@@ -157,11 +157,17 @@ export default function ProviderProfileView({ provider, session }: ProviderProfi
               <h2 id="provider-work-history-title" className="text-subtitle font-bold text-brand-primary">
                 {t.consumerSearch.profile.historyTitle}
               </h2>
-              <ul className="mt-5 grid min-w-0 gap-4" role="list">
-                {workOrders.map((workOrder) => (
-                  <WorkOrderArticle key={workOrder.id} workOrder={workOrder} />
-                ))}
-              </ul>
+              {workOrders.length > 0 ? (
+                <ul className="mt-5 grid min-w-0 gap-4" role="list">
+                  {workOrders.map((workOrder) => (
+                    <WorkOrderArticle key={workOrder.id} workOrder={workOrder} />
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-4 break-words text-body text-slate-600">
+                  {t.consumerSearch.profile.historyEmpty}
+                </p>
+              )}
             </section>
           </div>
         </main>

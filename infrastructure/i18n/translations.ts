@@ -238,6 +238,7 @@ export const t = {
       ratingLabel: "Reputación",
       reviewsLabel: "reseñas",
       historyTitle: "Historial de trabajos",
+      historyEmpty: "Este prestador todavía no tiene historial público.",
       completionReportLabel: "Reporte de finalización",
       reportedOnLabel: "Reportado el",
       reviewLabel: "Reseña del consumidor",

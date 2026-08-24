@@ -31,6 +31,14 @@ export default function ProviderProfileSkeleton() {
               </div>
               <span className="sr-only">{t.consumerSearch.profile.loading}</span>
             </section>
+            <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 animate-pulse">
+              <div className="h-5 w-32 rounded bg-slate-200" />
+              <div className="mt-5 h-8 w-48 rounded bg-slate-200" />
+            </section>
+            <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 animate-pulse">
+              <div className="h-5 w-48 rounded bg-slate-200" />
+              <div className="mt-5 h-20 rounded-xl bg-slate-200" />
+            </section>
           </div>
         </main>
       </div>

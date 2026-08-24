@@ -18,7 +18,6 @@ Feature: [WEB] US-16 - Consultar reputación e historial público de un prestado
 
   Rule: Cada trabajo pagado muestra solamente su información pública, su reporte de finalización y, si existe, su reseña.
 
-    @wip
     Scenario: 16.2-VPWH Consultar un trabajo pagado del historial público
       Given que el perfil público de "Juan Gómez" incluye el trabajo pagado "Reparación de cañería en cocina" con reporte y reseña
       When ingreso al perfil de "Juan Gómez"

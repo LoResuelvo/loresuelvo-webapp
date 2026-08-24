@@ -196,6 +196,38 @@ Given(
   },
 );
 
+Given(
+  "que el perfil público de {string} incluye un trabajo pagado con datos privados",
+  async function (this: CustomWorld, providerName: string) {
+    const [name, ...surnameParts] = providerName.trim().split(/\s+/);
+    await this.stubGet(
+      "/providers/1",
+      aProviderProfile({
+        name,
+        surname: surnameParts.join(" "),
+        work_orders: [
+          {
+            id: 12,
+            scheduled_on: "2026-08-22T10:00:00Z",
+            description: "Instalación de válvula de paso",
+            status: "paid",
+            completion_report: {
+              description: "Trabajo finalizado correctamente.",
+              reported_on: "2026-08-22T12:00:00Z",
+              images: [{ file_id: "private-evidence-1", url: "private-evidence.jpg" }],
+            },
+            consumer: {
+              name: "María López",
+              email: "maria.lopez@example.com",
+            },
+            amount_cents: 150000,
+          },
+        ],
+      }),
+    );
+  },
+);
+
 Then(
   "visualizo {string} antes que {string}",
   async function (this: CustomWorld, firstDescription: string, secondDescription: string) {
@@ -205,5 +237,15 @@ Then(
     assert.ok(headings.indexOf(firstDescription) >= 0);
     assert.ok(headings.indexOf(secondDescription) >= 0);
     assert.ok(headings.indexOf(firstDescription) < headings.indexOf(secondDescription));
+  },
+);
+
+Then(
+  "no visualizo datos del consumidor, importes ni evidencias privadas del trabajo",
+  async function (this: CustomWorld) {
+    const history = this.page.locator("section[aria-labelledby='provider-work-history-title']");
+    await history.waitFor({ state: "visible" });
+    const historyText = await history.innerText();
+    assert.doesNotMatch(historyText, /María López|maria\.lopez@example\.com|150000|private-evidence/i);
   },
 );

@@ -57,6 +57,8 @@ export interface ApiProviderProfile {
     id: number;
     name: string;
   };
+  rating_average: number;
+  rating_count: number;
 }
 
 export interface ApiMessageImage {

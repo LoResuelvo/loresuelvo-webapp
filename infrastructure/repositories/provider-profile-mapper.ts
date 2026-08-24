@@ -9,5 +9,7 @@ export function mapApiProviderProfileToProvider(apiProfile: ApiProviderProfile):
     categoryName: apiProfile.category.name,
     categoryId: apiProfile.category.id,
     profilePhotoUrl: apiProfile.profile_photo.url,
+    rating: apiProfile.rating_average,
+    reviews: apiProfile.rating_count,
   };
 }

@@ -16,6 +16,8 @@ describe("mapApiProviderProfileToProvider", () => {
         id: 1,
         name: "Plomería",
       },
+      rating_average: 4.8,
+      rating_count: 12,
     };
 
     expect(mapApiProviderProfileToProvider(apiProfile)).toEqual({
@@ -25,6 +27,8 @@ describe("mapApiProviderProfileToProvider", () => {
       categoryName: "Plomería",
       categoryId: 1,
       profilePhotoUrl: "https://example.com/juan-gomez.jpg",
+      rating: 4.8,
+      reviews: 12,
     });
   });
 });

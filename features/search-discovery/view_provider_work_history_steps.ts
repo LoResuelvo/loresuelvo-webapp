@@ -47,3 +47,63 @@ Then(
     assert.strictEqual(await stars.getAttribute("aria-hidden"), "true");
   },
 );
+
+Given(
+  "que el perfil público de {string} incluye el trabajo pagado {string} con reporte y reseña",
+  async function (this: CustomWorld, providerName: string, workDescription: string) {
+    const [name, ...surnameParts] = providerName.trim().split(/\s+/);
+    await this.stubGet(
+      "/providers/1",
+      aProviderProfile({
+        name,
+        surname: surnameParts.join(" "),
+        work_orders: [
+          {
+            id: 10,
+            scheduled_on: "2026-08-20T10:00:00Z",
+            description: workDescription,
+            status: "paid",
+            completion_report: {
+              description: "Trabajo finalizado correctamente y verificado.",
+              reported_on: "2026-08-20T12:00:00Z",
+            },
+            review: {
+              rating: 5,
+              description: "Excelente servicio, muy puntual y prolijo.",
+            },
+          },
+        ],
+      }),
+    );
+  },
+);
+
+Then(
+  "visualizo el trabajo {string}",
+  async function (this: CustomWorld, workDescription: string) {
+    const work = this.page.getByText(workDescription, { exact: true });
+    await work.waitFor({ state: "visible" });
+    assert.ok(await work.isVisible());
+  },
+);
+
+Then(
+  "visualizo su reporte de finalización",
+  async function (this: CustomWorld) {
+    const report = this.page.getByRole("heading", { name: /reporte de finalización/i });
+    await report.waitFor({ state: "visible" });
+    assert.ok(await report.isVisible());
+  },
+);
+
+Then(
+  "visualizo su reseña y calificación",
+  async function (this: CustomWorld) {
+    const review = this.page.getByRole("heading", { name: /reseña del consumidor/i });
+    await review.waitFor({ state: "visible" });
+    assert.ok(await review.isVisible());
+    const rating = this.page.getByText(/calificación: 5\.0/i);
+    await rating.waitFor({ state: "visible" });
+    assert.ok(await rating.isVisible());
+  },
+);

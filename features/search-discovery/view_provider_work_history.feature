@@ -32,7 +32,6 @@ Feature: [WEB] US-16 - Consultar reputación e historial público de un prestado
       When ingreso al perfil de "Juan Gómez"
       Then visualizo que el trabajo todavía no tiene reseña
 
-    @wip
     Scenario: 16.4-VPWH Informar que el prestador no tiene historial público
       Given que el perfil público de "Juan Gómez" no tiene trabajos pagados
       When ingreso al perfil de "Juan Gómez"

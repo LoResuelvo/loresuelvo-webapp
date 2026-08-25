@@ -165,6 +165,14 @@ export const t = {
       durationTooLong: "El audio no puede superar los 300 segundos.",
       durationAccepted: "Duración de audio aceptada.",
     },
+    audioUpload: {
+      errors: {
+        presign: "No se pudo preparar el audio para enviarlo.",
+        PUT: "No se pudo subir el audio.",
+        confirm: "No se pudo confirmar el audio.",
+        send: "No se pudo enviar el audio.",
+      },
+    },
     audioRecorder: {
       stopLabel: "Detener grabación",
       recordingLabel: "Grabando audio",

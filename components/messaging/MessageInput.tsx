@@ -9,12 +9,13 @@ import { AttachmentMenu } from "@/components/messaging/AttachmentMenu";
 import { AudioPreview, formatAudioDuration } from "@/components/messaging/AudioPreview";
 import { useAudioRecorder, type AudioRecorderError } from "@/hooks/useAudioRecorder";
 import { validateAudioDuration, validateAudioFile } from "@/lib/audio-validation";
+import type { AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
 
 interface MessageInputProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
-  onSendAudio?: (file: File) => Promise<boolean> | boolean;
+  onSendAudio?: (file: File) => Promise<boolean | AudioUploadFailureStage> | boolean | AudioUploadFailureStage;
   disabled: boolean;
   attachedFiles?: File[];
   onAttachFiles?: (files: File[]) => void;
@@ -143,11 +144,18 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const handleSend = async () => {
       if (attachedAudio && onSendAudio) {
-        const sent = await onSendAudio(attachedAudio.file);
-        if (!sent) return;
-        setAttachedAudio(null);
-        setAudioDurationAccepted(false);
-        cancelRecording();
+        try {
+          const sent = await onSendAudio(attachedAudio.file);
+          if (sent !== true) {
+            if (sent) setError(t.messaging.audioUpload.errors[sent]);
+            return;
+          }
+          setAttachedAudio(null);
+          setAudioDurationAccepted(false);
+          cancelRecording();
+        } catch {
+          setError(t.messaging.audioUpload.errors.send);
+        }
         return;
       }
 

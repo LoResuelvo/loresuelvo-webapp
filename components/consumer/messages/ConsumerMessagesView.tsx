@@ -4,6 +4,7 @@ import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import ResizableContactsSidebar from "@/components/messaging/ResizableContactsSidebar";
 import { Message, JobRequestInfo, ConsumerConversationContact as ConversationContact, ServiceProposalSummary } from "@/domain/messaging/types";
 import { cn } from "@/lib/utils";
+import type { AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
 
 interface ConsumerMessagesViewProps {
   contacts: ConversationContact[];
@@ -17,7 +18,7 @@ interface ConsumerMessagesViewProps {
   messageInput: string;
   onMessageInputChange: (value: string) => void;
   onSendMessage: () => void;
-  onSendAudio?: (file: File) => Promise<boolean> | boolean;
+  onSendAudio?: (file: File) => Promise<boolean | AudioUploadFailureStage> | boolean | AudioUploadFailureStage;
   isSending: boolean;
   myUserId: string;
   jobRequest?: JobRequestInfo | null;

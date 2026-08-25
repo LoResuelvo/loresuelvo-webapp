@@ -9,7 +9,7 @@ import { Message, JobRequestInfo, ConsumerConversationContact as ConversationCon
 import { ClientConversationRepository, ClientFileRepository } from "@/infrastructure/repositories/client-repositories";
 import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/local-offline-queue-repository";
 import { sendMessageWithAttachments } from "@/application/messaging/send-message-with-attachments";
-import { sendAudioMessage as sendAudioMessageUseCase } from "@/application/messaging/send-audio-message";
+import { AudioUploadError, sendAudioMessage as sendAudioMessageUseCase, type AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
 import { transformApiMessageToDomain, formatToLocalShortDateTime } from "@/infrastructure/repositories/conversation-mapper";
 import type { MessageInputHandle } from "@/components/messaging/MessageInput";
 import { clearDraft, loadDraft, saveDraft, type DraftFileMeta } from "@/lib/message-drafts";
@@ -320,7 +320,7 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
     }
   };
 
-  const handleSendAudio = async (file: File): Promise<boolean> => {
+  const handleSendAudio = async (file: File): Promise<boolean | AudioUploadFailureStage> => {
     if (!selectedProviderId || isSending || isSendingRef.current) return false;
 
     const currentConversationId = activeConversationId || selectedContact?.id?.replace("conv-", "");
@@ -366,7 +366,7 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
       console.error("Error sending audio message:", error);
       setLocalMessages(prev => prev.filter(msg => msg.id !== tempId));
       URL.revokeObjectURL(optimisticUrl);
-      return false;
+      return error instanceof AudioUploadError ? error.stage : "send";
     } finally {
       setIsSending(false);
       isSendingRef.current = false;

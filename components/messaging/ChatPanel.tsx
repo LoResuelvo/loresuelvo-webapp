@@ -6,6 +6,7 @@ import MessageInput, { MessageInputHandle } from "./MessageInput";
 import { ConversationContact, Message, JobRequestInfo, ServiceProposalSummary } from "@/domain/messaging/types";
 import { t } from "@/infrastructure/i18n/translations";
 import ServiceProposalDetailModal from "./ServiceProposalDetailModal";
+import type { AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
 
 export const ChatPanel = forwardRef<MessageInputHandle, {
   selectedContact: ConversationContact | null;
@@ -16,7 +17,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   messageInput: string;
   onMessageInputChange: (value: string) => void;
   onSendMessage: () => void;
-  onSendAudio?: (file: File) => Promise<boolean> | boolean;
+  onSendAudio?: (file: File) => Promise<boolean | AudioUploadFailureStage> | boolean | AudioUploadFailureStage;
   isSending: boolean;
   onAccept?: () => void;
   myUserId: string;

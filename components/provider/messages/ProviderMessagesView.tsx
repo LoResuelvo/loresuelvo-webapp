@@ -5,6 +5,7 @@ import ResizableContactsSidebar from "@/components/messaging/ResizableContactsSi
 
 import { Message, ProviderConversationContact as ConversationContact, ServiceProposalSummary } from "@/domain/messaging/types";
 import { cn } from "@/lib/utils";
+import type { AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
 
 interface ProviderMessagesViewProps {
   contacts: ConversationContact[];
@@ -18,7 +19,7 @@ interface ProviderMessagesViewProps {
   messageInput: string;
   onMessageInputChange: (value: string) => void;
   onSendMessage: () => void;
-  onSendAudio?: (file: File) => Promise<boolean> | boolean;
+  onSendAudio?: (file: File) => Promise<boolean | AudioUploadFailureStage> | boolean | AudioUploadFailureStage;
   isSending: boolean;
   onAccept?: () => void;
   myUserId: string;

@@ -109,7 +109,6 @@ Feature: 50.1 Enviar audios por el chat web
         Then el sidebar sigue mostrando exactamente "🎤 Audio · 0:18"
         And el texto también estaba visible antes del evento WebSocket
 
-    @wip
     Scenario: 50.1.14-WEB Consumidor puede enviar un audio en una conversación pendiente
         Given que existe una conversación pendiente entre el consumidor "Ana Pérez" y el prestador "Juan Gómez"
         And que estoy autenticado como consumidor

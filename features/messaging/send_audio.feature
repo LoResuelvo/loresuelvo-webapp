@@ -26,7 +26,6 @@ Feature: 50.1 Enviar audios por el chat web
         Then el audio desaparece de la preview
         And no se crea ninguna burbuja de audio
 
-    @wip
     Scenario: 50.1.4-WEB Rechazar la grabación cuando el navegador no permite el micrófono
         Given que estoy en un chat activo como consumidor
         And que el navegador rechazó el permiso para usar el micrófono

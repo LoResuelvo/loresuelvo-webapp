@@ -127,6 +127,19 @@ Given("que el navegador permite usar el micrófono", async function (this: Custo
   assert.ok(supported, "El mock E2E no habilitó la grabación WebM/Opus");
 });
 
+Given("que el navegador rechazó el permiso para usar el micrófono", async function (this: CustomWorld) {
+  await this.page.evaluate(() => {
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: async () => {
+          throw new DOMException("Permission denied", "NotAllowedError");
+        },
+      },
+    });
+  });
+});
+
 When("grabo un audio WebM con codec Opus de 5 segundos", async function (this: CustomWorld) {
   await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
   await this.page.getByRole("menuitem", { name: "Grabar audio" }).click();
@@ -134,6 +147,11 @@ When("grabo un audio WebM con codec Opus de 5 segundos", async function (this: C
   await this.page.evaluate(() => {
     (window as Window & { __e2eStopRecording?: () => void }).__e2eStopRecording?.();
   });
+});
+
+When("intento grabar un audio", async function (this: CustomWorld) {
+  await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
+  await this.page.getByRole("menuitem", { name: "Grabar audio" }).click();
 });
 
 Then("veo la preview del audio grabado", async function (this: CustomWorld) {
@@ -145,4 +163,14 @@ Then("puedo reproducirlo antes de enviarlo", async function (this: CustomWorld) 
   const player = this.page.getByLabel(/Reproductor de audio/i);
   await player.waitFor(visibleTimeout);
   assert.strictEqual(await player.getAttribute("controls"), "");
+});
+
+Then("veo un mensaje indicando que no se puede acceder al micrófono", async function (this: CustomWorld) {
+  const error = this.page.getByText("No se puede acceder al micrófono", { exact: false });
+  await error.waitFor(visibleTimeout);
+  assert.ok(await error.isVisible());
+});
+
+Then("no se crea ninguna preview de audio", async function (this: CustomWorld) {
+  assert.strictEqual(await this.page.getByTestId("audio-preview").count(), 0);
 });

@@ -193,9 +193,10 @@ export function useConsumerMessages(session: AuthSession | null, contacts: Conve
       const incomingConvId = String(event.conversation_id);
       const currentConvId = effectiveConvIdRef.current;
 
-      const previewText = event.message.content.length > 40
-        ? event.message.content.slice(0, 40) + "…"
-        : event.message.content;
+      const eventContent = event.message.content ?? "";
+      const previewText = eventContent.length > 40
+        ? eventContent.slice(0, 40) + "…"
+        : eventContent;
 
       const sentAtFormatted = formatToLocalShortDateTime(event.message.created_on);
 

@@ -60,6 +60,46 @@ async function stubAudioChat(world: CustomWorld) {
   await world.stubPost("/ws-tickets", 201, aWsTicket());
 }
 
+async function stubPendingConsumerChat(world: CustomWorld) {
+  await world.setSession("consumer", {
+    id: "consumer-001",
+    email: "ana@example.com",
+    firstName: "Ana",
+    lastName: "Pérez",
+    isOnboarded: true,
+  });
+
+  await world.stubGet("/conversations", [
+    aConversation({
+      id: 1,
+      status: "pending",
+      counterpart: aCounterpart({
+        id: 1,
+        role: "provider",
+        name: "Juan",
+        surname: "Gómez",
+      }),
+    }),
+  ]);
+  await world.stubGet(
+    "/conversations/1",
+    aConversationDetail({
+      id: 1,
+      status: "pending",
+      counterpart: aCounterpart({
+        id: 1,
+        role: "provider",
+        name: "Juan",
+        surname: "Gómez",
+      }),
+      messages: [],
+    })
+  );
+  await world.stubGet("/job-requests", []);
+  await world.stubGet("/service-proposals", []);
+  await world.stubPost("/ws-tickets", 201, aWsTicket());
+}
+
 async function stubAudioSidebarChat(world: CustomWorld) {
   await world.setSession("consumer", {
     id: "consumer-001",
@@ -173,7 +213,12 @@ Given("que estoy en un chat activo como consumidor", async function (this: Custo
 });
 
 Given("que estoy autenticado como consumidor", async function (this: CustomWorld) {
-  await stubAudioChat(this);
+  const world = this as CustomWorld & { pendingConsumerChat?: boolean };
+  if (world.pendingConsumerChat) {
+    await stubPendingConsumerChat(this);
+  } else {
+    await stubAudioChat(this);
+  }
   await this.page.goto(
     APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
     { waitUntil: "domcontentloaded" }
@@ -216,6 +261,10 @@ Given("que estoy autenticado como consumidor", async function (this: CustomWorld
       },
     }
   );
+});
+
+Given("que existe una conversación pendiente entre el consumidor {string} y el prestador {string}", async function (this: CustomWorld, _consumerName: string, _providerName: string) {
+  (this as CustomWorld & { pendingConsumerChat?: boolean }).pendingConsumerChat = true;
 });
 
 Given("que estoy autenticado como prestador", async function (this: CustomWorld) {
@@ -693,6 +742,12 @@ Then("puedo reproducir el audio recibido", async function (this: CustomWorld) {
 });
 
 Then("veo la burbuja del audio en la conversación", async function (this: CustomWorld) {
+  const player = this.page.getByLabel(/Reproductor de audio/i).last();
+  await player.waitFor(visibleTimeout);
+  assert.ok(await player.isVisible());
+});
+
+Then("veo la burbuja del audio en la conversación pendiente", async function (this: CustomWorld) {
   const player = this.page.getByLabel(/Reproductor de audio/i).last();
   await player.waitFor(visibleTimeout);
   assert.ok(await player.isVisible());

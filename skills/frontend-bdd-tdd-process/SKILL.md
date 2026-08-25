@@ -10,6 +10,7 @@ Usar cuando la tarea cambia comportamiento observable, criterios de aceptación,
 ## Escenarios
 
 - Definir todos los escenarios de la US antes de implementar y obtener aprobación funcional.
+- Una vez aprobados, los escenarios son inmutables: no resumir, reescribir ni eliminar `Given`, `When` o `Then` sin escalación y aprobación funcional explícita.
 - Cada escenario tiene exactamente un `When`: una única acción principal del usuario.
 - Los `Given` preparan contexto; los `Then` verifican resultados observables, no detalles internos.
 - Cubrir happy path, loading, empty, error y edge/partial cuando sean estados aplicables al flujo.
@@ -24,7 +25,7 @@ Usar cuando la tarea cambia comportamiento observable, criterios de aceptación,
 4. Para cada pieza interna, escribir un test unitario o de componente pequeño en RED, centrado solamente en el nuevo comportamiento.
 5. Implementar lo mínimo para GREEN y refactorizar sin perderlo.
 6. Agregar infraestructura/aplicación y luego el wiring de integración cuando el escenario activo lo requiera.
-7. Ejecutar el escenario activo con `make test-e2e-wip-file-managed FILE=... NAME=...`. Eliminar `@wip` solo en GREEN y volver a ejecutarlo con `make test-e2e-file-managed FILE=... NAME=...`.
+7. Mantener `@wip` mientras el escenario no esté listo para entrar en la suite normal. Al completar su implementación, retirar `@wip` y ejecutar el gate de integración o cierre que corresponda según `frontend-testing-gates`. Usar `make test-e2e-wip-file-managed` solo para un RED inicial o una integración intermedia que deba permanecer aislada.
 
 ## Selección de pruebas
 
@@ -33,6 +34,19 @@ Usar cuando la tarea cambia comportamiento observable, criterios de aceptación,
 - Usar ambos cuando la feature tiene flujo observable y lógica interna no trivial.
 - Los títulos y descripciones de tests se escriben en inglés.
 - No repetir en una capa assertions ya cubiertas por otra salvo que formen parte del contrato observable de esa capa.
+
+## Pruebas de valor
+
+Cada prueba debe comprobar el contrato observable de su capa, no detalles de
+implementación incidentales. Dominio prueba invariantes y reglas puras; mappers
+prueban DTO válido a modelo público, validaciones y exclusión de campos no
+públicos; use cases prueban delegación y propagación de errores; componentes
+prueban estados visibles, accesibilidad e interacción.
+
+No agregar tests que sólo afiancen clases CSS, estructura interna, funciones
+privadas o estados de implementación si una refactorización válida podría
+cambiarlos sin alterar el comportamiento. Antes del cierre, comprobar que cada
+criterio aprobado tiene comportamiento verificable y la prueba adecuada.
 
 ## Steps y datos de prueba
 

@@ -41,21 +41,27 @@ Si cambia steps o soporte E2E, agregar:
 npx tsc --project tsconfig.cucumber.json --noEmit
 ```
 
-## Gate B — Integración del escenario activo
+## Gate B — Integración de bajo riesgo del escenario activo
 
-Mientras conserva `@wip`:
-
-```bash
-make test-e2e-wip-file-managed FILE=features/...feature NAME='<scenario>'
-```
-
-Solo después de GREEN retirar `@wip` y confirmar:
+Al cerrar un escenario de bajo riesgo listo para entrar a la suite normal,
+retirar `@wip` y ejecutar todos los escenarios normales de su feature:
 
 ```bash
-make test-e2e-file-managed FILE=features/...feature NAME='<scenario>'
+make test-e2e-managed E2E_FILE=features/...feature
 ```
 
-Ambos targets fallan si `FILE`/`NAME` seleccionan cero escenarios.
+- Esta ejecución prueba el comportamiento integrado, confirma que el escenario
+  ingresó a la suite normal y detecta regresiones en los escenarios ya cerrados
+  del mismo feature.
+- No repetirla con `@wip` si desde Gate 0 no se necesita una frontera
+  intermedia.
+- Usar `make test-e2e-wip-file-managed` durante la implementación solo cuando
+  se necesite validar una integración intermedia sin habilitar todavía el
+  escenario en la suite normal.
+
+Si el escenario modificó una frontera compartida o de alto riesgo, Gate D
+reemplaza Gate B: no ejecutar además el archivo completo porque la suite E2E
+integral ya lo cubre.
 
 ## Gate C — Cambio compartido o de riesgo alto
 
@@ -71,13 +77,23 @@ make test-e2e-managed
 
 El target gestionado incluye build, puerto 3001, servidor, readiness, suite E2E y cleanup. CI conserva stages separados para hacer visible qué gate remoto falla.
 
-## Gate D — Cierre de escenario o US
+## Gate D — Cierre de batch, US o escenario de alto riesgo
 
-Ejecutar el Gate C completo y verificar además:
+Ejecutar el Gate C completo al cerrar un batch o una US. También ejecutarlo al
+cerrar un escenario si modificó routing, navegación, layouts, componentes
+compartidos, API client, Server Actions u otra frontera de riesgo alto.
+
+Para un escenario de bajo riesgo, el cierre mínimo es Gate B en verde: retirar
+`@wip` y ejecutar los escenarios normales de su feature. El Gate D del batch
+cubre la regresión integral.
+
+Además verificar:
 
 - ningún `@wip` del alcance terminado;
 - commits coherentes, pusheados individualmente y registrados por SHA;
-- CI verde para los SHAs del escenario o US;
+- los SHAs relevantes no tienen CI roja; un `rerun_pending` autorizado puede
+  permanecer al cierre de batch o escenario, pero debe estar verde antes del
+  cierre de la US;
 - working tree sin artefactos accidentales.
 
 ## Fail-fast y reparación
@@ -115,18 +131,56 @@ Triage calls used: <0-1>/1
 State: ACTIVE | ESCALATE_ORCHESTRATOR | STOP_USER
 ```
 
-Usar salida minificada, rangos focalizados y `gh run view <run-id> --log-failed`. Ampliar el log únicamente si el diagnóstico lo requiere.
+Usar salida minificada, rangos focalizados y `gh run view <run-id> --log-failed`. Ampliar el log únicamente si el diagnóstico lo requiere. En ejecuciones verdes, conservar solo el resumen del comando; no adjuntar logs completos de build, E2E o CI.
 
 El ledger viaja con toda delegación o resumen relacionado con la falla. En `STOP_USER`, el orquestador informa firma, hipótesis, evidencia, alcance que sería necesario ampliar y alternativas; pedir ayuda no cambia por sí solo `AGENT_ORCHESTRATED` a `USER_GUIDED`.
 
 ## CI remoto
 
 - Monitorear cada push por SHA, con ventana inicial máxima recomendada de 3 commits pendientes.
-- Antes de superar la ventana, esperar el run más antiguo.
-- Ante CI fallido, detener nuevos pushes y consultar únicamente los logs del stage fallido.
+- Después de cada push, registrar el SHA y consultar una instantánea compacta, por ejemplo: `gh run list --commit <sha> --json headSha,status,conclusion,databaseId,url --limit 1`.
+- Mientras haya menos de tres SHAs pendientes, continuar el trabajo local. Antes de superar la ventana, consultar el SHA pendiente más antiguo; no usar `gh run watch` continuo salvo que una investigación puntual necesite estados en vivo.
+- Ante CI fallido, detener nuevos pushes y consultar únicamente los logs del stage fallido. En los reportes, incluir SHA, stage, primer error causal y un extracto focalizado; no logs completos.
+
+### CI anormalmente lenta
+
+Un run `in_progress` no equivale a CI verde. Puede tratarse como sospecha de
+degradación del proveedor solo si supera 2 veces su duración habitual, no
+existe error causal de código y sus logs no muestran progreso sostenido de una
+prueba o build propio.
+
+Ante esa firma conocida:
+
+1. Registrar SHA, run, job y duración observada.
+2. Si el SHA sucesor inmediato ya está en CI, esperar su resultado antes de
+   clasificar el run lento. Si pasa los mismos checks requeridos y no cambió el
+   área vinculada al run lento, clasificar el caso como degradación probable del
+   proveedor. Si modificó esa área, revisar el diff mínimo antes de clasificarlo.
+3. Cancelar el run lento y reintentar el job o workflow sobre el mismo SHA; no
+   crear un commit nuevo para comprobar la hipótesis.
+4. En cambios de bajo riesgo, continuar dentro de la ventana normal de hasta
+   tres SHAs pendientes mientras el reintento se resuelve y mantener una alerta
+   compacta sobre su resultado.
+5. Si el SHA sucesor confirma degradación probable, marcar el SHA lento como
+   `rerun_pending` y permitir una única excepción: la ventana efectiva puede
+   pasar de tres a cuatro SHAs pendientes mientras se resuelve ese reintento,
+   incluso en cambios de alto riesgo. No usar esta excepción para otro run.
+6. Si el reintento pasa, registrar la degradación y continuar. Si falla,
+   marcar posible flakiness o defecto reproducible e informar inmediatamente al
+   orquestador con SHA, job, firma y extracto focalizado. El orquestador decide
+   el triage; no atribuir el fallo automáticamente al proveedor.
+7. Exigir el reintento verde antes de cerrar la US.
 
 ## Seguridad antes de commit
 
 - Sin secretos, tokens, `.env` ni logs de datos sensibles.
 - Errores de usuario genéricos y en español.
 - Actualizar `.env.example` si cambian variables públicas o privadas.
+
+## Integridad de fixtures y tipos de prueba
+
+No usar `as any`, `as never` ni `@ts-ignore` en tests nuevos. Si una prueba de
+frontera necesita representar un payload externo con campos no modelados, usar
+`unknown` de forma localizada, documentar el motivo y validarlo en el mapper;
+no inyectar datos inválidos mediante casts inseguros en componentes. Preferir
+factories tipadas y assertions sobre el contrato público resultante.

@@ -54,7 +54,9 @@ Las capas internas no dependen de las externas. `domain/` y `ports/` no importan
 9. CI se monitorea por SHA en paralelo. Se permite una ventana acotada de commits pendientes; ante una falla se detienen nuevos pushes y se corrige la causa.
 10. Un escenario pierde `@wip` solo al pasar su E2E. La US se cierra con sus gates completos y CI verde.
 
-La meta operativa para batches autónomos es hasta 6 commits atómicos por reporte ordinario. Es un presupuesto de coordinación, no una cuota: no agrupar cambios no relacionados ni omitir escalaciones para alcanzarlo.
+Los escenarios aprobados son inmutables: no resumir, reescribir ni eliminar `Given`, `When` o `Then` sin una nueva aprobación funcional explícita.
+
+La estimación de commits por reporte es orientativa, no una cuota, mínimo ni máximo. No agrupar cambios no relacionados, dividir dependencias relacionadas ni omitir escalaciones para ajustarse a una cifra; atomicidad, gates y push inmediato prevalecen.
 
 El presupuesto de reparación pertenece a la firma de falla y se comparte entre todos los agentes: los handoffs, subagentes y compactaciones no lo reinician. Al alcanzar `STOP_USER`, quedan prohibidos nuevos intentos, cambios, commits y pushes hasta recibir instrucciones del usuario.
 
@@ -113,3 +115,10 @@ make test-e2e-file-managed FILE=features/<feature>.feature NAME='<scenario>'
 ```
 
 Los targets `*-managed` son el camino canónico para agentes en ejecución local: administran el puerto 3001, el build, el servidor, readiness, Cucumber y cleanup. Los targets sin `-managed` se reservan para ejecución contra un servidor ya levantado por la persona desarrolladora. CI mantiene pasos separados para distinguir fallas de build, arranque, readiness y Cucumber.
+
+`make test-e2e-file-managed` requiere siempre `FILE` y `NAME`. Para ejecutar
+todos los escenarios normales de un feature con el entorno gestionado, usar:
+
+```bash
+make test-e2e-managed E2E_FILE=features/<feature>.feature
+```

@@ -22,6 +22,8 @@ La conducción se declara al planificar la US y puede cambiar solamente con apro
 - `SCENARIO`: todos los micro-pasos Outside-In de un escenario aprobado.
 - `SCENARIO_GROUP`: 2–3 escenarios consecutivos, aprobados, similares y de bajo acoplamiento; cada uno debe quedar GREEN antes de avanzar al siguiente.
 
+Elegir `MICROSTEP` ante ambigüedad, riesgo alto o una única validación; `SCENARIO` para un escenario con dependencias conocidas; y `SCENARIO_GROUP` solo para escenarios consecutivos, de bajo acoplamiento y gates previsibles. Un escenario puede requerir varios commits atómicos y un grupo puede requerir pocos: la granularidad no determina el número de commits.
+
 La granularidad se elige por batch y puede recalibrarse durante la US únicamente en una frontera segura: commit desplegable, escenario GREEN o detención explícita antes de introducir alcance nuevo.
 
 ## Planificación y presupuesto de coordinación
@@ -31,9 +33,9 @@ Al inicio, el orquestador:
 1. entiende contrato, escenarios, dependencias y riesgos;
 2. declara la conducción de la US;
 3. propone una partición provisional en batches, cada uno con granularidad, escenarios ordenados, fronteras Outside-In, gates, owners y condiciones de continuación;
-4. asigna hasta 6 commits atómicos por reporte ordinario en `SCENARIO` o `SCENARIO_GROUP`.
+4. declara, si aporta valor de coordinación, una estimación de commits atómicos para el batch en `SCENARIO` o `SCENARIO_GROUP`.
 
-La relación 6:1 es un presupuesto máximo de coordinación, no una cuota. No fusionar cambios independientes, omitir gates ni demorar escalaciones para alcanzarla. Si hacen falta más de 6 commits, cerrar en una frontera segura, reportar y abrir otro batch.
+La estimación de commits es una señal para coordinar reportes y CI, no una cuota, mínimo ni máximo. No fusionar cambios independientes, omitir gates ni demorar escalaciones para ajustarse a ella. La atomicidad, los gates y el push inmediato prevalecen. Si la evidencia exige más o menos fronteras, continuar con el siguiente commit atómico y registrar la desviación al llegar a una frontera segura.
 
 Se puede promover `SCENARIO` a `SCENARIO_GROUP` cuando la evidencia muestra que los escenarios siguientes comparten riesgo y gates previsibles. Se debe degradar a `SCENARIO` o `MICROSTEP` si aparece ambigüedad, riesgo, una contradicción o una integración que necesita control más estrecho.
 
@@ -41,8 +43,10 @@ Se puede promover `SCENARIO` a `SCENARIO_GROUP` cuando la evidencia muestra que 
 
 - El orquestador mantiene alcance, escenarios aprobados, plan de batches y conversación con el usuario.
 - Antes de delegar trabajo estructural, el orquestador consulta Codebase Memory, verifica cobertura y entrega un handoff compacto; no delega una exploración que ya realizó.
+- El orquestador declara la próxima frontera atómica prevista, sus gates y condiciones de continuación, pero no prescribe normalmente archivos o líneas exactas. Solo los especifica ante una restricción de seguridad, un bug ya diagnosticado, cobertura parcial conocida o una frontera que no debe tocarse.
 - El desarrollador persistente trabaja únicamente sobre el batch activo y no crea subagentes descartables.
 - El desarrollador usa la evidencia de grafo recibida y solo abre una consulta estructural nueva si el batch descubre una pregunta no resuelta. Si no dispone de las herramientas MCP, usa la evidencia entregada y lectura focalizada sin afirmar acceso al grafo.
+- Dentro del alcance permitido, el desarrollador decide los archivos y líneas necesarios para una implementación cohesionada, valida, commitea, pushea y monitorea CI. Escala antes de cruzar una prohibición o cambiar el contrato.
 - Cada micro-paso introduce un único comportamiento observable; una delegación puede contener varios sin convertirlos en un solo commit.
 - Ninguna combinación de conducción y granularidad autoriza funcionalidad futura, refactors no requeridos o escenarios fuera del batch.
 
@@ -50,11 +54,16 @@ Se puede promover `SCENARIO` a `SCENARIO_GROUP` cuando la evidencia muestra que 
 
 Antes del batch, actúa como senior: define el contrato, evalúa afinidad y riesgo, selecciona granularidad y modelo, y deja explícitas las condiciones de continuación y escalamiento.
 
+Antes de delegar, realiza un preflight compacto: escenarios aprobados y sus
+criterios, contrato público y tipos que deben fluir, capas y pruebas de valor
+esperadas, atajos prohibidos (casts inseguros, DTOs en UI y escenarios
+reescritos) y archivos materiales que revisará al cierre.
+
 Durante un batch autónomo permanece disponible, pero no duplica tests, inspecciones de logs ni monitoreo de SHAs que pertenecen al desarrollador. Interviene ante una escalación o una decisión fuera del contrato.
 
 Ante una firma de falla escalada, dispone de una única intervención senior: revisar evidencia focalizada, opcionalmente realizar una consulta de triage y formular como máximo la tercera hipótesis global. No puede reiniciar el presupuesto, encadenar subagentes ni continuar reparando después de `STOP_USER`.
 
-Después del batch consume un reporte compacto, verifica de forma agregada commits, CI y diff en proporción al riesgo, y decide el siguiente batch. No reproduce rutinariamente trabajo ya validado sin nueva evidencia.
+Después del batch consume un reporte compacto, verifica de forma agregada commits, CI y diff en proporción al riesgo, y decide el siguiente batch. Confirma trazabilidad escenario → comportamiento → prueba y revisa los archivos materiales por atajos peligrosos (`as any`, `as never`, `@ts-ignore`, `TODO`, DTOs en UI), con mayor profundidad en tipos públicos, privacidad, auth, API, rutas y componentes compartidos. No reproduce rutinariamente gates ni carga logs verdes sin nueva evidencia.
 
 ## Contrato de delegación
 
@@ -82,6 +91,22 @@ Source fallback already performed / unresolved questions:
 
 El desarrollador debe leer `AGENTS.md` y las skills obligatorias antes de actuar. Si el contrato contiene requisitos contradictorios o una frontera necesita dependencias prohibidas, debe escalar antes de editar.
 
+## Contratos sucesivos y skills nuevas
+
+El primer batch de una US requiere el contrato completo. Para el mismo developer
+persistente, los batches siguientes usan un contrato delta: HEAD y estado de
+CI heredados, escenarios ya cerrados, granularidad, escenarios activos,
+objetivo, alcance, prohibiciones o riesgos nuevos, próxima frontera y
+condiciones de continuación. No repetir las reglas generales ni el handoff que
+siga vigente.
+
+Si el nuevo batch activa skills que no eran aplicables antes, el contrato delta
+debe listarlas como `Skills nuevas obligatorias` y el developer debe leerlas
+completas antes de editar. Reenviar un contrato completo cuando se reemplaza al
+developer, se perdió contexto o surge una dependencia arquitectónica nueva.
+
+El contrato puede expresar una estimación de commits, pero debe declarar que no es una cuota, mínimo ni máximo. Debe describir la próxima frontera atómica prevista —comportamiento, archivos mínimos esperados, gate y mensaje de commit tentativo— y exigir `gate verde → commit → push` antes de iniciar otra frontera lógica. No usar el contrato para imponer líneas exactas salvo las excepciones de seguridad, diagnóstico o cobertura ya declaradas.
+
 ## Gates y reparación autónoma
 
 - Un RED esperado de TDD es evidencia del ciclo, no un gate roto.
@@ -94,17 +119,71 @@ El desarrollador debe leer `AGENTS.md` y las skills obligatorias antes de actuar
 ## CI asíncrono
 
 - Cada commit se pushea inmediatamente y se monitorea por su SHA exacto.
-- La ventana inicial recomendada sigue siendo 3 commits pendientes; antes de superarla, esperar el más antiguo.
+- La ventana inicial recomendada sigue siendo 3 commits pendientes. Consultar cada SHA de forma compacta y, antes de superarla, revisar el más antiguo; continuar trabajo local mientras la ventana lo permita.
+- Preferir una consulta puntual estructurada, como `gh run list --commit <sha> --json headSha,status,conclusion,databaseId,url --limit 1`, antes que `gh run watch` continuo. Reservar el seguimiento en vivo para una investigación puntual.
 - Si CI falla, detener nuevos pushes, cargar solo los logs fallidos minificados y escalar con SHA, stage, firma y causa probable.
+- Si un run permanece `in_progress` más de 2 veces su duración habitual sin error causal ni progreso sostenido, registrar la evidencia. Si su SHA sucesor inmediato ya está en CI y pasa los mismos checks sin tocar el área afectada, clasificar el caso como degradación probable de GitHub; cancelar el run lento y reintentar el mismo SHA. Marcarlo `rerun_pending` y permitir una única excepción: ampliar temporalmente la ventana de tres a cuatro SHAs pendientes, incluso en alto riesgo, mientras se mantiene una alerta compacta sobre el reintento. Si el reintento falla, informar al orquestador como posible flakiness o defecto reproducible con evidencia focalizada; el orquestador decide el triage. El reintento debe estar verde antes del cierre de la US.
 - Un fallo remoto puede revelar diferencias de entorno; nunca asumir que los gates locales hacen imposible una falla de CI.
+
+## Monitoreo pasivo de la delegación
+
+Durante una delegación activa, el orquestador no hace polling narrado ni
+interrumpe gates por falta de mensajes. Como heurística de atención, puede
+esperar inicialmente la duración esperada del micro-paso en `MICROSTEP`, o
+`4 minutos × commits estimados` en `SCENARIO` y `SCENARIO_GROUP`. La estimación
+no es una cuota ni una duración máxima.
+
+Al vencer esa ventana, realizar solo una consulta read-only: estado del
+developer, HEAD y, cuando la granularidad permita commits, commits nuevos desde
+el SHA inicial de la delegación, mensajes de commit vinculados a la US y estado
+del árbol. No enviar un mensaje al developer si figura `running`: puede estar
+implementando, validando o reparando dentro del contrato. Si está `idle` sin
+reporte de cierre, pedir un estado compacto.
+
+Los commits nuevos son una señal de avance, no prueba suficiente de autoría en
+un workspace compartido; correlacionarlos con la US, los SHAs esperados y el
+estado del developer. El vencimiento de la ventana nunca autoriza a cancelar
+un comando, interrumpir una gate ni asumir un bloqueo. Si el developer sigue
+activo, esperar otra ventana corta antes de una nueva consulta pasiva.
 
 ## Reportes
 
 - `MICROSTEP`: reportar al terminar el micro-paso o al escalar.
 - `SCENARIO`: un reporte ordinario al cerrar el escenario.
 - `SCENARIO_GROUP`: un reporte ordinario al cerrar el grupo; no reportar entre escenarios si se cumplen las condiciones de continuación.
-- Toda escalación se reporta inmediatamente y no cuenta contra la relación 6:1.
+- Toda escalación se reporta inmediatamente y no cuenta contra la estimación de commits.
 - El reporte final incluye escenarios, commits/SHAs, gates, CI, hipótesis agotadas si existieron y riesgos residuales.
+
+## Protocolo de respuestas
+
+El developer no reporta cada commit ni cada gate verde; registra esos datos y
+los incluye en el cierre que corresponda. Al recibir un contrato, responde solo
+si detecta un bloqueo o contradicción:
+
+```text
+Bloqueo/contradicción:
+Regla o alcance afectado:
+Decisión requerida:
+```
+
+Una escalación usa el paquete de diagnóstico de `frontend-testing-gates`. Un
+cierre de `MICROSTEP`, `SCENARIO` o `SCENARIO_GROUP` informa:
+
+```text
+Escenarios GREEN:
+Commits / SHAs:
+Gates:
+CI:
+Árbol:
+Escalaciones / riesgos:
+Cambios de contrato/tipos:
+Archivos productivos materiales:
+Pruebas de valor ejecutadas:
+Siguiente acción permitida:
+```
+
+El orquestador responde al cierre con el siguiente contrato delta, un contrato
+completo si corresponde, o una decisión de escalamiento.
 
 ## Loops, contexto y routing de modelos
 

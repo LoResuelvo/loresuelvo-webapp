@@ -309,6 +309,44 @@ Given("que tengo seleccionado el audio {string}", async function (this: CustomWo
   await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
 });
 
+Given("que el chat contiene el audio recibido {string}", async function (this: CustomWorld, fileName: string) {
+  await stubAudioChat(this);
+  (this as CustomWorld & { historicalAudioName?: string }).historicalAudioName = fileName;
+});
+
+Given("que el audio tiene una URL firmada vigente", async function (this: CustomWorld) {
+  const world = this as CustomWorld & { historicalAudioName?: string; signedAudioUrl?: string };
+  const signedAudioUrl = "https://signed-media.test/conversation/audio-file-001";
+  world.signedAudioUrl = signedAudioUrl;
+  await this.stubGet(
+    "/conversations/1",
+    aConversationDetail({
+      id: 1,
+      status: "accepted",
+      counterpart: aCounterpart({
+        id: 1,
+        role: "provider",
+        name: "Juan",
+        surname: "Gómez",
+      }),
+      messages: [
+        aConversationMessage({
+          id: 22,
+          sender_role: "provider",
+          content: undefined,
+          audio: {
+            id: "audio-file-001",
+            url: signedAudioUrl,
+            original_name: world.historicalAudioName ?? "ruido-bomba.webm",
+            duration_seconds: 18,
+            mime_type: "audio/webm",
+          },
+        }),
+      ],
+    })
+  );
+});
+
 Given("que el navegador permite usar el micrófono", async function (this: CustomWorld) {
   const supported = await this.page.evaluate(() =>
     Boolean(
@@ -394,6 +432,14 @@ When("intento enviar el audio", async function (this: CustomWorld) {
   await this.page.getByRole("button", { name: /Enviar mensaje/i }).click();
 });
 
+When("consulto el chat", async function (this: CustomWorld) {
+  await this.page.goto(
+    APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
+    { waitUntil: "domcontentloaded" }
+  );
+  await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
+});
+
 When("confirmo el audio para enviarlo", async function (this: CustomWorld) {
   const duration = (this as CustomWorld & { audioDurationSeconds?: number }).audioDurationSeconds;
   assert.ok(duration !== undefined, "Falta la duración de metadata del audio");
@@ -475,6 +521,22 @@ Then("el composer queda visible y habilitado para volver a intentar", async func
   await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
   const sendButton = this.page.getByRole("button", { name: /Enviar mensaje/i });
   assert.ok(await sendButton.isEnabled());
+});
+
+Then("veo la burbuja del audio recibido", async function (this: CustomWorld) {
+  const world = this as CustomWorld & { historicalAudioName?: string };
+  const player = this.page.getByLabel(`Reproductor de audio ${world.historicalAudioName ?? "ruido-bomba.webm"}`);
+  await player.waitFor(visibleTimeout);
+  assert.ok(await player.isVisible());
+});
+
+Then("puedo reproducirlo usando la URL firmada", async function (this: CustomWorld) {
+  const world = this as CustomWorld & { historicalAudioName?: string; signedAudioUrl?: string };
+  const player = this.page.getByLabel(`Reproductor de audio ${world.historicalAudioName ?? "ruido-bomba.webm"}`);
+  await player.waitFor(visibleTimeout);
+  assert.strictEqual(await player.getAttribute("controls"), "");
+  assert.strictEqual(await player.getAttribute("preload"), "metadata");
+  assert.strictEqual(await player.getAttribute("src"), world.signedAudioUrl);
 });
 
 Then("veo la burbuja del audio en la conversación", async function (this: CustomWorld) {

@@ -94,7 +94,6 @@ Feature: 50.1 Enviar audios por el chat web
         Then veo la burbuja del audio recibido
         And puedo reproducirlo usando la URL firmada
 
-    @wip
     Scenario: 50.1.12-WEB Recibir y reproducir un audio por WebSocket
         Given que estoy en el chat activo con "Juan Gómez"
         And que el WebSocket está conectado

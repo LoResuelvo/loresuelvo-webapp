@@ -264,6 +264,51 @@ Given("que tengo confirmado el audio {string}", async function (this: CustomWorl
   await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
 });
 
+Given("que la carga del audio falla durante la etapa {string}", async function (this: CustomWorld, stage: string) {
+  const fileId = "audio-file-failure-001";
+  const uploadUrl = "https://mock-upload.test/failure-audio";
+
+  await this.stubPost(
+    "/files/presign",
+    stage === "presign" ? 500 : 200,
+    stage === "presign"
+      ? { error: "No se pudo preparar el audio para enviarlo" }
+      : aPresignedUpload({
+          file_id: fileId,
+          key: `conversation_message_audio/${fileId}`,
+          upload_url: uploadUrl,
+        })
+  );
+  await this.page.route(uploadUrl, async (route) => {
+    await route.fulfill({
+      status: stage === "PUT" ? 500 : 204,
+      body: stage === "PUT" ? "upload failed" : undefined,
+    });
+  });
+  await this.stubPost(
+    `/files/${fileId}/confirm`,
+    stage === "confirm" ? 500 : 200,
+    stage === "confirm"
+      ? { error: "No se pudo confirmar el audio" }
+      : aConfirmedFile({
+          id: fileId,
+          url: "https://mock-audio.test/ruido-bomba.webm",
+          original_name: "ruido-bomba.webm",
+        })
+  );
+});
+
+Given("que tengo seleccionado el audio {string}", async function (this: CustomWorld, fileName: string) {
+  await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
+  await this.page.getByRole("menuitem", { name: "Adjuntar audio" }).click();
+  await this.page.locator('input[accept="audio/webm"]').setInputFiles({
+    name: fileName,
+    mimeType: "audio/webm",
+    buffer: Buffer.from("deterministic-selected-audio"),
+  });
+  await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+});
+
 Given("que el navegador permite usar el micrófono", async function (this: CustomWorld) {
   const supported = await this.page.evaluate(() =>
     Boolean(
@@ -345,6 +390,10 @@ When("envío únicamente el audio {string}", async function (this: CustomWorld, 
   await this.page.getByTestId("audio-preview").waitFor({ state: "detached", timeout: 5000 });
 });
 
+When("intento enviar el audio", async function (this: CustomWorld) {
+  await this.page.getByRole("button", { name: /Enviar mensaje/i }).click();
+});
+
 When("confirmo el audio para enviarlo", async function (this: CustomWorld) {
   const duration = (this as CustomWorld & { audioDurationSeconds?: number }).audioDurationSeconds;
   assert.ok(duration !== undefined, "Falta la duración de metadata del audio");
@@ -409,6 +458,23 @@ Then("la validación de duración informa {string}", async function (this: Custo
 
 Then("el audio no se agrega al composer", async function (this: CustomWorld) {
   assert.strictEqual(await this.page.getByTestId("audio-preview").count(), 0);
+});
+
+Then("veo el error de carga correspondiente a {string}", async function (this: CustomWorld, stage: string) {
+  const errors: Record<string, string> = {
+    presign: "No se pudo preparar el audio para enviarlo",
+    PUT: "No se pudo subir el audio",
+    confirm: "No se pudo confirmar el audio",
+  };
+  const error = this.page.getByText(errors[stage], { exact: false });
+  await error.waitFor(visibleTimeout);
+  assert.ok(await error.isVisible());
+});
+
+Then("el composer queda visible y habilitado para volver a intentar", async function (this: CustomWorld) {
+  await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+  const sendButton = this.page.getByRole("button", { name: /Enviar mensaje/i });
+  assert.ok(await sendButton.isEnabled());
 });
 
 Then("veo la burbuja del audio en la conversación", async function (this: CustomWorld) {

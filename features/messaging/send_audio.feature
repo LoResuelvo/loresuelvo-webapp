@@ -73,7 +73,6 @@ Feature: 50.1 Enviar audios por el chat web
         Then veo la burbuja del audio en la conversación
         And la burbuja muestra su duración
 
-    @wip
     Scenario Outline: 50.1.10-WEB Recuperar el composer ante fallas de carga
         Given que estoy en un chat activo como consumidor
         And que la carga del audio falla durante la etapa "<etapa>"

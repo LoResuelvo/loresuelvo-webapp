@@ -12,6 +12,8 @@ import {
 } from "../support/factories";
 import { ROUTES } from "../../lib/routes";
 
+let audioWsServer: import("playwright").WebSocketRoute | null = null;
+
 async function stubAudioChat(world: CustomWorld) {
   await world.setSession("consumer", {
     id: "consumer-001",
@@ -347,6 +349,29 @@ Given("que el audio tiene una URL firmada vigente", async function (this: Custom
   );
 });
 
+Given("que estoy en el chat activo con {string}", async function (this: CustomWorld, _counterpartName: string) {
+  await stubAudioChat(this);
+  audioWsServer = null;
+  await this.page.routeWebSocket(/.*\/ws.*/, (ws) => {
+    audioWsServer = ws;
+    ws.onMessage(() => {});
+  });
+  await this.page.goto(
+    APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
+    { waitUntil: "domcontentloaded" }
+  );
+  await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
+});
+
+Given("que el WebSocket está conectado", async function (this: CustomWorld) {
+  let attempts = 0;
+  while (!audioWsServer && attempts < 25) {
+    await this.page.waitForTimeout(200);
+    attempts += 1;
+  }
+  assert.ok(audioWsServer, "No se conectó el WebSocket determinista del escenario");
+});
+
 Given("que el navegador permite usar el micrófono", async function (this: CustomWorld) {
   const supported = await this.page.evaluate(() =>
     Boolean(
@@ -438,6 +463,27 @@ When("consulto el chat", async function (this: CustomWorld) {
     { waitUntil: "domcontentloaded" }
   );
   await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
+});
+
+When("recibo por WebSocket el audio {string}", async function (this: CustomWorld, fileName: string) {
+  assert.ok(audioWsServer, "No se conectó el WebSocket determinista del escenario");
+  audioWsServer?.send(JSON.stringify({
+    type: "conversation.message.created",
+    conversation_id: 1,
+    message: {
+      id: 200,
+      sender_role: "provider",
+      content: "",
+      created_on: new Date().toISOString(),
+      audio: {
+        id: "audio-ws-001",
+        url: "https://signed-media.test/conversation/audio-ws-001",
+        original_name: fileName,
+        duration_seconds: 18,
+        mime_type: "audio/webm",
+      },
+    },
+  }));
 });
 
 When("confirmo el audio para enviarlo", async function (this: CustomWorld) {
@@ -537,6 +583,19 @@ Then("puedo reproducirlo usando la URL firmada", async function (this: CustomWor
   assert.strictEqual(await player.getAttribute("controls"), "");
   assert.strictEqual(await player.getAttribute("preload"), "metadata");
   assert.strictEqual(await player.getAttribute("src"), world.signedAudioUrl);
+});
+
+Then("veo la nueva burbuja sin recargar la página", async function (this: CustomWorld) {
+  const player = this.page.getByLabel("Reproductor de audio indicaciones-visita.webm");
+  await player.waitFor(visibleTimeout);
+  assert.ok(await player.isVisible());
+});
+
+Then("puedo reproducir el audio recibido", async function (this: CustomWorld) {
+  const player = this.page.getByLabel("Reproductor de audio indicaciones-visita.webm");
+  await player.waitFor(visibleTimeout);
+  assert.strictEqual(await player.getAttribute("controls"), "");
+  assert.strictEqual(await player.getAttribute("preload"), "metadata");
 });
 
 Then("veo la burbuja del audio en la conversación", async function (this: CustomWorld) {

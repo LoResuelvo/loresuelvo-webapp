@@ -65,7 +65,6 @@ Feature: 50.1 Enviar audios por el chat web
         Then veo la burbuja del audio en la conversación
         And la burbuja muestra su duración
 
-    @wip
     Scenario: 50.1.9-WEB Prestador envía un audio en un chat activo
         Given que existe un chat activo entre el consumidor "Ana Pérez" y el prestador "Juan Gómez"
         And que estoy autenticado como prestador

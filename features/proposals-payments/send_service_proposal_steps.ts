@@ -172,7 +172,20 @@ Given("que tengo abierto el formulario de propuesta de servicio", async function
 When(
   "completo y envío la propuesta con monto {string}, fecha futura y motivo {string}",
   async function (this: CustomWorld, monto: string, motivo: string) {
-    const targetDate = new Date(Date.now() + 86400000 * 5);
+    const targetDateInfo = await this.page.evaluate(() => {
+      const today = new Date();
+      const target = new Date(today);
+      target.setDate(today.getDate() + 5);
+      target.setHours(12, 0, 0, 0);
+
+      return {
+        iso: target.toISOString(),
+        currentMonth: today.getFullYear() * 12 + today.getMonth(),
+        targetMonth: target.getFullYear() * 12 + target.getMonth(),
+        dataDay: target.toLocaleDateString(navigator.language),
+      };
+    });
+    const targetDate = new Date(targetDateInfo.iso);
     const alreadyStubbed = await this.hasApiStub("POST", "/service-proposals");
     if (!alreadyStubbed) {
       const amountCents = parseFloat(monto) * 100;
@@ -213,11 +226,16 @@ When(
     const dateTrigger = modal.getByRole("button", { name: /Seleccionar|\d{2}\/\d{2}\/\d{4}/ });
     await dateTrigger.click();
 
-    const browserLocale = await this.page.evaluate(() => navigator.language);
-    const targetDataDay = targetDate.toLocaleDateString(browserLocale);
-    const futureDay = this.page.locator(`button[data-day="${targetDataDay}"]`).first();
+    if (targetDateInfo.targetMonth !== targetDateInfo.currentMonth) {
+      const nextMonthButton = this.page.locator("button.rdp-button_next").first();
+      await nextMonthButton.waitFor({ state: "visible" });
+      assert.ok(!(await nextMonthButton.isDisabled()), "El mes siguiente debería estar habilitado");
+      await nextMonthButton.click();
+    }
+
+    const futureDay = this.page.locator(`button[data-day="${targetDateInfo.dataDay}"]`).first();
     await futureDay.waitFor({ state: "visible" });
-    assert.ok(!(await futureDay.isDisabled()), `La fecha futura ${targetDataDay} no está habilitada`);
+    assert.ok(!(await futureDay.isDisabled()), `La fecha futura ${targetDateInfo.dataDay} no está habilitada`);
     await futureDay.click();
 
     const timeTrigger = modal.getByRole("combobox");

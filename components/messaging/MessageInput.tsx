@@ -8,7 +8,7 @@ import { ImagePreviewModal } from "./ImagePreviewModal";
 import { AttachmentMenu } from "@/components/messaging/AttachmentMenu";
 import { AudioPreview, formatAudioDuration } from "@/components/messaging/AudioPreview";
 import { useAudioRecorder, type AudioRecorderError } from "@/hooks/useAudioRecorder";
-import { isSupportedAudioFile } from "@/lib/audio-validation";
+import { validateAudioFile } from "@/lib/audio-validation";
 
 interface MessageInputProps {
   value: string;
@@ -93,8 +93,9 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       const file = e.target.files?.[0];
       if (!file) return;
 
-      if (!isSupportedAudioFile(file)) {
-        setError(t.messaging.audioAttachment.invalidFormat);
+      const audioValidationError = validateAudioFile(file);
+      if (audioValidationError) {
+        setError(t.messaging.audioAttachment[audioValidationError]);
         e.target.value = "";
         return;
       }

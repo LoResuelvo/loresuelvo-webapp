@@ -171,6 +171,15 @@ When(
   }
 );
 
+When("intento adjuntar un audio WebM con codec Opus de {int} MiB", async function (this: CustomWorld, sizeInMiB: number) {
+  const audioInput = this.page.locator('input[accept="audio/webm"]');
+  await audioInput.setInputFiles({
+    name: "audio-grande.webm",
+    mimeType: "audio/webm",
+    buffer: Buffer.alloc(sizeInMiB * 1024 * 1024, 1),
+  });
+});
+
 Then("veo la preview del audio grabado", async function (this: CustomWorld) {
   await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
   assert.ok(await this.page.getByTestId("audio-preview").isVisible());
@@ -194,6 +203,12 @@ Then("no se crea ninguna preview de audio", async function (this: CustomWorld) {
 
 Then("veo un error de formato no permitido", async function (this: CustomWorld) {
   const error = this.page.getByText("Formato de audio no permitido", { exact: false });
+  await error.waitFor(visibleTimeout);
+  assert.ok(await error.isVisible());
+});
+
+Then("veo un error indicando que supera los 5 MiB", async function (this: CustomWorld) {
+  const error = this.page.getByText("El audio no debe superar los 5 MiB", { exact: false });
   await error.waitFor(visibleTimeout);
   assert.ok(await error.isVisible());
 });

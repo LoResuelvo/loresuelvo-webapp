@@ -145,6 +145,30 @@ describe("MessageInput", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it("rejects audio larger than 5 MiB", () => {
+    render(
+      <MessageInput
+        value=""
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        disabled={false}
+        onAttachFiles={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Adjuntar audio" }));
+    const audioInput = document.querySelector('input[accept="audio/webm"]') as HTMLInputElement;
+    fireEvent.change(audioInput, {
+      target: {
+        files: [new File([new Uint8Array(5 * 1024 * 1024 + 1)], "audio-grande.webm", { type: "audio/webm" })],
+      },
+    });
+
+    expect(screen.getByText(t.messaging.audioAttachment.tooLarge)).toBeInTheDocument();
+    expect(screen.queryByTestId("audio-preview")).not.toBeInTheDocument();
+  });
+
   it("clears text and image attachments and disables their controls while audio is selected", () => {
     const onChange = vi.fn();
     const onRemoveFile = vi.fn();

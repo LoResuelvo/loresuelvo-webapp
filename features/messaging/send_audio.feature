@@ -40,7 +40,6 @@ Feature: 50.1 Enviar audios por el chat web
         Then veo un error de formato no permitido
         And el audio no se agrega al composer
 
-    @wip
     Scenario: 50.1.6-WEB Rechazar un audio mayor a 5 MiB
         Given que estoy en un chat activo como consumidor
         When intento adjuntar un audio WebM con codec Opus de 6 MiB

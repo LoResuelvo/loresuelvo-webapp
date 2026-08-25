@@ -172,10 +172,11 @@ Given("que tengo abierto el formulario de propuesta de servicio", async function
 When(
   "completo y envío la propuesta con monto {string}, fecha futura y motivo {string}",
   async function (this: CustomWorld, monto: string, motivo: string) {
+    const targetDate = new Date(Date.now() + 86400000 * 5);
     const alreadyStubbed = await this.hasApiStub("POST", "/service-proposals");
     if (!alreadyStubbed) {
       const amountCents = parseFloat(monto) * 100;
-      const futureDate = new Date(Date.now() + 86400000 * 5).toISOString();
+      const futureDate = targetDate.toISOString();
       const deadlineDate = new Date(Date.now() + 86400000 * 4).toISOString();
       await this.stubPost(
         "/service-proposals",
@@ -212,19 +213,11 @@ When(
     const dateTrigger = modal.getByRole("button", { name: /Seleccionar|\d{2}\/\d{2}\/\d{4}/ });
     await dateTrigger.click();
 
-    const today = new Date();
-    const currentDay = today.getDate();
-    let dayToSelect = (currentDay + 1).toString();
-
-    if (currentDay >= 28) {
-      const nextMonthButton = this.page.locator("button.rdp-button_next").first();
-      await nextMonthButton.waitFor({ state: "visible" });
-      await nextMonthButton.click();
-      dayToSelect = "15";
-    }
-
-    const futureDay = this.page.locator("button").filter({ hasText: new RegExp(`^${dayToSelect}$`) }).first();
+    const browserLocale = await this.page.evaluate(() => navigator.language);
+    const targetDataDay = targetDate.toLocaleDateString(browserLocale);
+    const futureDay = this.page.locator(`button[data-day="${targetDataDay}"]`).first();
     await futureDay.waitFor({ state: "visible" });
+    assert.ok(!(await futureDay.isDisabled()), `La fecha futura ${targetDataDay} no está habilitada`);
     await futureDay.click();
 
     const timeTrigger = modal.getByRole("combobox");
@@ -237,6 +230,7 @@ When(
     await inputMotivo.fill(motivo);
 
     const submitButton = modal.getByRole("button", { name: "Enviar propuesta" });
+    assert.ok(!(await submitButton.isDisabled()), "El botón de envío debería estar habilitado para una propuesta válida");
     await submitButton.click();
 
     const confirmButton = this.page.getByRole("button", { name: "Sí, enviar propuesta" });

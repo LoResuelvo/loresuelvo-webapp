@@ -33,7 +33,6 @@ Feature: 50.1 Enviar audios por el chat web
         Then veo un mensaje indicando que no se puede acceder al micrófono
         And no se crea ninguna preview de audio
 
-    @wip
     Scenario: 50.1.5-WEB Rechazar un audio con MIME distinto de WebM/Opus
         Given que estoy en un chat activo como consumidor
         And que abrí el menú de adjuntos

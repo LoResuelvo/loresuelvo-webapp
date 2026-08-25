@@ -140,6 +140,11 @@ Given("que el navegador rechazó el permiso para usar el micrófono", async func
   });
 });
 
+Given("que abrí el menú de adjuntos", async function (this: CustomWorld) {
+  await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
+  await this.page.getByRole("menu").waitFor(visibleTimeout);
+});
+
 When("grabo un audio WebM con codec Opus de 5 segundos", async function (this: CustomWorld) {
   await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
   await this.page.getByRole("menuitem", { name: "Grabar audio" }).click();
@@ -153,6 +158,18 @@ When("intento grabar un audio", async function (this: CustomWorld) {
   await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
   await this.page.getByRole("menuitem", { name: "Grabar audio" }).click();
 });
+
+When(
+  'intento adjuntar {string} con MIME {string} y codec {string}',
+  async function (this: CustomWorld, fileName: string, mimeType: string, _codec: string) {
+    const audioInput = this.page.locator('input[accept="audio/webm"]');
+    await audioInput.setInputFiles({
+      name: fileName,
+      mimeType,
+      buffer: Buffer.from("deterministic-invalid-audio"),
+    });
+  }
+);
 
 Then("veo la preview del audio grabado", async function (this: CustomWorld) {
   await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
@@ -172,5 +189,15 @@ Then("veo un mensaje indicando que no se puede acceder al micrófono", async fun
 });
 
 Then("no se crea ninguna preview de audio", async function (this: CustomWorld) {
+  assert.strictEqual(await this.page.getByTestId("audio-preview").count(), 0);
+});
+
+Then("veo un error de formato no permitido", async function (this: CustomWorld) {
+  const error = this.page.getByText("Formato de audio no permitido", { exact: false });
+  await error.waitFor(visibleTimeout);
+  assert.ok(await error.isVisible());
+});
+
+Then("el audio no se agrega al composer", async function (this: CustomWorld) {
   assert.strictEqual(await this.page.getByTestId("audio-preview").count(), 0);
 });

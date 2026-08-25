@@ -8,6 +8,7 @@ import { ImagePreviewModal } from "./ImagePreviewModal";
 import { AttachmentMenu } from "@/components/messaging/AttachmentMenu";
 import { AudioPreview, formatAudioDuration } from "@/components/messaging/AudioPreview";
 import { useAudioRecorder, type AudioRecorderError } from "@/hooks/useAudioRecorder";
+import { isSupportedAudioFile } from "@/lib/audio-validation";
 
 interface MessageInputProps {
   value: string;
@@ -91,6 +92,12 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const handleAudioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
+
+      if (!isSupportedAudioFile(file)) {
+        setError(t.messaging.audioAttachment.invalidFormat);
+        e.target.value = "";
+        return;
+      }
 
       cancelRecording();
       setAttachedAudio({ file, url: URL.createObjectURL(file) });

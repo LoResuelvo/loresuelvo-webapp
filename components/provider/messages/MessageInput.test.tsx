@@ -121,6 +121,30 @@ describe("MessageInput", () => {
     expect(screen.getByTestId("audio-duration")).toHaveTextContent("0:18");
   });
 
+  it("rejects audio with a MIME type outside WebM/Opus", () => {
+    const onChange = vi.fn();
+    render(
+      <MessageInput
+        value=""
+        onChange={onChange}
+        onSend={vi.fn()}
+        disabled={false}
+        onAttachFiles={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Adjuntar audio" }));
+    const audioInput = document.querySelector('input[accept="audio/webm"]') as HTMLInputElement;
+    fireEvent.change(audioInput, {
+      target: { files: [new File(["audio"], "grabacion.m4a", { type: "audio/mp4" })] },
+    });
+
+    expect(screen.getByText(t.messaging.audioAttachment.invalidFormat)).toBeInTheDocument();
+    expect(screen.queryByTestId("audio-preview")).not.toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("clears text and image attachments and disables their controls while audio is selected", () => {
     const onChange = vi.fn();
     const onRemoveFile = vi.fn();

@@ -159,6 +159,9 @@ export const t = {
       durationLabel: "Duración:",
       removeLabel: "Eliminar audio adjunto",
     },
+    audioAttachment: {
+      invalidFormat: "Formato de audio no permitido. Solo se admiten archivos WebM con codec Opus.",
+    },
     audioRecorder: {
       stopLabel: "Detener grabación",
       recordingLabel: "Grabando audio",

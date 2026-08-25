@@ -164,6 +164,95 @@ Given("que estoy autenticado como consumidor", async function (this: CustomWorld
   );
 });
 
+Given("que estoy autenticado como prestador", async function (this: CustomWorld) {
+  await this.setSession("provider", {
+    id: "provider-001",
+    email: "juan@example.com",
+    firstName: "Juan",
+    lastName: "Gómez",
+    isOnboarded: true,
+  });
+
+  await this.stubGet("/conversations", [
+    aConversation({
+      id: 1,
+      status: "accepted",
+      counterpart: aCounterpart({
+        id: 1,
+        role: "consumer",
+        name: "Ana",
+        surname: "Pérez",
+      }),
+    }),
+  ]);
+  await this.stubGet(
+    "/conversations/1",
+    aConversationDetail({
+      id: 1,
+      status: "accepted",
+      counterpart: aCounterpart({
+        id: 1,
+        role: "consumer",
+        name: "Ana",
+        surname: "Pérez",
+      }),
+      messages: [
+        aConversationMessage({
+          id: 1,
+          sender_role: "consumer",
+          content: "Hola Juan",
+        }),
+      ],
+    })
+  );
+  await this.stubGet("/job-requests", []);
+  await this.stubGet("/service-proposals", []);
+  await this.stubPost("/ws-tickets", 201, aWsTicket());
+
+  await this.page.goto(
+    APP_URL + ROUTES.provider.messages + "?consumer_id=1",
+    { waitUntil: "domcontentloaded" }
+  );
+  await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
+  await this.stubPost(
+    "/files/presign",
+    200,
+    aPresignedUpload({
+      file_id: "audio-file-provider-001",
+      key: "conversation_message_audio/audio-file-provider-001",
+      upload_url: "https://mock-upload.test/provider-audio",
+    })
+  );
+  await this.page.route("https://mock-upload.test/provider-audio", async (route) => {
+    await route.fulfill({ status: 204 });
+  });
+  await this.stubPost(
+    "/files/audio-file-provider-001/confirm",
+    200,
+    aConfirmedFile({
+      id: "audio-file-provider-001",
+      url: "https://mock-audio.test/indicaciones-visita.webm",
+      original_name: "indicaciones-visita.webm",
+    })
+  );
+  await this.stubPost(
+    "/conversations/1/messages",
+    201,
+    {
+      id: 100,
+      sender_role: "provider",
+      created_on: new Date().toISOString(),
+      audio: {
+        id: "audio-file-provider-001",
+        url: "https://mock-audio.test/indicaciones-visita.webm",
+        original_name: "indicaciones-visita.webm",
+        duration_seconds: 18,
+        mime_type: "audio/webm",
+      },
+    }
+  );
+});
+
 Given("que tengo confirmado el audio {string}", async function (this: CustomWorld, fileName: string) {
   await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
   await this.page.getByRole("menuitem", { name: "Adjuntar audio" }).click();
@@ -323,7 +412,7 @@ Then("el audio no se agrega al composer", async function (this: CustomWorld) {
 });
 
 Then("veo la burbuja del audio en la conversación", async function (this: CustomWorld) {
-  const player = this.page.getByLabel(/Reproductor de audio ruido-bomba\.webm/i);
+  const player = this.page.getByLabel(/Reproductor de audio/i).last();
   await player.waitFor(visibleTimeout);
   assert.ok(await player.isVisible());
 });

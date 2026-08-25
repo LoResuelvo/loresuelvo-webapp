@@ -6,7 +6,8 @@ import { t } from "@/infrastructure/i18n/translations";
 import Image from "next/image";
 import { ImagePreviewModal } from "./ImagePreviewModal";
 import { AttachmentMenu } from "@/components/messaging/AttachmentMenu";
-import { AudioPreview } from "@/components/messaging/AudioPreview";
+import { AudioPreview, formatAudioDuration } from "@/components/messaging/AudioPreview";
+import { useAudioRecorder, type AudioRecorderError } from "@/hooks/useAudioRecorder";
 
 interface MessageInputProps {
   value: string;
@@ -30,6 +31,21 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const fileInputRef = useRef<HTMLInputElement>(null);
     const audioInputRef = useRef<HTMLInputElement>(null);
     const [attachedAudio, setAttachedAudio] = useState<{ file: File; url: string } | null>(null);
+    const {
+      isRecording,
+      elapsedSeconds,
+      audioBlob,
+      audioUrl,
+      error: recorderError,
+      startRecording,
+      stopRecording,
+      cancelRecording,
+    } = useAudioRecorder();
+    const hasAudio = !!attachedAudio || !!audioBlob || isRecording;
+
+    const recorderErrorMessage = recorderError
+      ? t.messaging.audioRecorder.errors[recorderError as AudioRecorderError]
+      : null;
 
     useEffect(() => {
       return () => {
@@ -76,6 +92,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       const file = e.target.files?.[0];
       if (!file) return;
 
+      cancelRecording();
       setAttachedAudio({ file, url: URL.createObjectURL(file) });
       onChange("");
       for (let index = 0; index < attachedFiles.length; index += 1) {
@@ -87,16 +104,27 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const removeAudio = () => setAttachedAudio(null);
 
+    const handleRecordAudio = () => {
+      void startRecording().then((started) => {
+        if (!started) return;
+        onChange("");
+        for (let index = 0; index < attachedFiles.length; index += 1) {
+          onRemoveFile?.(0);
+        }
+      });
+    };
+
     const handleSend = () => {
       onSend();
       setAttachedAudio(null);
+      cancelRecording();
     };
 
     const [previewImage, setPreviewImage] = useState<{url: string, name: string} | null>(null);
 
     return (
       <div className="flex flex-col border-t border-slate-200 bg-white flex-shrink-0">
-        {attachedFiles.length > 0 && !attachedAudio && (
+        {attachedFiles.length > 0 && !hasAudio && (
           <div className="p-3 pb-0 flex gap-2 overflow-x-auto">
             {attachedFiles.map((file, idx) => {
               const url = URL.createObjectURL(file);
@@ -137,7 +165,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 accept="image/jpeg, image/png, image/webp"
                 multiple
                 onChange={handleFileChange}
-                disabled={disabled || attachedFiles.length >= 5 || !!attachedAudio}
+                disabled={disabled || attachedFiles.length >= 5 || hasAudio}
               />
               <input
                 type="file"
@@ -150,17 +178,43 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               <AttachmentMenu
                 onAttachImages={() => fileInputRef.current?.click()}
                 onAttachAudio={() => audioInputRef.current?.click()}
+                onRecordAudio={handleRecordAudio}
                 onCreateProposal={onOpenServiceProposal}
                 showProposalOption={!!onOpenServiceProposal}
-                disabled={disabled || attachedFiles.length >= 5 || !!attachedAudio}
+                disabled={disabled || attachedFiles.length >= 5 || hasAudio}
               />
             </>
           )}
-          {attachedAudio && (
+          {isRecording && (
+            <div
+              data-testid="audio-recording"
+              role="status"
+              className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            >
+              <span>{t.messaging.audioRecorder.recordingLabel} {formatAudioDuration(elapsedSeconds)}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={stopRecording}
+                aria-label={t.messaging.audioRecorder.stopLabel}
+              >
+                {t.messaging.audioRecorder.stopLabel}
+              </Button>
+            </div>
+          )}
+          {!isRecording && attachedAudio && (
             <AudioPreview
               audioUrl={attachedAudio.url}
               fileName={attachedAudio.file.name}
               onRemove={removeAudio}
+            />
+          )}
+          {!isRecording && !attachedAudio && audioUrl && (
+            <AudioPreview
+              audioUrl={audioUrl}
+              fileName={t.messaging.audioRecorder.recordedFileName}
+              onRemove={cancelRecording}
             />
           )}
           <Input
@@ -171,7 +225,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                if (value.trim() || attachedFiles.length > 0 || attachedAudio) {
+                if (value.trim() || attachedFiles.length > 0 || hasAudio) {
                   setError(null);
                   handleSend();
                 }
@@ -179,22 +233,22 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             }}
             placeholder={t.messaging.inputPlaceholder}
             className="flex-1 px-4 h-[48px] rounded-xl border border-slate-200 bg-white text-body focus-visible:ring-brand-secondary/40"
-            disabled={disabled || !!attachedAudio}
+            disabled={disabled || hasAudio}
           />
           <Button
             variant="brand"
             type="button"
             onClick={handleSend}
-            disabled={disabled || (!value.trim() && attachedFiles.length === 0 && !attachedAudio)}
+            disabled={disabled || isRecording || (!value.trim() && attachedFiles.length === 0 && !hasAudio)}
             aria-label={t.messaging.sendLabel}
             className="h-[48px] px-5 rounded-xl font-semibold"
           >
             <Send className="w-5 h-5" aria-hidden="true" />
           </Button>
         </div>
-        {error && (
+        {(error || recorderErrorMessage) && (
           <div className="px-4 pb-2 text-red-500 text-sm font-medium">
-            {error}
+            {error || recorderErrorMessage}
           </div>
         )}
         {/* Image Preview Modal */}

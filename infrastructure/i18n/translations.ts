@@ -151,12 +151,24 @@ export const t = {
       openMenu: "Abrir menú de acciones",
       attachImages: "Adjuntar imágenes",
       attachAudio: "Adjuntar audio",
+      recordAudio: "Grabar audio",
       createProposal: "Crear propuesta de servicio",
     },
     audioPreview: {
       playerLabel: "Reproductor de audio",
       durationLabel: "Duración:",
       removeLabel: "Eliminar audio adjunto",
+    },
+    audioRecorder: {
+      stopLabel: "Detener grabación",
+      recordingLabel: "Grabando audio",
+      recordedFileName: "audio-grabado.webm",
+      errors: {
+        unsupported: "Tu navegador no permite grabar audio WebM con codec Opus.",
+        permissionDenied: "No se puede acceder al micrófono. Habilitá el permiso para grabar audio.",
+        recordingFailed: "No se pudo completar la grabación de audio. Intentá nuevamente.",
+        maxDuration: "La grabación alcanzó el tiempo máximo permitido.",
+      },
     },
     serviceProposal: {
       modalTitle: "Propuesta de Servicio",

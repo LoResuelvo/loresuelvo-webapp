@@ -6,6 +6,7 @@ import { t } from "@/infrastructure/i18n/translations";
 interface AttachmentMenuProps {
   onAttachImages: () => void;
   onAttachAudio?: () => void;
+  onRecordAudio?: () => void;
   onCreateProposal?: () => void;
   showProposalOption?: boolean;
   disabled?: boolean;
@@ -14,6 +15,7 @@ interface AttachmentMenuProps {
 export function AttachmentMenu({
   onAttachImages,
   onAttachAudio,
+  onRecordAudio,
   onCreateProposal,
   showProposalOption = false,
   disabled = false,
@@ -75,6 +77,20 @@ export function AttachmentMenu({
             >
               <Mic className="w-4 h-4 text-slate-500" />
               <span>{t.messaging.attachmentMenu.attachAudio}</span>
+            </button>
+          )}
+          {onRecordAudio && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                onRecordAudio();
+              }}
+              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg md:rounded-xl transition-all"
+              role="menuitem"
+            >
+              <Mic className="w-4 h-4 text-slate-500" />
+              <span>{t.messaging.attachmentMenu.recordAudio}</span>
             </button>
           )}
           {showProposalOption && onCreateProposal && (

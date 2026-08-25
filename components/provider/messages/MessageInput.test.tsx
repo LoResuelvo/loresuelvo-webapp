@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeAll } from "vitest";
 import MessageInput, { MessageInputHandle } from "@/components/messaging/MessageInput";
 import { t } from "@/infrastructure/i18n/translations";
@@ -172,5 +172,66 @@ describe("MessageInput", () => {
 
     expect(screen.queryByTestId("audio-preview")).not.toBeInTheDocument();
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
+  });
+
+  it("reports unsupported recording without creating a preview", async () => {
+    vi.stubGlobal("MediaRecorder", undefined);
+    render(
+      <MessageInput
+        value=""
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        disabled={false}
+        onAttachFiles={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Grabar audio" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(t.messaging.audioRecorder.errors.unsupported)).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("audio-recording")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("audio-preview")).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  it("reports denied microphone permission without creating a preview", async () => {
+    class SupportedMediaRecorder {
+      static isTypeSupported = () => true;
+    }
+    const previousMediaDevices = Object.getOwnPropertyDescriptor(navigator, "mediaDevices");
+    vi.stubGlobal("MediaRecorder", SupportedMediaRecorder);
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockRejectedValue(new DOMException("denied", "NotAllowedError")) },
+    });
+
+    render(
+      <MessageInput
+        value=""
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        disabled={false}
+        onAttachFiles={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Grabar audio" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(t.messaging.audioRecorder.errors.permissionDenied)).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("audio-recording")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("audio-preview")).not.toBeInTheDocument();
+
+    if (previousMediaDevices) {
+      Object.defineProperty(navigator, "mediaDevices", previousMediaDevices);
+    } else {
+      Reflect.deleteProperty(navigator, "mediaDevices");
+    }
+    vi.unstubAllGlobals();
   });
 });

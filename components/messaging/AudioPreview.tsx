@@ -9,13 +9,13 @@ interface AudioPreviewProps {
   onRemove: () => void;
 }
 
+export function formatAudioDuration(seconds: number): string {
+  const safeSeconds = Math.max(0, Math.round(seconds));
+  return `${Math.floor(safeSeconds / 60)}:${String(safeSeconds % 60).padStart(2, "0")}`;
+}
+
 export function AudioPreview({ audioUrl, fileName, onRemove }: AudioPreviewProps) {
   const [duration, setDuration] = useState<number | null>(null);
-
-  const formatDuration = (seconds: number) => {
-    const safeSeconds = Math.max(0, Math.round(seconds));
-    return `${Math.floor(safeSeconds / 60)}:${String(safeSeconds % 60).padStart(2, "0")}`;
-  };
 
   return (
     <div
@@ -33,7 +33,7 @@ export function AudioPreview({ audioUrl, fileName, onRemove }: AudioPreviewProps
         }}
       />
       <span className="text-sm text-slate-600" data-testid="audio-duration">
-        {t.messaging.audioPreview.durationLabel}{duration !== null ? ` ${formatDuration(duration)}` : ""}
+        {t.messaging.audioPreview.durationLabel}{duration !== null ? ` ${formatAudioDuration(duration)}` : ""}
       </span>
       <Button
         type="button"

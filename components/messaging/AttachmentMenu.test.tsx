@@ -5,6 +5,7 @@ import { AttachmentMenu } from "./AttachmentMenu";
 describe("AttachmentMenu", () => {
   const onAttachImages = vi.fn();
   const onAttachAudio = vi.fn();
+  const onRecordAudio = vi.fn();
   const onCreateProposal = vi.fn();
 
   it("renders correctly with trigger button", () => {
@@ -72,6 +73,21 @@ describe("AttachmentMenu", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Adjuntar audio" }));
 
     expect(onAttachAudio).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("calls onRecordAudio and closes menu when selecting recording", () => {
+    render(
+      <AttachmentMenu
+        onAttachImages={onAttachImages}
+        onRecordAudio={onRecordAudio}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Grabar audio" }));
+
+    expect(onRecordAudio).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 

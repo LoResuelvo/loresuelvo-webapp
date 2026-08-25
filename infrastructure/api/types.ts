@@ -27,6 +27,7 @@ export interface ApiConversation {
     id: number;
     sender_role: string;
     content?: string;
+    audio?: ApiMessageAudio;
     created_on: string;
   };
   updated_on: string;

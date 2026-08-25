@@ -60,6 +60,58 @@ async function stubAudioChat(world: CustomWorld) {
   await world.stubPost("/ws-tickets", 201, aWsTicket());
 }
 
+async function stubAudioSidebarChat(world: CustomWorld) {
+  await world.setSession("consumer", {
+    id: "consumer-001",
+    email: "ana@example.com",
+    firstName: "Ana",
+    lastName: "Pérez",
+    isOnboarded: true,
+  });
+
+  await world.stubGet("/conversations", [
+    aConversation({
+      id: 1,
+      status: "accepted",
+      last_message: {
+        id: 22,
+        sender_role: "provider",
+        content: undefined,
+        created_on: "2026-08-20T10:00:00Z",
+        audio: {
+          id: "audio-sidebar-initial",
+          url: "https://signed-media.test/conversation/audio-sidebar-initial",
+          original_name: "ruido-bomba.webm",
+          duration_seconds: 18,
+          mime_type: "audio/webm",
+        },
+      },
+      counterpart: aCounterpart({
+        id: 1,
+        role: "provider",
+        name: "Juan",
+        surname: "Gómez",
+      }),
+    }),
+  ]);
+  await world.stubGet(
+    "/conversations/1",
+    aConversationDetail({
+      id: 1,
+      status: "accepted",
+      counterpart: aCounterpart({
+        id: 1,
+        role: "provider",
+        name: "Juan",
+        surname: "Gómez",
+      }),
+    })
+  );
+  await world.stubGet("/job-requests", []);
+  await world.stubGet("/service-proposals", []);
+  await world.stubPost("/ws-tickets", 201, aWsTicket());
+}
+
 async function installMediaRecorderMock(world: CustomWorld) {
   await world.page.addInitScript(() => {
     let activeRecorder: TestMediaRecorder | null = null;
@@ -363,6 +415,27 @@ Given("que estoy en el chat activo con {string}", async function (this: CustomWo
   await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
 });
 
+Given("que el sidebar cargó una conversación cuyo último mensaje es un audio de 18 segundos", async function (this: CustomWorld) {
+  await stubAudioSidebarChat(this);
+  audioWsServer = null;
+  await this.page.routeWebSocket(/.*\/ws.*/, (ws) => {
+    audioWsServer = ws;
+    ws.onMessage(() => {});
+  });
+  await this.page.goto(
+    APP_URL + ROUTES.consumer.messages,
+    { waitUntil: "domcontentloaded" }
+  );
+  await this.page.getByTestId("contact-item").waitFor(visibleTimeout);
+});
+
+Given("que el sidebar muestra exactamente {string}", async function (this: CustomWorld, preview: string) {
+  const lastMessage = this.page.getByTestId("last-message").first();
+  await lastMessage.waitFor(visibleTimeout);
+  assert.strictEqual(await lastMessage.textContent(), preview);
+  (this as CustomWorld & { audioSidebarInitialVisible?: boolean }).audioSidebarInitialVisible = true;
+});
+
 Given("que el WebSocket está conectado", async function (this: CustomWorld) {
   let attempts = 0;
   while (!audioWsServer && attempts < 25) {
@@ -479,6 +552,27 @@ When("recibo por WebSocket el audio {string}", async function (this: CustomWorld
         id: "audio-ws-001",
         url: "https://signed-media.test/conversation/audio-ws-001",
         original_name: fileName,
+        duration_seconds: 18,
+        mime_type: "audio/webm",
+      },
+    },
+  }));
+});
+
+When("recibo por WebSocket un nuevo audio de 18 segundos para esa conversación", async function (this: CustomWorld) {
+  assert.ok(audioWsServer, "No se conectó el WebSocket determinista del escenario");
+  audioWsServer?.send(JSON.stringify({
+    type: "conversation.message.created",
+    conversation_id: 1,
+    message: {
+      id: 201,
+      sender_role: "provider",
+      content: "",
+      created_on: new Date().toISOString(),
+      audio: {
+        id: "audio-ws-sidebar-001",
+        url: "https://signed-media.test/conversation/audio-ws-sidebar-001",
+        original_name: "indicaciones-visita.webm",
         duration_seconds: 18,
         mime_type: "audio/webm",
       },
@@ -608,4 +702,18 @@ Then("la burbuja muestra su duración", async function (this: CustomWorld) {
   const duration = this.page.getByTestId("audio-duration");
   await duration.waitFor(visibleTimeout);
   assert.ok((await duration.textContent())?.includes("0:18"));
+});
+
+Then("el sidebar sigue mostrando exactamente {string}", async function (this: CustomWorld, preview: string) {
+  const lastMessage = this.page.getByTestId("last-message").first();
+  await lastMessage.waitFor(visibleTimeout);
+  await this.page.waitForTimeout(50);
+  assert.strictEqual(await lastMessage.textContent(), preview);
+});
+
+Then("el texto también estaba visible antes del evento WebSocket", function (this: CustomWorld) {
+  assert.strictEqual(
+    (this as CustomWorld & { audioSidebarInitialVisible?: boolean }).audioSidebarInitialVisible,
+    true
+  );
 });

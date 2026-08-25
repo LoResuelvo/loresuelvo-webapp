@@ -27,6 +27,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/app/consumidor/mensajes/actions", () => ({
   getConversationDetail: vi.fn(),
   sendMessage: vi.fn(),
+  sendAudioMessage: vi.fn(),
   createConversation: vi.fn(),
   getJobRequestForConversation: vi.fn(() => Promise.resolve(null)),
 }));

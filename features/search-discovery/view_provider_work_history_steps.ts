@@ -158,6 +158,32 @@ Given(
   },
 );
 
+Given(
+  "que el perfil público de {string} no tiene reseñas ni trabajos pagados",
+  async function (this: CustomWorld, providerName: string) {
+    const [name, ...surnameParts] = providerName.trim().split(/\s+/);
+    await this.stubGet(
+      "/providers/1",
+      aProviderProfile({
+        name,
+        surname: surnameParts.join(" "),
+        rating_average: 0,
+        rating_count: 0,
+        work_orders: [],
+      }),
+    );
+  },
+);
+
+Then(
+  "visualizo que todavía no tiene reseñas",
+  async function (this: CustomWorld) {
+    const emptyReviews = this.page.getByText("Este prestador todavía no tiene reseñas.", { exact: true });
+    await emptyReviews.waitFor({ state: "visible" });
+    assert.ok(await emptyReviews.isVisible());
+  },
+);
+
 Then(
   "visualizo que todavía no tiene historial público",
   async function (this: CustomWorld) {

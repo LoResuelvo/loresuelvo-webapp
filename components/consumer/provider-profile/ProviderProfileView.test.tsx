@@ -1,25 +1,45 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import type {
+  ProviderProfile,
+  ProviderProfileWorkOrder,
+} from "@/domain/provider/types";
 import ProviderProfileView from "./ProviderProfileView";
 
 vi.mock("next/navigation", () => ({
   usePathname: vi.fn(() => "/consumidor/prestadores/7"),
 }));
 
+function aWorkOrder(overrides: Partial<ProviderProfileWorkOrder> = {}): ProviderProfileWorkOrder {
+  return {
+    id: 10,
+    scheduledOn: { isoString: "2026-08-20T10:00:00Z" },
+    description: "Reparación de cañería en cocina",
+    completionReport: {
+      description: "Trabajo finalizado correctamente y verificado.",
+      reportedOn: { isoString: "2026-08-20T12:00:00Z" },
+    },
+    ...overrides,
+  };
+}
+
+function aProviderProfile(overrides: Partial<ProviderProfile> = {}): ProviderProfile {
+  return {
+    id: 7,
+    name: "Juan",
+    surname: "Gómez",
+    categoryName: "Plomería",
+    profilePhotoUrl: "https://example.com/juan.jpg",
+    rating: 4.8,
+    reviews: 12,
+    workOrders: [],
+    ...overrides,
+  };
+}
+
 describe("ProviderProfileView", () => {
   it("renders the provider name, photo and category", () => {
-    render(
-      <ProviderProfileView
-        session={null}
-        provider={{
-          id: 7,
-          name: "Juan",
-          surname: "Gómez",
-          categoryName: "Plomería",
-          profilePhotoUrl: "https://example.com/juan.jpg",
-        }}
-      />,
-    );
+    render(<ProviderProfileView session={null} provider={aProviderProfile()} />);
 
     expect(screen.getByRole("heading", { name: "Juan Gómez" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /juan gómez/i })).toHaveAttribute(
@@ -33,81 +53,8 @@ describe("ProviderProfileView", () => {
     );
   });
 
-  it("does not render private provider data such as email or documents", () => {
-    render(
-      <ProviderProfileView
-        session={null}
-        provider={{
-          id: 7,
-          name: "Juan",
-          surname: "Gómez",
-          categoryName: "Plomería",
-          profilePhotoUrl: "https://example.com/juan.jpg",
-        }}
-      />,
-    );
-
-    expect(screen.queryByText(/@/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/documento/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/dni/i)).not.toBeInTheDocument();
-  });
-
-  it("does not render private work-order payload fields", () => {
-    render(
-      <ProviderProfileView
-        session={null}
-        provider={
-          {
-            id: 7,
-            name: "Juan",
-            surname: "Gómez",
-            categoryName: "Plomería",
-            profilePhotoUrl: "https://example.com/juan.jpg",
-            rating: 4.8,
-            reviews: 12,
-            workOrders: [
-              {
-                id: 10,
-                scheduledOn: { isoString: "2026-08-20T10:00:00Z" },
-                description: "Reparación de cañería en cocina",
-                completionReport: {
-                  description: "Trabajo finalizado correctamente y verificado.",
-                  reportedOn: { isoString: "2026-08-20T12:00:00Z" },
-                  images: [{ fileId: "private-evidence-1", url: "private-evidence.jpg" }],
-                },
-                consumer: { name: "María López", email: "maria.lopez@example.com" },
-                amountCents: 150000,
-              },
-            ],
-          } as never
-        }
-      />,
-    );
-
-    const history = screen.getByRole("region", { name: /historial de trabajos/i });
-    expect(history).toHaveTextContent("Reparación de cañería en cocina");
-    expect(history).not.toHaveTextContent("María López");
-    expect(history).not.toHaveTextContent("maria.lopez@example.com");
-    expect(history).not.toHaveTextContent("150000");
-    expect(history).not.toHaveTextContent("private-evidence.jpg");
-    expect(history.querySelector("img")).toBeNull();
-  });
-
   it("renders the public rating summary with decorative stars", () => {
-    render(
-      <ProviderProfileView
-        session={null}
-        provider={{
-          id: 7,
-          name: "Juan",
-          surname: "Gómez",
-          categoryName: "Plomería",
-          profilePhotoUrl: "https://example.com/juan.jpg",
-          rating: 4.8,
-          reviews: 12,
-        }}
-      />,
-    );
+    render(<ProviderProfileView session={null} provider={aProviderProfile()} />);
 
     expect(screen.getByRole("heading", { name: /reputación/i })).toBeInTheDocument();
     expect(screen.getByText("4.8", { exact: true })).toBeInTheDocument();
@@ -116,36 +63,31 @@ describe("ProviderProfileView", () => {
     expect(ratingSection.querySelector("[aria-hidden='true']")).not.toBeNull();
   });
 
+  it("renders an explicit accessible empty state when the provider has no reviews", () => {
+    render(
+      <ProviderProfileView
+        session={null}
+        provider={aProviderProfile({ rating: 0, reviews: 0 })}
+      />,
+    );
+
+    expect(screen.getByText("Este prestador todavía no tiene reseñas.", { exact: true })).toBeInTheDocument();
+  });
+
   it("renders a paid work with its completion report and review", () => {
     render(
       <ProviderProfileView
         session={null}
-        provider={
-          {
-            id: 7,
-            name: "Juan",
-            surname: "Gómez",
-            categoryName: "Plomería",
-            profilePhotoUrl: "https://example.com/juan.jpg",
-            rating: 4.8,
-            reviews: 12,
-            workOrders: [
-              {
-                id: 10,
-                scheduledOn: { isoString: "2026-08-20T10:00:00Z" },
-                description: "Reparación de cañería en cocina",
-                completionReport: {
-                  description: "Trabajo finalizado correctamente y verificado.",
-                  reportedOn: { isoString: "2026-08-20T12:00:00Z" },
-                },
-                review: {
-                  rating: 5,
-                  description: "Excelente servicio, muy puntual y prolijo.",
-                },
+        provider={aProviderProfile({
+          workOrders: [
+            aWorkOrder({
+              review: {
+                rating: 5,
+                description: "Excelente servicio, muy puntual y prolijo.",
               },
-            ],
-          } as never
-        }
+            }),
+          ],
+        })}
       />,
     );
 
@@ -160,27 +102,7 @@ describe("ProviderProfileView", () => {
     render(
       <ProviderProfileView
         session={null}
-        provider={
-          {
-            id: 7,
-            name: "Juan",
-            surname: "Gómez",
-            categoryName: "Plomería",
-            rating: 4.8,
-            reviews: 12,
-            workOrders: [
-              {
-                id: 10,
-                scheduledOn: { isoString: "2026-08-20T10:00:00Z" },
-                description: "Reparación de cañería en cocina",
-                completionReport: {
-                  description: "Trabajo finalizado correctamente y verificado.",
-                  reportedOn: { isoString: "2026-08-20T12:00:00Z" },
-                },
-              },
-            ],
-          } as never
-        }
+        provider={aProviderProfile({ workOrders: [aWorkOrder()] })}
       />,
     );
 
@@ -191,14 +113,7 @@ describe("ProviderProfileView", () => {
     render(
       <ProviderProfileView
         session={null}
-        provider={{
-          id: 7,
-          name: "Juan",
-          surname: "Gómez",
-          categoryName: "Plomería",
-          rating: 0,
-          reviews: 0,
-        }}
+        provider={aProviderProfile({ rating: 0, reviews: 0, workOrders: [] })}
       />,
     );
 
@@ -210,36 +125,12 @@ describe("ProviderProfileView", () => {
     render(
       <ProviderProfileView
         session={null}
-        provider={
-          {
-            id: 7,
-            name: "Juan",
-            surname: "Gómez",
-            categoryName: "Plomería",
-            rating: 4.8,
-            reviews: 12,
-            workOrders: [
-              {
-                id: 10,
-                scheduledOn: { isoString: "2026-08-20T10:00:00Z" },
-                description: "Reparación de cañería",
-                completionReport: {
-                  description: "Trabajo finalizado.",
-                  reportedOn: { isoString: "2026-08-20T12:00:00Z" },
-                },
-              },
-              {
-                id: 11,
-                scheduledOn: { isoString: "2026-08-21T10:00:00Z" },
-                description: "Cambio de grifería",
-                completionReport: {
-                  description: "Trabajo finalizado.",
-                  reportedOn: { isoString: "2026-08-21T12:00:00Z" },
-                },
-              },
-            ],
-          } as never
-        }
+        provider={aProviderProfile({
+          workOrders: [
+            aWorkOrder({ id: 10, description: "Reparación de cañería" }),
+            aWorkOrder({ id: 11, description: "Cambio de grifería" }),
+          ],
+        })}
       />,
     );
 

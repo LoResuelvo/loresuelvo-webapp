@@ -1,5 +1,5 @@
 import { ProviderModule } from "@/domain/provider/Provider";
-import type { Provider } from "@/domain/provider/types";
+import type { ProviderProfile, ProviderProfileWorkOrder } from "@/domain/provider/types";
 import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
 import type { AuthSession } from "@/infrastructure/auth/types";
 import { t } from "@/infrastructure/i18n/translations";
@@ -11,25 +11,11 @@ import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 
 interface ProviderProfileViewProps {
-  provider: Provider;
+  provider: ProviderProfile;
   session: AuthSession | null;
 }
 
-interface PublicWorkOrderView {
-  id: number;
-  scheduledOn: { isoString: string };
-  description: string;
-  completionReport: {
-    description: string;
-    reportedOn: { isoString: string };
-  };
-  review?: {
-    rating: number;
-    description: string;
-  };
-}
-
-function WorkOrderArticle({ workOrder }: { workOrder: PublicWorkOrderView }) {
+function WorkOrderArticle({ workOrder }: { workOrder: ProviderProfileWorkOrder }) {
   return (
     <li className="min-w-0">
       <article className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-5">
@@ -81,9 +67,7 @@ function WorkOrderArticle({ workOrder }: { workOrder: PublicWorkOrderView }) {
 
 export default function ProviderProfileView({ provider, session }: ProviderProfileViewProps) {
   const displayName = ProviderModule.getDisplayName(provider);
-  const rating = typeof provider.rating === "number" ? provider.rating : 0;
-  const reviews = typeof provider.reviews === "number" ? provider.reviews : 0;
-  const workOrders = (provider as Provider & { workOrders?: PublicWorkOrderView[] }).workOrders ?? [];
+  const { rating, reviews, workOrders } = provider;
 
   return (
     <div className="min-h-screen bg-brand-neutral/30 flex font-sans text-brand-primary">
@@ -139,15 +123,21 @@ export default function ProviderProfileView({ provider, session }: ProviderProfi
               <h2 id="provider-rating-title" className="text-subtitle font-bold text-brand-primary">
                 {t.consumerSearch.profile.ratingLabel}
               </h2>
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <RatingStars rating={rating} />
-                <span className="text-title font-bold text-brand-primary">
-                  {rating.toFixed(1)}
-                </span>
-                <span className="text-body text-slate-600">
-                  ({reviews} {t.consumerSearch.profile.reviewsLabel})
-                </span>
-              </div>
+              {reviews > 0 ? (
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <RatingStars rating={rating} />
+                  <span className="text-title font-bold text-brand-primary">
+                    {rating.toFixed(1)}
+                  </span>
+                  <span className="text-body text-slate-600">
+                    ({reviews} {t.consumerSearch.profile.reviewsLabel})
+                  </span>
+                </div>
+              ) : (
+                <p className="mt-4 break-words text-body text-slate-600">
+                  {t.consumerSearch.profile.reviewsEmpty}
+                </p>
+              )}
             </section>
 
             <section

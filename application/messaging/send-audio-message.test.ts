@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { sendAudioMessage } from "./send-audio-message";
+import { AudioUploadError, sendAudioMessage } from "./send-audio-message";
 import { AudioConversationRepository } from "@/ports/audio-conversation-repository";
 import { FileRepository } from "@/ports/file-repository";
 
@@ -72,5 +72,39 @@ describe("sendAudioMessage", () => {
     });
     expect(result.message.audio?.durationSeconds).toBe(18);
     expect(result.message.audio?.originalName).toBe(file.name);
+  });
+
+  it.each([
+    ["presign", () => vi.mocked(fileRepository.getPresignedUrl).mockRejectedValue(new Error("presign failed"))],
+    ["PUT", () => {
+      vi.mocked(fileRepository.getPresignedUrl).mockResolvedValue({
+        file_id: "upload-1",
+        key: "conversation_message_audio/upload-1",
+        upload_url: "https://upload.test/audio",
+        headers: {},
+      });
+      vi.mocked(fileRepository.uploadFile).mockRejectedValue(new Error("upload failed"));
+    }],
+    ["confirm", () => {
+      vi.mocked(fileRepository.getPresignedUrl).mockResolvedValue({
+        file_id: "upload-1",
+        key: "conversation_message_audio/upload-1",
+        upload_url: "https://upload.test/audio",
+        headers: {},
+      });
+      vi.mocked(fileRepository.confirmUpload).mockRejectedValue(new Error("confirm failed"));
+    }],
+  ] as const)("reports the %s upload stage when it fails", async (stage, configureFailure) => {
+    configureFailure();
+
+    await expect(sendAudioMessage(conversationRepository, fileRepository, {
+      conversationId: "1",
+      counterpartId: 2,
+      myUserId: "consumer-001",
+      file: new File(["audio"], "ruido-bomba.webm", { type: "audio/webm" }),
+    })).rejects.toMatchObject({
+      constructor: AudioUploadError,
+      stage,
+    });
   });
 });

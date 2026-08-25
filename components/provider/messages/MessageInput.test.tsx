@@ -334,4 +334,33 @@ describe("MessageInput", () => {
     }
     vi.unstubAllGlobals();
   });
+
+  it("keeps the audio preview and shows the upload error so it can be retried", async () => {
+    const onSendAudio = vi.fn().mockResolvedValue("PUT");
+    render(
+      <MessageInput
+        value=""
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        onSendAudio={onSendAudio}
+        disabled={false}
+        onAttachFiles={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Adjuntar audio" }));
+    const audioInput = document.querySelector('input[accept="audio/webm"]') as HTMLInputElement;
+    fireEvent.change(audioInput, {
+      target: { files: [new File(["audio"], "ruido-bomba.webm", { type: "audio/webm" })] },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: t.messaging.sendLabel }));
+
+    await waitFor(() => {
+      expect(screen.getByText(t.messaging.audioUpload.errors.PUT)).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("audio-preview")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: t.messaging.sendLabel })).toBeEnabled();
+  });
 });

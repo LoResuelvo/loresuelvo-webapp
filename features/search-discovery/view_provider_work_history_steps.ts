@@ -144,22 +144,7 @@ Then(
 );
 
 Given(
-  "que el perfil público de {string} no tiene trabajos pagados",
-  async function (this: CustomWorld, providerName: string) {
-    const [name, ...surnameParts] = providerName.trim().split(/\s+/);
-    await this.stubGet(
-      "/providers/1",
-      aProviderProfile({
-        name,
-        surname: surnameParts.join(" "),
-        work_orders: [],
-      }),
-    );
-  },
-);
-
-Given(
-  "que el perfil público de {string} no tiene reseñas ni trabajos pagados",
+  "que el perfil de {string} no tiene trabajos realizados ni reseñas",
   async function (this: CustomWorld, providerName: string) {
     const [name, ...surnameParts] = providerName.trim().split(/\s+/);
     await this.stubGet(
@@ -176,7 +161,7 @@ Given(
 );
 
 Then(
-  "visualizo que todavía no tiene reseñas",
+  "visualizo que el prestador todavía no tiene reseñas",
   async function (this: CustomWorld) {
     const emptyReviews = this.page.getByText("Este prestador todavía no tiene reseñas.", { exact: true });
     await emptyReviews.waitFor({ state: "visible" });
@@ -185,7 +170,7 @@ Then(
 );
 
 Then(
-  "visualizo que todavía no tiene historial público",
+  "visualizo que todavía no tiene trabajos realizados",
   async function (this: CustomWorld) {
     const emptyHistory = this.page.getByText(
       "Este prestador todavía no tiene historial público.",

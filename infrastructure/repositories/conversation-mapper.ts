@@ -1,5 +1,6 @@
 import { ApiConversation, ApiConversationDetail, ApiConversationMessage } from "@/infrastructure/api/types";
 import { ConsumerConversationContact, ProviderConversationContact, ConversationDetailInfo, Message } from "@/domain/messaging/types";
+import { formatMessagePreview } from "@/lib/message-preview";
 
 export function formatToLocalShortDateTime(dateString: string | Date): string {
   return new Date(dateString).toLocaleString("es-AR", {
@@ -52,7 +53,7 @@ export function transformApiToConsumerContact(apiConv: ApiConversation): Consume
     providerId: String(apiConv.counterpart.id),
     providerName: apiConv.counterpart.name,
     providerSurname: apiConv.counterpart.surname,
-    lastMessage: apiConv.last_message?.content || "",
+    lastMessage: formatMessagePreview(apiConv.last_message),
     lastMessageAt: apiConv.last_message?.created_on
       ? formatToLocalShortDateTime(apiConv.last_message.created_on)
       : "",
@@ -67,7 +68,7 @@ export function transformApiToProviderContact(apiConv: ApiConversation): Provide
     consumerId: String(apiConv.counterpart.id),
     consumerName: apiConv.counterpart.name,
     consumerSurname: apiConv.counterpart.surname,
-    lastMessage: apiConv.last_message?.content || "",
+    lastMessage: formatMessagePreview(apiConv.last_message),
     lastMessageAt: apiConv.last_message?.created_on
       ? formatToLocalShortDateTime(apiConv.last_message.created_on)
       : "",

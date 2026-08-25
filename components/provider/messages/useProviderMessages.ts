@@ -14,6 +14,7 @@ import { AudioUploadError, sendAudioMessage as sendAudioMessageUseCase, type Aud
 import { transformApiMessageToDomain, formatToLocalShortDateTime } from "@/infrastructure/repositories/conversation-mapper";
 import { clearDraft, loadDraft, saveDraft, type DraftFileMeta } from "@/lib/message-drafts";
 import { useClock } from "@/hooks/useClock";
+import { formatMessagePreview } from "@/lib/message-preview";
 
 function fileToMeta(file: File): DraftFileMeta {
   return { name: file.name, size: file.size, type: file.type };
@@ -179,10 +180,7 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
       const incomingConvId = String(event.conversation_id);
       const currentConvId = effectiveConvIdRef.current;
 
-      const eventContent = event.message.content ?? "";
-      const previewText = eventContent.length > 40
-        ? eventContent.slice(0, 40) + "…"
-        : eventContent;
+      const previewText = formatMessagePreview(event.message);
       
       const sentAtFormatted = formatToLocalShortDateTime(event.message.created_on);
 

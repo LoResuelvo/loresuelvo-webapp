@@ -159,6 +159,9 @@ export const t = {
       durationLabel: "Duración:",
       removeLabel: "Eliminar audio adjunto",
     },
+    audioSidebarPreview: {
+      label: "🎤 Audio",
+    },
     audioAttachment: {
       invalidFormat: "Formato de audio no permitido. Solo se admiten archivos WebM con codec Opus.",
       tooLarge: "El audio no debe superar los 5 MiB.",

@@ -16,6 +16,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   messageInput: string;
   onMessageInputChange: (value: string) => void;
   onSendMessage: () => void;
+  onSendAudio?: (file: File) => Promise<boolean> | boolean;
   isSending: boolean;
   onAccept?: () => void;
   myUserId: string;
@@ -39,6 +40,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   messageInput,
   onMessageInputChange,
   onSendMessage,
+  onSendAudio,
   isSending,
   onAccept,
   myUserId,
@@ -112,6 +114,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
             value={messageInput}
             onChange={onMessageInputChange}
             onSend={onSendMessage}
+            onSendAudio={onSendAudio}
             disabled={isSending}
             attachedFiles={attachedFiles}
             onAttachFiles={onAttachFiles}
@@ -133,4 +136,3 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
 
 ChatPanel.displayName = "ChatPanel";
 export default ChatPanel;
-

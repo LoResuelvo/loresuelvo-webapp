@@ -1,11 +1,12 @@
 import { api } from "@/infrastructure/api/base-client";
-import { ApiConversation } from "@/infrastructure/api/types";
+import { ApiConversation, ApiConversationMessage } from "@/infrastructure/api/types";
 import { ConversationDetailInfo, ConsumerConversationContact, ProviderConversationContact } from "@/domain/messaging/types";
 import { ConversationRepository } from "@/ports/conversation-repository";
 import { transformApiToConsumerContact, transformApiToProviderContact, transformApiToConversationDetail } from "./conversation-mapper";
 import { ApiConversationDetail } from "@/infrastructure/api/types";
+import { AudioConversationRepository, SendAudioMessagePayload } from "@/ports/audio-conversation-repository";
 
-export class ApiConversationRepository implements ConversationRepository {
+export class ApiConversationRepository implements ConversationRepository, AudioConversationRepository {
   async getConsumerConversations(): Promise<ConsumerConversationContact[]> {
     const data = await api.get<ApiConversation[]>("/conversations");
     return data.map(transformApiToConsumerContact);
@@ -35,5 +36,14 @@ export class ApiConversationRepository implements ConversationRepository {
     if (content !== undefined) payload.content = content;
     if (imageFileIds && imageFileIds.length > 0) payload.image_file_ids = imageFileIds;
     return api.post(`/conversations/${conversationId}/messages`, payload);
+  }
+
+  async sendAudioMessage(
+    conversationId: string,
+    payload: SendAudioMessagePayload
+  ): Promise<ApiConversationMessage> {
+    return api.post<ApiConversationMessage>(`/conversations/${conversationId}/messages`, {
+      audio_file_id: payload.audioFileId,
+    });
   }
 }

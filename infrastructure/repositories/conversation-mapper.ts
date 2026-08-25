@@ -33,6 +33,14 @@ export function transformApiMessageToDomain(
       url: img.url,
       originalName: (img as any).originalName || img.original_name,
     })) : undefined,
+    audio: apiMsg.audio ? {
+      id: String(apiMsg.audio.id),
+      url: apiMsg.audio.url,
+      originalName: apiMsg.audio.original_name,
+      durationSeconds: apiMsg.audio.duration_seconds,
+      mimeType: apiMsg.audio.mime_type,
+      sizeBytes: apiMsg.audio.size_bytes,
+    } : undefined,
     sentAt: formatToLocalTime(apiMsg.created_on),
     createdOn: apiMsg.created_on,
   };
@@ -98,10 +106,17 @@ export function transformApiToConversationDetail(api: ApiConversationDetail): Co
         url: img.url,
         originalName: img.original_name,
       })) : undefined,
+      audio: m.audio ? {
+        id: String(m.audio.id),
+        url: m.audio.url,
+        originalName: m.audio.original_name,
+        durationSeconds: m.audio.duration_seconds,
+        mimeType: m.audio.mime_type,
+        sizeBytes: m.audio.size_bytes,
+      } : undefined,
       sentAt: formatToLocalTime(m.created_on),
       createdOn: m.created_on,
     })) : [],
     updatedOn: api.updated_on,
   };
 }
-

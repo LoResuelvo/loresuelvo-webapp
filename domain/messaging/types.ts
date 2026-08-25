@@ -6,10 +6,20 @@ export interface MessageImage {
   originalName: string;
 }
 
+export interface MessageAudio {
+  id: string;
+  url: string;
+  originalName: string;
+  durationSeconds: number;
+  mimeType?: string;
+  sizeBytes?: number;
+}
+
 export interface Message {
   id: string;
   content?: string;
   images?: MessageImage[];
+  audio?: MessageAudio;
   senderId?: string;
   sentAt: string;
   createdOn?: string;

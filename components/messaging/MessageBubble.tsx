@@ -13,6 +13,7 @@ interface MessageBubbleProps {
   onToggleExpand: (id: string) => void;
   isOwnMessage?: boolean;
   images?: { id: string; url: string; originalName: string }[];
+  audio?: { id: string; url: string; originalName: string; durationSeconds: number };
 }
 
 export default function MessageBubble({
@@ -24,6 +25,7 @@ export default function MessageBubble({
   onToggleExpand,
   isOwnMessage = true,
   images,
+  audio,
 }: MessageBubbleProps) {
   const [previewImage, setPreviewImage] = useState<{url: string, name: string} | null>(null);
 
@@ -55,6 +57,19 @@ export default function MessageBubble({
                 />
               </button>
             ))}
+          </div>
+        )}
+        {audio && (
+          <div className="flex flex-col gap-1 mb-2" data-testid={`audio-message-${id}`}>
+            <audio
+              controls
+              preload="metadata"
+              src={audio.url}
+              aria-label={`Reproductor de audio ${audio.originalName}`}
+            />
+            <span data-testid="audio-duration" className="text-caption">
+              {t.messaging.audioPreview.durationLabel} {Math.floor(audio.durationSeconds / 60)}:{String(audio.durationSeconds % 60).padStart(2, "0")}
+            </span>
           </div>
         )}
         {content && (

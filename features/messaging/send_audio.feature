@@ -57,7 +57,6 @@ Feature: 50.1 Enviar audios por el chat web
             | 301      | rechazado |
             | 300      | aceptado  |
 
-    @wip
     Scenario: 50.1.8-WEB Consumidor envía un audio en un chat activo
         Given que existe un chat activo entre el consumidor "Ana Pérez" y el prestador "Juan Gómez"
         And que estoy autenticado como consumidor

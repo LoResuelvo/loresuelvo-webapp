@@ -12,6 +12,7 @@ import {
   createConversation as createConvUseCase,
   sendMessage as sendMsgUseCase,
 } from "@/application/messaging/send-message";
+import { SendAudioMessagePayload } from "@/ports/audio-conversation-repository";
 import { ConversationDetailInfo, ServiceProposalSummary } from "@/domain/messaging/types";
 import { JobRequestSummary } from "@/ports/job-request-repository";
 
@@ -28,6 +29,11 @@ export async function createConversation(providerId: number, content?: string, i
 export async function sendMessage(conversationId: string, content?: string, imageFileIds?: string[]): Promise<unknown> {
   const repository = new ApiConversationRepository();
   return sendMsgUseCase(repository, conversationId, content, imageFileIds);
+}
+
+export async function sendAudioMessage(conversationId: string, payload: SendAudioMessagePayload): Promise<unknown> {
+  const repository = new ApiConversationRepository();
+  return repository.sendAudioMessage(conversationId, payload);
 }
 
 export async function getJobRequestForConversation(conversationId: string): Promise<JobRequestSummary | null> {

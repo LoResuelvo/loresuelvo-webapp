@@ -87,11 +87,21 @@ export interface ApiMessageImage {
   original_name: string;
 }
 
+export interface ApiMessageAudio {
+  id: string;
+  url: string;
+  original_name: string;
+  duration_seconds: number;
+  mime_type?: string;
+  size_bytes?: number;
+}
+
 export interface ApiConversationMessage {
   id: number;
   sender_role: string;
   content?: string;
   images?: ApiMessageImage[];
+  audio?: ApiMessageAudio;
   created_on: string;
 }
 

@@ -106,4 +106,43 @@ describe("transformApiToConversationDetail", () => {
       originalName: "foto.jpg"
     });
   });
+
+  it("maps audio DTO fields to the domain audio contract", () => {
+    const apiMessage = {
+      id: 10,
+      sender_role: "consumer",
+      created_on: "2026-08-25T21:00:00Z",
+      audio: {
+        id: "audio-1",
+        url: "https://cdn.test/audio.webm",
+        original_name: "audio.webm",
+        duration_seconds: 18,
+        mime_type: "audio/webm",
+        size_bytes: 1234,
+      },
+    };
+
+    const result = transformApiToConversationDetail({
+      id: 42,
+      status: "active",
+      counterpart: {
+        id: 100,
+        role: "provider",
+        name: "Luis",
+        surname: "Gomez",
+        category_name: "Electricidad",
+      },
+      updated_on: "2026-08-25T21:00:00Z",
+      messages: [apiMessage],
+    });
+
+    expect(result.messages[0].audio).toEqual({
+      id: "audio-1",
+      url: "https://cdn.test/audio.webm",
+      originalName: "audio.webm",
+      durationSeconds: 18,
+      mimeType: "audio/webm",
+      sizeBytes: 1234,
+    });
+  });
 });

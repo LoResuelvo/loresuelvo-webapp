@@ -17,6 +17,7 @@ interface ConsumerMessagesViewProps {
   messageInput: string;
   onMessageInputChange: (value: string) => void;
   onSendMessage: () => void;
+  onSendAudio?: (file: File) => Promise<boolean> | boolean;
   isSending: boolean;
   myUserId: string;
   jobRequest?: JobRequestInfo | null;
@@ -40,6 +41,7 @@ const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesView
   messageInput,
   onMessageInputChange,
   onSendMessage,
+  onSendAudio,
   isSending,
   myUserId,
   jobRequest,
@@ -72,6 +74,7 @@ const ConsumerMessagesView = forwardRef<MessageInputHandle, ConsumerMessagesView
           messageInput={messageInput}
           onMessageInputChange={onMessageInputChange}
           onSendMessage={onSendMessage}
+          onSendAudio={onSendAudio}
           isSending={isSending}
           myUserId={myUserId}
           jobRequest={jobRequest}

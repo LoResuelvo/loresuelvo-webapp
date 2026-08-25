@@ -14,6 +14,7 @@ interface MessageInputProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
+  onSendAudio?: (file: File) => Promise<boolean> | boolean;
   disabled: boolean;
   attachedFiles?: File[];
   onAttachFiles?: (files: File[]) => void;
@@ -26,7 +27,7 @@ export interface MessageInputHandle {
 }
 
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
-  ({ value, onChange, onSend, disabled, attachedFiles = [], onAttachFiles, onRemoveFile, onOpenServiceProposal }, ref) => {
+  ({ value, onChange, onSend, onSendAudio, disabled, attachedFiles = [], onAttachFiles, onRemoveFile, onOpenServiceProposal }, ref) => {
     const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -140,7 +141,16 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       });
     };
 
-    const handleSend = () => {
+    const handleSend = async () => {
+      if (attachedAudio && onSendAudio) {
+        const sent = await onSendAudio(attachedAudio.file);
+        if (!sent) return;
+        setAttachedAudio(null);
+        setAudioDurationAccepted(false);
+        cancelRecording();
+        return;
+      }
+
       onSend();
       setAttachedAudio(null);
       setAudioDurationAccepted(false);

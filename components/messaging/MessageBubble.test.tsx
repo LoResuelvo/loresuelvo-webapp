@@ -68,4 +68,28 @@ describe("MessageBubble", () => {
     fireEvent.click(closeBtn);
     expect(screen.queryByLabelText("Cerrar vista previa")).not.toBeInTheDocument();
   });
+
+  it("renders an audio player and its duration", () => {
+    render(
+      <MessageBubble
+        id="msg-audio"
+        sentAt="10:00"
+        isExpanded={false}
+        showExpandButton={false}
+        onToggleExpand={vi.fn()}
+        audio={{
+          id: "audio-1",
+          url: "https://example.com/audio.webm",
+          originalName: "audio.webm",
+          durationSeconds: 18,
+        }}
+      />
+    );
+
+    expect(screen.getByLabelText("Reproductor de audio audio.webm")).toHaveAttribute(
+      "src",
+      "https://example.com/audio.webm"
+    );
+    expect(screen.getByTestId("audio-duration")).toHaveTextContent("0:18");
+  });
 });

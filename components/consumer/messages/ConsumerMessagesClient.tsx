@@ -30,6 +30,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
     selectedProviderId,
     toggleMessageExpanded,
     handleSendMessage,
+    handleSendAudio,
     handleContactClick,
     viewMessages,
     contactsWithUnread,
@@ -53,6 +54,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
           messageInput={messageInput}
           onMessageInputChange={setMessageInput}
           onSendMessage={handleSendMessage}
+          onSendAudio={handleSendAudio}
           isSending={isSending}
           myUserId={myUserId}
           jobRequest={activeJobRequest}

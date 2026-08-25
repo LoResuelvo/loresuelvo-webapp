@@ -135,6 +135,7 @@ export default function MessagesList({
             onToggleExpand={onToggleExpand}
             isOwnMessage={isOwnMessage}
             images={msg.images}
+            audio={msg.audio}
           />
         );
       })}

@@ -2,6 +2,7 @@ import { FileRepository, PresignedUrlResponse, ConfirmUploadResponse } from "@/p
 import { ConversationRepository } from "@/ports/conversation-repository";
 import { ConversationDetailInfo, ConsumerConversationContact, ProviderConversationContact } from "@/domain/messaging/types";
 import { getPresignedUrlAction, confirmUploadAction } from "@/app/files/actions";
+import { AudioConversationRepository, SendAudioMessagePayload } from "@/ports/audio-conversation-repository";
 
 export class ClientFileRepository implements FileRepository {
   async getPresignedUrl(
@@ -46,11 +47,12 @@ export class ClientFileRepository implements FileRepository {
   }
 }
 
-export class ClientConversationRepository implements ConversationRepository {
+export class ClientConversationRepository implements ConversationRepository, AudioConversationRepository {
   constructor(
     private actions: {
       create: (counterpartId: number, content?: string, imageFileIds?: string[]) => Promise<{ id: number }>;
       sendMessage: (conversationId: string, content?: string, imageFileIds?: string[]) => Promise<unknown>;
+      sendAudioMessage?: (conversationId: string, payload: SendAudioMessagePayload) => Promise<unknown>;
     }
   ) {}
 
@@ -60,6 +62,13 @@ export class ClientConversationRepository implements ConversationRepository {
 
   async sendMessage(conversationId: string, content?: string, imageFileIds?: string[]): Promise<unknown> {
     return this.actions.sendMessage(conversationId, content, imageFileIds);
+  }
+
+  async sendAudioMessage(conversationId: string, payload: SendAudioMessagePayload): Promise<unknown> {
+    if (!this.actions.sendAudioMessage) {
+      throw new Error("Audio messaging is not configured for this repository");
+    }
+    return this.actions.sendAudioMessage(conversationId, payload);
   }
 
   async getConsumerConversations(): Promise<ConsumerConversationContact[]> {

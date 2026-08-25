@@ -87,7 +87,6 @@ Feature: 50.1 Enviar audios por el chat web
             | PUT     |
             | confirm |
 
-    @wip
     Scenario: 50.1.11-WEB Consultar y reproducir un audio recibido con URL firmada
         Given que el chat contiene el audio recibido "ruido-bomba.webm"
         And que el audio tiene una URL firmada vigente

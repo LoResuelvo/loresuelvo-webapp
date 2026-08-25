@@ -4,8 +4,10 @@ export const AUDIO_ALLOWED_MIME_TYPES = [
 ] as const;
 
 export const AUDIO_MAX_BYTES = 5 * 1024 * 1024;
+export const AUDIO_MAX_DURATION_SECONDS = 300;
 
 export type AudioFileValidationError = "invalidFormat" | "tooLarge";
+export type AudioDurationValidationError = "tooLong";
 
 export function isSupportedAudioFile(file: Pick<File, "type">): boolean {
   return AUDIO_ALLOWED_MIME_TYPES.includes(file.type as (typeof AUDIO_ALLOWED_MIME_TYPES)[number]);
@@ -17,4 +19,8 @@ export function validateAudioFile(
   if (!isSupportedAudioFile(file)) return "invalidFormat";
   if (file.size > AUDIO_MAX_BYTES) return "tooLarge";
   return null;
+}
+
+export function validateAudioDuration(durationSeconds: number): AudioDurationValidationError | null {
+  return durationSeconds > AUDIO_MAX_DURATION_SECONDS ? "tooLong" : null;
 }

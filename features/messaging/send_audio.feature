@@ -46,7 +46,6 @@ Feature: 50.1 Enviar audios por el chat web
         Then veo un error indicando que supera los 5 MiB
         And el audio no se agrega al composer
 
-    @wip
     Scenario Outline: 50.1.7-WEB Validar el límite de 300 segundos
         Given que estoy en un chat activo como consumidor
         And que tengo un audio WebM con codec Opus de <duracion> segundos

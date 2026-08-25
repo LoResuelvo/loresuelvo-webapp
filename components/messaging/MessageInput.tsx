@@ -8,7 +8,7 @@ import { ImagePreviewModal } from "./ImagePreviewModal";
 import { AttachmentMenu } from "@/components/messaging/AttachmentMenu";
 import { AudioPreview, formatAudioDuration } from "@/components/messaging/AudioPreview";
 import { useAudioRecorder, type AudioRecorderError } from "@/hooks/useAudioRecorder";
-import { validateAudioFile } from "@/lib/audio-validation";
+import { validateAudioDuration, validateAudioFile } from "@/lib/audio-validation";
 
 interface MessageInputProps {
   value: string;
@@ -32,6 +32,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const fileInputRef = useRef<HTMLInputElement>(null);
     const audioInputRef = useRef<HTMLInputElement>(null);
     const [attachedAudio, setAttachedAudio] = useState<{ file: File; url: string } | null>(null);
+    const [audioDurationAccepted, setAudioDurationAccepted] = useState(false);
     const {
       isRecording,
       elapsedSeconds,
@@ -107,10 +108,27 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         onRemoveFile?.(0);
       }
       setError(null);
+      setAudioDurationAccepted(false);
       e.target.value = "";
     };
 
-    const removeAudio = () => setAttachedAudio(null);
+    const handleAudioDurationLoaded = (duration: number) => {
+      const durationError = validateAudioDuration(duration);
+      if (durationError) {
+        setError(t.messaging.audioAttachment.durationTooLong);
+        setAudioDurationAccepted(false);
+        setAttachedAudio(null);
+        return;
+      }
+
+      setError(null);
+      setAudioDurationAccepted(true);
+    };
+
+    const removeAudio = () => {
+      setAttachedAudio(null);
+      setAudioDurationAccepted(false);
+    };
 
     const handleRecordAudio = () => {
       void startRecording().then((started) => {
@@ -125,6 +143,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const handleSend = () => {
       onSend();
       setAttachedAudio(null);
+      setAudioDurationAccepted(false);
       cancelRecording();
     };
 
@@ -216,6 +235,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               audioUrl={attachedAudio.url}
               fileName={attachedAudio.file.name}
               onRemove={removeAudio}
+              onDurationLoaded={handleAudioDurationLoaded}
             />
           )}
           {!isRecording && !attachedAudio && audioUrl && (
@@ -257,6 +277,11 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         {(error || recorderErrorMessage) && (
           <div className="px-4 pb-2 text-red-500 text-sm font-medium">
             {error || recorderErrorMessage}
+          </div>
+        )}
+        {audioDurationAccepted && !error && (
+          <div className="px-4 pb-2 text-green-700 text-sm font-medium">
+            {t.messaging.audioAttachment.durationAccepted}
           </div>
         )}
         {/* Image Preview Modal */}

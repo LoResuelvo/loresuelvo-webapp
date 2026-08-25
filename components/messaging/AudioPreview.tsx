@@ -7,6 +7,7 @@ interface AudioPreviewProps {
   audioUrl: string;
   fileName: string;
   onRemove: () => void;
+  onDurationLoaded?: (duration: number) => void;
 }
 
 export function formatAudioDuration(seconds: number): string {
@@ -14,7 +15,7 @@ export function formatAudioDuration(seconds: number): string {
   return `${Math.floor(safeSeconds / 60)}:${String(safeSeconds % 60).padStart(2, "0")}`;
 }
 
-export function AudioPreview({ audioUrl, fileName, onRemove }: AudioPreviewProps) {
+export function AudioPreview({ audioUrl, fileName, onRemove, onDurationLoaded }: AudioPreviewProps) {
   const [duration, setDuration] = useState<number | null>(null);
 
   return (
@@ -29,7 +30,10 @@ export function AudioPreview({ audioUrl, fileName, onRemove }: AudioPreviewProps
         aria-label={`${t.messaging.audioPreview.playerLabel} ${fileName}`}
         onLoadedMetadata={(event) => {
           const nextDuration = event.currentTarget.duration;
-          if (Number.isFinite(nextDuration)) setDuration(nextDuration);
+          if (Number.isFinite(nextDuration)) {
+            setDuration(nextDuration);
+            onDurationLoaded?.(nextDuration);
+          }
         }}
       />
       <span className="text-sm text-slate-600" data-testid="audio-duration">

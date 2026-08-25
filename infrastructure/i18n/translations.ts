@@ -162,6 +162,8 @@ export const t = {
     audioAttachment: {
       invalidFormat: "Formato de audio no permitido. Solo se admiten archivos WebM con codec Opus.",
       tooLarge: "El audio no debe superar los 5 MiB.",
+      durationTooLong: "El audio no puede superar los 300 segundos.",
+      durationAccepted: "Duración de audio aceptada.",
     },
     audioRecorder: {
       stopLabel: "Detener grabación",

@@ -145,6 +145,18 @@ Given("que abrí el menú de adjuntos", async function (this: CustomWorld) {
   await this.page.getByRole("menu").waitFor(visibleTimeout);
 });
 
+Given("que tengo un audio WebM con codec Opus de {int} segundos", async function (this: CustomWorld, duration: number) {
+  (this as CustomWorld & { audioDurationSeconds?: number }).audioDurationSeconds = duration;
+  await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
+  await this.page.getByRole("menuitem", { name: "Adjuntar audio" }).click();
+  await this.page.locator('input[accept="audio/webm"]').setInputFiles({
+    name: `audio-${duration}s.webm`,
+    mimeType: "audio/webm",
+    buffer: Buffer.from("deterministic-audio-with-metadata"),
+  });
+  await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+});
+
 When("grabo un audio WebM con codec Opus de 5 segundos", async function (this: CustomWorld) {
   await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
   await this.page.getByRole("menuitem", { name: "Grabar audio" }).click();
@@ -180,6 +192,17 @@ When("intento adjuntar un audio WebM con codec Opus de {int} MiB", async functio
   });
 });
 
+When("confirmo el audio para enviarlo", async function (this: CustomWorld) {
+  const duration = (this as CustomWorld & { audioDurationSeconds?: number }).audioDurationSeconds;
+  assert.ok(duration !== undefined, "Falta la duración de metadata del audio");
+  const player = this.page.getByTestId("audio-preview").locator("audio");
+  await player.waitFor(visibleTimeout);
+  await player.evaluate((element, seconds) => {
+    Object.defineProperty(element, "duration", { configurable: true, value: seconds });
+    element.dispatchEvent(new Event("loadedmetadata", { bubbles: true }));
+  }, duration);
+});
+
 Then("veo la preview del audio grabado", async function (this: CustomWorld) {
   await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
   assert.ok(await this.page.getByTestId("audio-preview").isVisible());
@@ -211,6 +234,24 @@ Then("veo un error indicando que supera los 5 MiB", async function (this: Custom
   const error = this.page.getByText("El audio no debe superar los 5 MiB", { exact: false });
   await error.waitFor(visibleTimeout);
   assert.ok(await error.isVisible());
+});
+
+Then("la validación de duración informa {string}", async function (this: CustomWorld, result: string) {
+  if (result === "rechazado") {
+    const error = this.page.getByText("El audio no puede superar los 300 segundos", { exact: false });
+    await error.waitFor(visibleTimeout);
+    assert.ok(await error.isVisible());
+    return;
+  }
+
+  if (result === "aceptado") {
+    const accepted = this.page.getByText("Duración de audio aceptada", { exact: false });
+    await accepted.waitFor(visibleTimeout);
+    assert.ok(await accepted.isVisible());
+    return;
+  }
+
+  throw new Error(`Resultado de duración desconocido: ${result}`);
 });
 
 Then("el audio no se agrega al composer", async function (this: CustomWorld) {

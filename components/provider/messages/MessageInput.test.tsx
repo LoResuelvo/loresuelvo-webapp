@@ -169,6 +169,58 @@ describe("MessageInput", () => {
     expect(screen.queryByTestId("audio-preview")).not.toBeInTheDocument();
   });
 
+  it("rejects metadata longer than 300 seconds and clears the preview", () => {
+    render(
+      <MessageInput
+        value=""
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        disabled={false}
+        onAttachFiles={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Adjuntar audio" }));
+    const audioInput = document.querySelector('input[accept="audio/webm"]') as HTMLInputElement;
+    fireEvent.change(audioInput, {
+      target: { files: [new File(["audio"], "audio-largo.webm", { type: "audio/webm" })] },
+    });
+
+    const player = screen.getByLabelText("Reproductor de audio audio-largo.webm") as HTMLAudioElement;
+    Object.defineProperty(player, "duration", { configurable: true, value: 301 });
+    fireEvent.loadedMetadata(player);
+
+    expect(screen.getByText(t.messaging.audioAttachment.durationTooLong)).toBeInTheDocument();
+    expect(screen.queryByTestId("audio-preview")).not.toBeInTheDocument();
+  });
+
+  it("accepts metadata at exactly 300 seconds", () => {
+    render(
+      <MessageInput
+        value=""
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        disabled={false}
+        onAttachFiles={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Adjuntar audio" }));
+    const audioInput = document.querySelector('input[accept="audio/webm"]') as HTMLInputElement;
+    fireEvent.change(audioInput, {
+      target: { files: [new File(["audio"], "audio-300.webm", { type: "audio/webm" })] },
+    });
+
+    const player = screen.getByLabelText("Reproductor de audio audio-300.webm") as HTMLAudioElement;
+    Object.defineProperty(player, "duration", { configurable: true, value: 300 });
+    fireEvent.loadedMetadata(player);
+
+    expect(screen.getByText(t.messaging.audioAttachment.durationAccepted)).toBeInTheDocument();
+    expect(screen.getByTestId("audio-preview")).toBeInTheDocument();
+  });
+
   it("clears text and image attachments and disables their controls while audio is selected", () => {
     const onChange = vi.fn();
     const onRemoveFile = vi.fn();

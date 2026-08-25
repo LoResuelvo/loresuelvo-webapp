@@ -18,6 +18,7 @@ interface ProviderMessagesViewProps {
   messageInput: string;
   onMessageInputChange: (value: string) => void;
   onSendMessage: () => void;
+  onSendAudio?: (file: File) => Promise<boolean> | boolean;
   isSending: boolean;
   onAccept?: () => void;
   myUserId: string;
@@ -43,6 +44,7 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
   messageInput,
   onMessageInputChange,
   onSendMessage,
+  onSendAudio,
   isSending,
   onAccept,
   myUserId,
@@ -93,6 +95,7 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
           messageInput={messageInput}
           onMessageInputChange={onMessageInputChange}
           onSendMessage={onSendMessage}
+          onSendAudio={onSendAudio}
           isSending={isSending}
           onAccept={onAccept}
           myUserId={myUserId}

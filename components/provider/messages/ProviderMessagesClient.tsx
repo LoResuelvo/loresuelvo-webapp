@@ -34,6 +34,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
     toggleMessageExpanded,
     messagesEndRef,
     handleSendMessage,
+    handleSendAudio,
     handleContactClick,
     handleAccept,
     handleReject,
@@ -69,6 +70,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
           messageInput={messageInput}
           onMessageInputChange={setMessageInput}
           onSendMessage={handleSendMessage}
+          onSendAudio={handleSendAudio}
           isSending={isSending}
           onAccept={activeJobRequest ? () => setShowRequestModal(true) : undefined}
           myUserId={myUserId}

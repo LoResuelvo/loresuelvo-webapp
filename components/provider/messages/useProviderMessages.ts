@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AuthSession } from "@/infrastructure/auth/types";
 import { ROUTES } from "@/lib/routes";
-import { getConversationDetail, acceptJobRequest, getJobRequestForConversation, createConversation, sendMessage, getServiceProposalsAction } from "@/app/prestador/mensajes/actions";
+import { getConversationDetail, acceptJobRequest, getJobRequestForConversation, createConversation, sendMessage, sendAudioMessage as sendAudioMessageAction, getServiceProposalsAction } from "@/app/prestador/mensajes/actions";
 import { t } from "@/infrastructure/i18n/translations";
 import { useWebSocket } from "@/infrastructure/websocket";
 import type { ProviderWorkRequest } from "@/domain/provider/types";
@@ -10,6 +10,7 @@ import { Message, ProviderConversationContact as ConversationContact, ServicePro
 import { ClientConversationRepository, ClientFileRepository } from "@/infrastructure/repositories/client-repositories";
 import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/local-offline-queue-repository";
 import { sendMessageWithAttachments } from "@/application/messaging/send-message-with-attachments";
+import { sendAudioMessage as sendAudioMessageUseCase } from "@/application/messaging/send-audio-message";
 import { transformApiMessageToDomain, formatToLocalShortDateTime } from "@/infrastructure/repositories/conversation-mapper";
 import { clearDraft, loadDraft, saveDraft, type DraftFileMeta } from "@/lib/message-drafts";
 import { useClock } from "@/hooks/useClock";
@@ -22,7 +23,7 @@ function metaToFile(meta: DraftFileMeta): File {
   return new File([new Blob([])], meta.name, { type: meta.type });
 }
 
-const conversationRepository = new ClientConversationRepository({ create: createConversation, sendMessage });
+const conversationRepository = new ClientConversationRepository({ create: createConversation, sendMessage, sendAudioMessage: sendAudioMessageAction });
 const fileRepository = new ClientFileRepository();
 const offlineQueueRepo = new LocalOfflineQueueRepository();
 
@@ -301,6 +302,60 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
     }
   };
 
+  const handleSendAudio = async (file: File): Promise<boolean> => {
+    if (!selectedConsumerId || isSending || isSendingRef.current) return false;
+
+    const currentConversationId = activeConversationId || selectedContact?.id?.replace("conv-", "");
+    if (!currentConversationId || !/^\d+$/.test(currentConversationId)) return false;
+
+    isSendingRef.current = true;
+    setIsSending(true);
+    const tempId = `local-audio-${now().getTime()}`;
+    const optimisticUrl = URL.createObjectURL(file);
+    const optimisticMessage: Message = {
+      id: tempId,
+      senderId: session?.user?.id ?? myUserId,
+      sentAt: "Ahora",
+      createdOn: now().toISOString(),
+      audio: {
+        id: tempId,
+        url: optimisticUrl,
+        originalName: file.name,
+        durationSeconds: 0,
+        mimeType: file.type,
+        sizeBytes: file.size,
+      },
+    };
+
+    setLocalMessages(prev => [...prev, optimisticMessage]);
+    setLocalContacts(prev => prev.map(c =>
+      c.consumerId === selectedConsumerId
+        ? { ...c, lastMessage: "🎤 Audio", lastMessageAt: "Ahora" }
+        : c
+    ));
+
+    try {
+      const { message } = await sendAudioMessageUseCase(conversationRepository, fileRepository, {
+        conversationId: currentConversationId,
+        counterpartId: Number(selectedConsumerId),
+        myUserId: session?.user?.id ?? myUserId,
+        myRole: "provider",
+        file,
+      });
+      setLocalMessages(prev => [...prev.filter(msg => msg.id !== tempId), message]);
+      URL.revokeObjectURL(optimisticUrl);
+      return true;
+    } catch (error) {
+      console.error("Error sending audio message:", error);
+      setLocalMessages(prev => prev.filter(msg => msg.id !== tempId));
+      URL.revokeObjectURL(optimisticUrl);
+      return false;
+    } finally {
+      setIsSending(false);
+      isSendingRef.current = false;
+    }
+  };
+
   const handleContactClick = (consumerId: string) => {
     router.push(`${ROUTES.provider.messages}?consumer_id=${consumerId}`);
   };
@@ -360,6 +415,7 @@ export function useProviderMessages(session: AuthSession | null, contacts: Conve
     toggleMessageExpanded,
     messagesEndRef,
     handleSendMessage,
+    handleSendAudio,
     handleContactClick,
     handleAccept,
     handleReject,

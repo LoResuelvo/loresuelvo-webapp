@@ -17,6 +17,7 @@ import { acceptWorkRequest } from "@/application/provider/accept-work-request";
 import { ConversationDetailInfo, CreateServiceProposalInput, ServiceProposal, ServiceProposalSummary } from "@/domain/messaging/types";
 import { JobRequestSummary } from "@/ports/job-request-repository";
 import { logger } from "@/infrastructure/logging/logger";
+import { SendAudioMessagePayload } from "@/ports/audio-conversation-repository";
 
 export async function getConversationDetail(id: string): Promise<ConversationDetailInfo> {
   const repository = new ApiConversationRepository();
@@ -31,6 +32,11 @@ export async function createConversation(consumerId: number, content?: string, i
 export async function sendMessage(conversationId: string, content?: string, imageFileIds?: string[]): Promise<unknown> {
   const repository = new ApiConversationRepository();
   return sendMsgUseCase(repository, conversationId, content, imageFileIds);
+}
+
+export async function sendAudioMessage(conversationId: string, payload: SendAudioMessagePayload): Promise<unknown> {
+  const repository = new ApiConversationRepository();
+  return repository.sendAudioMessage(conversationId, payload);
 }
 
 export async function acceptJobRequest(jobRequestId: number): Promise<void> {

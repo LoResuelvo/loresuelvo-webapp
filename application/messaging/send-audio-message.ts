@@ -9,6 +9,7 @@ export interface SendAudioMessageParams {
   myUserId: string;
   counterpartId: number;
   file: File | Blob;
+  myRole?: "consumer" | "provider";
 }
 
 export async function sendAudioMessage(
@@ -44,7 +45,7 @@ export async function sendAudioMessage(
       response as ApiConversationMessage,
       params.myUserId,
       String(params.counterpartId),
-      "consumer"
+      params.myRole ?? "consumer"
     ),
   };
 }

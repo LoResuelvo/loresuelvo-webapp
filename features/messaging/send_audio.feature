@@ -11,7 +11,6 @@ Feature: 50.1 Enviar audios por el chat web
         Then veo la preview del audio
         And puedo reproducirlo antes de enviarlo
 
-    @wip
     Scenario: 50.1.2-WEB Grabar un audio válido y ver su preview
         Given que estoy en un chat activo como consumidor
         And que el navegador permite usar el micrófono

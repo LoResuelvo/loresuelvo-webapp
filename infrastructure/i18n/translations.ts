@@ -150,7 +150,13 @@ export const t = {
     attachmentMenu: {
       openMenu: "Abrir menú de acciones",
       attachImages: "Adjuntar imágenes",
+      attachAudio: "Adjuntar audio",
       createProposal: "Crear propuesta de servicio",
+    },
+    audioPreview: {
+      playerLabel: "Reproductor de audio",
+      durationLabel: "Duración:",
+      removeLabel: "Eliminar audio adjunto",
     },
     serviceProposal: {
       modalTitle: "Propuesta de Servicio",

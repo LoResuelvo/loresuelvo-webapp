@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Send, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { t } from "@/infrastructure/i18n/translations";
 import Image from "next/image";
 import { ImagePreviewModal } from "./ImagePreviewModal";
 import { AttachmentMenu } from "@/components/messaging/AttachmentMenu";
+import { AudioPreview } from "@/components/messaging/AudioPreview";
 
 interface MessageInputProps {
   value: string;
@@ -27,6 +28,14 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const audioInputRef = useRef<HTMLInputElement>(null);
+    const [attachedAudio, setAttachedAudio] = useState<{ file: File; url: string } | null>(null);
+
+    useEffect(() => {
+      return () => {
+        if (attachedAudio) URL.revokeObjectURL(attachedAudio.url);
+      };
+    }, [attachedAudio]);
 
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -63,11 +72,31 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       }
     };
 
+    const handleAudioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setAttachedAudio({ file, url: URL.createObjectURL(file) });
+      onChange("");
+      for (let index = 0; index < attachedFiles.length; index += 1) {
+        onRemoveFile?.(0);
+      }
+      setError(null);
+      e.target.value = "";
+    };
+
+    const removeAudio = () => setAttachedAudio(null);
+
+    const handleSend = () => {
+      onSend();
+      setAttachedAudio(null);
+    };
+
     const [previewImage, setPreviewImage] = useState<{url: string, name: string} | null>(null);
 
     return (
       <div className="flex flex-col border-t border-slate-200 bg-white flex-shrink-0">
-        {attachedFiles.length > 0 && (
+        {attachedFiles.length > 0 && !attachedAudio && (
           <div className="p-3 pb-0 flex gap-2 overflow-x-auto">
             {attachedFiles.map((file, idx) => {
               const url = URL.createObjectURL(file);
@@ -108,15 +137,31 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 accept="image/jpeg, image/png, image/webp"
                 multiple
                 onChange={handleFileChange}
-                disabled={disabled || attachedFiles.length >= 5}
+                disabled={disabled || attachedFiles.length >= 5 || !!attachedAudio}
+              />
+              <input
+                type="file"
+                ref={audioInputRef}
+                className="hidden"
+                accept="audio/webm"
+                onChange={handleAudioChange}
+                disabled={disabled || !!attachedAudio}
               />
               <AttachmentMenu
                 onAttachImages={() => fileInputRef.current?.click()}
+                onAttachAudio={() => audioInputRef.current?.click()}
                 onCreateProposal={onOpenServiceProposal}
                 showProposalOption={!!onOpenServiceProposal}
-                disabled={disabled || attachedFiles.length >= 5}
+                disabled={disabled || attachedFiles.length >= 5 || !!attachedAudio}
               />
             </>
+          )}
+          {attachedAudio && (
+            <AudioPreview
+              audioUrl={attachedAudio.url}
+              fileName={attachedAudio.file.name}
+              onRemove={removeAudio}
+            />
           )}
           <Input
             ref={inputRef}
@@ -126,21 +171,21 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                if (value.trim() || attachedFiles.length > 0) {
+                if (value.trim() || attachedFiles.length > 0 || attachedAudio) {
                   setError(null);
-                  onSend();
+                  handleSend();
                 }
               }
             }}
             placeholder={t.messaging.inputPlaceholder}
             className="flex-1 px-4 h-[48px] rounded-xl border border-slate-200 bg-white text-body focus-visible:ring-brand-secondary/40"
-            disabled={disabled}
+            disabled={disabled || !!attachedAudio}
           />
           <Button
             variant="brand"
             type="button"
-            onClick={onSend}
-            disabled={disabled || (!value.trim() && attachedFiles.length === 0)}
+            onClick={handleSend}
+            disabled={disabled || (!value.trim() && attachedFiles.length === 0 && !attachedAudio)}
             aria-label={t.messaging.sendLabel}
             className="h-[48px] px-5 rounded-xl font-semibold"
           >

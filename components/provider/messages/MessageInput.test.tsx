@@ -5,6 +5,7 @@ import { t } from "@/infrastructure/i18n/translations";
 
 beforeAll(() => {
   global.URL.createObjectURL = vi.fn(() => "blob:mock-url");
+  global.URL.revokeObjectURL = vi.fn();
 });
 
 describe("MessageInput", () => {
@@ -91,5 +92,85 @@ describe("MessageInput", () => {
 
     expect(onAttachFiles).toHaveBeenCalledTimes(1);
     expect(onAttachFiles).toHaveBeenCalledWith([file]);
+  });
+
+  it("shows an accessible audio preview after selecting audio", () => {
+    render(
+      <MessageInput
+        value="Texto previo"
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        disabled={false}
+        onAttachFiles={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Adjuntar audio" }));
+    const audioInput = document.querySelector('input[accept="audio/webm"]') as HTMLInputElement;
+    const audio = new File(["audio"], "ruido-bomba.webm", { type: "audio/webm" });
+    fireEvent.change(audioInput, { target: { files: [audio] } });
+
+    expect(screen.getByTestId("audio-preview")).toBeInTheDocument();
+    expect(screen.getByLabelText("Reproductor de audio ruido-bomba.webm")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Eliminar audio adjunto ruido-bomba.webm" })).toBeInTheDocument();
+
+    const player = screen.getByLabelText("Reproductor de audio ruido-bomba.webm") as HTMLAudioElement;
+    Object.defineProperty(player, "duration", { configurable: true, value: 18 });
+    fireEvent.loadedMetadata(player);
+    expect(screen.getByTestId("audio-duration")).toHaveTextContent("0:18");
+  });
+
+  it("clears text and image attachments and disables their controls while audio is selected", () => {
+    const onChange = vi.fn();
+    const onRemoveFile = vi.fn();
+    const image = new File(["image"], "foto.jpg", { type: "image/jpeg" });
+    render(
+      <MessageInput
+        value="Texto previo"
+        onChange={onChange}
+        onSend={vi.fn()}
+        disabled={false}
+        attachedFiles={[image]}
+        onAttachFiles={vi.fn()}
+        onRemoveFile={onRemoveFile}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Adjuntar audio" }));
+    const audioInput = document.querySelector('input[accept="audio/webm"]') as HTMLInputElement;
+    fireEvent.change(audioInput, {
+      target: { files: [new File(["audio"], "ruido-bomba.webm", { type: "audio/webm" })] },
+    });
+
+    expect(onChange).toHaveBeenCalledWith("");
+    expect(onRemoveFile).toHaveBeenCalledWith(0);
+    expect(screen.getByRole("textbox")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Abrir menú de acciones" })).toBeDisabled();
+  });
+
+  it("removes audio and revokes its object URL when cancelled", () => {
+    render(
+      <MessageInput
+        value=""
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        disabled={false}
+        onAttachFiles={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Adjuntar audio" }));
+    const audioInput = document.querySelector('input[accept="audio/webm"]') as HTMLInputElement;
+    fireEvent.change(audioInput, {
+      target: { files: [new File(["audio"], "ruido-bomba.webm", { type: "audio/webm" })] },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar audio adjunto ruido-bomba.webm" }));
+
+    expect(screen.queryByTestId("audio-preview")).not.toBeInTheDocument();
+    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
   });
 });

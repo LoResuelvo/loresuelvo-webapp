@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, Image as ImageIcon, FileText } from "lucide-react";
+import { Plus, Image as ImageIcon, FileText, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
 
 interface AttachmentMenuProps {
   onAttachImages: () => void;
+  onAttachAudio?: () => void;
   onCreateProposal?: () => void;
   showProposalOption?: boolean;
   disabled?: boolean;
@@ -12,6 +13,7 @@ interface AttachmentMenuProps {
 
 export function AttachmentMenu({
   onAttachImages,
+  onAttachAudio,
   onCreateProposal,
   showProposalOption = false,
   disabled = false,
@@ -61,6 +63,20 @@ export function AttachmentMenu({
             <ImageIcon className="w-4 h-4 text-slate-500" />
             <span>{t.messaging.attachmentMenu.attachImages}</span>
           </button>
+          {onAttachAudio && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                onAttachAudio();
+              }}
+              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg md:rounded-xl transition-all"
+              role="menuitem"
+            >
+              <Mic className="w-4 h-4 text-slate-500" />
+              <span>{t.messaging.attachmentMenu.attachAudio}</span>
+            </button>
+          )}
           {showProposalOption && onCreateProposal && (
             <button
               type="button"

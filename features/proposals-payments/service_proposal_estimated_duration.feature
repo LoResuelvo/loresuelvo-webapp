@@ -1,4 +1,3 @@
-@wip
 Feature: US-53.2 Tiempo estimado de trabajo
   Como prestador
   Quiero especificar la duración estimada del servicio al crear una propuesta

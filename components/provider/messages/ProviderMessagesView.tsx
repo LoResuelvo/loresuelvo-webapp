@@ -102,7 +102,7 @@ const ProviderMessagesView = forwardRef<MessageInputHandle, ProviderMessagesView
           myUserId={myUserId}
           isLoadingJobRequest={isLoadingJobRequest}
           pendingBannerText={pendingBannerText}
-          blockInputWhenPending={false}
+          blockInputWhenPending
           attachedFiles={attachedFiles}
           onAttachFiles={onAttachFiles}
           onRemoveFile={onRemoveFile}

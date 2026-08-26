@@ -125,7 +125,6 @@ Feature: 50.1 Enviar audios por el chat web
         Then el audio se envía correctamente
         And el composer queda vacío
 
-    @wip
     Scenario: 50.1.16-WEB Bloquear el audio del prestador en una conversación pendiente
         Given que existe una conversación pendiente entre el consumidor "Ana Pérez" y el prestador "Juan Gómez"
         And que estoy autenticado como prestador

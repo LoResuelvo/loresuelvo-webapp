@@ -100,6 +100,46 @@ async function stubPendingConsumerChat(world: CustomWorld) {
   await world.stubPost("/ws-tickets", 201, aWsTicket());
 }
 
+async function stubPendingProviderChat(world: CustomWorld) {
+  await world.setSession("provider", {
+    id: "provider-001",
+    email: "juan@example.com",
+    firstName: "Juan",
+    lastName: "Gómez",
+    isOnboarded: true,
+  });
+
+  await world.stubGet("/conversations", [
+    aConversation({
+      id: 1,
+      status: "pending",
+      counterpart: aCounterpart({
+        id: 1,
+        role: "consumer",
+        name: "Ana",
+        surname: "Pérez",
+      }),
+    }),
+  ]);
+  await world.stubGet(
+    "/conversations/1",
+    aConversationDetail({
+      id: 1,
+      status: "pending",
+      counterpart: aCounterpart({
+        id: 1,
+        role: "consumer",
+        name: "Ana",
+        surname: "Pérez",
+      }),
+      messages: [],
+    })
+  );
+  await world.stubGet("/job-requests", []);
+  await world.stubGet("/service-proposals", []);
+  await world.stubPost("/ws-tickets", 201, aWsTicket());
+}
+
 async function stubAudioSidebarChat(world: CustomWorld) {
   await world.setSession("consumer", {
     id: "consumer-001",
@@ -213,8 +253,8 @@ Given("que estoy en un chat activo como consumidor", async function (this: Custo
 });
 
 Given("que estoy autenticado como consumidor", async function (this: CustomWorld) {
-  const world = this as CustomWorld & { pendingConsumerChat?: boolean };
-  if (world.pendingConsumerChat) {
+  const world = this as CustomWorld & { pendingChat?: boolean };
+  if (world.pendingChat) {
     await stubPendingConsumerChat(this);
   } else {
     await stubAudioChat(this);
@@ -264,11 +304,11 @@ Given("que estoy autenticado como consumidor", async function (this: CustomWorld
 });
 
 Given("que existe una conversación pendiente entre el consumidor {string} y el prestador {string}", async function (this: CustomWorld, _consumerName: string, _providerName: string) {
-  (this as CustomWorld & { pendingConsumerChat?: boolean }).pendingConsumerChat = true;
+  (this as CustomWorld & { pendingChat?: boolean }).pendingChat = true;
 });
 
 Given("que existe una conversación pendiente como consumidor", async function (this: CustomWorld) {
-  (this as CustomWorld & { pendingConsumerChat?: boolean }).pendingConsumerChat = true;
+  (this as CustomWorld & { pendingChat?: boolean }).pendingChat = true;
 });
 
 Given("que el límite de mensajes ya fue alcanzado", async function (this: CustomWorld) {
@@ -325,49 +365,55 @@ Given("que el audio permanece disponible en el composer para reintentar", async 
 });
 
 Given("que estoy autenticado como prestador", async function (this: CustomWorld) {
-  await this.setSession("provider", {
-    id: "provider-001",
-    email: "juan@example.com",
-    firstName: "Juan",
-    lastName: "Gómez",
-    isOnboarded: true,
-  });
+  const world = this as CustomWorld & { pendingChat?: boolean };
+  if (world.pendingChat) {
+    (world as CustomWorld & { pendingProviderChat?: boolean }).pendingProviderChat = true;
+    await stubPendingProviderChat(this);
+  } else {
+    await this.setSession("provider", {
+      id: "provider-001",
+      email: "juan@example.com",
+      firstName: "Juan",
+      lastName: "Gómez",
+      isOnboarded: true,
+    });
 
-  await this.stubGet("/conversations", [
-    aConversation({
-      id: 1,
-      status: "accepted",
-      counterpart: aCounterpart({
+    await this.stubGet("/conversations", [
+      aConversation({
         id: 1,
-        role: "consumer",
-        name: "Ana",
-        surname: "Pérez",
-      }),
-    }),
-  ]);
-  await this.stubGet(
-    "/conversations/1",
-    aConversationDetail({
-      id: 1,
-      status: "accepted",
-      counterpart: aCounterpart({
-        id: 1,
-        role: "consumer",
-        name: "Ana",
-        surname: "Pérez",
-      }),
-      messages: [
-        aConversationMessage({
+        status: "accepted",
+        counterpart: aCounterpart({
           id: 1,
-          sender_role: "consumer",
-          content: "Hola Juan",
+          role: "consumer",
+          name: "Ana",
+          surname: "Pérez",
         }),
-      ],
-    })
-  );
-  await this.stubGet("/job-requests", []);
-  await this.stubGet("/service-proposals", []);
-  await this.stubPost("/ws-tickets", 201, aWsTicket());
+      }),
+    ]);
+    await this.stubGet(
+      "/conversations/1",
+      aConversationDetail({
+        id: 1,
+        status: "accepted",
+        counterpart: aCounterpart({
+          id: 1,
+          role: "consumer",
+          name: "Ana",
+          surname: "Pérez",
+        }),
+        messages: [
+          aConversationMessage({
+            id: 1,
+            sender_role: "consumer",
+            content: "Hola Juan",
+          }),
+        ],
+      })
+    );
+    await this.stubGet("/job-requests", []);
+    await this.stubGet("/service-proposals", []);
+    await this.stubPost("/ws-tickets", 201, aWsTicket());
+  }
 
   await this.page.goto(
     APP_URL + ROUTES.provider.messages + "?consumer_id=1",
@@ -414,6 +460,8 @@ Given("que estoy autenticado como prestador", async function (this: CustomWorld)
 });
 
 Given("que tengo confirmado el audio {string}", async function (this: CustomWorld, fileName: string) {
+  if ((this as CustomWorld & { pendingProviderChat?: boolean }).pendingProviderChat) return;
+
   await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
   await this.page.getByRole("menuitem", { name: "Adjuntar audio" }).click();
   await this.page.locator('input[accept="audio/webm"]').setInputFiles({
@@ -636,6 +684,14 @@ When("intento enviar el audio", async function (this: CustomWorld) {
   await this.page.getByRole("button", { name: /Enviar mensaje/i }).click();
 });
 
+When("intento enviar únicamente el audio", async function (this: CustomWorld) {
+  if ((this as CustomWorld & { pendingProviderChat?: boolean }).pendingProviderChat) {
+    await this.page.getByText("Tenés que aceptar la solicitud antes de poder enviar mensajes.", { exact: true }).waitFor(visibleTimeout);
+    return;
+  }
+  await this.page.getByRole("button", { name: /Enviar mensaje/i }).click();
+});
+
 When("consulto el chat", async function (this: CustomWorld) {
   await this.page.goto(
     APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
@@ -771,6 +827,16 @@ Then("la validación de duración informa {string}", async function (this: Custo
 
 Then("el audio no se agrega al composer", async function (this: CustomWorld) {
   assert.strictEqual(await this.page.getByTestId("audio-preview").count(), 0);
+});
+
+Then("el envío permanece bloqueado hasta aceptar la solicitud", async function (this: CustomWorld) {
+  const message = this.page.getByText("Tenés que aceptar la solicitud antes de poder enviar mensajes.", { exact: true });
+  await message.waitFor(visibleTimeout);
+  assert.ok(await message.isVisible());
+});
+
+Then("no se crea ninguna burbuja de audio", async function (this: CustomWorld) {
+  assert.strictEqual(await this.page.getByLabel(/Reproductor de audio/i).count(), 0);
 });
 
 Then("veo el error de carga correspondiente a {string}", async function (this: CustomWorld, stage: string) {

@@ -116,7 +116,6 @@ Feature: 50.1 Enviar audios por el chat web
         When envío únicamente el audio "detalle-perdida.webm"
         Then veo la burbuja del audio en la conversación pendiente
 
-    @wip
     Scenario: 50.1.15-WEB Reintentar un audio después del límite de mensajes pendientes
         Given que existe una conversación pendiente como consumidor
         And que el límite de mensajes ya fue alcanzado

@@ -91,10 +91,16 @@ Then(
   async function (this: CustomWorld, providerName: string, reviews: number) {
     const card = providerCard(this, providerName);
     await card.waitFor({ state: "visible" });
-    const expectedLabel = reviews === 1 ? `(${reviews} reseña)` : `(${reviews} reseñas)`;
-    const reviewsText = card.getByText(expectedLabel, { exact: true });
-    await reviewsText.waitFor({ state: "visible" });
-    assert.ok(await reviewsText.isVisible(), `No se ve la cantidad de reseñas de ${providerName}`);
+    if (reviews === 0) {
+      const noReviewsText = card.getByText("Sin reseñas aún", { exact: true });
+      await noReviewsText.waitFor({ state: "visible" });
+      assert.ok(await noReviewsText.isVisible(), `No se ve el indicador de sin reseñas de ${providerName}`);
+    } else {
+      const expectedLabel = reviews === 1 ? `(${reviews} reseña)` : `(${reviews} reseñas)`;
+      const reviewsText = card.getByText(expectedLabel, { exact: true });
+      await reviewsText.waitFor({ state: "visible" });
+      assert.ok(await reviewsText.isVisible(), `No se ve la cantidad de reseñas de ${providerName}`);
+    }
   },
 );
 

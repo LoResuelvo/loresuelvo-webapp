@@ -64,10 +64,7 @@ export default function ProviderCard({ provider, className, onContact }: Provide
             <div className="flex items-center gap-1.5 mt-1.5 text-small">
               <Star className="w-4 h-4 text-amber-400 fill-amber-400" aria-hidden="true" />
               <span className="font-medium text-slate-600">
-                {t.consumerSearch.providerCard.noReviews || "Sin calificaciones aún"}
-              </span>
-              <span className="text-slate-400">
-                ({reviewCount} {reviewLabel})
+                {t.consumerSearch.providerCard.noReviews}
               </span>
             </div>
           )}

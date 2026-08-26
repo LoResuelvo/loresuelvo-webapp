@@ -26,6 +26,7 @@ export interface MockProposalStub {
   amount_cents: number;
   scheduled_on: string;
   description: string;
+  estimated_duration_minutes?: number;
   status: "pending" | "accepted" | "rejected" | "cancelled";
   created_on: string;
   counterpart?: MockCounterpart;
@@ -60,6 +61,7 @@ export interface MockWorkOrderStub {
   amount_cents: number;
   scheduled_on: string;
   description: string;
+  estimated_duration_minutes?: number;
   accepted_on: string;
   paid_on?: string;
   completion_report?: MockCompletionReport;
@@ -235,6 +237,7 @@ export function aProposal(
     amount_cents: 1500000,
     scheduled_on: "2026-08-20T10:00:00Z",
     description: "Reparación de cañería en cocina",
+    estimated_duration_minutes: 60,
     status: "accepted",
     created_on: "2026-08-01T10:00:00Z",
     counterpart: {
@@ -323,6 +326,7 @@ export function aWorkOrder(overrides: Partial<MockWorkOrderStub> = {}): MockWork
     amount_cents: 1500000,
     scheduled_on: "2026-08-20T10:00:00Z",
     description: "Reparación de cañería en cocina",
+    estimated_duration_minutes: 60,
     accepted_on: "2026-08-05T10:00:00Z",
     ...overrides,
   };

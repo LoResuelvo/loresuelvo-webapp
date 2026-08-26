@@ -91,7 +91,8 @@ Then(
   async function (this: CustomWorld, providerName: string, reviews: number) {
     const card = providerCard(this, providerName);
     await card.waitFor({ state: "visible" });
-    const reviewsText = card.getByText(`(${reviews} reseñas)`, { exact: true });
+    const expectedLabel = reviews === 1 ? `(${reviews} reseña)` : `(${reviews} reseñas)`;
+    const reviewsText = card.getByText(expectedLabel, { exact: true });
     await reviewsText.waitFor({ state: "visible" });
     assert.ok(await reviewsText.isVisible(), `No se ve la cantidad de reseñas de ${providerName}`);
   },

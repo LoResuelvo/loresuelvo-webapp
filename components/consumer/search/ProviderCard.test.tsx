@@ -55,7 +55,7 @@ describe('ProviderCard', () => {
         expect(screen.queryByText(/trabajos/i)).not.toBeInTheDocument();
     });
 
-    it("displays zero rating and reviews without a jobs count when the provider has no reviews", () => {
+    it("displays zero rating, reviews, and Nuevo badge when the provider has no reviews", () => {
         const mockProvider = {
             id: 1,
             name: "Juan",
@@ -69,7 +69,24 @@ describe('ProviderCard', () => {
 
         expect(screen.getByText("0", { exact: true })).toBeInTheDocument();
         expect(screen.getByText("(0 reseñas)")).toBeInTheDocument();
+        expect(screen.getByText("Nuevo")).toBeInTheDocument();
         expect(screen.queryByText(/trabajos/i)).not.toBeInTheDocument();
+    });
+
+    it("displays singular 'reseña' when review count is 1", () => {
+        const mockProvider = {
+            id: 1,
+            name: "Matex",
+            surname: "Test",
+            categoryName: "Plomería",
+            rating: 4.0,
+            reviews: 1,
+        };
+
+        render(<ProviderCard provider={mockProvider} />);
+
+        expect(screen.getByText("(1 reseña)")).toBeInTheDocument();
+        expect(screen.queryByText("Nuevo")).not.toBeInTheDocument();
     });
 
     it("renders rating stars as decorative content", () => {

@@ -306,7 +306,9 @@ export const t = {
       retry: "Reintentar",
     },
     providerCard: {
+      review: "reseña",
       reviews: "reseñas",
+      newBadge: "Nuevo",
       jobs: "trabajos",
       photoAlt: "Foto de",
     },

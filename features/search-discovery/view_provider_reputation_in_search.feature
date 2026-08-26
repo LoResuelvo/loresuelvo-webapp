@@ -8,7 +8,6 @@ Feature: Ver reputación de prestadores en la búsqueda
         When ingreso a los resultados de prestadores de "Plomería"
         Then visualizo que "Juan Pérez" tiene 0 reseñas
 
-    @wip
     Scenario: 30.1.2-RSP Mostrar el promedio y la cantidad de reseñas
         Given que la búsqueda de "Plomería" incluye al prestador "Juan Pérez" con promedio 4.5 y 2 reseñas
         When ingreso a los resultados de prestadores de "Plomería"

@@ -64,6 +64,7 @@ describe("ServiceProposalModal", () => {
     expect(screen.getByLabelText("Monto")).toBeInTheDocument();
     expect(screen.getByText("Fecha")).toBeInTheDocument();
     expect(screen.getByText("Hora")).toBeInTheDocument();
+    expect(screen.getByLabelText("Duración estimada")).toBeInTheDocument();
     expect(screen.getByLabelText("Motivo de la visita")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Enviar propuesta" })).toBeInTheDocument();
   });
@@ -134,6 +135,40 @@ describe("ServiceProposalModal", () => {
     expect(screen.getByRole("button", { name: "Enviar propuesta" })).toBeDisabled();
   });
 
+  it("shows validation error and disables submit when duration is less than 15 minutes", async () => {
+    render(
+      <ServiceProposalModal
+        open={true}
+        onClose={mockOnClose}
+        consumerId={10}
+        onSubmit={mockOnSubmit}
+      />
+    );
+
+    const durationInput = screen.getByLabelText("Duración estimada");
+    fireEvent.change(durationInput, { target: { value: "10" } });
+
+    expect(await screen.findByText("La duración mínima es de 15 minutos.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enviar propuesta" })).toBeDisabled();
+  });
+
+  it("shows validation error and disables submit when duration is greater than 1440 minutes", async () => {
+    render(
+      <ServiceProposalModal
+        open={true}
+        onClose={mockOnClose}
+        consumerId={10}
+        onSubmit={mockOnSubmit}
+      />
+    );
+
+    const durationInput = screen.getByLabelText("Duración estimada");
+    fireEvent.change(durationInput, { target: { value: "1500" } });
+
+    expect(await screen.findByText("La duración máxima es de 24 horas (1440 minutos).")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enviar propuesta" })).toBeDisabled();
+  });
+
   it("submits the form successfully and triggers success UI", async () => {
     vi.useFakeTimers();
     mockOnSubmit.mockResolvedValue(undefined);
@@ -148,10 +183,12 @@ describe("ServiceProposalModal", () => {
     );
 
     const amountInput = screen.getByLabelText("Monto");
+    const durationInput = screen.getByLabelText("Duración estimada");
     const descInput = screen.getByLabelText("Motivo de la visita");
     const sendBtn = screen.getByRole("button", { name: "Enviar propuesta" });
 
     fireEvent.change(amountInput, { target: { value: "15000.50" } });
+    fireEvent.change(durationInput, { target: { value: "90" } });
     fireEvent.change(descInput, { target: { value: "Reparación de pérdida" } });
 
     const futureDate = new Date();
@@ -177,6 +214,7 @@ describe("ServiceProposalModal", () => {
       amount: "15000.50",
       scheduledOn: new Date(dateString.split("T")[0] + "T12:00:00").toISOString(),
       description: "Reparación de pérdida",
+      estimatedDurationMinutes: 90,
     });
     expect(screen.getByText("Propuesta enviada exitosamente. El consumidor fue notificado.")).toBeInTheDocument();
 
@@ -200,10 +238,12 @@ describe("ServiceProposalModal", () => {
     );
 
     const amountInput = screen.getByLabelText("Monto");
+    const durationInput = screen.getByLabelText("Duración estimada");
     const descInput = screen.getByLabelText("Motivo de la visita");
     const sendBtn = screen.getByRole("button", { name: "Enviar propuesta" });
 
     fireEvent.change(amountInput, { target: { value: "15000.50" } });
+    fireEvent.change(durationInput, { target: { value: "60" } });
     fireEvent.change(descInput, { target: { value: "Reparación" } });
 
     const futureDate = new Date();

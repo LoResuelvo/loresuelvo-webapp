@@ -137,6 +137,7 @@ describe("ChatPanel", () => {
       amountCents: 4500000,
       scheduledOn: "2026-09-02T10:00:00Z",
       description: "Pintura general",
+      estimatedDurationMinutes: 60,
       status: "pending" as const,
       createdOn: "2026-08-18T12:00:00Z",
       counterpart: { id: 20, role: "provider" as const, name: "Carlos", surname: "Méndez" },

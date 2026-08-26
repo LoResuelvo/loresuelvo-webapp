@@ -55,6 +55,7 @@ describe('ConsumerHome', () => {
                 amountCents: 1500000,
                 scheduledOn: "2026-07-05T09:30:00-03:00",
                 description: "Reparación",
+                estimatedDurationMinutes: 60,
                 status: "pending" as const,
                 createdOn: "2026-07-04T10:00:00-03:00",
                 counterpart: { id: 1, role: "provider" as const, name: "Juan", surname: "Gómez", categoryName: "Plomería" }
@@ -73,6 +74,7 @@ describe('ConsumerHome', () => {
                 amountCents: 1000000,
                 scheduledOn: "2026-08-05T09:30:00-03:00",
                 description: "Pintura",
+                estimatedDurationMinutes: 60,
                 status: "accepted" as const,
                 createdOn: "2026-07-04T10:00:00-03:00",
                 counterpart: { id: 2, role: "provider" as const, name: "Ana", surname: "Pérez", categoryName: "Pintor" }

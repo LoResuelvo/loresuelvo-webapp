@@ -303,6 +303,7 @@ describe("MessagesList - scroll preservation across conversations", () => {
       amountCents: 1500000,
       scheduledOn: "2026-09-01T15:00:00Z",
       description: "Instalación",
+      estimatedDurationMinutes: 60,
       status: "pending" as const,
       createdOn: "2026-08-18T10:30:30Z",
       counterpart: { id: 2, role: "provider" as const, name: "Juan", surname: "Pérez" },

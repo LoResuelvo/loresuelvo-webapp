@@ -27,6 +27,7 @@ export type ServiceProposalDraft = {
   amount: string;
   scheduledDate: string;
   scheduledTime: string;
+  estimatedDurationMinutes?: string;
   description: string;
 };
 
@@ -50,10 +51,12 @@ export function ServiceProposalModal({
   const [amount, setAmount] = useState(draft?.amount ?? "");
   const [scheduledDate, setScheduledDate] = useState(draft?.scheduledDate ?? "");
   const [scheduledTime, setScheduledTime] = useState(draft?.scheduledTime ?? "");
+  const [estimatedDurationMinutes, setEstimatedDurationMinutes] = useState(draft?.estimatedDurationMinutes ?? "");
   const [description, setDescription] = useState(draft?.description ?? "");
 
   const [amountError, setAmountError] = useState("");
   const [dateError, setDateError] = useState("");
+  const [durationError, setDurationError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -65,9 +68,11 @@ export function ServiceProposalModal({
       setAmount(draft?.amount ?? "");
       setScheduledDate(draft?.scheduledDate ?? "");
       setScheduledTime(draft?.scheduledTime ?? "");
+      setEstimatedDurationMinutes(draft?.estimatedDurationMinutes ?? "");
       setDescription(draft?.description ?? "");
       setAmountError("");
       setDateError("");
+      setDurationError("");
       setSubmitError("");
       setIsSubmitting(false);
       setIsSuccess(false);
@@ -79,10 +84,10 @@ export function ServiceProposalModal({
   // Sync draft to parent
   useEffect(() => {
     if (open) {
-      onDraftChange?.({ amount, scheduledDate, scheduledTime, description });
+      onDraftChange?.({ amount, scheduledDate, scheduledTime, estimatedDurationMinutes, description });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amount, scheduledDate, scheduledTime, description, open]);
+  }, [amount, scheduledDate, scheduledTime, estimatedDurationMinutes, description, open]);
 
   // Real-time validation
   useEffect(() => {
@@ -114,8 +119,25 @@ export function ServiceProposalModal({
     }
   }, [scheduledDate, scheduledTime, now]);
 
-  const hasValidationErrors = !!amountError || !!dateError;
-  const isFormComplete = !!amount && !!scheduledDate && !!scheduledTime && !!description;
+  useEffect(() => {
+    if (estimatedDurationMinutes) {
+      const parsed = Number(estimatedDurationMinutes);
+      if (isNaN(parsed) || !Number.isInteger(parsed)) {
+        setDurationError(t.messaging.serviceProposal.errorDurationInvalid);
+      } else if (parsed < 15) {
+        setDurationError(t.messaging.serviceProposal.errorDurationMin);
+      } else if (parsed > 1440) {
+        setDurationError(t.messaging.serviceProposal.errorDurationMax);
+      } else {
+        setDurationError("");
+      }
+    } else {
+      setDurationError("");
+    }
+  }, [estimatedDurationMinutes]);
+
+  const hasValidationErrors = !!amountError || !!dateError || !!durationError;
+  const isFormComplete = !!amount && !!scheduledDate && !!scheduledTime && !!estimatedDurationMinutes && !!description;
   const isSubmitDisabled = hasValidationErrors || !isFormComplete || isSubmitting || isSuccess;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -135,6 +157,7 @@ export function ServiceProposalModal({
         amount,
         scheduledOn: new Date(`${scheduledDate}T${scheduledTime}`).toISOString(),
         description,
+        estimatedDurationMinutes: parseInt(estimatedDurationMinutes, 10),
       });
       setIsSuccess(true);
       setTimeout(() => {
@@ -259,6 +282,28 @@ export function ServiceProposalModal({
                   {dateError}
                 </p>
               )}
+
+              {/* Estimated Duration */}
+              <div className="space-y-2">
+                <Label htmlFor="estimatedDurationMinutes">{t.messaging.serviceProposal.durationLabel}</Label>
+                <Input
+                  id="estimatedDurationMinutes"
+                  type="number"
+                  min={15}
+                  max={1440}
+                  step="1"
+                  placeholder={t.messaging.serviceProposal.durationPlaceholder}
+                  value={estimatedDurationMinutes}
+                  onChange={(e) => setEstimatedDurationMinutes(e.target.value)}
+                  className={durationError ? "border-red-500 focus-visible:ring-red-500" : ""}
+                  disabled={isSubmitting}
+                />
+                {durationError && (
+                  <p className="text-sm text-red-500 font-medium animate-in fade-in duration-200">
+                    {durationError}
+                  </p>
+                )}
+              </div>
 
               {/* Description */}
               <div className="space-y-2">

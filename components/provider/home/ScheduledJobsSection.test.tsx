@@ -10,6 +10,7 @@ const mockScheduledJobs: ServiceProposalSummary[] = [
     amountCents: 4500000,
     scheduledOn: "2026-07-05T10:00:00Z",
     description: "Reparación de grifería",
+    estimatedDurationMinutes: 60,
     status: "accepted",
     createdOn: "2026-07-04T10:00:00Z",
     counterpart: {
@@ -25,6 +26,7 @@ const mockScheduledJobs: ServiceProposalSummary[] = [
     amountCents: 8000000,
     scheduledOn: "2026-07-06T14:30:00Z",
     description: "Instalación de aire acondicionado",
+    estimatedDurationMinutes: 120,
     status: "accepted",
     createdOn: "2026-07-04T10:00:00Z",
     counterpart: {

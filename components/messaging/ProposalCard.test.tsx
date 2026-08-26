@@ -10,6 +10,7 @@ const mockConsumerLookingAtProvider: ServiceProposalSummary = {
   amountCents: 1500050,
   scheduledOn: "2026-07-05T09:30:00Z",
   description: "Reparación de pérdida de agua.",
+  estimatedDurationMinutes: 60,
   status: "pending",
   createdOn: "2026-07-04T10:00:00Z",
   counterpart: {
@@ -28,6 +29,7 @@ const mockProviderLookingAtConsumer: ServiceProposalSummary = {
   amountCents: 500000,
   scheduledOn: "2026-07-06T10:00:00Z",
   description: "Revisión eléctrica",
+  estimatedDurationMinutes: 120,
   status: "accepted",
   createdOn: "2026-07-04T10:00:00Z",
   counterpart: {

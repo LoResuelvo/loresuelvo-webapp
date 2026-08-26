@@ -9,6 +9,7 @@ const mockProposal: ServiceProposalSummary = {
   amountCents: 3000000,
   scheduledOn: "2026-09-01T15:00:00Z",
   description: "Reparación completa de grifería y cañería con repuestos incluidos.",
+  estimatedDurationMinutes: 60,
   status: "pending",
   createdOn: "2026-08-18T14:22:00Z",
   counterpart: {

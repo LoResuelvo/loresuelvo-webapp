@@ -9,6 +9,7 @@ const mockProposals = [
     amountCents: 1500000,
     scheduledOn: "2026-07-05T09:30:00-03:00",
     description: "Reparación",
+    estimatedDurationMinutes: 60,
     status: "pending" as const,
     createdOn: "2026-07-04T10:00:00-03:00",
     counterpart: { id: 1, role: "consumer" as const, name: "Juan", surname: "Gómez" }
@@ -19,6 +20,7 @@ const mockProposals = [
     amountCents: 2000000,
     scheduledOn: "2026-07-06T10:00:00-03:00",
     description: "Pintura",
+    estimatedDurationMinutes: 90,
     status: "accepted" as const,
     createdOn: "2026-07-05T10:00:00-03:00",
     counterpart: { id: 2, role: "consumer" as const, name: "Ana", surname: "Pérez" }

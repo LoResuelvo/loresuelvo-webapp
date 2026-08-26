@@ -264,7 +264,7 @@ export function ServiceProposalModal({
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal bg-transparent border-input",
+                          "w-full justify-start text-left font-normal bg-transparent border-input cursor-pointer",
                           !scheduledDate && "text-muted-foreground",
                           dateError && "border-red-500 focus-visible:ring-red-500"
                         )}
@@ -333,7 +333,7 @@ export function ServiceProposalModal({
                 >
                   <SelectTrigger
                     id="estimatedDurationMinutes"
-                    className={durationError ? "border-red-500 focus:ring-red-500" : ""}
+                    className={durationError ? " border-red-500 focus:ring-red-500" : ""}
                   >
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-slate-500" />
@@ -403,6 +403,7 @@ export function ServiceProposalModal({
                 variant="ghost"
                 onClick={onClose}
                 disabled={isSubmitting}
+                className="semibold cursor-pointer"
               >
                 {t.messaging.serviceProposal.cancelButton}
               </Button>

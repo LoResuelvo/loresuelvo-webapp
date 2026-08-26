@@ -84,7 +84,7 @@ export class CustomWorld extends World {
 
 setWorldConstructor(CustomWorld);
 
-export const visibleTimeout = { state: "visible" as const, timeout: 5000 };
-export const attachedTimeout = { state: "attached" as const, timeout: 5000 };
-export const waitTimeout = { timeout: 5000 };
+export const visibleTimeout = { state: "visible" as const, timeout: 10000 };
+export const attachedTimeout = { state: "attached" as const, timeout: 10000 };
+export const waitTimeout = { timeout: 10000 };
 export const attachedState = { state: "attached" as const };

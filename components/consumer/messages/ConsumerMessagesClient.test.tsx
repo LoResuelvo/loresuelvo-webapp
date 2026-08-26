@@ -30,6 +30,7 @@ vi.mock("@/app/consumidor/mensajes/actions", () => ({
   sendAudioMessage: vi.fn(),
   createConversation: vi.fn(),
   getJobRequestForConversation: vi.fn(() => Promise.resolve(null)),
+  getServiceProposalsAction: vi.fn(() => Promise.resolve([])),
 }));
 
 const mockUser = {

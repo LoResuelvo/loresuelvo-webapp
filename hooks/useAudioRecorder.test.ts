@@ -20,6 +20,14 @@ class MockMediaRecorder {
     this.state = "recording";
   }
 
+  pause() {
+    this.state = "paused";
+  }
+
+  resume() {
+    this.state = "recording";
+  }
+
   stop() {
     this.state = "inactive";
     this.onstop?.();
@@ -140,5 +148,30 @@ describe("useAudioRecorder", () => {
     expect(result.current.isRecording).toBe(false);
     expect(result.current.error).toBe("maxDuration");
     expect(tracks[0].stop).toHaveBeenCalled();
+  });
+
+  it("pauses and resumes recording properly", async () => {
+    const { result } = renderHook(() => useAudioRecorder({ maxDurationSeconds: 10 }));
+
+    await act(async () => {
+      await result.current.startRecording();
+    });
+
+    act(() => vi.advanceTimersByTime(2000));
+    expect(result.current.elapsedSeconds).toBe(2);
+
+    act(() => result.current.pauseRecording());
+    expect(result.current.isPaused).toBe(true);
+    expect(MockMediaRecorder.instances[0].state).toBe("paused");
+
+    act(() => vi.advanceTimersByTime(3000));
+    expect(result.current.elapsedSeconds).toBe(2);
+
+    act(() => result.current.resumeRecording());
+    expect(result.current.isPaused).toBe(false);
+    expect(MockMediaRecorder.instances[0].state).toBe("recording");
+
+    act(() => vi.advanceTimersByTime(1000));
+    expect(result.current.elapsedSeconds).toBe(3);
   });
 });

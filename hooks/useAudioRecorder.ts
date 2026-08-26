@@ -23,12 +23,15 @@ interface UseAudioRecorderOptions {
 
 export interface UseAudioRecorderResult {
   isRecording: boolean;
+  isPaused: boolean;
   elapsedSeconds: number;
   audioBlob: Blob | null;
   audioFile: File | null;
   audioUrl: string | null;
   error: AudioRecorderError | null;
   startRecording: () => Promise<boolean>;
+  pauseRecording: () => void;
+  resumeRecording: () => void;
   stopRecording: () => void;
   cancelRecording: () => void;
 }
@@ -51,6 +54,7 @@ export function useAudioRecorder({
   maxDurationSeconds = AUDIO_MAX_DURATION_SECONDS,
 }: UseAudioRecorderOptions = {}): UseAudioRecorderResult {
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -66,6 +70,8 @@ export function useAudioRecorder({
   const cancelledRef = useRef(false);
 
   const startTimeRef = useRef(0);
+  const accumulatedDurationMsRef = useRef(0);
+  const lastResumeTimeRef = useRef(0);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -95,6 +101,7 @@ export function useAudioRecorder({
 
   const stopRecording = useCallback(() => {
     clearTimer();
+    setIsPaused(false);
     const recorder = recorderRef.current;
     if (!recorder) {
       setIsRecording(false);
@@ -103,13 +110,45 @@ export function useAudioRecorder({
 
     setIsRecording(false);
     if (recorder.state !== "inactive") {
+      if (recorder.state === "recording") {
+        accumulatedDurationMsRef.current += Date.now() - lastResumeTimeRef.current;
+      }
       recorder.stop();
     }
   }, [clearTimer]);
 
+  const pauseRecording = useCallback(() => {
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state === "recording") {
+      recorder.pause();
+      accumulatedDurationMsRef.current += Date.now() - lastResumeTimeRef.current;
+      clearTimer();
+      setIsPaused(true);
+    }
+  }, [clearTimer]);
+
+  const resumeRecording = useCallback(() => {
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state === "paused") {
+      recorder.resume();
+      lastResumeTimeRef.current = Date.now();
+      setIsPaused(false);
+      timerRef.current = setInterval(() => {
+        elapsedRef.current += 1;
+        setElapsedSeconds(elapsedRef.current);
+        if (elapsedRef.current >= maxDurationSeconds) {
+          setError("maxDuration");
+          stopRecording();
+        }
+      }, TIMER_TICK_INTERVAL_MS);
+    }
+  }, [maxDurationSeconds, stopRecording]);
+
   const cancelRecording = useCallback(() => {
     cancelledRef.current = true;
     clearTimer();
+    setIsPaused(false);
+    accumulatedDurationMsRef.current = 0;
     const recorder = recorderRef.current;
     if (recorder && recorder.state !== "inactive") {
       recorder.stop();
@@ -142,7 +181,10 @@ export function useAudioRecorder({
     setElapsedSeconds(0);
     elapsedRef.current = 0;
     startTimeRef.current = Date.now();
+    lastResumeTimeRef.current = Date.now();
+    accumulatedDurationMsRef.current = 0;
     cancelledRef.current = false;
+    setIsPaused(false);
 
     let stream: MediaStream;
     try {
@@ -173,6 +215,7 @@ export function useAudioRecorder({
       stopStream();
       recorderRef.current = null;
       setIsRecording(false);
+      setIsPaused(false);
       setError("recordingFailed");
     };
     recorder.onstop = () => {
@@ -180,7 +223,14 @@ export function useAudioRecorder({
       stopStream();
       recorderRef.current = null;
       setIsRecording(false);
-      const measuredSeconds = Math.max(1, Math.round((Date.now() - startTimeRef.current) / MILLISECONDS_PER_SECOND));
+      setIsPaused(false);
+      const measuredSeconds = Math.max(
+        1,
+        Math.round(
+          (accumulatedDurationMsRef.current || Date.now() - startTimeRef.current) /
+            MILLISECONDS_PER_SECOND
+        )
+      );
       const finalElapsed = elapsedRef.current > 0 ? elapsedRef.current : measuredSeconds;
       setElapsedSeconds(finalElapsed);
 
@@ -205,7 +255,10 @@ export function useAudioRecorder({
       setAudioFile(createRecordedAudioFile(rawBlob));
       setAudioUrl(nextUrl);
 
-      const durationMs = Math.max(MIN_RECORDED_AUDIO_DURATION_MS, Date.now() - startTimeRef.current);
+      const durationMs = Math.max(
+        MIN_RECORDED_AUDIO_DURATION_MS,
+        accumulatedDurationMsRef.current || Date.now() - startTimeRef.current
+      );
       void patchWebmDurationBlob(rawBlob, durationMs).then((patchedBlob) => {
         if (cancelledRef.current) return;
         if (audioUrlRef.current === nextUrl) {
@@ -244,12 +297,15 @@ export function useAudioRecorder({
 
   return {
     isRecording,
+    isPaused,
     elapsedSeconds,
     audioBlob,
     audioFile,
     audioUrl,
     error,
     startRecording,
+    pauseRecording,
+    resumeRecording,
     stopRecording,
     cancelRecording,
   };

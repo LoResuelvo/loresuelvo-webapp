@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Send, X } from "lucide-react";
+import { Mic, Pause, Send, Square, Trash2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
@@ -35,14 +35,16 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const fileInputRef = useRef<HTMLInputElement>(null);
     const audioInputRef = useRef<HTMLInputElement>(null);
     const [attachedAudio, setAttachedAudio] = useState<{ file: File; url: string } | null>(null);
-    const [audioDurationAccepted, setAudioDurationAccepted] = useState(false);
     const {
       isRecording,
+      isPaused,
       elapsedSeconds,
       audioFile,
       audioUrl,
       error: recorderError,
       startRecording,
+      pauseRecording,
+      resumeRecording,
       stopRecording,
       cancelRecording,
     } = useAudioRecorder();
@@ -112,7 +114,6 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         onRemoveFile?.(0);
       }
       setError(null);
-      setAudioDurationAccepted(false);
       e.target.value = "";
     };
 
@@ -120,19 +121,16 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       const durationError = validateAudioDuration(duration);
       if (durationError) {
         setError(t.messaging.audioAttachment.durationTooLong);
-        setAudioDurationAccepted(false);
         setAttachedAudio(null);
         cancelRecording();
         return;
       }
 
       setError(null);
-      setAudioDurationAccepted(true);
     };
 
     const removeAudio = () => {
       setAttachedAudio(null);
-      setAudioDurationAccepted(false);
     };
 
     const handleRecordAudio = () => {
@@ -140,7 +138,6 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       void startRecording().then((started) => {
         if (!started) return;
         setAttachedAudio(null);
-        setAudioDurationAccepted(false);
         onChange("");
         for (let index = 0; index < attachedFiles.length; index += 1) {
           onRemoveFile?.(0);
@@ -159,7 +156,6 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             return;
           }
           setAttachedAudio(null);
-          setAudioDurationAccepted(false);
           cancelRecording();
         } catch {
           setError(t.messaging.audioUpload.errors.send);
@@ -169,32 +165,36 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
       onSend();
       setAttachedAudio(null);
-      setAudioDurationAccepted(false);
       cancelRecording();
     };
 
     const [previewImage, setPreviewImage] = useState<{url: string, name: string} | null>(null);
 
+    const canSendDirectly = !!value.trim() || attachedFiles.length > 0 || !!attachedAudio || !!audioFile;
+
     return (
-      <div className="flex flex-col border-t border-slate-200 bg-white flex-shrink-0">
-        {attachedFiles.length > 0 && !hasAudio && (
-          <div className="p-3 pb-0 flex gap-2 overflow-x-auto">
+      <div className="border-t border-slate-200 bg-white relative">
+        {/* Attached Files Preview */}
+        {attachedFiles.length > 0 && (
+          <div className="p-4 pb-0 flex flex-wrap gap-2">
             {attachedFiles.map((file, idx) => {
               const url = URL.createObjectURL(file);
               return (
-                <div key={`${file.name}-${idx}`} className="relative flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewImage({ url, name: file.name })}
-                    className="w-16 h-16 rounded-md overflow-hidden border border-slate-200 bg-slate-50 relative cursor-pointer block hover:ring-2 hover:ring-brand-primary/50 transition-all"
-                  >
-                    <Image
-                      src={url}
-                      alt={`${t.messaging.previewTitle} ${file.name}`}
-                      fill
-                      className="object-cover"
-                    />
-                  </button>
+              <div key={idx} className="relative group">
+                <button
+                  type="button"
+                  onClick={() => setPreviewImage({ url, name: file.name })}
+                  className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 block hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                  aria-label={`Ver vista previa de ${file.name}`}
+                >
+                  <Image
+                    src={url}
+                    alt={file.name}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                </button>
                 <button
                   type="button"
                   onClick={() => onRemoveFile?.(idx)}
@@ -208,7 +208,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             })}
           </div>
         )}
-        <div className="p-4 flex gap-3 items-center">
+        <div className="p-3 bg-slate-50 border-t border-slate-200 flex gap-2.5 items-center">
           {onAttachFiles && (
             <>
               <input
@@ -228,88 +228,157 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 onChange={handleAudioChange}
                 disabled={disabled || disableAudio || !!attachedAudio}
               />
-              <AttachmentMenu
-                onAttachImages={() => fileInputRef.current?.click()}
-                onAttachAudio={() => audioInputRef.current?.click()}
-                onRecordAudio={handleRecordAudio}
-                onCreateProposal={onOpenServiceProposal}
-                showProposalOption={!!onOpenServiceProposal}
-                disabled={disabled || attachedFiles.length >= 5 || hasAudio}
-                audioDisabled={disableAudio}
-              />
             </>
           )}
-          {isRecording && (
+
+          {isRecording ? (
             <div
               data-testid="audio-recording"
               role="status"
-              className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              className="flex-1 flex items-center justify-between gap-3 px-4 h-[44px] rounded-full border border-slate-200 bg-white shadow-sm animate-in fade-in duration-200"
             >
-              <span>{t.messaging.audioRecorder.recordingLabel} {formatAudioDuration(elapsedSeconds)}</span>
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
+                size="icon"
+                onClick={cancelRecording}
+                aria-label={t.messaging.audioRecorder.cancelLabel}
+                className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full shrink-0 transition-colors"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+              </Button>
+
+              <div className="flex-1 flex items-center gap-2 px-2">
+                <span
+                  className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+                    isPaused ? "bg-amber-500" : "bg-red-500 animate-pulse"
+                  }`}
+                />
+                <div className="flex-1 flex items-center gap-[3px] h-3.5">
+                  {[40, 75, 95, 60, 80, 100, 50, 85, 65, 45, 75, 90, 60, 40, 80].map((h, i) => (
+                    <div
+                      key={i}
+                      style={{ height: `${h}%` }}
+                      className={`w-[2.5px] rounded-full transition-all ${
+                        isPaused ? "bg-slate-300" : "bg-red-400 animate-pulse"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <span className="font-mono text-xs font-semibold text-slate-600 shrink-0">
+                {formatAudioDuration(elapsedSeconds)}
+              </span>
+
+              {/* Pause / Resume Button */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={isPaused ? resumeRecording : pauseRecording}
+                aria-label={
+                  isPaused
+                    ? t.messaging.audioRecorder.resumeLabel
+                    : t.messaging.audioRecorder.pauseLabel
+                }
+                className="h-8 w-8 text-slate-600 hover:text-slate-900 rounded-full shrink-0 transition-colors cursor-pointer"
+              >
+                {isPaused ? (
+                  <Mic className="h-4 w-4 text-red-500" aria-hidden="true" />
+                ) : (
+                  <Pause className="h-4 w-4 text-slate-600" aria-hidden="true" />
+                )}
+              </Button>
+
+              {/* Stop & Finish Button */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
                 onClick={stopRecording}
                 aria-label={t.messaging.audioRecorder.stopLabel}
+                className="h-8 w-8 text-red-500 hover:bg-red-50 rounded-full shrink-0 transition-colors cursor-pointer"
               >
-                {t.messaging.audioRecorder.stopLabel}
+                <Square className="h-4 w-4 fill-current" aria-hidden="true" />
               </Button>
             </div>
-          )}
-          {!isRecording && attachedAudio && (
+          ) : attachedAudio ? (
             <AudioPreview
               audioUrl={attachedAudio.url}
               fileName={attachedAudio.file.name}
               onRemove={removeAudio}
               onDurationLoaded={handleAudioDurationLoaded}
             />
-          )}
-          {!isRecording && !attachedAudio && audioUrl && (
+          ) : audioUrl ? (
             <AudioPreview
               audioUrl={audioUrl}
               fileName={t.messaging.audioRecorder.recordedFileName}
               onRemove={cancelRecording}
               onDurationLoaded={handleAudioDurationLoaded}
             />
+          ) : (
+            <div className="flex-1 flex items-center gap-2 bg-white border border-slate-200 rounded-full px-3 py-1 shadow-sm min-h-[44px]">
+              {onAttachFiles && (
+                <AttachmentMenu
+                  onAttachImages={() => fileInputRef.current?.click()}
+                  onAttachAudio={() => audioInputRef.current?.click()}
+                  onCreateProposal={onOpenServiceProposal}
+                  showProposalOption={!!onOpenServiceProposal}
+                  disabled={disabled || attachedFiles.length >= 5 || hasAudio}
+                  audioDisabled={disableAudio}
+                />
+              )}
+
+              <Input
+                ref={inputRef}
+                type="text"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (value.trim() || attachedFiles.length > 0 || hasAudio) {
+                      setError(null);
+                      handleSend();
+                    }
+                  }
+                }}
+                placeholder={t.messaging.inputPlaceholder}
+                className="flex-1 h-9 border-none bg-transparent shadow-none px-1 text-sm focus-visible:ring-0 text-slate-800 placeholder:text-slate-400"
+                disabled={disabled || hasAudio}
+              />
+            </div>
           )}
-          <Input
-            ref={inputRef}
-            type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                if (value.trim() || attachedFiles.length > 0 || hasAudio) {
-                  setError(null);
-                  handleSend();
-                }
-              }
-            }}
-            placeholder={t.messaging.inputPlaceholder}
-            className="flex-1 px-4 h-[48px] rounded-xl border border-slate-200 bg-white text-body focus-visible:ring-brand-secondary/40"
-            disabled={disabled || hasAudio}
-          />
-          <Button
-            variant="brand"
-            type="button"
-            onClick={handleSend}
-            disabled={disabled || isRecording || (!value.trim() && attachedFiles.length === 0 && !hasAudio)}
-            aria-label={t.messaging.sendLabel}
-            className="h-[48px] px-5 rounded-xl font-semibold"
-          >
-            <Send className="w-5 h-5" aria-hidden="true" />
-          </Button>
+
+          {/* Action Button: Send or Mic */}
+          {canSendDirectly ? (
+            <Button
+              variant="brand"
+              type="button"
+              onClick={handleSend}
+              disabled={disabled || isRecording || (!value.trim() && attachedFiles.length === 0 && !hasAudio)}
+              aria-label={t.messaging.sendLabel}
+              className="h-11 w-11 rounded-full p-0 flex items-center justify-center font-semibold shrink-0 bg-brand-primary text-white hover:bg-brand-primary/90 shadow-sm active:scale-95 transition-all cursor-pointer"
+            >
+              <Send className="w-5 h-5" aria-hidden="true" />
+            </Button>
+          ) : (
+            <Button
+              variant="brand"
+              type="button"
+              onClick={handleRecordAudio}
+              disabled={disabled || disableAudio}
+              aria-label={t.messaging.audioRecorder.startLabel}
+              className="h-11 w-11 rounded-full p-0 flex items-center justify-center text-white bg-brand-primary hover:bg-brand-primary/90 shadow-sm shrink-0 active:scale-95 transition-all cursor-pointer"
+            >
+              <Mic className="w-5 h-5" aria-hidden="true" />
+            </Button>
+          )}
         </div>
         {(error || recorderErrorMessage) && (
           <div className="px-4 pb-2 text-red-500 text-sm font-medium">
             {error || recorderErrorMessage}
-          </div>
-        )}
-        {audioDurationAccepted && !error && (
-          <div className="px-4 pb-2 text-green-700 text-sm font-medium">
-            {t.messaging.audioAttachment.durationAccepted}
           </div>
         )}
         {/* Image Preview Modal */}

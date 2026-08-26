@@ -3,6 +3,7 @@ import { t } from "@/infrastructure/i18n/translations";
 import Image from "next/image";
 import { useState } from "react";
 import { ImagePreviewModal } from "./ImagePreviewModal";
+import { AudioPlayer } from "./AudioPlayer";
 
 interface MessageBubbleProps {
   id: string;
@@ -60,16 +61,13 @@ export default function MessageBubble({
           </div>
         )}
         {audio && (
-          <div className="flex flex-col gap-1 mb-2" data-testid={`audio-message-${id}`}>
-            <audio
-              controls
-              preload="metadata"
+          <div className="mb-2" data-testid={`audio-message-${id}`}>
+            <AudioPlayer
               src={audio.url}
-              aria-label={`Reproductor de audio ${audio.originalName}`}
+              originalName={audio.originalName}
+              durationSeconds={audio.durationSeconds}
+              isOwnMessage={isOwnMessage}
             />
-            <span data-testid="audio-duration" className="text-caption">
-              {t.messaging.audioPreview.durationLabel} {Math.floor(audio.durationSeconds / 60)}:{String(audio.durationSeconds % 60).padStart(2, "0")}
-            </span>
           </div>
         )}
         {content && (

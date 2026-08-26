@@ -99,12 +99,12 @@ Feature: 50.1 Enviar audios por el chat web
         Then veo la nueva burbuja sin recargar la página
         And puedo reproducir el audio recibido
 
-    Scenario: 50.1.13-WEB Mostrar "🎤 Audio · 0:18" en el sidebar cargado y actualizado por WebSocket
+    Scenario: 50.1.13-WEB Mostrar Audio y duracion en el sidebar cargado y actualizado por WebSocket
         Given que el sidebar cargó una conversación cuyo último mensaje es un audio de 18 segundos
-        And que el sidebar muestra exactamente "🎤 Audio · 0:18"
+        And que el sidebar muestra exactamente "Audio · 0:18"
         And que el WebSocket está conectado
         When recibo por WebSocket un nuevo audio de 18 segundos para esa conversación
-        Then el sidebar sigue mostrando exactamente "🎤 Audio · 0:18"
+        Then el sidebar sigue mostrando exactamente "Audio · 0:18"
         And el texto también estaba visible antes del evento WebSocket
 
     Scenario: 50.1.14-WEB Consumidor puede enviar un audio en una conversación pendiente

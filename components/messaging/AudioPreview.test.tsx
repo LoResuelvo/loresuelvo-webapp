@@ -17,8 +17,8 @@ describe("AudioPreview", () => {
     Object.defineProperty(player, "duration", { configurable: true, value: 18 });
     fireEvent.loadedMetadata(player);
 
-    expect(player).toHaveAttribute("controls");
-    expect(screen.getByTestId("audio-duration")).toHaveTextContent("0:18");
+    expect(screen.getByRole("button", { name: "Reproducir audio ruido-bomba.webm" })).toBeInTheDocument();
+    expect(screen.getByText("0:18")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Eliminar audio adjunto ruido-bomba.webm" }));
     expect(onRemove).toHaveBeenCalledTimes(1);
   });

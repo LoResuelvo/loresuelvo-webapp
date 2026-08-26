@@ -151,8 +151,12 @@ export const t = {
       openMenu: "Abrir menú de acciones",
       attachImages: "Adjuntar imágenes",
       attachAudio: "Adjuntar audio",
-      recordAudio: "Grabar audio",
       createProposal: "Crear propuesta de servicio",
+    },
+    audioPlayer: {
+      playLabel: "Reproducir audio",
+      pauseLabel: "Pausar audio",
+      seekLabel: "Control de reproducción",
     },
     audioPreview: {
       playerLabel: "Reproductor de audio",
@@ -160,13 +164,12 @@ export const t = {
       removeLabel: "Eliminar audio adjunto",
     },
     audioSidebarPreview: {
-      label: "🎤 Audio",
+      label: "Audio",
     },
     audioAttachment: {
       invalidFormat: "Formato de audio no permitido. Solo se admiten archivos WebM con codec Opus.",
       tooLarge: "El audio no debe superar los 5 MiB.",
       durationTooLong: "El audio no puede superar los 300 segundos.",
-      durationAccepted: "Duración de audio aceptada.",
     },
     audioUpload: {
       errors: {
@@ -177,8 +180,13 @@ export const t = {
       },
     },
     audioRecorder: {
+      startLabel: "Grabar audio",
       stopLabel: "Detener grabación",
-      recordingLabel: "Grabando audio",
+      cancelLabel: "Descartar grabación",
+      pauseLabel: "Pausar grabación",
+      resumeLabel: "Continuar grabando",
+      recordingLabel: "Grabando nota de voz",
+      pausedLabel: "Grabación en pausa",
       recordedFileName: "audio-grabado.webm",
       errors: {
         unsupported: "Tu navegador no permite grabar audio WebM con codec Opus.",

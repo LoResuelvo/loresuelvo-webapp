@@ -1,6 +1,8 @@
 import { t } from "@/infrastructure/i18n/translations";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Mic } from "lucide-react";
+import { isAudioPreview } from "@/lib/message-preview";
 
 interface ContactItemProps {
   id: string;
@@ -57,9 +59,12 @@ export default function ContactItem({
         <p
           data-field="last-message"
           data-testid="last-message"
-          className="text-small text-slate-500 truncate"
+          className="text-small text-slate-500 truncate flex items-center gap-1.5"
         >
-          {lastMessage}
+          {isAudioPreview(lastMessage) && (
+            <Mic className="w-3.5 h-3.5 text-emerald-600 shrink-0" aria-hidden="true" />
+          )}
+          <span className="truncate">{lastMessage}</span>
         </p>
       </div>
       {pending && (

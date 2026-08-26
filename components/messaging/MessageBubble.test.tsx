@@ -88,8 +88,8 @@ describe("MessageBubble", () => {
 
     const player = screen.getByLabelText("Reproductor de audio audio.webm");
     expect(player).toHaveAttribute("src", "https://example.com/audio.webm");
-    expect(player).toHaveAttribute("controls");
     expect(player).toHaveAttribute("preload", "metadata");
-    expect(screen.getByTestId("audio-duration")).toHaveTextContent("0:18");
+    expect(screen.getByRole("button", { name: "Reproducir audio audio.webm" })).toBeInTheDocument();
+    expect(screen.getByText("0:18")).toBeInTheDocument();
   });
 });

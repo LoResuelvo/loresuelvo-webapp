@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, Image as ImageIcon, FileText, Mic } from "lucide-react";
+import { Plus, Image as ImageIcon, FileText, Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
 
 interface AttachmentMenuProps {
   onAttachImages: () => void;
   onAttachAudio?: () => void;
-  onRecordAudio?: () => void;
   onCreateProposal?: () => void;
   showProposalOption?: boolean;
   disabled?: boolean;
@@ -16,7 +15,6 @@ interface AttachmentMenuProps {
 export function AttachmentMenu({
   onAttachImages,
   onAttachAudio,
-  onRecordAudio,
   onCreateProposal,
   showProposalOption = false,
   disabled = false,
@@ -44,14 +42,14 @@ export function AttachmentMenu({
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
         aria-label={t.messaging.attachmentMenu.openMenu}
-        className="text-slate-500 hover:text-brand-primary"
+        className="text-slate-500 hover:text-brand-primary cursor-pointer"
       >
         <Plus className="w-5 h-5" />
       </Button>
 
       {isOpen && (
         <div
-          className="absolute bottom-12 left-0 mt-2 w-56 rounded-xl md:rounded-2xl border border-slate-200 bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+          className="absolute bottom-12 left-0 mt-2 w-56 rounded-xl md:rounded-2xl border border-slate-300 bg-white p-2 shadow-md ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
           role="menu"
           aria-orientation="vertical"
         >
@@ -61,7 +59,7 @@ export function AttachmentMenu({
               setIsOpen(false);
               onAttachImages();
             }}
-            className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg md:rounded-xl transition-all"
+            className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg md:rounded-xl transition-all cursor-pointer"
             role="menuitem"
           >
             <ImageIcon className="w-4 h-4 text-slate-500" />
@@ -75,26 +73,11 @@ export function AttachmentMenu({
                 onAttachAudio();
               }}
               disabled={audioDisabled}
-              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg md:rounded-xl transition-all"
+              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg md:rounded-xl transition-all cursor-pointer"
               role="menuitem"
             >
-              <Mic className="w-4 h-4 text-slate-500" />
+              <Music className="w-4 h-4 text-slate-500" />
               <span>{t.messaging.attachmentMenu.attachAudio}</span>
-            </button>
-          )}
-          {onRecordAudio && (
-            <button
-              type="button"
-              onClick={() => {
-                setIsOpen(false);
-                onRecordAudio();
-              }}
-              disabled={audioDisabled}
-              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg md:rounded-xl transition-all"
-              role="menuitem"
-            >
-              <Mic className="w-4 h-4 text-slate-500" />
-              <span>{t.messaging.attachmentMenu.recordAudio}</span>
             </button>
           )}
           {showProposalOption && onCreateProposal && (
@@ -104,7 +87,7 @@ export function AttachmentMenu({
                 setIsOpen(false);
                 onCreateProposal();
               }}
-              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg md:rounded-xl transition-all"
+              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg md:rounded-xl transition-all cursor-pointer"
               role="menuitem"
             >
               <FileText className="w-4 h-4 text-slate-500" />

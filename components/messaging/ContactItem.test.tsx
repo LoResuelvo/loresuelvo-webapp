@@ -43,4 +43,24 @@ describe("ContactItem", () => {
     const svgElement = container.querySelector("svg.lucide-user");
     expect(svgElement).toBeInTheDocument();
   });
+
+  it("renders a microphone icon when lastMessage is an audio preview", () => {
+    const { container } = render(
+      <ContactItem
+        id="conv-1"
+        providerId="1"
+        providerName="Juan"
+        providerSurname="Perez"
+        lastMessage="Audio · 0:18"
+        lastMessageAt="10:00"
+        pending={false}
+        isSelected={false}
+        onClick={vi.fn()}
+      />
+    );
+
+    const micIcon = container.querySelector("svg.lucide-mic");
+    expect(micIcon).toBeInTheDocument();
+    expect(screen.getByText("Audio · 0:18")).toBeInTheDocument();
+  });
 });

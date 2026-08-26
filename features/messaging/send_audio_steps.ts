@@ -462,9 +462,9 @@ Given("que estoy autenticado como prestador", async function (this: CustomWorld)
 Given("que tengo confirmado el audio {string}", async function (this: CustomWorld, fileName: string) {
   if ((this as CustomWorld & { pendingProviderChat?: boolean }).pendingProviderChat) return;
 
-  await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
-  await this.page.getByRole("menuitem", { name: "Adjuntar audio" }).click();
-  await this.page.locator('input[accept="audio/webm"]').setInputFiles({
+  const audioInput = this.page.locator('input[accept="audio/webm"]');
+  await audioInput.waitFor({ state: "attached", timeout: 5000 });
+  await audioInput.setInputFiles({
     name: fileName,
     mimeType: "audio/webm",
     buffer: Buffer.from("deterministic-confirmed-audio"),
@@ -473,9 +473,9 @@ Given("que tengo confirmado el audio {string}", async function (this: CustomWorl
 });
 
 Given("que tengo la preview del audio {string}", async function (this: CustomWorld, fileName: string) {
-  await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
-  await this.page.getByRole("menuitem", { name: "Adjuntar audio" }).click();
-  await this.page.locator('input[accept="audio/webm"]').setInputFiles({
+  const audioInput = this.page.locator('input[accept="audio/webm"]');
+  await audioInput.waitFor({ state: "attached", timeout: 5000 });
+  await audioInput.setInputFiles({
     name: fileName,
     mimeType: "audio/webm",
     buffer: Buffer.from("deterministic-preview-audio"),
@@ -518,9 +518,9 @@ Given("que la carga del audio falla durante la etapa {string}", async function (
 });
 
 Given("que tengo seleccionado el audio {string}", async function (this: CustomWorld, fileName: string) {
-  await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
-  await this.page.getByRole("menuitem", { name: "Adjuntar audio" }).click();
-  await this.page.locator('input[accept="audio/webm"]').setInputFiles({
+  const audioInput = this.page.locator('input[accept="audio/webm"]');
+  await audioInput.waitFor({ state: "attached", timeout: 5000 });
+  await audioInput.setInputFiles({
     name: fileName,
     mimeType: "audio/webm",
     buffer: Buffer.from("deterministic-selected-audio"),
@@ -641,9 +641,9 @@ Given("que abrí el menú de adjuntos", async function (this: CustomWorld) {
 
 Given("que tengo un audio WebM con codec Opus de {int} segundos", async function (this: CustomWorld, duration: number) {
   (this as CustomWorld & { audioDurationSeconds?: number }).audioDurationSeconds = duration;
-  await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
-  await this.page.getByRole("menuitem", { name: "Adjuntar audio" }).click();
-  await this.page.locator('input[accept="audio/webm"]').setInputFiles({
+  const audioInput = this.page.locator('input[accept="audio/webm"]');
+  await audioInput.waitFor({ state: "attached", timeout: 10000 });
+  await audioInput.setInputFiles({
     name: `audio-${duration}s.webm`,
     mimeType: "audio/webm",
     buffer: Buffer.from("deterministic-audio-with-metadata"),
@@ -652,8 +652,7 @@ Given("que tengo un audio WebM con codec Opus de {int} segundos", async function
 });
 
 When("grabo un audio WebM con codec Opus de 5 segundos", async function (this: CustomWorld) {
-  await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
-  await this.page.getByRole("menuitem", { name: "Grabar audio" }).click();
+  await this.page.getByRole("button", { name: "Grabar audio" }).click();
   await this.page.getByTestId("audio-recording").waitFor(visibleTimeout);
   await this.page.evaluate(() => {
     (window as Window & { __e2eStopRecording?: () => void }).__e2eStopRecording?.();
@@ -661,8 +660,7 @@ When("grabo un audio WebM con codec Opus de 5 segundos", async function (this: C
 });
 
 When("intento grabar un audio", async function (this: CustomWorld) {
-  await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
-  await this.page.getByRole("menuitem", { name: "Grabar audio" }).click();
+  await this.page.getByRole("button", { name: "Grabar audio" }).click();
 });
 
 When(
@@ -792,7 +790,7 @@ When("confirmo el audio para enviarlo", async function (this: CustomWorld) {
   const duration = (this as CustomWorld & { audioDurationSeconds?: number }).audioDurationSeconds;
   assert.ok(duration !== undefined, "Falta la duración de metadata del audio");
   const player = this.page.getByTestId("audio-preview").locator("audio");
-  await player.waitFor(visibleTimeout);
+  await player.waitFor({ state: "attached", timeout: 5000 });
   await player.evaluate((element, seconds) => {
     Object.defineProperty(element, "duration", { configurable: true, value: seconds });
     element.dispatchEvent(new Event("loadedmetadata", { bubbles: true }));
@@ -814,9 +812,12 @@ Then("el audio desaparece de la preview", async function (this: CustomWorld) {
 });
 
 Then("puedo reproducirlo antes de enviarlo", async function (this: CustomWorld) {
-  const player = this.page.getByLabel(/Reproductor de audio/i);
-  await player.waitFor(visibleTimeout);
-  assert.strictEqual(await player.getAttribute("controls"), "");
+  const playButton = this.page.getByRole("button", { name: /Reproducir audio/i }).first();
+  await playButton.waitFor(visibleTimeout);
+  assert.ok(await playButton.isVisible());
+  const audioElement = this.page.getByTestId("audio-preview").locator("audio");
+  await audioElement.waitFor({ state: "attached", timeout: 5000 });
+  assert.strictEqual(await audioElement.getAttribute("preload"), "metadata");
 });
 
 Then("veo un mensaje indicando que no se puede acceder al micrófono", async function (this: CustomWorld) {
@@ -850,9 +851,10 @@ Then("la validación de duración informa {string}", async function (this: Custo
   }
 
   if (result === "aceptado") {
-    const accepted = this.page.getByText("Duración de audio aceptada", { exact: false });
-    await accepted.waitFor(visibleTimeout);
-    assert.ok(await accepted.isVisible());
+    await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+    assert.ok(await this.page.getByTestId("audio-preview").isVisible());
+    const error = this.page.getByText("El audio no puede superar los 300 segundos", { exact: false });
+    assert.strictEqual(await error.count(), 0);
     return;
   }
 
@@ -865,8 +867,11 @@ Then("el audio no se agrega al composer", async function (this: CustomWorld) {
 
 Then("el envío permanece bloqueado hasta aceptar la solicitud", async function (this: CustomWorld) {
   if ((this as CustomWorld & { pendingProviderChat?: boolean }).pendingProviderChat) {
+    if (await this.page.getByRole("menu").count() === 0) {
+      await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
+    }
     const attachAudio = this.page.getByRole("menuitem", { name: "Adjuntar audio" });
-    const recordAudio = this.page.getByRole("menuitem", { name: "Grabar audio" });
+    const recordAudio = this.page.getByRole("button", { name: "Grabar audio" });
     await attachAudio.waitFor(visibleTimeout);
     await recordAudio.waitFor(visibleTimeout);
     assert.ok(await attachAudio.isDisabled(), "El adjuntado de audio no está bloqueado");
@@ -879,7 +884,7 @@ Then("el envío permanece bloqueado hasta aceptar la solicitud", async function 
 });
 
 Then("no se crea ninguna burbuja de audio", async function (this: CustomWorld) {
-  assert.strictEqual(await this.page.getByLabel(/Reproductor de audio/i).count(), 0);
+  assert.strictEqual(await this.page.getByTestId("custom-audio-player").count(), 0);
 });
 
 Then("veo el error de carga correspondiente a {string}", async function (this: CustomWorld, stage: string) {
@@ -900,48 +905,51 @@ Then("el composer queda visible y habilitado para volver a intentar", async func
 });
 
 Then("veo la burbuja del audio recibido", async function (this: CustomWorld) {
-  const world = this as CustomWorld & { historicalAudioName?: string };
-  const player = this.page.getByLabel(`Reproductor de audio ${world.historicalAudioName ?? "ruido-bomba.webm"}`);
+  const player = this.page.getByTestId("custom-audio-player").first();
   await player.waitFor(visibleTimeout);
   assert.ok(await player.isVisible());
 });
 
 Then("puedo reproducirlo usando la URL firmada", async function (this: CustomWorld) {
   const world = this as CustomWorld & { historicalAudioName?: string; signedAudioUrl?: string };
-  const player = this.page.getByLabel(`Reproductor de audio ${world.historicalAudioName ?? "ruido-bomba.webm"}`);
-  await player.waitFor(visibleTimeout);
-  assert.strictEqual(await player.getAttribute("controls"), "");
-  assert.strictEqual(await player.getAttribute("preload"), "metadata");
-  assert.strictEqual(await player.getAttribute("src"), world.signedAudioUrl);
+  const playButton = this.page.getByRole("button", { name: /Reproducir audio/i }).first();
+  await playButton.waitFor(visibleTimeout);
+  assert.ok(await playButton.isVisible());
+  const audioElement = this.page.locator("audio").first();
+  await audioElement.waitFor({ state: "attached", timeout: 5000 });
+  assert.strictEqual(await audioElement.getAttribute("preload"), "metadata");
+  assert.strictEqual(await audioElement.getAttribute("src"), world.signedAudioUrl);
 });
 
 Then("veo la nueva burbuja sin recargar la página", async function (this: CustomWorld) {
-  const player = this.page.getByLabel("Reproductor de audio indicaciones-visita.webm");
+  const player = this.page.getByTestId("custom-audio-player").last();
   await player.waitFor(visibleTimeout);
   assert.ok(await player.isVisible());
 });
 
 Then("puedo reproducir el audio recibido", async function (this: CustomWorld) {
-  const player = this.page.getByLabel("Reproductor de audio indicaciones-visita.webm");
-  await player.waitFor(visibleTimeout);
-  assert.strictEqual(await player.getAttribute("controls"), "");
-  assert.strictEqual(await player.getAttribute("preload"), "metadata");
+  const playButton = this.page.getByRole("button", { name: /Reproducir audio/i }).last();
+  await playButton.waitFor(visibleTimeout);
+  assert.ok(await playButton.isVisible());
+  const audioElement = this.page.locator("audio").last();
+  await audioElement.waitFor({ state: "attached", timeout: 5000 });
+  assert.strictEqual(await audioElement.getAttribute("preload"), "metadata");
 });
 
 Then("veo la burbuja del audio en la conversación", async function (this: CustomWorld) {
-  const player = this.page.getByLabel(/Reproductor de audio/i).last();
+  const player = this.page.getByTestId("custom-audio-player").last();
   await player.waitFor(visibleTimeout);
   assert.ok(await player.isVisible());
 });
 
 Then("veo la burbuja del audio en la conversación pendiente", async function (this: CustomWorld) {
-  const player = this.page.getByLabel(/Reproductor de audio/i).last();
+  const player = this.page.getByTestId("custom-audio-player").last();
   await player.waitFor(visibleTimeout);
   assert.ok(await player.isVisible());
 });
 
 Then("el audio se envía correctamente", async function (this: CustomWorld) {
-  const player = this.page.getByLabel(/Reproductor de audio/i).last();
+  const player = this.page.getByTestId("custom-audio-player").last();
   await player.waitFor(visibleTimeout);
   assert.ok(await player.isVisible());
 });
@@ -951,9 +959,9 @@ Then("el composer queda vacío", async function (this: CustomWorld) {
 });
 
 Then("la burbuja muestra su duración", async function (this: CustomWorld) {
-  const duration = this.page.getByTestId("audio-duration");
-  await duration.waitFor(visibleTimeout);
-  assert.ok((await duration.textContent())?.includes("0:18"));
+  const player = this.page.getByTestId("custom-audio-player").last();
+  await player.waitFor(visibleTimeout);
+  assert.ok((await player.textContent())?.includes("0:18"));
 });
 
 Then("el sidebar sigue mostrando exactamente {string}", async function (this: CustomWorld, preview: string) {

@@ -118,7 +118,7 @@ describe("MessageInput", () => {
     const player = screen.getByLabelText("Reproductor de audio ruido-bomba.webm") as HTMLAudioElement;
     Object.defineProperty(player, "duration", { configurable: true, value: 18 });
     fireEvent.loadedMetadata(player);
-    expect(screen.getByTestId("audio-duration")).toHaveTextContent("0:18");
+    expect(screen.getByText("0:18")).toBeInTheDocument();
   });
 
   it("rejects audio with a MIME type outside WebM/Opus", () => {
@@ -217,7 +217,6 @@ describe("MessageInput", () => {
     Object.defineProperty(player, "duration", { configurable: true, value: 300 });
     fireEvent.loadedMetadata(player);
 
-    expect(screen.getByText(t.messaging.audioAttachment.durationAccepted)).toBeInTheDocument();
     expect(screen.getByTestId("audio-preview")).toBeInTheDocument();
   });
 
@@ -246,8 +245,8 @@ describe("MessageInput", () => {
 
     expect(onChange).toHaveBeenCalledWith("");
     expect(onRemoveFile).toHaveBeenCalledWith(0);
-    expect(screen.getByRole("textbox")).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Abrir menú de acciones" })).toBeDisabled();
+    expect(screen.getByTestId("audio-preview")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Abrir menú de acciones" })).not.toBeInTheDocument();
   });
 
   it("removes audio and revokes its object URL when cancelled", () => {
@@ -286,8 +285,7 @@ describe("MessageInput", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Grabar audio" }));
+    fireEvent.click(screen.getByRole("button", { name: t.messaging.audioRecorder.startLabel }));
 
     await waitFor(() => {
       expect(screen.getByText(t.messaging.audioRecorder.errors.unsupported)).toBeInTheDocument();
@@ -318,8 +316,7 @@ describe("MessageInput", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Grabar audio" }));
+    fireEvent.click(screen.getByRole("button", { name: t.messaging.audioRecorder.startLabel }));
 
     await waitFor(() => {
       expect(screen.getByText(t.messaging.audioRecorder.errors.permissionDenied)).toBeInTheDocument();
@@ -381,6 +378,14 @@ describe("MessageInput", () => {
         this.state = "recording";
       }
 
+      pause() {
+        this.state = "paused";
+      }
+
+      resume() {
+        this.state = "recording";
+      }
+
       stop() {
         this.state = "inactive";
         this.ondataavailable?.({ data: new Blob(["recorded voice"], { type: "audio/webm" }) } as BlobEvent);
@@ -411,8 +416,7 @@ describe("MessageInput", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Grabar audio" }));
+    fireEvent.click(screen.getByRole("button", { name: t.messaging.audioRecorder.startLabel }));
 
     await waitFor(() => {
       expect(screen.getByTestId("audio-recording")).toBeInTheDocument();
@@ -452,6 +456,14 @@ describe("MessageInput", () => {
         this.state = "recording";
       }
 
+      pause() {
+        this.state = "paused";
+      }
+
+      resume() {
+        this.state = "recording";
+      }
+
       stop() {
         this.state = "inactive";
         this.ondataavailable?.({ data: new Blob(["recorded voice"], { type: "audio/webm" }) } as BlobEvent);
@@ -481,8 +493,7 @@ describe("MessageInput", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Grabar audio" }));
+    fireEvent.click(screen.getByRole("button", { name: t.messaging.audioRecorder.startLabel }));
 
     await waitFor(() => {
       expect(screen.getByTestId("audio-recording")).toBeInTheDocument();
@@ -497,6 +508,80 @@ describe("MessageInput", () => {
     fireEvent.click(screen.getByRole("button", { name: `Eliminar audio adjunto ${t.messaging.audioRecorder.recordedFileName}` }));
 
     expect(screen.queryByTestId("audio-preview")).not.toBeInTheDocument();
+
+    if (previousMediaDevices) {
+      Object.defineProperty(navigator, "mediaDevices", previousMediaDevices);
+    } else {
+      Reflect.deleteProperty(navigator, "mediaDevices");
+    }
+    vi.unstubAllGlobals();
+  });
+
+  it("can pause and resume live audio recording from UI controls", async () => {
+    class FakeMediaRecorder {
+      static isTypeSupported = () => true;
+      state: RecordingState = "inactive";
+      ondataavailable: ((event: BlobEvent) => void) | null = null;
+      onstop: (() => void) | null = null;
+      readonly mimeType: string = "audio/webm;codecs=opus";
+
+      start() {
+        this.state = "recording";
+      }
+
+      pause() {
+        this.state = "paused";
+      }
+
+      resume() {
+        this.state = "recording";
+      }
+
+      stop() {
+        this.state = "inactive";
+        this.ondataavailable?.({ data: new Blob(["recorded voice"], { type: "audio/webm" }) } as BlobEvent);
+        this.onstop?.();
+      }
+    }
+
+    const previousMediaDevices = Object.getOwnPropertyDescriptor(navigator, "mediaDevices");
+    vi.stubGlobal("MediaRecorder", FakeMediaRecorder);
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue({
+          getTracks: () => [{ stop: vi.fn() }],
+        }),
+      },
+    });
+
+    render(
+      <MessageInput
+        value=""
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        onSendAudio={vi.fn()}
+        disabled={false}
+        onAttachFiles={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: t.messaging.audioRecorder.startLabel }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("audio-recording")).toBeInTheDocument();
+    });
+
+    // Pause recording
+    const pauseBtn = screen.getByRole("button", { name: t.messaging.audioRecorder.pauseLabel });
+    fireEvent.click(pauseBtn);
+
+    // Resume recording
+    const resumeBtn = screen.getByRole("button", { name: t.messaging.audioRecorder.resumeLabel });
+    expect(resumeBtn).toBeInTheDocument();
+    fireEvent.click(resumeBtn);
+
+    expect(screen.getByRole("button", { name: t.messaging.audioRecorder.pauseLabel })).toBeInTheDocument();
 
     if (previousMediaDevices) {
       Object.defineProperty(navigator, "mediaDevices", previousMediaDevices);

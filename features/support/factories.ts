@@ -1,7 +1,6 @@
 import { AuthSession } from "../../infrastructure/auth/types";
 import {
   Category,
-  ApiProvider,
   ApiConversation,
   ApiConversationDetail,
   ApiConversationMessage, ApiAiConversationMessage,
@@ -201,6 +200,31 @@ export function aProvider(overrides: Partial<any> = {}) {
     reviews: 12,
     jobs: 25,
     profile_photo_url: "http://localhost:3001/mock-avatar.png",
+    ...overrides,
+  };
+}
+
+interface ProviderSearchResultStub {
+  id: number;
+  name: string;
+  surname: string;
+  category_name: string;
+  profile_photo_url?: string;
+  rating_average: number;
+  rating_count: number;
+}
+
+export function aProviderSearchResult(
+  overrides: Partial<ProviderSearchResultStub> = {},
+): ProviderSearchResultStub {
+  return {
+    id: 1,
+    name: "Juan",
+    surname: "Pérez",
+    category_name: "Plomería",
+    profile_photo_url: "http://localhost:3001/mock-avatar.png",
+    rating_average: 0,
+    rating_count: 0,
     ...overrides,
   };
 }

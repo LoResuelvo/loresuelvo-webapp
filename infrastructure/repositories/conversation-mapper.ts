@@ -1,14 +1,10 @@
 import { ApiConversation, ApiConversationDetail, ApiConversationMessage } from "@/infrastructure/api/types";
 import { ConsumerConversationContact, ProviderConversationContact, ConversationDetailInfo, Message } from "@/domain/messaging/types";
 import { formatMessagePreview } from "@/lib/message-preview";
+import { formatConversationLastMessageDate } from "@/lib/date-utils";
 
 export function formatToLocalShortDateTime(dateString: string | Date): string {
-  return new Date(dateString).toLocaleString("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatConversationLastMessageDate(dateString);
 }
 
 export function formatToLocalTime(dateString: string | Date): string {
@@ -54,9 +50,7 @@ export function transformApiToConsumerContact(apiConv: ApiConversation): Consume
     providerName: apiConv.counterpart.name,
     providerSurname: apiConv.counterpart.surname,
     lastMessage: formatMessagePreview(apiConv.last_message),
-    lastMessageAt: apiConv.last_message?.created_on
-      ? formatToLocalShortDateTime(apiConv.last_message.created_on)
-      : "",
+    lastMessageAt: formatConversationLastMessageDate(apiConv.last_message?.created_on),
     pending: apiConv.status === "pending",
     profilePhotoUrl: apiConv.counterpart.profile_photo_url,
   };
@@ -69,9 +63,7 @@ export function transformApiToProviderContact(apiConv: ApiConversation): Provide
     consumerName: apiConv.counterpart.name,
     consumerSurname: apiConv.counterpart.surname,
     lastMessage: formatMessagePreview(apiConv.last_message),
-    lastMessageAt: apiConv.last_message?.created_on
-      ? formatToLocalShortDateTime(apiConv.last_message.created_on)
-      : "",
+    lastMessageAt: formatConversationLastMessageDate(apiConv.last_message?.created_on),
     pending: apiConv.status === "pending",
     profilePhotoUrl: apiConv.counterpart.profile_photo_url,
   };

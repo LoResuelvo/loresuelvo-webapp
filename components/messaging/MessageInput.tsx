@@ -39,14 +39,14 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const {
       isRecording,
       elapsedSeconds,
-      audioBlob,
+      audioFile,
       audioUrl,
       error: recorderError,
       startRecording,
       stopRecording,
       cancelRecording,
     } = useAudioRecorder();
-    const hasAudio = !!attachedAudio || !!audioBlob || isRecording;
+    const hasAudio = !!attachedAudio || !!audioFile || isRecording;
 
     const recorderErrorMessage = recorderError
       ? t.messaging.audioRecorder.errors[recorderError as AudioRecorderError]
@@ -149,9 +149,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     };
 
     const handleSend = async () => {
-      const audioFileToSend = attachedAudio?.file ?? (
-        audioBlob ? new File([audioBlob], "audio.webm", { type: audioBlob.type || "audio/webm" }) : null
-      );
+      const audioFileToSend = attachedAudio?.file ?? audioFile;
 
       if (audioFileToSend && onSendAudio) {
         try {

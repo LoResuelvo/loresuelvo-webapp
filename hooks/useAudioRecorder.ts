@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { patchWebmDurationBlob } from "@/lib/webm-duration-patcher";
+import {
+  AUDIO_ALLOWED_MIME_TYPES,
+  AUDIO_MAX_DURATION_SECONDS,
+  DEFAULT_AUDIO_MIME_TYPE,
+  createRecordedAudioFile,
+} from "@/lib/audio-validation";
 
 export type AudioRecorderError =
   | "unsupported"
   | "permissionDenied"
   | "recordingFailed"
   | "maxDuration";
+
+const TIMER_TICK_INTERVAL_MS = 1000;
+const MILLISECONDS_PER_SECOND = 1000;
+const MIN_RECORDED_AUDIO_DURATION_MS = 1000;
 
 interface UseAudioRecorderOptions {
   maxDurationSeconds?: number;
@@ -14,6 +25,7 @@ export interface UseAudioRecorderResult {
   isRecording: boolean;
   elapsedSeconds: number;
   audioBlob: Blob | null;
+  audioFile: File | null;
   audioUrl: string | null;
   error: AudioRecorderError | null;
   startRecording: () => Promise<boolean>;
@@ -21,12 +33,10 @@ export interface UseAudioRecorderResult {
   cancelRecording: () => void;
 }
 
-const AUDIO_MIME_TYPES = ["audio/webm;codecs=opus", "audio/webm"];
-
 function supportedAudioMimeType(): string | null {
   if (typeof MediaRecorder === "undefined") return null;
 
-  for (const mimeType of AUDIO_MIME_TYPES) {
+  for (const mimeType of AUDIO_ALLOWED_MIME_TYPES) {
     try {
       if (MediaRecorder.isTypeSupported(mimeType)) return mimeType;
     } catch {
@@ -37,10 +47,13 @@ function supportedAudioMimeType(): string | null {
   return null;
 }
 
-export function useAudioRecorder({ maxDurationSeconds = 300 }: UseAudioRecorderOptions = {}): UseAudioRecorderResult {
+export function useAudioRecorder({
+  maxDurationSeconds = AUDIO_MAX_DURATION_SECONDS,
+}: UseAudioRecorderOptions = {}): UseAudioRecorderResult {
   const [isRecording, setIsRecording] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<AudioRecorderError | null>(null);
 
@@ -51,6 +64,8 @@ export function useAudioRecorder({ maxDurationSeconds = 300 }: UseAudioRecorderO
   const elapsedRef = useRef(0);
   const audioUrlRef = useRef<string | null>(null);
   const cancelledRef = useRef(false);
+
+  const startTimeRef = useRef(0);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -75,6 +90,7 @@ export function useAudioRecorder({ maxDurationSeconds = 300 }: UseAudioRecorderO
   const clearAudio = useCallback(() => {
     revokeAudioUrl();
     setAudioBlob(null);
+    setAudioFile(null);
   }, [revokeAudioUrl]);
 
   const stopRecording = useCallback(() => {
@@ -125,6 +141,7 @@ export function useAudioRecorder({ maxDurationSeconds = 300 }: UseAudioRecorderO
     setError(null);
     setElapsedSeconds(0);
     elapsedRef.current = 0;
+    startTimeRef.current = Date.now();
     cancelledRef.current = false;
 
     let stream: MediaStream;
@@ -163,7 +180,9 @@ export function useAudioRecorder({ maxDurationSeconds = 300 }: UseAudioRecorderO
       stopStream();
       recorderRef.current = null;
       setIsRecording(false);
-      setElapsedSeconds(elapsedRef.current);
+      const measuredSeconds = Math.max(1, Math.round((Date.now() - startTimeRef.current) / MILLISECONDS_PER_SECOND));
+      const finalElapsed = elapsedRef.current > 0 ? elapsedRef.current : measuredSeconds;
+      setElapsedSeconds(finalElapsed);
 
       if (cancelledRef.current) {
         cancelledRef.current = false;
@@ -171,19 +190,33 @@ export function useAudioRecorder({ maxDurationSeconds = 300 }: UseAudioRecorderO
         return;
       }
 
-      const blob = new Blob(chunksRef.current, { type: mimeType });
+      const rawBlob = new Blob(chunksRef.current, { type: DEFAULT_AUDIO_MIME_TYPE });
       chunksRef.current = [];
-      if (blob.size === 0) {
+      if (rawBlob.size === 0) {
         setError("recordingFailed");
         clearAudio();
         return;
       }
 
       revokeAudioUrl();
-      const nextUrl = URL.createObjectURL(blob);
+      const nextUrl = URL.createObjectURL(rawBlob);
       audioUrlRef.current = nextUrl;
-      setAudioBlob(blob);
+      setAudioBlob(rawBlob);
+      setAudioFile(createRecordedAudioFile(rawBlob));
       setAudioUrl(nextUrl);
+
+      const durationMs = Math.max(MIN_RECORDED_AUDIO_DURATION_MS, Date.now() - startTimeRef.current);
+      void patchWebmDurationBlob(rawBlob, durationMs).then((patchedBlob) => {
+        if (cancelledRef.current) return;
+        if (audioUrlRef.current === nextUrl) {
+          URL.revokeObjectURL(nextUrl);
+          const patchedUrl = URL.createObjectURL(patchedBlob);
+          audioUrlRef.current = patchedUrl;
+          setAudioBlob(patchedBlob);
+          setAudioFile(createRecordedAudioFile(patchedBlob));
+          setAudioUrl(patchedUrl);
+        }
+      });
     };
 
     recorder.start();
@@ -195,7 +228,7 @@ export function useAudioRecorder({ maxDurationSeconds = 300 }: UseAudioRecorderO
         setError("maxDuration");
         stopRecording();
       }
-    }, 1000);
+    }, TIMER_TICK_INTERVAL_MS);
     return true;
   }, [clearAudio, clearTimer, isRecording, maxDurationSeconds, revokeAudioUrl, stopRecording, stopStream]);
 
@@ -213,6 +246,7 @@ export function useAudioRecorder({ maxDurationSeconds = 300 }: UseAudioRecorderO
     isRecording,
     elapsedSeconds,
     audioBlob,
+    audioFile,
     audioUrl,
     error,
     startRecording,

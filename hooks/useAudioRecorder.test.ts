@@ -90,9 +90,12 @@ describe("useAudioRecorder", () => {
     });
 
     expect(result.current.audioBlob).toBeInstanceOf(Blob);
+    expect(result.current.audioFile).toBeInstanceOf(File);
+    expect(result.current.audioFile?.name).toBe("audio.webm");
     expect(result.current.audioUrl).toBe("blob:recorded");
 
     act(() => result.current.cancelRecording());
+    expect(result.current.audioFile).toBeNull();
     expect(result.current.audioUrl).toBeNull();
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:recorded");
   });

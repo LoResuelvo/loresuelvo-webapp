@@ -74,6 +74,54 @@ describe("sendAudioMessage", () => {
     expect(result.message.audio?.originalName).toBe(file.name);
   });
 
+  it("normalizes MIME type with codecs parameter to base audio/webm", async () => {
+    const file = new File(["audio"], "audio.webm", { type: "audio/webm;codecs=opus" });
+    vi.mocked(fileRepository.getPresignedUrl).mockResolvedValue({
+      file_id: "upload-2",
+      key: "conversation_message_audio/upload-2",
+      upload_url: "https://upload.test/audio-2",
+      headers: { "Content-Type": "audio/webm" },
+    });
+    vi.mocked(fileRepository.confirmUpload).mockResolvedValue({
+      id: "audio-2",
+      url: "https://cdn.test/audio.webm",
+      original_name: file.name,
+    });
+    vi.mocked(conversationRepository.sendAudioMessage).mockResolvedValue({
+      id: 100,
+      sender_role: "provider",
+      created_on: "2026-08-25T21:05:00Z",
+      audio: {
+        id: "audio-2",
+        url: "https://cdn.test/audio.webm",
+        original_name: file.name,
+        duration_seconds: 10,
+        mime_type: "audio/webm",
+      },
+    });
+
+    await sendAudioMessage(conversationRepository, fileRepository, {
+      conversationId: "2",
+      counterpartId: 3,
+      myUserId: "provider-001",
+      file,
+      myRole: "provider",
+    });
+
+    expect(fileRepository.getPresignedUrl).toHaveBeenCalledWith(
+      file.name,
+      "audio/webm",
+      file.size,
+      "conversation_message_audio"
+    );
+    expect(fileRepository.confirmUpload).toHaveBeenCalledWith(
+      "upload-2",
+      "conversation_message_audio/upload-2",
+      "audio/webm",
+      file.size
+    );
+  });
+
   it.each([
     ["presign", () => vi.mocked(fileRepository.getPresignedUrl).mockRejectedValue(new Error("presign failed"))],
     ["PUT", () => {

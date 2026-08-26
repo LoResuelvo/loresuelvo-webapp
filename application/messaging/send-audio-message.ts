@@ -3,6 +3,7 @@ import { FileRepository } from "@/ports/file-repository";
 import { Message } from "@/domain/messaging/types";
 import { ApiConversationMessage } from "@/infrastructure/api/types";
 import { transformApiMessageToDomain } from "@/infrastructure/repositories/conversation-mapper";
+import { normalizeAudioMimeType } from "@/lib/audio-validation";
 
 export type AudioUploadFailureStage = "presign" | "PUT" | "confirm" | "send";
 
@@ -27,7 +28,7 @@ export async function sendAudioMessage(
   params: SendAudioMessageParams
 ): Promise<{ message: Message }> {
   const originalName = (params.file as File).name || "audio.webm";
-  const mimeType = params.file.type || "audio/webm";
+  const mimeType = normalizeAudioMimeType(params.file.type);
   let presigned;
   try {
     presigned = await fileRepository.getPresignedUrl(

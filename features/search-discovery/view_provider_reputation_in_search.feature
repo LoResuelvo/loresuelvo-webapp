@@ -14,7 +14,6 @@ Feature: Ver reputación de prestadores en la búsqueda
         Then visualizo la calificación promedio 4.5 de "Juan Pérez"
         And visualizo que "Juan Pérez" tiene 2 reseñas
 
-    @wip
     Scenario: 30.1.3-RSP Asociar la reputación con el prestador correcto
         Given que la búsqueda de "Plomería" incluye a "Juan Pérez" con promedio 5 y a "Pedro Dib" con promedio 2
         When ingreso a los resultados de prestadores de "Plomería"

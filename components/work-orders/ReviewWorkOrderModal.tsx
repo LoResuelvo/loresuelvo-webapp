@@ -74,7 +74,14 @@ export function ReviewWorkOrderModal({
   };
 
   return (
-    <Modal open={open} onClose={handleClose} title={t.workOrderReview.modalTitle} closeLabel={t.workOrderReview.closeButton}>
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title={t.workOrderReview.modalTitle}
+      closeLabel={t.workOrderReview.closeButton}
+      className="z-[70]"
+      overlayClassName="z-[65]"
+    >
       <div className="p-6 space-y-5" data-testid="review-work-order-modal">
         {isSuccess ? (
           <div className="text-center py-6 space-y-4" data-testid="review-success-message">

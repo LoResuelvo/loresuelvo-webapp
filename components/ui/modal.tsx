@@ -13,6 +13,7 @@ interface ModalProps {
   closeLabel?: string;
   children: React.ReactNode;
   className?: string;
+  overlayClassName?: string;
   footer?: React.ReactNode;
 }
 
@@ -23,13 +24,17 @@ export function Modal({
   closeLabel = "Cerrar",
   children,
   className,
+  overlayClassName,
   footer,
 }: ModalProps) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay
-          className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=closed]:animate-out data-[state=closed]:fade-out"
+          className={cn(
+            "fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=closed]:animate-out data-[state=closed]:fade-out",
+            overlayClassName
+          )}
         />
         <DialogPrimitive.Content
           aria-describedby={undefined}

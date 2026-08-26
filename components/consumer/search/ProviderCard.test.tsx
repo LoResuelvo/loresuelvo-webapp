@@ -34,7 +34,7 @@ describe('ProviderCard', () => {
         expect(svgElement).toBeInTheDocument();
     });
 
-    it("displays the provider's name, surname, description, rating, and jobs correctly", () => {
+    it("displays the provider's name, surname, description, rating, and review count correctly", () => {
         const mockProvider = { 
             id: 1, 
             name: "Pedro", 
@@ -43,7 +43,7 @@ describe('ProviderCard', () => {
             description: "Plomero experto con 20 años de experiencia.",
             rating: 4.8,
             reviews: 150,
-            jobs: 200
+            jobs: 200,
         };
 
         render(<ProviderCard provider={mockProvider} />);
@@ -51,7 +51,40 @@ describe('ProviderCard', () => {
         expect(screen.getByText("Pedro González")).toBeInTheDocument();
         expect(screen.getByText("Plomero experto con 20 años de experiencia.")).toBeInTheDocument();
         expect(screen.getByText("4.8")).toBeInTheDocument();
-        expect(screen.getByText("(150 reseñas) | 200 trabajos")).toBeInTheDocument();
+        expect(screen.getByText("(150 reseñas)")).toBeInTheDocument();
+        expect(screen.queryByText(/trabajos/i)).not.toBeInTheDocument();
+    });
+
+    it("displays zero rating and reviews without a jobs count when the provider has no reviews", () => {
+        const mockProvider = {
+            id: 1,
+            name: "Juan",
+            surname: "Pérez",
+            categoryName: "Plomería",
+            rating: 0,
+            reviews: 0,
+        };
+
+        render(<ProviderCard provider={mockProvider} />);
+
+        expect(screen.getByText("0", { exact: true })).toBeInTheDocument();
+        expect(screen.getByText("(0 reseñas)")).toBeInTheDocument();
+        expect(screen.queryByText(/trabajos/i)).not.toBeInTheDocument();
+    });
+
+    it("renders rating stars as decorative content", () => {
+        const mockProvider = {
+            id: 1,
+            name: "Juan",
+            surname: "Pérez",
+            categoryName: "Plomería",
+            rating: 4.5,
+            reviews: 2,
+        };
+
+        const { container } = render(<ProviderCard provider={mockProvider} />);
+
+        expect(container.querySelector('[aria-hidden="true"]')).toBeInTheDocument();
     });
 
     it("calls onContact with the provider when 'Contactar' button is clicked", async () => {

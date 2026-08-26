@@ -1,10 +1,8 @@
-@wip
 Feature: Ver reputación de prestadores en la búsqueda
     Como consumidor
     Quiero conocer la reputación de cada prestador
     Para elegir con quién contactar
 
-    @wip
     Scenario: 30.1.1-RSP Informar que un prestador todavía no tiene reseñas
         Given que la búsqueda de "Plomería" incluye al prestador "Juan Pérez" sin reseñas
         When ingreso a los resultados de prestadores de "Plomería"

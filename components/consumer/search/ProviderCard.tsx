@@ -49,7 +49,7 @@ export default function ProviderCard({ provider, className, onContact }: Provide
                 {ratingSummary.hasReviews ? ratingSummary.formattedRating : (provider.rating !== undefined ? provider.rating : "")}
               </span>
               <span className="text-small text-slate-400 leading-none">
-                ({provider.reviews ?? 0} {t.consumerSearch.providerCard.reviews}) | {provider.jobs ?? 0} {t.consumerSearch.providerCard.jobs}
+                ({provider.reviews ?? 0} {t.consumerSearch.providerCard.reviews})
               </span>
             </div>
 

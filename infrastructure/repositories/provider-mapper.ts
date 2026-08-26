@@ -9,9 +9,8 @@ export function mapApiToProvider(api: ApiProvider): Provider {
     categoryName: api.category_name,
     categoryId: api.category_id,
     description: api.description,
-    rating: api.rating,
-    reviews: api.reviews,
-    jobs: api.jobs,
+    rating: api.rating_average,
+    reviews: api.rating_count,
     profilePhotoUrl: api.profile_photo_url,
   };
 }

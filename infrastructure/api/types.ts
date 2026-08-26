@@ -41,9 +41,8 @@ export interface ApiProvider {
   category_name: string;
   category_id?: number;
   description?: string;
-  rating?: number;
-  reviews?: number;
-  jobs?: number;
+  rating_average: number;
+  rating_count: number;
   profile_photo_url?: string;
 }
 

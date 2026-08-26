@@ -1,10 +1,9 @@
-import { MessageCircle, User, ArrowRight, Sparkles } from "lucide-react";
+import { MessageCircle, User, ArrowRight, Star } from "lucide-react";
 import Link from "next/link";
 import type { Provider as ProviderType } from "@/domain/provider/types";
 import { Provider } from "@/domain/provider/Provider";
 import { Button } from "@/components/ui/button";
 import { RatingStars } from "@/components/ui/rating-stars";
-import { Badge } from "@/components/ui/badge";
 import { t } from "@/infrastructure/i18n/translations";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -20,7 +19,7 @@ export default function ProviderCard({ provider, className, onContact }: Provide
   const ratingSummary = Provider.getRatingSummary(provider);
   const reviewCount = provider.reviews ?? 0;
   const reviewLabel = reviewCount === 1 ? t.consumerSearch.providerCard.review : t.consumerSearch.providerCard.reviews;
-  const isNew = reviewCount === 0;
+  const hasReviews = ratingSummary.hasReviews;
 
   return (
     <div
@@ -47,27 +46,31 @@ export default function ProviderCard({ provider, className, onContact }: Provide
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h4 className="text-subtitle font-bold text-brand-primary truncate leading-tight group-hover:text-brand-secondary transition-colors">
-              <span>{displayName}</span>
-            </h4>
-            {isNew && (
-              <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-amber-500" />
-                {t.consumerSearch.providerCard.newBadge || "Nuevo"}
-              </Badge>
-            )}
-          </div>
+          <h4 className="text-subtitle font-bold text-brand-primary truncate leading-tight group-hover:text-brand-secondary transition-colors">
+            <span>{displayName}</span>
+          </h4>
 
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            <RatingStars rating={provider.rating} />
-            <span className="text-small font-bold text-slate-700 leading-none">
-              {ratingSummary.hasReviews ? ratingSummary.formattedRating : (provider.rating !== undefined ? provider.rating : "")}
-            </span>
-            <span className="text-small text-slate-400 leading-none">
-              ({reviewCount} {reviewLabel})
-            </span>
-          </div>
+          {hasReviews ? (
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <RatingStars rating={provider.rating} />
+              <span className="text-small font-bold text-slate-700 leading-none">
+                {ratingSummary.formattedRating}
+              </span>
+              <span className="text-small text-slate-400 leading-none">
+                ({reviewCount} {reviewLabel})
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 mt-1.5 text-small">
+              <Star className="w-4 h-4 text-amber-400 fill-amber-400" aria-hidden="true" />
+              <span className="font-medium text-slate-600">
+                {t.consumerSearch.providerCard.noReviews || "Sin calificaciones aún"}
+              </span>
+              <span className="text-slate-400">
+                ({reviewCount} {reviewLabel})
+              </span>
+            </div>
+          )}
 
           {provider.description && (
             <p className="text-small text-slate-500 mt-2 line-clamp-2 leading-relaxed">

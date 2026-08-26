@@ -308,7 +308,7 @@ export const t = {
     providerCard: {
       review: "reseña",
       reviews: "reseñas",
-      newBadge: "Nuevo",
+      noReviews: "Sin calificaciones aún",
       jobs: "trabajos",
       photoAlt: "Foto de",
     },

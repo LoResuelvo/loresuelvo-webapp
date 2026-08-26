@@ -82,7 +82,7 @@ export default function ProviderCard({ provider, className, onContact }: Provide
           variant="brand"
           type="button"
           onClick={() => onContact?.(provider)}
-          className="shadow-sm font-semibold text-small h-9 px-4 w-full sm:w-auto"
+          className="shadow-sm font-semibold text-small h-9 px-4 w-full sm:w-auto cursor-pointer"
         >
           <MessageCircle className="w-4 h-4 mr-2" aria-hidden="true" />
           {t.consumerSearch.contactBtn}

@@ -30,6 +30,10 @@ export class ApiUserRepository implements UserRepository {
       email: data.email,
       name: data.name,
       surname: data.surname,
+      address: {
+        street: "Av. Rivadavia",
+        street_number: "1234",
+      }, // Mock temporal
     };
     if (profilePhotoFileId) {
       body.profile_photo_file_id = profilePhotoFileId;

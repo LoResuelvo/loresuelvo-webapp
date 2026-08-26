@@ -40,7 +40,7 @@ export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryVi
             aria-selected={activeTab === tab}
             onClick={() => setActiveTab(tab)}
             className={cn(
-              "px-4 py-2 font-medium text-sm transition-colors border-b-2",
+              "px-4 py-2 font-medium text-sm transition-colors border-b-2 cursor-pointer",
               activeTab === tab
                 ? "border-brand-primary text-brand-primary"
                 : "border-transparent text-gray-500 hover:text-brand-primary hover:border-gray-300"

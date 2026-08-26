@@ -710,7 +710,8 @@ When("intento enviar el audio", async function (this: CustomWorld) {
 
 When("intento enviar únicamente el audio", async function (this: CustomWorld) {
   if ((this as CustomWorld & { pendingProviderChat?: boolean }).pendingProviderChat) {
-    await this.page.getByText("Tenés que aceptar la solicitud antes de poder enviar mensajes.", { exact: true }).waitFor(visibleTimeout);
+    await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
+    await this.page.getByRole("menu").waitFor({ state: "visible" });
     return;
   }
   await this.page.getByRole("button", { name: /Enviar mensaje/i }).click();
@@ -863,6 +864,15 @@ Then("el audio no se agrega al composer", async function (this: CustomWorld) {
 });
 
 Then("el envío permanece bloqueado hasta aceptar la solicitud", async function (this: CustomWorld) {
+  if ((this as CustomWorld & { pendingProviderChat?: boolean }).pendingProviderChat) {
+    const attachAudio = this.page.getByRole("menuitem", { name: "Adjuntar audio" });
+    const recordAudio = this.page.getByRole("menuitem", { name: "Grabar audio" });
+    await attachAudio.waitFor(visibleTimeout);
+    await recordAudio.waitFor(visibleTimeout);
+    assert.ok(await attachAudio.isDisabled(), "El adjuntado de audio no está bloqueado");
+    assert.ok(await recordAudio.isDisabled(), "La grabación de audio no está bloqueada");
+    return;
+  }
   const message = this.page.getByText("Tenés que aceptar la solicitud antes de poder enviar mensajes.", { exact: true });
   await message.waitFor(visibleTimeout);
   assert.ok(await message.isVisible());

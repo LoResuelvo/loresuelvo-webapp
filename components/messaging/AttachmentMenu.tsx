@@ -10,6 +10,7 @@ interface AttachmentMenuProps {
   onCreateProposal?: () => void;
   showProposalOption?: boolean;
   disabled?: boolean;
+  audioDisabled?: boolean;
 }
 
 export function AttachmentMenu({
@@ -19,6 +20,7 @@ export function AttachmentMenu({
   onCreateProposal,
   showProposalOption = false,
   disabled = false,
+  audioDisabled = false,
 }: AttachmentMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -72,6 +74,7 @@ export function AttachmentMenu({
                 setIsOpen(false);
                 onAttachAudio();
               }}
+              disabled={audioDisabled}
               className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg md:rounded-xl transition-all"
               role="menuitem"
             >
@@ -86,6 +89,7 @@ export function AttachmentMenu({
                 setIsOpen(false);
                 onRecordAudio();
               }}
+              disabled={audioDisabled}
               className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg md:rounded-xl transition-all"
               role="menuitem"
             >

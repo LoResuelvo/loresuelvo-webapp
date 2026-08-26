@@ -25,6 +25,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   isLoadingJobRequest?: boolean;
   pendingBannerText?: string;
   blockInputWhenPending?: boolean;
+  disableAudioWhenPending?: boolean;
   attachedFiles?: File[];
   onAttachFiles?: (files: File[]) => void;
   onRemoveFile?: (index: number) => void;
@@ -49,6 +50,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
   isLoadingJobRequest,
   pendingBannerText,
   blockInputWhenPending = false,
+  disableAudioWhenPending = false,
   attachedFiles,
   onAttachFiles,
   onRemoveFile,
@@ -121,6 +123,7 @@ export const ChatPanel = forwardRef<MessageInputHandle, {
             onAttachFiles={onAttachFiles}
             onRemoveFile={onRemoveFile}
             onOpenServiceProposal={onOpenServiceProposal}
+            disableAudio={disableAudioWhenPending && selectedContact.pending}
           />
         )}
       </div>

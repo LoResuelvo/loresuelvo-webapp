@@ -21,6 +21,7 @@ interface MessageInputProps {
   onAttachFiles?: (files: File[]) => void;
   onRemoveFile?: (index: number) => void;
   onOpenServiceProposal?: () => void;
+  disableAudio?: boolean;
 }
 
 export interface MessageInputHandle {
@@ -28,7 +29,7 @@ export interface MessageInputHandle {
 }
 
 const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
-  ({ value, onChange, onSend, onSendAudio, disabled, attachedFiles = [], onAttachFiles, onRemoveFile, onOpenServiceProposal }, ref) => {
+  ({ value, onChange, onSend, onSendAudio, disabled, attachedFiles = [], onAttachFiles, onRemoveFile, onOpenServiceProposal, disableAudio = false }, ref) => {
     const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -93,6 +94,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     };
 
     const handleAudioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (disableAudio) return;
       const file = e.target.files?.[0];
       if (!file) return;
 
@@ -133,6 +135,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     };
 
     const handleRecordAudio = () => {
+      if (disableAudio) return;
       void startRecording().then((started) => {
         if (!started) return;
         onChange("");
@@ -218,7 +221,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 className="hidden"
                 accept="audio/webm"
                 onChange={handleAudioChange}
-                disabled={disabled || !!attachedAudio}
+                disabled={disabled || disableAudio || !!attachedAudio}
               />
               <AttachmentMenu
                 onAttachImages={() => fileInputRef.current?.click()}
@@ -227,6 +230,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 onCreateProposal={onOpenServiceProposal}
                 showProposalOption={!!onOpenServiceProposal}
                 disabled={disabled || attachedFiles.length >= 5 || hasAudio}
+                audioDisabled={disableAudio}
               />
             </>
           )}

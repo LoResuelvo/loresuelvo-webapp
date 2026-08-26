@@ -159,4 +159,21 @@ describe("AttachmentMenu", () => {
     const trigger = screen.getByRole("button", { name: "Abrir menú de acciones" });
     expect(trigger).toBeDisabled();
   });
+
+  it("keeps images available while disabling audio actions", () => {
+    render(
+      <AttachmentMenu
+        onAttachImages={onAttachImages}
+        onAttachAudio={onAttachAudio}
+        onRecordAudio={onRecordAudio}
+        audioDisabled={true}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+
+    expect(screen.getByRole("menuitem", { name: "Adjuntar imágenes" })).toBeEnabled();
+    expect(screen.getByRole("menuitem", { name: "Adjuntar audio" })).toBeDisabled();
+    expect(screen.getByRole("menuitem", { name: "Grabar audio" })).toBeDisabled();
+  });
 });

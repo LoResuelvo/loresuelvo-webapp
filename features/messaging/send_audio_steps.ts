@@ -267,6 +267,63 @@ Given("que existe una conversación pendiente entre el consumidor {string} y el 
   (this as CustomWorld & { pendingConsumerChat?: boolean }).pendingConsumerChat = true;
 });
 
+Given("que existe una conversación pendiente como consumidor", async function (this: CustomWorld) {
+  (this as CustomWorld & { pendingConsumerChat?: boolean }).pendingConsumerChat = true;
+});
+
+Given("que el límite de mensajes ya fue alcanzado", async function (this: CustomWorld) {
+  await stubPendingConsumerChat(this);
+  await this.page.goto(
+    APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
+    { waitUntil: "domcontentloaded" }
+  );
+  await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
+  await this.stubPost(
+    "/files/presign",
+    200,
+    aPresignedUpload({
+      file_id: "audio-file-pending-retry",
+      key: "conversation_message_audio/audio-file-pending-retry",
+      upload_url: "https://mock-upload.test/pending-retry-audio",
+    })
+  );
+  await this.page.route("https://mock-upload.test/pending-retry-audio", async (route) => {
+    await route.fulfill({ status: 204 });
+  });
+  await this.stubPost(
+    "/files/audio-file-pending-retry/confirm",
+    200,
+    aConfirmedFile({
+      id: "audio-file-pending-retry",
+      url: "https://mock-audio.test/pending-retry.webm",
+      original_name: "detalle-perdida.webm",
+    })
+  );
+  await this.stubPost(
+    "/conversations/1/messages",
+    429,
+    { error: "Se alcanzó el límite de mensajes pendientes" }
+  );
+});
+
+Given("que el primer intento del audio fue rechazado por el límite", async function (this: CustomWorld) {
+  await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
+  await this.page.getByRole("menuitem", { name: "Adjuntar audio" }).click();
+  await this.page.locator('input[accept="audio/webm"]').setInputFiles({
+    name: "detalle-perdida.webm",
+    mimeType: "audio/webm",
+    buffer: Buffer.from("deterministic-pending-retry-audio"),
+  });
+  await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+  await this.page.getByRole("button", { name: /Enviar mensaje/i }).click();
+  await this.page.getByText("No se pudo enviar el audio", { exact: false }).waitFor(visibleTimeout);
+});
+
+Given("que el audio permanece disponible en el composer para reintentar", async function (this: CustomWorld) {
+  await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+  assert.ok(await this.page.getByTestId("audio-preview").isVisible());
+});
+
 Given("que estoy autenticado como prestador", async function (this: CustomWorld) {
   await this.setSession("provider", {
     id: "provider-001",
@@ -608,6 +665,27 @@ When("recibo por WebSocket el audio {string}", async function (this: CustomWorld
   }));
 });
 
+When("reintento enviar el audio después de liberar un cupo", async function (this: CustomWorld) {
+  await this.stubPost(
+    "/conversations/1/messages",
+    201,
+    {
+      id: 211,
+      sender_role: "consumer",
+      created_on: new Date().toISOString(),
+      audio: {
+        id: "audio-file-pending-retry",
+        url: "https://mock-audio.test/pending-retry.webm",
+        original_name: "detalle-perdida.webm",
+        duration_seconds: 18,
+        mime_type: "audio/webm",
+      },
+    }
+  );
+  await this.page.getByRole("button", { name: /Enviar mensaje/i }).click();
+  await this.page.getByTestId("audio-preview").waitFor({ state: "detached", timeout: 5000 });
+});
+
 When("recibo por WebSocket un nuevo audio de 18 segundos para esa conversación", async function (this: CustomWorld) {
   assert.ok(audioWsServer, "No se conectó el WebSocket determinista del escenario");
   audioWsServer?.send(JSON.stringify({
@@ -751,6 +829,16 @@ Then("veo la burbuja del audio en la conversación pendiente", async function (t
   const player = this.page.getByLabel(/Reproductor de audio/i).last();
   await player.waitFor(visibleTimeout);
   assert.ok(await player.isVisible());
+});
+
+Then("el audio se envía correctamente", async function (this: CustomWorld) {
+  const player = this.page.getByLabel(/Reproductor de audio/i).last();
+  await player.waitFor(visibleTimeout);
+  assert.ok(await player.isVisible());
+});
+
+Then("el composer queda vacío", async function (this: CustomWorld) {
+  assert.strictEqual(await this.page.getByTestId("audio-preview").count(), 0);
 });
 
 Then("la burbuja muestra su duración", async function (this: CustomWorld) {

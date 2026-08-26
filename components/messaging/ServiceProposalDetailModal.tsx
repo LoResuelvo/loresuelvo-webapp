@@ -5,6 +5,7 @@ import { ServiceProposalSummary } from "@/domain/messaging/types";
 import { WorkOrder } from "@/domain/work-order/types";
 import { Money } from "@/domain/shared/Money";
 import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
+import { Duration } from "@/domain/shared/Duration";
 import { ServiceProposal } from "@/domain/messaging/ServiceProposal";
 import { Provider } from "@/domain/provider/Provider";
 import { Modal } from "@/components/ui/modal";
@@ -122,6 +123,16 @@ export default function ServiceProposalDetailModal({
                 value={ScheduledDateTime.formatWithTime(scheduledOnVo)}
                 variant="default"
               />
+
+              {proposal.estimatedDurationMinutes && (
+                <DetailField
+                  icon={<Clock className="w-5 h-5" />}
+                  label={t.serviceProposals.chatPanel.durationLabel}
+                  value={Duration.format(proposal.estimatedDurationMinutes)}
+                  variant="default"
+                  dataTestId="proposal-duration-info"
+                />
+              )}
             </div>
 
             {proposal.description && (

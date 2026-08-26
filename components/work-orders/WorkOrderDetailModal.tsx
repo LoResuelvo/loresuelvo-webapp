@@ -5,9 +5,10 @@ import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
-import { DollarSign, Calendar, FileText, CheckCircle2, Loader2, AlertCircle, Star } from "lucide-react";
+import { DollarSign, Calendar, FileText, CheckCircle2, Loader2, AlertCircle, Star, Clock } from "lucide-react";
 import { Money } from "@/domain/shared/Money";
 import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
+import { Duration } from "@/domain/shared/Duration";
 import { WorkOrder } from "@/domain/work-order/WorkOrder";
 import {
   getWorkOrderDetailAction,
@@ -27,6 +28,7 @@ interface WorkOrderDetailModalProps {
   initialAmountCents?: number;
   initialScheduledOn?: string;
   initialDescription?: string;
+  initialEstimatedDurationMinutes?: number;
   isConsumer?: boolean;
 }
 
@@ -37,6 +39,7 @@ export function WorkOrderDetailModal({
   initialAmountCents = 1500000,
   initialScheduledOn = "2026-08-20T10:00:00Z",
   initialDescription = "Reparación de cañería en cocina",
+  initialEstimatedDurationMinutes,
   isConsumer = true,
 }: WorkOrderDetailModalProps) {
   const [detail, setDetail] = useState<WorkOrderDetail | null>(null);
@@ -69,6 +72,7 @@ export function WorkOrderDetailModal({
   const amountCents = detail?.amountCents ?? initialAmountCents;
   const scheduledOn = detail?.scheduledOn ?? initialScheduledOn;
   const description = detail?.description ?? initialDescription;
+  const estimatedDurationMinutes = detail?.estimatedDurationMinutes ?? initialEstimatedDurationMinutes;
 
   const { label: statusLabel, variant: statusVariant } = WorkOrder.getStatusBadge(currentStatus);
   const canRate = WorkOrder.canReview({ status: currentStatus, review: detail?.review }, isConsumer);
@@ -138,6 +142,16 @@ export function WorkOrderDetailModal({
                     value={ScheduledDateTime.formatWithTime(ScheduledDateTime.create(scheduledOn))}
                     variant="default"
                   />
+
+                  {estimatedDurationMinutes && (
+                    <DetailField
+                      icon={<Clock className="w-5 h-5" />}
+                      label={t.workOrderDetail.durationLabel}
+                      value={Duration.format(estimatedDurationMinutes)}
+                      variant="default"
+                      dataTestId="work-order-duration-info"
+                    />
+                  )}
 
                   {detail?.paidOn && (
                     <DetailField

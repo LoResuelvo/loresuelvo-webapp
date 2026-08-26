@@ -18,6 +18,7 @@ describe("ServiceProposalDetailModal", () => {
     amountCents: 1500000,
     scheduledOn: "2026-08-20T10:00:00Z",
     description: "Reparación de cañería de agua en cocina",
+    estimatedDurationMinutes: 90,
     status: "pending",
     createdOn: "2026-08-01T10:00:00Z",
     counterpart: {
@@ -44,6 +45,7 @@ describe("ServiceProposalDetailModal", () => {
     expect(screen.getByText("Plomería")).toBeInTheDocument();
     expect(screen.getByText("Pendiente")).toBeInTheDocument();
     expect(screen.getByText("Reparación de cañería de agua en cocina")).toBeInTheDocument();
+    expect(screen.getByText("1 h 30 min")).toBeInTheDocument();
   });
 
   it("calls onViewConversation when clicking 'Ver conversación'", async () => {

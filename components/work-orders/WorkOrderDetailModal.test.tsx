@@ -32,6 +32,7 @@ describe("WorkOrderDetailModal", () => {
         amountCents: 1500000,
         scheduledOn: "2026-08-20T10:00:00Z",
         description: "Reparación de cañería en cocina",
+        estimatedDurationMinutes: 120,
         acceptedOn: "2026-08-05T10:00:00Z",
       },
     });
@@ -44,6 +45,7 @@ describe("WorkOrderDetailModal", () => {
         initialAmountCents={1500000}
         initialScheduledOn="2026-08-20T10:00:00Z"
         initialDescription="Reparación de cañería en cocina"
+        initialEstimatedDurationMinutes={120}
       />
     );
 
@@ -52,6 +54,7 @@ describe("WorkOrderDetailModal", () => {
       expect(screen.getByText("Programada")).toBeInTheDocument();
       expect(screen.getByText("Reparación de cañería en cocina")).toBeInTheDocument();
       expect(screen.getByText("$ 15.000,00")).toBeInTheDocument();
+      expect(screen.getByText("2 h")).toBeInTheDocument();
     });
   });
 

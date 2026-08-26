@@ -7,6 +7,7 @@ export interface WorkOrder {
   amountCents: number;
   scheduledOn: string;
   description: string;
+  estimatedDurationMinutes?: number;
   acceptedOn: string;
 }
 
@@ -57,6 +58,7 @@ export interface WorkOrderDetail {
   amountCents: number;
   scheduledOn: string;
   description: string;
+  estimatedDurationMinutes?: number;
   status: WorkOrderStatus;
   acceptedOn: string;
   paidOn?: string;

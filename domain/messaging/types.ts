@@ -149,6 +149,7 @@ export interface ServiceProposal {
   amountCents: number;
   scheduledOn: string;
   description: string;
+  estimatedDurationMinutes: number;
   status: "pending" | "accepted" | "rejected";
   bookingTerms?: BookingTerms;
 }
@@ -158,6 +159,7 @@ export interface CreateServiceProposalInput {
   amount: string;       // "15000.50" — string decimal, la API lo convierte a cents
   scheduledOn: string;  // ISO 8601 datetime
   description: string;
+  estimatedDurationMinutes: number;
 }
 
 export interface ServiceProposalCounterpart {
@@ -175,6 +177,7 @@ export interface ServiceProposalSummary {
   amountCents: number;
   scheduledOn: string;
   description: string;
+  estimatedDurationMinutes: number;
   status: "pending" | "accepted" | "rejected";
   createdOn: string;
   counterpart: ServiceProposalCounterpart;

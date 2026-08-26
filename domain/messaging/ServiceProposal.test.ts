@@ -11,6 +11,7 @@ describe("ServiceProposal Domain Module", () => {
     amountCents: 1500000,
     scheduledOn: "2026-07-05T12:30:00.000Z",
     description: "Instalación de canilla",
+    estimatedDurationMinutes: 60,
     status: "pending",
   };
 

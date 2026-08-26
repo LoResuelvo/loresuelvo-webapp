@@ -19,6 +19,7 @@ const createMockProposal = (
   amountCents: 3000000,
   scheduledOn: "2026-09-01T15:00:00Z",
   description: "Reparación de cocina",
+  estimatedDurationMinutes: 60,
   status,
   createdOn,
   counterpart: {

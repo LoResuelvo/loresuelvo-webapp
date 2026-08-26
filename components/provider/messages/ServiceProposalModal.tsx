@@ -31,6 +31,22 @@ export type ServiceProposalDraft = {
   description: string;
 };
 
+export const DURATION_PRESETS = [
+  { value: "15", label: "15 min" },
+  { value: "30", label: "30 min" },
+  { value: "45", label: "45 min" },
+  { value: "60", label: "1 hora" },
+  { value: "90", label: "1 h 30 min" },
+  { value: "120", label: "2 horas" },
+  { value: "150", label: "2 h 30 min" },
+  { value: "180", label: "3 horas" },
+  { value: "240", label: "4 horas" },
+  { value: "300", label: "5 horas" },
+  { value: "360", label: "6 horas" },
+  { value: "480", label: "8 horas (Jornada completa)" },
+  { value: "custom", label: "Personalizada..." },
+] as const;
+
 interface ServiceProposalModalProps {
   open: boolean;
   onClose: () => void;
@@ -48,10 +64,18 @@ export function ServiceProposalModal({
   onDraftChange,
   onSubmit,
 }: ServiceProposalModalProps) {
+  const initialDuration = draft?.estimatedDurationMinutes ?? "";
+  const initialPreset = DURATION_PRESETS.some((p) => p.value === initialDuration)
+    ? initialDuration
+    : initialDuration
+    ? "custom"
+    : "";
+
   const [amount, setAmount] = useState(draft?.amount ?? "");
   const [scheduledDate, setScheduledDate] = useState(draft?.scheduledDate ?? "");
   const [scheduledTime, setScheduledTime] = useState(draft?.scheduledTime ?? "");
-  const [estimatedDurationMinutes, setEstimatedDurationMinutes] = useState(draft?.estimatedDurationMinutes ?? "");
+  const [selectedDurationPreset, setSelectedDurationPreset] = useState(initialPreset);
+  const [estimatedDurationMinutes, setEstimatedDurationMinutes] = useState(initialDuration);
   const [description, setDescription] = useState(draft?.description ?? "");
 
   const [amountError, setAmountError] = useState("");
@@ -65,10 +89,17 @@ export function ServiceProposalModal({
   // Load draft when consumer changes or modal opens
   useEffect(() => {
     if (open) {
+      const dVal = draft?.estimatedDurationMinutes ?? "";
+      const dPreset = DURATION_PRESETS.some((p) => p.value === dVal)
+        ? dVal
+        : dVal
+        ? "custom"
+        : "";
       setAmount(draft?.amount ?? "");
       setScheduledDate(draft?.scheduledDate ?? "");
       setScheduledTime(draft?.scheduledTime ?? "");
-      setEstimatedDurationMinutes(draft?.estimatedDurationMinutes ?? "");
+      setSelectedDurationPreset(dPreset);
+      setEstimatedDurationMinutes(dVal);
       setDescription(draft?.description ?? "");
       setAmountError("");
       setDateError("");
@@ -286,18 +317,56 @@ export function ServiceProposalModal({
               {/* Estimated Duration */}
               <div className="space-y-2">
                 <Label htmlFor="estimatedDurationMinutes">{t.messaging.serviceProposal.durationLabel}</Label>
-                <Input
-                  id="estimatedDurationMinutes"
-                  type="number"
-                  min={15}
-                  max={1440}
-                  step="1"
-                  placeholder={t.messaging.serviceProposal.durationPlaceholder}
-                  value={estimatedDurationMinutes}
-                  onChange={(e) => setEstimatedDurationMinutes(e.target.value)}
-                  className={durationError ? "border-red-500 focus-visible:ring-red-500" : ""}
+                <Select
+                  value={selectedDurationPreset}
+                  onValueChange={(val) => {
+                    setSelectedDurationPreset(val);
+                    if (val !== "custom") {
+                      setEstimatedDurationMinutes(val);
+                    } else {
+                      if (DURATION_PRESETS.some((p) => p.value === estimatedDurationMinutes)) {
+                        setEstimatedDurationMinutes("");
+                      }
+                    }
+                  }}
                   disabled={isSubmitting}
-                />
+                >
+                  <SelectTrigger
+                    id="estimatedDurationMinutes"
+                    className={durationError ? "border-red-500 focus:ring-red-500" : ""}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-slate-500" />
+                      <SelectValue placeholder={t.messaging.serviceProposal.durationPlaceholder} />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="max-h-[220px]">
+                    {DURATION_PRESETS.map((preset) => (
+                      <SelectItem key={preset.value} value={preset.value}>
+                        {preset.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {selectedDurationPreset === "custom" && (
+                  <div className="space-y-1 animate-in fade-in duration-200">
+                    <Input
+                      id="customEstimatedDurationMinutes"
+                      type="number"
+                      min={15}
+                      max={1440}
+                      step="1"
+                      placeholder={t.messaging.serviceProposal.durationCustomPlaceholder}
+                      value={estimatedDurationMinutes}
+                      onChange={(e) => setEstimatedDurationMinutes(e.target.value)}
+                      className={durationError ? "border-red-500 focus-visible:ring-red-500" : ""}
+                      disabled={isSubmitting}
+                      autoFocus
+                    />
+                  </div>
+                )}
+
                 {durationError && (
                   <p className="text-sm text-red-500 font-medium animate-in fade-in duration-200">
                     {durationError}
@@ -341,7 +410,7 @@ export function ServiceProposalModal({
                 type="submit"
                 variant="brand"
                 disabled={isSubmitDisabled}
-                className="px-6 font-semibold"
+                className="px-6 font-semibold cursor-pointer"
               >
                 {isSubmitting ? t.messaging.serviceProposal.submittingButton : t.messaging.serviceProposal.submitButton}
               </Button>

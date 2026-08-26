@@ -3,18 +3,45 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import React from "react";
 import { ServiceProposalModal } from "./ServiceProposalModal";
 
-vi.mock("@/components/ui/select", () => ({
-  Select: ({ onValueChange, children }: { onValueChange: (value: string) => void, children: React.ReactNode }) => (
-    <div data-testid="select-mock">
-      <input data-testid="time-input" onChange={(e) => onValueChange(e.target.value)} />
-      {children}
-    </div>
-  ),
-  SelectTrigger: () => null,
-  SelectValue: () => null,
-  SelectContent: () => null,
-  SelectItem: () => null,
-}));
+vi.mock("@/components/ui/select", () => {
+  return {
+    Select: ({
+      value,
+      onValueChange,
+      children,
+      disabled,
+    }: {
+      value?: string;
+      onValueChange?: (value: string) => void;
+      children?: React.ReactNode;
+      disabled?: boolean;
+    }) => {
+      let id: string | undefined;
+      React.Children.forEach(children, (child) => {
+        if (React.isValidElement<{ id?: string }>(child) && child.props.id) {
+          id = child.props.id;
+        }
+      });
+      return (
+        <select
+          id={id}
+          data-testid={id ? `select-${id}` : "select-mock"}
+          value={value ?? ""}
+          disabled={disabled}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onValueChange?.(e.target.value)}
+        >
+          {children}
+        </select>
+      );
+    },
+    SelectTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    SelectValue: ({ placeholder }: { placeholder?: string }) => <option value="">{placeholder}</option>,
+    SelectContent: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    SelectItem: ({ value, children }: { value: string; children?: React.ReactNode }) => (
+      <option value={value}>{children}</option>
+    ),
+  };
+});
 
 vi.mock("@/components/ui/popover", () => ({
   Popover: ({ children }: { children: React.ReactNode }) => <div data-testid="popover-mock">{children}</div>,
@@ -63,7 +90,7 @@ describe("ServiceProposalModal", () => {
     expect(screen.getByRole("heading", { name: "Propuesta de Servicio" })).toBeInTheDocument();
     expect(screen.getByLabelText("Monto")).toBeInTheDocument();
     expect(screen.getByText("Fecha")).toBeInTheDocument();
-    expect(screen.getByText("Hora")).toBeInTheDocument();
+    expect(screen.getByLabelText("Hora")).toBeInTheDocument();
     expect(screen.getByLabelText("Duración estimada")).toBeInTheDocument();
     expect(screen.getByLabelText("Motivo de la visita")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Enviar propuesta" })).toBeInTheDocument();
@@ -128,14 +155,14 @@ describe("ServiceProposalModal", () => {
     const dateInput = screen.getByTestId("calendar-input");
     fireEvent.change(dateInput, { target: { value: "2020-01-01" } });
 
-    const timeInput = screen.getByTestId("time-input");
+    const timeInput = screen.getByLabelText("Hora");
     fireEvent.change(timeInput, { target: { value: "12:00" } });
 
     expect(await screen.findByText("La fecha y hora deben ser futuras.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Enviar propuesta" })).toBeDisabled();
   });
 
-  it("shows validation error and disables submit when duration is less than 15 minutes", async () => {
+  it("shows validation error and disables submit when custom duration is less than 15 minutes", async () => {
     render(
       <ServiceProposalModal
         open={true}
@@ -145,14 +172,17 @@ describe("ServiceProposalModal", () => {
       />
     );
 
-    const durationInput = screen.getByLabelText("Duración estimada");
-    fireEvent.change(durationInput, { target: { value: "10" } });
+    const durationSelect = screen.getByLabelText("Duración estimada");
+    fireEvent.change(durationSelect, { target: { value: "custom" } });
+
+    const customInput = screen.getByPlaceholderText("En minutos (ej: 90)");
+    fireEvent.change(customInput, { target: { value: "10" } });
 
     expect(await screen.findByText("La duración mínima es de 15 minutos.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Enviar propuesta" })).toBeDisabled();
   });
 
-  it("shows validation error and disables submit when duration is greater than 1440 minutes", async () => {
+  it("shows validation error and disables submit when custom duration is greater than 1440 minutes", async () => {
     render(
       <ServiceProposalModal
         open={true}
@@ -162,14 +192,17 @@ describe("ServiceProposalModal", () => {
       />
     );
 
-    const durationInput = screen.getByLabelText("Duración estimada");
-    fireEvent.change(durationInput, { target: { value: "1500" } });
+    const durationSelect = screen.getByLabelText("Duración estimada");
+    fireEvent.change(durationSelect, { target: { value: "custom" } });
+
+    const customInput = screen.getByPlaceholderText("En minutos (ej: 90)");
+    fireEvent.change(customInput, { target: { value: "1500" } });
 
     expect(await screen.findByText("La duración máxima es de 24 horas (1440 minutos).")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Enviar propuesta" })).toBeDisabled();
   });
 
-  it("submits the form successfully and triggers success UI", async () => {
+  it("submits the form successfully with preset duration and triggers success UI", async () => {
     vi.useFakeTimers();
     mockOnSubmit.mockResolvedValue(undefined);
 
@@ -183,12 +216,12 @@ describe("ServiceProposalModal", () => {
     );
 
     const amountInput = screen.getByLabelText("Monto");
-    const durationInput = screen.getByLabelText("Duración estimada");
+    const durationSelect = screen.getByLabelText("Duración estimada");
     const descInput = screen.getByLabelText("Motivo de la visita");
     const sendBtn = screen.getByRole("button", { name: "Enviar propuesta" });
 
     fireEvent.change(amountInput, { target: { value: "15000.50" } });
-    fireEvent.change(durationInput, { target: { value: "90" } });
+    fireEvent.change(durationSelect, { target: { value: "90" } });
     fireEvent.change(descInput, { target: { value: "Reparación de pérdida" } });
 
     const futureDate = new Date();
@@ -198,7 +231,7 @@ describe("ServiceProposalModal", () => {
     const dateInput = screen.getByTestId("calendar-input");
     fireEvent.change(dateInput, { target: { value: dateString.split("T")[0] } });
 
-    const timeInput = screen.getByTestId("time-input");
+    const timeInput = screen.getByLabelText("Hora");
     fireEvent.change(timeInput, { target: { value: "12:00" } });
 
     expect(sendBtn).not.toBeDisabled();
@@ -238,12 +271,12 @@ describe("ServiceProposalModal", () => {
     );
 
     const amountInput = screen.getByLabelText("Monto");
-    const durationInput = screen.getByLabelText("Duración estimada");
+    const durationSelect = screen.getByLabelText("Duración estimada");
     const descInput = screen.getByLabelText("Motivo de la visita");
     const sendBtn = screen.getByRole("button", { name: "Enviar propuesta" });
 
     fireEvent.change(amountInput, { target: { value: "15000.50" } });
-    fireEvent.change(durationInput, { target: { value: "60" } });
+    fireEvent.change(durationSelect, { target: { value: "60" } });
     fireEvent.change(descInput, { target: { value: "Reparación" } });
 
     const futureDate = new Date();
@@ -253,7 +286,7 @@ describe("ServiceProposalModal", () => {
     const dateInput = screen.getByTestId("calendar-input");
     fireEvent.change(dateInput, { target: { value: dateString.split("T")[0] } });
 
-    const timeInput = screen.getByTestId("time-input");
+    const timeInput = screen.getByLabelText("Hora");
     fireEvent.change(timeInput, { target: { value: "12:00" } });
 
     fireEvent.click(sendBtn);

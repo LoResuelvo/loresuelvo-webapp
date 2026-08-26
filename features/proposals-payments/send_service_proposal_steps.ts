@@ -128,7 +128,7 @@ Then(
     const modal = this.page.getByRole("dialog", { name: "Propuesta de Servicio" });
 
     for (const campo of [campo1, campo2, campo3, campo4]) {
-      const label = modal.getByText(campo, { exact: false });
+      const label = modal.getByText(campo, { exact: true });
       await label.waitFor({ state: "visible" });
       assert.ok(await label.isVisible(), `No se visualiza el campo ${campo}`);
     }
@@ -141,7 +141,7 @@ Then(
     const modal = this.page.getByRole("dialog", { name: "Propuesta de Servicio" });
 
     for (const campo of [c1, c2, c3, c4, c5]) {
-      const label = modal.getByText(campo, { exact: false });
+      const label = modal.getByText(campo, { exact: true });
       await label.waitFor({ state: "visible" });
       assert.ok(await label.isVisible(), `No se visualiza el campo ${campo}`);
     }
@@ -246,14 +246,45 @@ async function fillAndSubmitProposalForm(
   assert.ok(!(await futureDay.isDisabled()), `La fecha futura ${targetDateInfo.dataDay} no está habilitada`);
   await futureDay.click();
 
-  const timeTrigger = modal.getByRole("combobox");
+  const timeTrigger = modal.getByRole("combobox", { name: "Hora" });
   await timeTrigger.click();
   const timeOption = world.page.getByRole("option", { name: "12:00", exact: true });
   await timeOption.waitFor({ state: "visible" });
   await timeOption.click();
 
-  const inputDuracion = modal.getByPlaceholder("Ej: 90");
-  await inputDuracion.fill(duracion);
+  const durationTrigger = modal.getByLabel("Duración estimada");
+  await durationTrigger.waitFor({ state: "visible" });
+  await durationTrigger.click();
+
+  const presetLabels: Record<string, string> = {
+    "15": "15 min",
+    "30": "30 min",
+    "45": "45 min",
+    "60": "1 hora",
+    "90": "1 h 30 min",
+    "120": "2 horas",
+    "150": "2 h 30 min",
+    "180": "3 horas",
+    "240": "4 horas",
+    "300": "5 horas",
+    "360": "6 horas",
+    "480": "8 horas (Jornada completa)",
+  };
+
+  const presetLabel = presetLabels[duracion];
+  if (presetLabel) {
+    const option = world.page.getByRole("option", { name: presetLabel, exact: true });
+    await option.waitFor({ state: "visible" });
+    await option.click();
+  } else {
+    const customOption = world.page.getByRole("option", { name: "Personalizada...", exact: true });
+    await customOption.waitFor({ state: "visible" });
+    await customOption.click();
+
+    const customInput = modal.getByPlaceholder("En minutos (ej: 90)");
+    await customInput.waitFor({ state: "visible" });
+    await customInput.fill(duracion);
+  }
 
   const inputMotivo = modal.getByPlaceholder("Ej: Reparación de pérdida de agua en cocina con materiales incluidos.");
   await inputMotivo.fill(motivo);
@@ -311,9 +342,6 @@ When(
     const inputMonto = modal.getByPlaceholder("Ej: 15000.50");
     await inputMonto.fill(monto);
 
-    const inputDuracion = modal.getByPlaceholder("Ej: 90");
-    await inputDuracion.fill("");
-
     const inputMotivo = modal.getByPlaceholder("Ej: Reparación de pérdida de agua en cocina con materiales incluidos.");
     await inputMotivo.fill(motivo);
   }
@@ -321,8 +349,39 @@ When(
 
 When("ingreso una duración estimada de {string} minutos", async function (this: CustomWorld, duracion: string) {
   const modal = this.page.getByRole("dialog", { name: "Propuesta de Servicio" });
-  const inputDuracion = modal.getByPlaceholder("Ej: 90");
-  await inputDuracion.fill(duracion);
+  const durationTrigger = modal.getByLabel("Duración estimada");
+  await durationTrigger.waitFor({ state: "visible" });
+  await durationTrigger.click();
+
+  const presetLabels: Record<string, string> = {
+    "15": "15 min",
+    "30": "30 min",
+    "45": "45 min",
+    "60": "1 hora",
+    "90": "1 h 30 min",
+    "120": "2 horas",
+    "150": "2 h 30 min",
+    "180": "3 horas",
+    "240": "4 horas",
+    "300": "5 horas",
+    "360": "6 horas",
+    "480": "8 horas (Jornada completa)",
+  };
+
+  const presetLabel = presetLabels[duracion];
+  if (presetLabel) {
+    const option = this.page.getByRole("option", { name: presetLabel, exact: true });
+    await option.waitFor({ state: "visible" });
+    await option.click();
+  } else {
+    const customOption = this.page.getByRole("option", { name: "Personalizada...", exact: true });
+    await customOption.waitFor({ state: "visible" });
+    await customOption.click();
+
+    const customInput = modal.getByPlaceholder("En minutos (ej: 90)");
+    await customInput.waitFor({ state: "visible" });
+    await customInput.fill(duracion);
+  }
 });
 
 Then("veo un mensaje de error indicando que la duración mínima es de 15 minutos", async function (this: CustomWorld) {
@@ -367,7 +426,7 @@ When("selecciono una fecha y hora en el pasado", async function (this: CustomWor
   await pastDay.waitFor({ state: "visible" });
   await pastDay.click();
 
-  const timeTrigger = modal.getByRole("combobox");
+  const timeTrigger = modal.getByRole("combobox", { name: "Hora" });
   await timeTrigger.click();
   const timeOption = this.page.getByRole("option", { name: "12:00", exact: true });
   await timeOption.waitFor({ state: "visible" });

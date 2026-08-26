@@ -472,6 +472,17 @@ Given("que tengo confirmado el audio {string}", async function (this: CustomWorl
   await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
 });
 
+Given("que tengo la preview del audio {string}", async function (this: CustomWorld, fileName: string) {
+  await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
+  await this.page.getByRole("menuitem", { name: "Adjuntar audio" }).click();
+  await this.page.locator('input[accept="audio/webm"]').setInputFiles({
+    name: fileName,
+    mimeType: "audio/webm",
+    buffer: Buffer.from("deterministic-preview-audio"),
+  });
+  await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+});
+
 Given("que la carga del audio falla durante la etapa {string}", async function (this: CustomWorld, stage: string) {
   const fileId = "audio-file-failure-001";
   const uploadUrl = "https://mock-upload.test/failure-audio";
@@ -666,6 +677,19 @@ When(
   }
 );
 
+When("selecciono el audio WebM con codec Opus {string} de {int} segundos", async function (this: CustomWorld, fileName: string, _duration: number) {
+  await this.page.locator('input[accept="audio/webm"]').setInputFiles({
+    name: fileName,
+    mimeType: "audio/webm",
+    buffer: Buffer.from("deterministic-selected-audio"),
+  });
+  await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+});
+
+When("cancelo el audio antes de enviarlo", async function (this: CustomWorld) {
+  await this.page.getByRole("button", { name: "Eliminar audio adjunto" }).click();
+});
+
 When("intento adjuntar un audio WebM con codec Opus de {int} MiB", async function (this: CustomWorld, sizeInMiB: number) {
   const audioInput = this.page.locator('input[accept="audio/webm"]');
   await audioInput.setInputFiles({
@@ -777,6 +801,15 @@ When("confirmo el audio para enviarlo", async function (this: CustomWorld) {
 Then("veo la preview del audio grabado", async function (this: CustomWorld) {
   await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
   assert.ok(await this.page.getByTestId("audio-preview").isVisible());
+});
+
+Then("veo la preview del audio", async function (this: CustomWorld) {
+  await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+  assert.ok(await this.page.getByTestId("audio-preview").isVisible());
+});
+
+Then("el audio desaparece de la preview", async function (this: CustomWorld) {
+  await this.page.getByTestId("audio-preview").waitFor({ state: "detached", timeout: 5000 });
 });
 
 Then("puedo reproducirlo antes de enviarlo", async function (this: CustomWorld) {

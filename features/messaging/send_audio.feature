@@ -3,7 +3,6 @@ Feature: 50.1 Enviar audios por el chat web
     quiero enviar mensajes de audio
     para comunicar detalles del problema o coordinar el servicio
 
-    @wip
     Scenario: 50.1.1-WEB Adjuntar un audio WebM con codec Opus y ver su preview
         Given que estoy en un chat activo como consumidor
         And que abrí el menú de adjuntos
@@ -18,7 +17,6 @@ Feature: 50.1 Enviar audios por el chat web
         Then veo la preview del audio grabado
         And puedo reproducirlo antes de enviarlo
 
-    @wip
     Scenario: 50.1.3-WEB Cancelar un audio antes de enviarlo
         Given que estoy en un chat activo como consumidor
         And que tengo la preview del audio "ruido-bomba.webm"

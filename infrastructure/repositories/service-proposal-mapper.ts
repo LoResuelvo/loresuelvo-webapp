@@ -17,6 +17,7 @@ export function transformApiToServiceProposal(api: ApiServiceProposal): ServiceP
     amountCents: money.cents,
     scheduledOn: scheduledOn.isoString,
     description: api.description,
+    estimatedDurationMinutes: api.estimated_duration_minutes ?? 60,
     status: api.status as "pending" | "accepted" | "rejected",
     ...(bookingTerms ? { bookingTerms } : {}),
   };
@@ -36,6 +37,7 @@ export function transformApiToServiceProposalSummary(
     amountCents: money.cents,
     scheduledOn: scheduledOn.isoString,
     description: api.description,
+    estimatedDurationMinutes: api.estimated_duration_minutes ?? 60,
     status: api.status as "pending" | "accepted" | "rejected",
     createdOn: createdOn.isoString,
     counterpart: {

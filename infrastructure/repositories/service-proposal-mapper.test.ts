@@ -12,6 +12,7 @@ describe("transformApiToServiceProposal", () => {
       amount_cents: 1500050,
       scheduled_on: "2026-07-05T12:30:00Z",
       description: "Reparación de pérdida de agua...",
+      estimated_duration_minutes: 90,
       status: "pending",
       booking_terms: {
         currency: "ARS",
@@ -38,6 +39,7 @@ describe("transformApiToServiceProposal", () => {
       amountCents: 1500050,
       scheduledOn: "2026-07-05T12:30:00Z",
       description: "Reparación de pérdida de agua...",
+      estimatedDurationMinutes: 90,
       status: "pending",
       bookingTerms: {
         currency: "ARS",
@@ -64,6 +66,7 @@ describe("transformApiToServiceProposalSummary", () => {
       amount_cents: 1000,
       scheduled_on: "2026-07-05T09:30:00Z",
       description: "test description",
+      estimated_duration_minutes: 60,
       status: "pending",
       created_on: "2026-07-04T10:00:00Z",
       counterpart: {
@@ -97,6 +100,7 @@ describe("transformApiToServiceProposalSummary", () => {
       amountCents: 1000,
       scheduledOn: "2026-07-05T09:30:00Z",
       description: "test description",
+      estimatedDurationMinutes: 60,
       status: "pending",
       createdOn: "2026-07-04T10:00:00Z",
       counterpart: {

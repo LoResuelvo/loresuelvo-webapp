@@ -17,6 +17,7 @@ describe("sendServiceProposal", () => {
       amountCents: 1500050,
       scheduledOn: "2026-07-05T12:30:00Z",
       description: "Reparación de pérdida de agua...",
+      estimatedDurationMinutes: 60,
       status: "pending",
       bookingTerms: {
         currency: "ARS",
@@ -40,6 +41,7 @@ describe("sendServiceProposal", () => {
       amount: "15000.50",
       scheduledOn: "2026-07-05T12:30:00Z",
       description: "Reparación de pérdida de agua...",
+      estimatedDurationMinutes: 60,
     };
 
     const res = await sendServiceProposal(mockServiceProposalRepository, input);

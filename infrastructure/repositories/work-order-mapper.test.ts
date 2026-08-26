@@ -22,6 +22,7 @@ describe("work-order-mapper", () => {
       amount_cents: 1500000,
       scheduled_on: "2026-08-20T10:00:00Z",
       description: "Reparación",
+      estimated_duration_minutes: 90,
       accepted_on: "2026-08-05T10:00:00Z",
     };
 
@@ -34,6 +35,7 @@ describe("work-order-mapper", () => {
       amountCents: 1500000,
       scheduledOn: "2026-08-20T10:00:00Z",
       description: "Reparación",
+      estimatedDurationMinutes: 90,
       acceptedOn: "2026-08-05T10:00:00Z",
     });
   });
@@ -48,6 +50,7 @@ describe("work-order-mapper", () => {
       amount_cents: 1500000,
       scheduled_on: "2026-08-20T10:00:00Z",
       description: "Reparación de cañería",
+      estimated_duration_minutes: 120,
       accepted_on: "2026-08-05T10:00:00Z",
     };
 
@@ -62,6 +65,7 @@ describe("work-order-mapper", () => {
       amountCents: 1500000,
       scheduledOn: "2026-08-20T10:00:00Z",
       description: "Reparación de cañería",
+      estimatedDurationMinutes: 120,
       acceptedOn: "2026-08-05T10:00:00Z",
     });
   });

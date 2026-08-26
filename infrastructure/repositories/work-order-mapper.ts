@@ -31,6 +31,7 @@ export function transformApiToWorkOrder(api: ApiWorkOrder): WorkOrder {
     amountCents: money.cents,
     scheduledOn: scheduledOn.isoString,
     description: api.description,
+    estimatedDurationMinutes: api.estimated_duration_minutes,
     acceptedOn: acceptedOn.isoString,
   };
 }
@@ -88,6 +89,7 @@ export function transformApiToWorkOrderDetail(api: ApiWorkOrderDetail): WorkOrde
     amountCents: money.cents,
     scheduledOn: scheduledOn.isoString,
     description: api.description,
+    estimatedDurationMinutes: api.estimated_duration_minutes,
     status: api.status,
     acceptedOn: acceptedOn.isoString,
   };

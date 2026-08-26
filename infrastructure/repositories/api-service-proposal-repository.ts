@@ -11,6 +11,7 @@ export class ApiServiceProposalRepository implements ServiceProposalRepository {
       amount: data.amount,
       scheduled_on: data.scheduledOn,
       description: data.description,
+      estimated_duration_minutes: data.estimatedDurationMinutes,
     };
     const res = await api.post<ApiServiceProposal>("/service-proposals", payload);
     return transformApiToServiceProposal(res);

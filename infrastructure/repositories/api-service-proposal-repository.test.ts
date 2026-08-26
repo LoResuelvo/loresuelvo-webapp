@@ -26,6 +26,7 @@ describe("ApiServiceProposalRepository", () => {
         amount_cents: 1500050,
         scheduled_on: "2026-07-05T12:30:00Z",
         description: "Reparación de pérdida de agua...",
+        estimated_duration_minutes: 60,
         status: "pending",
         booking_terms: {
           currency: "ARS",
@@ -49,6 +50,7 @@ describe("ApiServiceProposalRepository", () => {
         amount: "15000.50",
         scheduledOn: "2026-07-05T12:30:00Z",
         description: "Reparación de pérdida de agua...",
+        estimatedDurationMinutes: 60,
       });
 
       expect(baseClient.api.post).toHaveBeenCalledWith("/service-proposals", {
@@ -56,6 +58,7 @@ describe("ApiServiceProposalRepository", () => {
         amount: "15000.50",
         scheduled_on: "2026-07-05T12:30:00Z",
         description: "Reparación de pérdida de agua...",
+        estimated_duration_minutes: 60,
       });
 
       expect(result).toEqual({
@@ -66,6 +69,7 @@ describe("ApiServiceProposalRepository", () => {
         amountCents: 1500050,
         scheduledOn: "2026-07-05T12:30:00Z",
         description: "Reparación de pérdida de agua...",
+        estimatedDurationMinutes: 60,
         status: "pending",
         bookingTerms: {
           currency: "ARS",

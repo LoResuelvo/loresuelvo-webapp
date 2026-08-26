@@ -12,6 +12,7 @@ describe("getServiceProposals", () => {
         amountCents: 1000,
         scheduledOn: "2026-07-05T09:30:00Z",
         description: "test",
+        estimatedDurationMinutes: 60,
         status: "pending",
         createdOn: "2026-07-04T10:00:00Z",
         counterpart: {

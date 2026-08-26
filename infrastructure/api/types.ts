@@ -202,6 +202,7 @@ export interface ApiCreateServiceProposalRequest {
   amount: string;
   scheduled_on: string;
   description: string;
+  estimated_duration_minutes: number;
 }
 
 export interface ApiServiceProposal {
@@ -212,6 +213,7 @@ export interface ApiServiceProposal {
   amount_cents: number;
   scheduled_on: string;
   description: string;
+  estimated_duration_minutes?: number;
   status: string;
   booking_terms?: ApiBookingTerms;
 }
@@ -231,6 +233,7 @@ export interface ApiServiceProposalSummary {
   amount_cents: number;
   scheduled_on: string;
   description: string;
+  estimated_duration_minutes?: number;
   status: string;
   created_on: string;
   counterpart: ApiServiceProposalCounterpart;
@@ -336,6 +339,7 @@ export interface ApiWorkOrder {
   amount_cents: number;
   scheduled_on: string;
   description: string;
+  estimated_duration_minutes?: number;
   accepted_on: string;
 }
 
@@ -393,6 +397,7 @@ export interface ApiWorkOrderDetail {
   amount_cents: number;
   scheduled_on: string;
   description: string;
+  estimated_duration_minutes?: number;
   status: "scheduled" | "awaiting_payment" | "paid";
   accepted_on: string;
   paid_on?: string;

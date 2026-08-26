@@ -122,6 +122,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         setError(t.messaging.audioAttachment.durationTooLong);
         setAudioDurationAccepted(false);
         setAttachedAudio(null);
+        cancelRecording();
         return;
       }
 
@@ -138,6 +139,8 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       if (disableAudio) return;
       void startRecording().then((started) => {
         if (!started) return;
+        setAttachedAudio(null);
+        setAudioDurationAccepted(false);
         onChange("");
         for (let index = 0; index < attachedFiles.length; index += 1) {
           onRemoveFile?.(0);
@@ -146,9 +149,13 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     };
 
     const handleSend = async () => {
-      if (attachedAudio && onSendAudio) {
+      const audioFileToSend = attachedAudio?.file ?? (
+        audioBlob ? new File([audioBlob], "audio.webm", { type: audioBlob.type || "audio/webm" }) : null
+      );
+
+      if (audioFileToSend && onSendAudio) {
         try {
-          const sent = await onSendAudio(attachedAudio.file);
+          const sent = await onSendAudio(audioFileToSend);
           if (sent !== true) {
             if (sent) setError(t.messaging.audioUpload.errors[sent]);
             return;
@@ -265,6 +272,7 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               audioUrl={audioUrl}
               fileName={t.messaging.audioRecorder.recordedFileName}
               onRemove={cancelRecording}
+              onDurationLoaded={handleAudioDurationLoaded}
             />
           )}
           <Input

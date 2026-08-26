@@ -17,6 +17,7 @@ export class ApiUserRepository implements UserRepository {
       surname: data.surname,
       category_id: categoryId,
       profile_photo_file_id: profilePhotoId,
+      coverage_zone_ids: [1], // Mock temporal
     });
     return { profilePhotoUrl: res.profile_photo_url };
   }

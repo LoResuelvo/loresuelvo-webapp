@@ -363,4 +363,146 @@ describe("MessageInput", () => {
     expect(screen.getByTestId("audio-preview")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: t.messaging.sendLabel })).toBeEnabled();
   });
+
+  it("records audio, previews it, and sends it via onSendAudio", async () => {
+    class FakeMediaRecorder {
+      static isTypeSupported = () => true;
+      static instances: FakeMediaRecorder[] = [];
+      state: RecordingState = "inactive";
+      ondataavailable: ((event: BlobEvent) => void) | null = null;
+      onstop: (() => void) | null = null;
+      readonly mimeType: string = "audio/webm;codecs=opus";
+
+      constructor() {
+        FakeMediaRecorder.instances.push(this);
+      }
+
+      start() {
+        this.state = "recording";
+      }
+
+      stop() {
+        this.state = "inactive";
+        this.ondataavailable?.({ data: new Blob(["recorded voice"], { type: "audio/webm" }) } as BlobEvent);
+        this.onstop?.();
+      }
+    }
+
+    const previousMediaDevices = Object.getOwnPropertyDescriptor(navigator, "mediaDevices");
+    vi.stubGlobal("MediaRecorder", FakeMediaRecorder);
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue({
+          getTracks: () => [{ stop: vi.fn() }],
+        }),
+      },
+    });
+
+    const onSendAudio = vi.fn().mockResolvedValue(true);
+    render(
+      <MessageInput
+        value=""
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        onSendAudio={onSendAudio}
+        disabled={false}
+        onAttachFiles={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Grabar audio" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("audio-recording")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: t.messaging.audioRecorder.stopLabel }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("audio-preview")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: t.messaging.sendLabel }));
+
+    await waitFor(() => {
+      expect(onSendAudio).toHaveBeenCalledTimes(1);
+    });
+    expect(onSendAudio.mock.calls[0][0]).toBeInstanceOf(File);
+    expect(onSendAudio.mock.calls[0][0].name).toBe("audio.webm");
+
+    if (previousMediaDevices) {
+      Object.defineProperty(navigator, "mediaDevices", previousMediaDevices);
+    } else {
+      Reflect.deleteProperty(navigator, "mediaDevices");
+    }
+    vi.unstubAllGlobals();
+  });
+
+  it("cancels recorded audio preview when remove button is clicked", async () => {
+    class FakeMediaRecorder {
+      static isTypeSupported = () => true;
+      state: RecordingState = "inactive";
+      ondataavailable: ((event: BlobEvent) => void) | null = null;
+      onstop: (() => void) | null = null;
+      readonly mimeType: string = "audio/webm;codecs=opus";
+
+      start() {
+        this.state = "recording";
+      }
+
+      stop() {
+        this.state = "inactive";
+        this.ondataavailable?.({ data: new Blob(["recorded voice"], { type: "audio/webm" }) } as BlobEvent);
+        this.onstop?.();
+      }
+    }
+
+    const previousMediaDevices = Object.getOwnPropertyDescriptor(navigator, "mediaDevices");
+    vi.stubGlobal("MediaRecorder", FakeMediaRecorder);
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue({
+          getTracks: () => [{ stop: vi.fn() }],
+        }),
+      },
+    });
+
+    render(
+      <MessageInput
+        value=""
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        onSendAudio={vi.fn()}
+        disabled={false}
+        onAttachFiles={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Grabar audio" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("audio-recording")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: t.messaging.audioRecorder.stopLabel }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("audio-preview")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: `Eliminar audio adjunto ${t.messaging.audioRecorder.recordedFileName}` }));
+
+    expect(screen.queryByTestId("audio-preview")).not.toBeInTheDocument();
+
+    if (previousMediaDevices) {
+      Object.defineProperty(navigator, "mediaDevices", previousMediaDevices);
+    } else {
+      Reflect.deleteProperty(navigator, "mediaDevices");
+    }
+    vi.unstubAllGlobals();
+  });
 });

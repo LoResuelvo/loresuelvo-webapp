@@ -1,45 +1,26 @@
 "use client";
 
-import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { ActivePayment, BookingTerms, PaymentPricing } from "@/domain/payment/types";
-import { Money, type Currency } from "@/domain/shared/Money";
+import type { BookingTerms, PaymentPricing } from "@/domain/payment/types";
 import {
   createBookingDepositCheckoutAction,
   type CreateBookingDepositCheckoutResult,
 } from "@/app/consumidor/pagos/actions";
 import { t } from "@/infrastructure/i18n/translations";
 import { ShieldCheck } from "lucide-react";
+import { BookingPriceBreakdown } from "./BookingPriceBreakdown";
+import {
+  useBookingDepositCheckout,
+  type PaymentStorage,
+} from "./useBookingDepositCheckout";
 
-interface PaymentStorage {
-  setItem(key: string, value: string): void;
-}
-
-interface BookingDepositPaymentProps {
+export interface BookingDepositPaymentProps {
   serviceProposalId: number;
   pricing: PaymentPricing;
   createCheckout?: (serviceProposalId: number) => Promise<CreateBookingDepositCheckoutResult>;
   storage?: PaymentStorage;
   redirect?: (url: string) => void;
   bookingTerms?: BookingTerms;
-}
-
-function getPaymentErrorMessage(status: number | null): string {
-  switch (status) {
-    case 401:
-      return t.payments.errors.unauthorized;
-    case 403:
-      return t.payments.errors.forbidden;
-    case 404:
-      return t.payments.errors.notFound;
-    case 409:
-      return t.payments.errors.conflict;
-    case 500:
-    case 504:
-      return t.payments.errors.temporary;
-    default:
-      return t.payments.errors.generic;
-  }
 }
 
 export function BookingDepositPayment({
@@ -50,50 +31,12 @@ export function BookingDepositPayment({
   redirect,
   bookingTerms,
 }: BookingDepositPaymentProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const requestInProgress = useRef(false);
-
-  const currency = (pricing.currency as Currency) ?? "ARS";
-  const remainingBalanceCents = bookingTerms
-    ? bookingTerms.remainingServiceBalanceCents ?? (bookingTerms.remainingAmountDueCents - bookingTerms.remainingPlatformFeeCents)
-    : 0;
-
-  async function handlePayment(): Promise<void> {
-    if (requestInProgress.current) return;
-
-    requestInProgress.current = true;
-    setIsSubmitting(true);
-    setErrorMessage(null);
-
-    try {
-      const result = await createCheckout(serviceProposalId);
-      if (!result.ok) {
-        setErrorMessage(getPaymentErrorMessage(result.status));
-        return;
-      }
-
-      const activePayment: ActivePayment = {
-        purpose: "booking_deposit",
-        paymentIntentId: result.checkout.paymentIntentId,
-        serviceProposalId,
-        expiresOn: result.checkout.expiresOn,
-      };
-
-      (storage ?? window.sessionStorage).setItem(
-        "activePayment",
-        JSON.stringify(activePayment),
-      );
-      (redirect ?? ((url: string) => window.location.assign(url)))(
-        result.checkout.checkoutUrl,
-      );
-    } catch {
-      setErrorMessage(t.payments.errors.generic);
-    } finally {
-      requestInProgress.current = false;
-      setIsSubmitting(false);
-    }
-  }
+  const { isSubmitting, errorMessage, handlePayment } = useBookingDepositCheckout({
+    serviceProposalId,
+    createCheckout,
+    storage,
+    redirect,
+  });
 
   return (
     <section className="space-y-4 border-t border-slate-100 pt-5" aria-labelledby="booking-deposit-title">
@@ -106,40 +49,7 @@ export function BookingDepositPayment({
         </p>
       </div>
 
-      <div className="rounded-xl border border-slate-200/70 bg-slate-50/80 p-4 space-y-3">
-        <dl className="space-y-2 text-sm">
-          <div className="flex items-center justify-between gap-4">
-            <dt className="text-slate-600">{t.payments.checkout.depositLabel}</dt>
-            <dd className="font-medium text-slate-800">
-              {Money.format(Money.create(pricing.depositCents ?? 0, currency))}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <dt className="text-slate-600">{t.payments.checkout.feeLabel}</dt>
-            <dd className="font-medium text-slate-800">
-              {Money.format(Money.create(pricing.platformFeeDueNowCents ?? 0, currency))}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between gap-4 border-t border-slate-200/80 pt-2.5">
-            <dt className="font-semibold text-slate-800">{t.payments.checkout.totalLabel}</dt>
-            <dd className="text-subtitle font-bold text-brand-primary">
-              {Money.format(Money.create(pricing.amountDueNowCents, currency))}
-            </dd>
-          </div>
-        </dl>
-
-        {remainingBalanceCents > 0 && (
-          <div className="mt-2.5 pt-2.5 border-t border-slate-200/60 bg-white/70 rounded-lg p-2.5 space-y-1">
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
-              <span>{t.payments.checkout.remainingBalanceLabel}</span>
-              <span>{Money.format(Money.create(remainingBalanceCents, currency))}</span>
-            </div>
-            <p className="text-caption text-slate-500 leading-normal">
-              {t.payments.checkout.remainingBalanceHelp}
-            </p>
-          </div>
-        )}
-      </div>
+      <BookingPriceBreakdown pricing={pricing} bookingTerms={bookingTerms} />
 
       {errorMessage && (
         <p role="alert" className="text-sm text-brand-danger bg-red-50 border border-red-200 rounded-lg p-3">

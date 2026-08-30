@@ -2,99 +2,12 @@
 
 import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { t } from "@/infrastructure/i18n/translations";
 import { ROUTES } from "@/lib/routes";
 import { AmbientGlows } from "@/components/landing/ambient-glows";
-
-function MercadoPagoCallbackContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-
-  const result = searchParams.get("result");
-
-  function handleRetry() {
-    router.push(ROUTES.onboarding);
-  }
-
-  function handleContinue() {
-    router.push(ROUTES.provider.home);
-  }
-
-  // Redirect if result is invalid/missing
-  if (!result || (result !== "success" && result !== "cancelled")) {
-    if (typeof window !== "undefined") {
-      router.replace(ROUTES.provider.home);
-    }
-    return <LoadingState />;
-  }
-
-  const isSuccess = result === "success";
-
-  return (
-    <div className="relative min-h-screen flex items-center justify-center bg-background px-4 overflow-hidden">
-      <AmbientGlows />
-      
-      <div className="relative z-10 w-full max-w-[440px] rounded-2xl border border-border/60 bg-card/60 p-8 shadow-xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-300">
-        <div className="flex flex-col items-center text-center">
-          {isSuccess ? (
-            <>
-              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 shadow-inner animate-bounce duration-1000">
-                <CheckCircle2 className="h-10 w-10" />
-              </div>
-              <h1 className="mb-3 text-2xl font-bold tracking-tight text-foreground">
-                {t.onboarding.mercadoPago.connectionSuccess}
-              </h1>
-              <p className="mb-8 text-body-lg text-muted-foreground leading-relaxed">
-                {t.onboarding.mercadoPago.connectionSuccessSubtitle}
-              </p>
-              <Button
-                id="mp-success-continue-btn"
-                variant="brand"
-                size="full"
-                onClick={handleContinue}
-              >
-                {t.onboarding.mercadoPago.continueButton}
-              </Button>
-            </>
-          ) : (
-            <>
-              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-amber-500/10 text-amber-500 shadow-inner">
-                <AlertTriangle className="h-10 w-10 animate-pulse" />
-              </div>
-              <h1 className="mb-3 text-2xl font-bold tracking-tight text-foreground">
-                {t.onboarding.mercadoPago.connectionCancelled}
-              </h1>
-              <p className="mb-8 text-body-lg text-muted-foreground leading-relaxed">
-                {t.onboarding.mercadoPago.connectionCancelledSubtitle}
-              </p>
-              
-              <div className="w-full space-y-3">
-                <Button
-                  id="mp-retry-btn"
-                  variant="brand"
-                  size="full"
-                  onClick={handleRetry}
-                >
-                  {t.onboarding.mercadoPago.retryButton}
-                </Button>
-                <Button
-                  id="mp-cancel-continue-btn"
-                  variant="ghost"
-                  size="full"
-                  onClick={handleContinue}
-                >
-                  {t.onboarding.mercadoPago.continueButton}
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+import { MercadoPagoSuccess } from "./MercadoPagoSuccess";
+import { MercadoPagoError } from "./MercadoPagoError";
 
 function LoadingState() {
   return (
@@ -103,6 +16,39 @@ function LoadingState() {
       <div className="relative z-10 flex flex-col items-center">
         <Loader2 className="h-10 w-10 animate-spin text-brand-primary mb-4" />
         <p className="text-muted-foreground text-sm">{t.onboarding.mercadoPago.connecting}</p>
+      </div>
+    </div>
+  );
+}
+
+function MercadoPagoCallbackContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const result = searchParams.get("result");
+
+  if (!result || (result !== "success" && result !== "cancelled")) {
+    if (typeof window !== "undefined") {
+      router.replace(ROUTES.provider.home);
+    }
+    return <LoadingState />;
+  }
+
+  return (
+    <div className="relative min-h-screen flex items-center justify-center bg-background px-4 overflow-hidden">
+      <AmbientGlows />
+
+      <div className="relative z-10 w-full max-w-[440px] rounded-2xl border border-border/60 bg-card/60 p-8 shadow-xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-300">
+        <div className="flex flex-col items-center text-center">
+          {result === "success" ? (
+            <MercadoPagoSuccess onContinue={() => router.push(ROUTES.provider.home)} />
+          ) : (
+            <MercadoPagoError
+              onRetry={() => router.push(ROUTES.onboarding)}
+              onContinue={() => router.push(ROUTES.provider.home)}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

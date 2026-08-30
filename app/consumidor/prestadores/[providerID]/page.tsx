@@ -3,7 +3,7 @@ import { getProviderProfile } from "@/application/consumer/get-provider-profile"
 import ProviderProfileView from "@/components/consumer/provider-profile/ProviderProfileView";
 import { getAuthService } from "@/infrastructure/auth";
 import { ApiClientError } from "@/infrastructure/api/base-client";
-import { ApiProviderProfileRepository } from "@/infrastructure/repositories/api-provider-profile-repository";
+import { ApiProviderProfileRepository } from "@/infrastructure/repositories/consumer/api-provider-profile-repository";
 
 interface PageProps {
   params: Promise<{ providerID: string }>;

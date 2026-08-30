@@ -1,8 +1,8 @@
 "use server";
 
-import { ApiServiceProposalRepository } from "@/infrastructure/repositories/api-service-proposal-repository";
-import { ApiConversationRepository } from "@/infrastructure/repositories/api-conversation-repository";
-import { ApiJobRequestRepository } from "@/infrastructure/repositories/api-job-request-repository";
+import { ApiServiceProposalRepository } from "@/infrastructure/repositories/messaging/api-service-proposal-repository";
+import { ApiConversationRepository } from "@/infrastructure/repositories/messaging/api-conversation-repository";
+import { ApiJobRequestRepository } from "@/infrastructure/repositories/messaging/api-job-request-repository";
 import { getServiceProposals } from "@/application/messaging/get-service-proposals";
 import {
   getConversationDetail as getConvDetailUseCase,

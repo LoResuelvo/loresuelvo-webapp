@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import AiDiagnosisChat from "@/components/consumer/diagnosis/AiDiagnosisChat";
-import { createApiAssistantClient } from "@/infrastructure/repositories/api-assistant-client";
+import { createApiAssistantClient } from "@/infrastructure/repositories/consumer/api-assistant-client";
 import {
   createAiConversationAction,
   sendAiMessageAction,

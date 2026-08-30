@@ -1,6 +1,6 @@
 "use server";
 
-import { ApiUserRepository } from "@/infrastructure/repositories/api-user-repository";
+import { ApiUserRepository } from "@/infrastructure/repositories/onboarding/api-user-repository";
 import { registerUser } from "@/application/onboarding/register-user";
 import { getAuthService } from "@/infrastructure/auth";
 import { UserRole } from "@/domain/onboarding/types";

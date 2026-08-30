@@ -1,6 +1,6 @@
 import { getAuthService } from "@/infrastructure/auth";
 import RegistrationForm from "@/components/onboarding/RegistrationForm";
-import { ApiCategoryRepository } from "@/infrastructure/repositories/api-category-repository";
+import { ApiCategoryRepository } from "@/infrastructure/repositories/consumer/api-category-repository";
 import { getConsumerHome } from "@/application/consumer/get-consumer-home";
 
 export default async function OnboardingPage() {

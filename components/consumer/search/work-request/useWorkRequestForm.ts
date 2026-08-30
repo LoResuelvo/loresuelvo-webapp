@@ -6,7 +6,7 @@ import { Provider } from "@/domain/provider/types";
 import { createJobRequest } from "@/app/consumidor/buscar/actions";
 import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
-import { ClientFileRepository } from "@/infrastructure/repositories/client-repositories";
+import { ClientFileRepository } from "@/infrastructure/repositories/shared/client-repositories";
 
 export function parseWorkRequestError(errorMessage: string): string {
   if (errorMessage.includes("Job request already exists") || errorMessage.includes("Conversation already exists")) {

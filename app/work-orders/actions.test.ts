@@ -40,11 +40,11 @@ vi.mock("@/application/work-orders/create-work-order-review", () => ({
   createWorkOrderReview: vi.fn(),
 }));
 
-vi.mock("@/infrastructure/repositories/api-payment-repository", () => ({
+vi.mock("@/infrastructure/repositories/payments/api-payment-repository", () => ({
   ApiPaymentRepository: vi.fn(),
 }));
 
-vi.mock("@/infrastructure/repositories/api-work-order-repository", () => ({
+vi.mock("@/infrastructure/repositories/work-orders/api-work-order-repository", () => ({
   ApiWorkOrderRepository: vi.fn(),
 }));
 

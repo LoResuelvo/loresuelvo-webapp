@@ -1,7 +1,7 @@
 import { getAuthService } from "@/infrastructure/auth";
 import ProviderMessagesClient from "@/components/provider/messages/ProviderMessagesClient";
 import { getProviderConversations } from "@/application/messaging/get-conversations";
-import { ApiConversationRepository } from "@/infrastructure/repositories/api-conversation-repository";
+import { ApiConversationRepository } from "@/infrastructure/repositories/messaging/api-conversation-repository";
 
 export default async function ProviderMessagesPage() {
   const session = await getAuthService().getSession();

@@ -1,6 +1,6 @@
 "use server";
 
-import { ApiJobRequestRepository } from "@/infrastructure/repositories/api-job-request-repository";
+import { ApiJobRequestRepository } from "@/infrastructure/repositories/messaging/api-job-request-repository";
 import { acceptWorkRequest } from "@/application/provider/accept-work-request";
 import { rejectWorkRequest } from "@/application/provider/reject-work-request";
 

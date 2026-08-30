@@ -1,7 +1,7 @@
 import { getAuthService } from "@/infrastructure/auth";
 import ConsumerHome from "@/components/consumer/home/ConsumerHome";
 import { getConsumerHome } from "@/application/consumer/get-consumer-home";
-import { ApiCategoryRepository } from "@/infrastructure/repositories/api-category-repository";
+import { ApiCategoryRepository } from "@/infrastructure/repositories/consumer/api-category-repository";
 import { getServiceProposalsAction } from "@/app/prestador/mensajes/actions";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 import { getCurrentUserAction } from "@/app/api/me/actions";

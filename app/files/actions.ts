@@ -1,6 +1,6 @@
 "use server";
 
-import { ApiFileRepository } from "@/infrastructure/repositories/api-file-repository";
+import { ApiFileRepository } from "@/infrastructure/repositories/files/api-file-repository";
 import { getPresignedUrl, confirmUpload } from "@/application/files/upload-file";
 import { getAuthService } from "@/infrastructure/auth";
 import type { PresignedUrlResponse, ConfirmUploadResponse } from "@/ports/file-repository";

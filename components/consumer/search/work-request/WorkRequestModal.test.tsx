@@ -19,7 +19,7 @@ const mockGetPresignedUrl = vi.fn();
 const mockUploadFile = vi.fn();
 const mockConfirmUpload = vi.fn();
 
-vi.mock("@/infrastructure/repositories/client-repositories", () => {
+vi.mock("@/infrastructure/repositories/shared/client-repositories", () => {
   class MockClientFileRepository {
     getPresignedUrl = mockGetPresignedUrl;
     uploadFile = mockUploadFile;

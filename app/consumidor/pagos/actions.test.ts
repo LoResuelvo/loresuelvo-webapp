@@ -13,7 +13,7 @@ vi.mock("@/application/payments/get-payment-intent", () => ({
   getPaymentIntent: vi.fn(),
 }));
 
-vi.mock("@/infrastructure/repositories/api-payment-repository", () => ({
+vi.mock("@/infrastructure/repositories/payments/api-payment-repository", () => ({
   ApiPaymentRepository: vi.fn(),
 }));
 

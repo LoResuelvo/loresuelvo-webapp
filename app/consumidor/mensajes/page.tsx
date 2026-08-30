@@ -1,7 +1,7 @@
 import { getAuthService } from "@/infrastructure/auth";
 import ConsumerMessagesClient from "@/components/consumer/messages/ConsumerMessagesClient";
 import { getConsumerConversations } from "@/application/messaging/get-conversations";
-import { ApiConversationRepository } from "@/infrastructure/repositories/api-conversation-repository";
+import { ApiConversationRepository } from "@/infrastructure/repositories/messaging/api-conversation-repository";
 
 interface PageProps {
   searchParams: Promise<{ provider_id?: string; name?: string; surname?: string }>;

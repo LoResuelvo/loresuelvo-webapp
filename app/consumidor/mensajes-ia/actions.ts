@@ -1,6 +1,6 @@
 "use server";
 
-import { ApiAiChatRepository } from "@/infrastructure/repositories/api-ai-chat-repository";
+import { ApiAiChatRepository } from "@/infrastructure/repositories/consumer/api-ai-chat-repository";
 import type { AiConversationDetail, AiConversationContact } from "@/domain/messaging/types";
 
 export type ActionResult<T> = 

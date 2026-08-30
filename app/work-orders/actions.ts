@@ -14,8 +14,8 @@ import type {
   WorkOrderReviewInput,
 } from "@/domain/work-order/types";
 import { ApiClientError } from "@/infrastructure/api/base-client";
-import { ApiPaymentRepository } from "@/infrastructure/repositories/api-payment-repository";
-import { ApiWorkOrderRepository } from "@/infrastructure/repositories/api-work-order-repository";
+import { ApiPaymentRepository } from "@/infrastructure/repositories/payments/api-payment-repository";
+import { ApiWorkOrderRepository } from "@/infrastructure/repositories/work-orders/api-work-order-repository";
 
 export type CreateServiceBalanceCheckoutResult =
   | { ok: true; checkout: CheckoutSession }

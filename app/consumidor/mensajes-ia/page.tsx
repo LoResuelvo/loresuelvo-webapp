@@ -3,7 +3,7 @@ import Sidebar from "@/components/consumer/Sidebar";
 import ConsumerHeader from "@/components/consumer/home/ConsumerHeader";
 import AiDiagnosisChatWrapper from "@/components/consumer/diagnosis/AiDiagnosisChatWrapper";
 import { getAuthService } from "@/infrastructure/auth";
-import { ApiAiChatRepository } from "@/infrastructure/repositories/api-ai-chat-repository";
+import { ApiAiChatRepository } from "@/infrastructure/repositories/consumer/api-ai-chat-repository";
 import { getAiConversations } from "@/application/ai-chat/get-ai-conversations";
 import type { AiConversationContact } from "@/domain/messaging/types";
 

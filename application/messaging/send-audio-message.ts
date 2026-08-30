@@ -2,7 +2,7 @@ import { AudioConversationRepository } from "@/ports/audio-conversation-reposito
 import { FileRepository } from "@/ports/file-repository";
 import { Message } from "@/domain/messaging/types";
 import { ApiConversationMessage } from "@/infrastructure/api/types";
-import { transformApiMessageToDomain } from "@/infrastructure/repositories/conversation-mapper";
+import { transformApiMessageToDomain } from "@/infrastructure/repositories/messaging/conversation-mapper";
 import { normalizeAudioMimeType } from "@/lib/audio/audio-validation";
 
 export type AudioUploadFailureStage = "presign" | "PUT" | "confirm" | "send";

@@ -1,7 +1,7 @@
 import { getAuthService } from "@/infrastructure/auth";
 import ProviderHome from "@/components/provider/home/ProviderHome";
 import { getProviderDashboard } from "@/application/provider/get-provider-dashboard";
-import { ApiProviderHomeRepository } from "@/infrastructure/repositories/api-provider-home-repository";
+import { ApiProviderHomeRepository } from "@/infrastructure/repositories/provider/api-provider-home-repository";
 import { getServiceProposalsAction } from "@/app/prestador/mensajes/actions";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 import { getCurrentUserAction } from "@/app/api/me/actions";

@@ -2,7 +2,7 @@ import { ApiServiceProposal, ApiServiceProposalSummary } from "@/infrastructure/
 import { ServiceProposal, ServiceProposalSummary } from "@/domain/messaging/types";
 import { Money } from "@/domain/shared/Money";
 import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
-import { mapApiBookingTerms } from "./payment-mapper";
+import { mapApiBookingTerms } from "@/infrastructure/repositories/payments/payment-mapper";
 
 export function transformApiToServiceProposal(api: ApiServiceProposal): ServiceProposal {
   const money = Money.create(api.amount_cents);

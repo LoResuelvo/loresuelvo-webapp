@@ -4,7 +4,7 @@ import { createBookingDepositCheckout } from "@/application/payments/create-book
 import { getPaymentIntent } from "@/application/payments/get-payment-intent";
 import type { CheckoutSession, PaymentIntent } from "@/domain/payment/types";
 import { ApiClientError } from "@/infrastructure/api/base-client";
-import { ApiPaymentRepository } from "@/infrastructure/repositories/api-payment-repository";
+import { ApiPaymentRepository } from "@/infrastructure/repositories/payments/api-payment-repository";
 
 export type CreateBookingDepositCheckoutResult =
   | { ok: true; checkout: CheckoutSession }

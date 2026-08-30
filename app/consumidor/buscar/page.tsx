@@ -1,7 +1,7 @@
 import { getAuthService } from "@/infrastructure/auth";
 import { searchProviders } from "@/application/consumer/search-providers";
-import { ApiCategoryRepository } from "@/infrastructure/repositories/api-category-repository";
-import { ApiProviderRepository } from "@/infrastructure/repositories/api-provider-repository";
+import { ApiCategoryRepository } from "@/infrastructure/repositories/consumer/api-category-repository";
+import { ApiProviderRepository } from "@/infrastructure/repositories/consumer/api-provider-repository";
 import SearchClient from "@/components/consumer/search/SearchClient";
 
 interface PageProps {

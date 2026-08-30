@@ -1,7 +1,7 @@
 "use server";
 
 import { cache } from "react";
-import { ApiUserRepository } from "@/infrastructure/repositories/api-user-repository";
+import { ApiUserRepository } from "@/infrastructure/repositories/onboarding/api-user-repository";
 import { getAuthService } from "@/infrastructure/auth";
 import { getCurrentUser } from "@/application/user/get-current-user";
 import { CurrentUser } from "@/domain/user/types";

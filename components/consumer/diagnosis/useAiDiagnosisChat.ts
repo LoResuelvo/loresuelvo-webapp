@@ -6,11 +6,11 @@ import type { AiChatRepository } from "@/ports/ai-chat-repository";
 import {
   createMockAssistantClient,
   DEFAULT_ASSISTANT_DELAY_MS,
-} from "@/infrastructure/repositories/mock-assistant-client";
+} from "@/infrastructure/repositories/consumer/mock-assistant-client";
 import type { AiMessage } from "@/infrastructure/storage/ai-chat-storage";
 import { t } from "@/infrastructure/i18n/translations";
-import { ClientFileRepository } from "@/infrastructure/repositories/client-repositories";
-import { formatToLocalShortDateTime } from "@/infrastructure/repositories/conversation-mapper";
+import { ClientFileRepository } from "@/infrastructure/repositories/shared/client-repositories";
+import { formatToLocalShortDateTime } from "@/infrastructure/repositories/messaging/conversation-mapper";
 import { createAiJobRequest } from "@/application/ai-chat/create-ai-job-request";
 import { useClock } from "@/hooks/useClock";
 import { logger } from "@/infrastructure/logging/logger";

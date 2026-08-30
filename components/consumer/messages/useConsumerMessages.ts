@@ -6,11 +6,11 @@ import { getConversationDetail, getJobRequestForConversation, createConversation
 import { t } from "@/infrastructure/i18n/translations";
 import { useWebSocket } from "@/infrastructure/websocket";
 import { Message, JobRequestInfo, ConsumerConversationContact as ConversationContact, ServiceProposalSummary } from "@/domain/messaging/types";
-import { ClientConversationRepository, ClientFileRepository } from "@/infrastructure/repositories/client-repositories";
-import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/local-offline-queue-repository";
+import { ClientConversationRepository, ClientFileRepository } from "@/infrastructure/repositories/shared/client-repositories";
+import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/shared/local-offline-queue-repository";
 import { sendMessageWithAttachments } from "@/application/messaging/send-message-with-attachments";
 import { AudioUploadError, sendAudioMessage as sendAudioMessageUseCase, type AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
-import { transformApiMessageToDomain, formatToLocalShortDateTime } from "@/infrastructure/repositories/conversation-mapper";
+import { transformApiMessageToDomain, formatToLocalShortDateTime } from "@/infrastructure/repositories/messaging/conversation-mapper";
 import type { MessageInputHandle } from "@/components/messaging/chat/MessageInput";
 import { clearDraft, loadDraft, saveDraft, type DraftFileMeta } from "@/lib/messaging/message-drafts";
 import { useClock } from "@/hooks/useClock";

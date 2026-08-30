@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth0 } from "./lib/auth0";
 import { ROUTES } from "./lib/routes";
 import { getAuthService } from "./infrastructure/auth";
-import { ApiUserRepository } from "./infrastructure/repositories/api-user-repository";
+import { ApiUserRepository } from "./infrastructure/repositories/onboarding/api-user-repository";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

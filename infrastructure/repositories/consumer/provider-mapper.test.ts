@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ApiProvider } from "@/infrastructure/api/types";
-import { mapApiToProvider } from "@/infrastructure/repositories/provider-mapper";
+import { mapApiToProvider } from "./provider-mapper";
 
 function aSearchApiProvider(overrides: Partial<ApiProvider> = {}): ApiProvider {
   return {

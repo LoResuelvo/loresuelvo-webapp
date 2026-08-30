@@ -4,7 +4,7 @@ import { t } from "@/infrastructure/i18n/translations";
 import { Modal } from "@/components/ui/modal";
 import { Avatar } from "@/components/ui/avatar";
 import { MessageImage } from "@/domain/messaging/types";
-import { ImageGalleryPreview } from "@/components/shared/ImageGalleryPreview";
+import { ImageGalleryPreview } from "@/components/messaging/proposals/ImageGalleryPreview";
 
 export interface JobRequestPanelInfo {
   title: string;

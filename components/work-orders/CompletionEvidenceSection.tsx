@@ -2,7 +2,7 @@
 
 import { t } from "@/infrastructure/i18n/translations";
 import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
-import { ImageGalleryPreview } from "@/components/shared/ImageGalleryPreview";
+import { ImageGalleryPreview } from "@/components/messaging/proposals/ImageGalleryPreview";
 import type { CompletionReportDetail } from "@/domain/work-order/types";
 import { CheckCircle2, Clock, FileText } from "lucide-react";
 

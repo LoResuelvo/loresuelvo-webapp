@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import { t } from "@/infrastructure/i18n/translations";
 import { ROUTES } from "@/lib/routes";
-import { AmbientGlows } from "@/components/ui/AmbientGlows";
+import { AmbientGlows } from "@/components/landing/ambient-glows";
 
 function MercadoPagoCallbackContent() {
   const searchParams = useSearchParams();

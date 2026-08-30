@@ -1,10 +1,10 @@
-import HeroContent from "@/components/shared/HeroContent";
+import HeroContent from "@/components/landing/HeroContent";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { Container } from "@/components/shared/Container";
 import { ROUTES } from "@/lib/routes";
-import { AmbientGlows } from "@/components/ui/AmbientGlows";
-import RoleSelectionCard from "@/components/shared/RoleSelectionCard";
-import { FeatureCard } from "@/components/shared/FeatureCard";
+import { AmbientGlows } from "@/components/landing/ambient-glows";
+import RoleSelectionCard from "@/components/landing/RoleSelectionCard";
+import { FeatureCard } from "@/components/landing/FeatureCard";
 import { t } from "@/infrastructure/i18n/translations";
 
 export default function HomePage() {

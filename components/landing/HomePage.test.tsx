@@ -1,9 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import Header from "@/components/shared/Header";
-import HeroContent from "@/components/shared/HeroContent";
-import RoleSelectionCard from "@/components/shared/RoleSelectionCard";
-import { FeatureCard } from "@/components/shared/FeatureCard";
+import HeroContent from "@/components/landing/HeroContent";
+import RoleSelectionCard from "@/components/landing/RoleSelectionCard";
+import { FeatureCard } from "@/components/landing/FeatureCard";
 import Footer from "@/components/shared/Footer";
 import { ROUTES } from "@/lib/routes";
 

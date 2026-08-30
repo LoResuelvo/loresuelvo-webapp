@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
 import { Modal } from "@/components/ui/modal";
 import { DetailPanel } from "@/components/shared/DetailPanel";
-import { ImageGalleryPreview } from "@/components/shared/ImageGalleryPreview";
+import { ImageGalleryPreview } from "@/components/messaging/proposals/ImageGalleryPreview";
 
 interface RequestDetailModalProps {
   request: ProviderWorkRequest;

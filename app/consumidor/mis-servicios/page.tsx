@@ -2,7 +2,7 @@ import { getAuthService } from "@/infrastructure/auth";
 import { getServiceProposalsAction } from "@/app/prestador/mensajes/actions";
 import ConsumerHeader from "@/components/consumer/home/ConsumerHeader";
 import Sidebar from "@/components/consumer/Sidebar";
-import { ProposalHistoryView } from "@/components/shared/ProposalHistoryView";
+import { ProposalHistoryView } from "@/components/messaging/proposals/ProposalHistoryView";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 
 import { logger } from "@/infrastructure/logging/logger";

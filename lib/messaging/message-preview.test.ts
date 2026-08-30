@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMessagePreview, isAudioPreview } from "@/lib/message-preview";
+import { formatMessagePreview, isAudioPreview } from "./message-preview";
 
 describe("formatMessagePreview", () => {
   it("formats audio duration for the conversation sidebar", () => {

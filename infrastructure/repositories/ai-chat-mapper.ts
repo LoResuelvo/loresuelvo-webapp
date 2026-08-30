@@ -1,6 +1,6 @@
 import type { ApiAiConversation, ApiAiConversationDetail, ApiAiConversationMessage, ApiRecommendedProvider } from "@/infrastructure/api/types";
 import type { AiConversationContact, AiConversationDetail, AiMessage, RecommendedProvider, AssessmentOutcome } from "@/domain/messaging/types";
-import { formatConversationLastMessageDate } from "@/lib/date-utils";
+import { formatConversationLastMessageDate } from "@/lib/date/date-utils";
 
 export function mapApiToAiConversationContact(api: ApiAiConversation): AiConversationContact {
   const dateString = api.last_message?.created_on ?? api.updated_on;

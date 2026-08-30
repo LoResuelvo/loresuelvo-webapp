@@ -5,7 +5,7 @@ import {
   loadDraft,
   saveDraft,
   type DraftFileMeta,
-} from "@/lib/message-drafts";
+} from "./message-drafts";
 
 beforeEach(() => {
   clearDraft("conv-A");

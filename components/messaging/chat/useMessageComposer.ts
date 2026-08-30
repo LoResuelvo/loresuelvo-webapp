@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type RefObject } from "react";
 import { useAudioRecorder, type AudioRecorderError } from "@/hooks/useAudioRecorder";
-import { validateAudioDuration, validateAudioFile } from "@/lib/audio-validation";
+import { validateAudioDuration, validateAudioFile } from "@/lib/audio/audio-validation";
 import { t } from "@/infrastructure/i18n/translations";
 import type { AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
 

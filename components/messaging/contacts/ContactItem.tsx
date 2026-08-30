@@ -2,7 +2,7 @@ import { t } from "@/infrastructure/i18n/translations";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Mic } from "lucide-react";
-import { isAudioPreview } from "@/lib/message-preview";
+import { isAudioPreview } from "@/lib/messaging/message-preview";
 
 interface ContactItemProps {
   id: string;

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useClock } from "@/hooks/useClock";
-import { formatClockTime } from "@/lib/clock-utils";
+import { formatClockTime } from "@/lib/date/clock-utils";
 import { Button } from "@/components/ui/button";
 import { Clock as ClockIcon, X, RotateCcw, Check } from "lucide-react";
 

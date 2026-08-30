@@ -1,7 +1,7 @@
 import { ApiConversation, ApiConversationDetail, ApiConversationMessage } from "@/infrastructure/api/types";
 import { ConsumerConversationContact, ProviderConversationContact, ConversationDetailInfo, Message } from "@/domain/messaging/types";
-import { formatMessagePreview } from "@/lib/message-preview";
-import { formatConversationLastMessageDate } from "@/lib/date-utils";
+import { formatMessagePreview } from "@/lib/messaging/message-preview";
+import { formatConversationLastMessageDate } from "@/lib/date/date-utils";
 
 export function formatToLocalShortDateTime(dateString: string | Date): string {
   return formatConversationLastMessageDate(dateString);

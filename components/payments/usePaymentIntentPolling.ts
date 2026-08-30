@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PaymentIntentStatus } from "@/domain/payment/types";
 import type { GetPaymentIntentResult } from "@/app/consumidor/pagos/actions";
-import { isTerminalPaymentStatus } from "@/lib/payment-utils";
+import { isTerminalPaymentStatus } from "@/lib/payments/payment-utils";
 
 const POLLING_INTERVAL_MS = 2_000;
 const POLLING_TIMEOUT_MS = 30_000;

@@ -7,7 +7,7 @@ import {
   getPaymentIntentAction,
   type GetPaymentIntentResult,
 } from "@/app/consumidor/pagos/actions";
-import { parseActivePayment, resolvePaymentIntentId } from "@/lib/payment-utils";
+import { parseActivePayment, resolvePaymentIntentId } from "@/lib/payments/payment-utils";
 import type { ActivePayment } from "@/domain/payment/types";
 import { usePaymentIntentPolling } from "./usePaymentIntentPolling";
 import { PaymentSuccessView } from "./PaymentSuccessView";

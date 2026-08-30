@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { patchWebmDurationBlob } from "@/lib/webm-duration-patcher";
+import { patchWebmDurationBlob } from "@/lib/audio/webm-duration-patcher";
 import {
   AUDIO_ALLOWED_MIME_TYPES,
   AUDIO_MAX_DURATION_SECONDS,
   DEFAULT_AUDIO_MIME_TYPE,
   createRecordedAudioFile,
-} from "@/lib/audio-validation";
+} from "@/lib/audio/audio-validation";
 
 export type AudioRecorderError =
   | "unsupported"

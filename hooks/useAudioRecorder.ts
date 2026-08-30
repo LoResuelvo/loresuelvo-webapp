@@ -6,6 +6,7 @@ import {
   DEFAULT_AUDIO_MIME_TYPE,
   createRecordedAudioFile,
 } from "@/lib/audio/audio-validation";
+import { useMediaStreamManager } from "./useMediaStreamManager";
 
 export type AudioRecorderError =
   | "unsupported"
@@ -61,8 +62,9 @@ export function useAudioRecorder({
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<AudioRecorderError | null>(null);
 
+  const { acquireAudioStream, stopStream } = useMediaStreamManager();
+
   const recorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const elapsedRef = useRef(0);
@@ -78,11 +80,6 @@ export function useAudioRecorder({
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-  }, []);
-
-  const stopStream = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
   }, []);
 
   const revokeAudioUrl = useCallback(() => {
@@ -188,7 +185,7 @@ export function useAudioRecorder({
 
     let stream: MediaStream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await acquireAudioStream();
     } catch {
       setError("permissionDenied");
       return false;
@@ -203,7 +200,6 @@ export function useAudioRecorder({
       return false;
     }
 
-    streamRef.current = stream;
     recorderRef.current = recorder;
     chunksRef.current = [];
 
@@ -283,7 +279,16 @@ export function useAudioRecorder({
       }
     }, TIMER_TICK_INTERVAL_MS);
     return true;
-  }, [clearAudio, clearTimer, isRecording, maxDurationSeconds, revokeAudioUrl, stopRecording, stopStream]);
+  }, [
+    acquireAudioStream,
+    clearAudio,
+    clearTimer,
+    isRecording,
+    maxDurationSeconds,
+    revokeAudioUrl,
+    stopRecording,
+    stopStream,
+  ]);
 
   useEffect(() => {
     return () => {

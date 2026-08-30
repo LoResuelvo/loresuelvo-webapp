@@ -1,54 +1,38 @@
 "use client";
 
-import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Money, type Currency } from "@/domain/shared/Money";
 import { t } from "@/infrastructure/i18n/translations";
 import { ShieldCheck } from "lucide-react";
+import {
+  useServiceBalanceCheckout,
+  type UseServiceBalanceCheckoutOptions,
+} from "./useServiceBalanceCheckout";
 
-interface PaymentStorage { setItem(key: string, value: string): void; }
-type CheckoutFn = (id: number) => Promise<{ ok: boolean; checkout?: { checkoutUrl: string; paymentIntentId: string; expiresOn: string }; status?: number | null }>;
-
-export interface ServiceBalancePaymentProps {
-  workOrderId: number;
+export interface ServiceBalancePaymentProps extends UseServiceBalanceCheckoutOptions {
   totalServiceAmountCents: number;
   currency?: Currency;
-  createCheckout?: CheckoutFn;
-  storage?: PaymentStorage;
-  redirect?: (url: string) => void;
 }
 
 export function ServiceBalancePayment({
-  workOrderId, totalServiceAmountCents, currency = "ARS", createCheckout, storage, redirect,
+  workOrderId,
+  totalServiceAmountCents,
+  currency = "ARS",
+  createCheckout,
+  storage,
+  redirect,
 }: ServiceBalancePaymentProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const requestInProgress = useRef(false);
+  const { isSubmitting, errorMessage, handlePayment } = useServiceBalanceCheckout({
+    workOrderId,
+    createCheckout,
+    storage,
+    redirect,
+  });
 
   const total = Money.create(totalServiceAmountCents, currency);
   const serviceBalance = Money.percentage(total, 80);
   const platformFee = Money.percentage(total, 4);
   const totalDue = Money.add(serviceBalance, platformFee);
-
-  async function handlePayment(): Promise<void> {
-    if (requestInProgress.current || !createCheckout) return;
-    requestInProgress.current = true;
-    setIsSubmitting(true);
-    setErrorMessage(null);
-    try {
-      const res = await createCheckout(workOrderId);
-      if (!res.ok || !res.checkout) { setErrorMessage(t.payments.errors.generic); return; }
-      (storage ?? window.sessionStorage).setItem("activePayment", JSON.stringify({
-        purpose: "service_balance", paymentIntentId: res.checkout.paymentIntentId, workOrderId, expiresOn: res.checkout.expiresOn,
-      }));
-      (redirect ?? ((url: string) => window.location.assign(url)))(res.checkout.checkoutUrl);
-    } catch {
-      setErrorMessage(t.payments.errors.generic);
-    } finally {
-      requestInProgress.current = false;
-      setIsSubmitting(false);
-    }
-  }
 
   return (
     <section className="space-y-4 border-t border-slate-100 pt-5" aria-labelledby="service-balance-title">

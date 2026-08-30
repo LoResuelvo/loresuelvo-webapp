@@ -62,16 +62,22 @@ export function ServiceProposalModal(props: ServiceProposalModalProps) {
                 />
 
                 <ProposalScheduleSection
-                  scheduledDate={form.scheduledDate}
-                  scheduledTime={form.scheduledTime}
-                  selectedDurationPreset={form.selectedDurationPreset}
-                  estimatedDurationMinutes={form.estimatedDurationMinutes}
-                  onChangeDate={form.setScheduledDate}
-                  onChangeTime={form.setScheduledTime}
-                  onChangeDurationPreset={form.handleChangeDurationPreset}
-                  onChangeCustomDuration={form.setEstimatedDurationMinutes}
-                  dateError={form.dateError}
-                  durationError={form.durationError}
+                  schedule={{
+                    scheduledDate: form.scheduledDate,
+                    scheduledTime: form.scheduledTime,
+                    selectedDurationPreset: form.selectedDurationPreset,
+                    estimatedDurationMinutes: form.estimatedDurationMinutes,
+                  }}
+                  onChange={{
+                    onChangeDate: form.setScheduledDate,
+                    onChangeTime: form.setScheduledTime,
+                    onChangeDurationPreset: form.handleChangeDurationPreset,
+                    onChangeCustomDuration: form.setEstimatedDurationMinutes,
+                  }}
+                  errors={{
+                    dateError: form.dateError,
+                    durationError: form.durationError,
+                  }}
                   disabled={form.isSubmitting}
                 />
 

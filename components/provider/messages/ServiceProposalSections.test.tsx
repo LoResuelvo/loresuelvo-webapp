@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import React from "react";
 import { ProposalPricingSection } from "./ProposalPricingSection";
 import { ProposalDescriptionSection } from "./ProposalDescriptionSection";
+import { ProposalScheduleSection } from "./ProposalScheduleSection";
 import { ProposalConfirmDialog } from "./ProposalConfirmDialog";
 
 vi.mock("@/components/ui/alert-dialog", () => ({
@@ -39,6 +40,45 @@ describe("ServiceProposal Sections", () => {
 
       fireEvent.change(input, { target: { value: "1500" } });
       expect(onChange).toHaveBeenCalledWith("1500");
+    });
+  });
+
+  describe("ProposalScheduleSection", () => {
+    it("renders scheduled date, time and duration with error messages", () => {
+      const onChangeDate = vi.fn();
+      const onChangeTime = vi.fn();
+      const onChangeDurationPreset = vi.fn();
+      const onChangeCustomDuration = vi.fn();
+
+      render(
+        <ProposalScheduleSection
+          schedule={{
+            scheduledDate: "2026-09-01",
+            scheduledTime: "14:00",
+            selectedDurationPreset: "custom",
+            estimatedDurationMinutes: "45",
+          }}
+          onChange={{
+            onChangeDate,
+            onChangeTime,
+            onChangeDurationPreset,
+            onChangeCustomDuration,
+          }}
+          errors={{
+            dateError: "Fecha inválida",
+            durationError: "Duración inválida",
+          }}
+        />
+      );
+
+      expect(screen.getByText("01/09/2026")).toBeInTheDocument();
+      expect(screen.getByText("Fecha inválida")).toBeInTheDocument();
+      expect(screen.getByText("Duración inválida")).toBeInTheDocument();
+
+      const customInput = screen.getByPlaceholderText("En minutos (ej: 90)");
+      expect(customInput).toHaveValue(45);
+      fireEvent.change(customInput, { target: { value: "60" } });
+      expect(onChangeCustomDuration).toHaveBeenCalledWith("60");
     });
   });
 

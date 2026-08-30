@@ -13,13 +13,17 @@ describe("AiChatInputArea", () => {
   it("renders input placeholder, attach button, and send button", () => {
     render(
       <AiChatInputArea
-        value=""
-        onChange={vi.fn()}
-        onSend={vi.fn()}
-        attachedFiles={[]}
-        onFileChange={vi.fn()}
-        onRemoveFile={vi.fn()}
-        onPreviewImage={vi.fn()}
+        composer={{
+          value: "",
+          onChange: vi.fn(),
+          onSend: vi.fn(),
+        }}
+        files={{
+          attached: [],
+          onFileChange: vi.fn(),
+          onRemove: vi.fn(),
+          onPreview: vi.fn(),
+        }}
       />
     );
 
@@ -32,13 +36,17 @@ describe("AiChatInputArea", () => {
     const handleChange = vi.fn();
     render(
       <AiChatInputArea
-        value=""
-        onChange={handleChange}
-        onSend={vi.fn()}
-        attachedFiles={[]}
-        onFileChange={vi.fn()}
-        onRemoveFile={vi.fn()}
-        onPreviewImage={vi.fn()}
+        composer={{
+          value: "",
+          onChange: handleChange,
+          onSend: vi.fn(),
+        }}
+        files={{
+          attached: [],
+          onFileChange: vi.fn(),
+          onRemove: vi.fn(),
+          onPreview: vi.fn(),
+        }}
       />
     );
 
@@ -52,13 +60,17 @@ describe("AiChatInputArea", () => {
     const handleSend = vi.fn();
     render(
       <AiChatInputArea
-        value="Hola"
-        onChange={vi.fn()}
-        onSend={handleSend}
-        attachedFiles={[]}
-        onFileChange={vi.fn()}
-        onRemoveFile={vi.fn()}
-        onPreviewImage={vi.fn()}
+        composer={{
+          value: "Hola",
+          onChange: vi.fn(),
+          onSend: handleSend,
+        }}
+        files={{
+          attached: [],
+          onFileChange: vi.fn(),
+          onRemove: vi.fn(),
+          onPreview: vi.fn(),
+        }}
       />
     );
 
@@ -73,20 +85,24 @@ describe("AiChatInputArea", () => {
     expect(handleSend).toHaveBeenCalledTimes(2);
   });
 
-  it("renders attached files thumbnails and calls onRemoveFile and onPreviewImage", () => {
+  it("renders attached files thumbnails and calls onRemove and onPreview", () => {
     const handleRemove = vi.fn();
     const handlePreview = vi.fn();
     const file = new File(["test"], "foto.jpg", { type: "image/jpeg" });
 
     render(
       <AiChatInputArea
-        value=""
-        onChange={vi.fn()}
-        onSend={vi.fn()}
-        attachedFiles={[file]}
-        onFileChange={vi.fn()}
-        onRemoveFile={handleRemove}
-        onPreviewImage={handlePreview}
+        composer={{
+          value: "",
+          onChange: vi.fn(),
+          onSend: vi.fn(),
+        }}
+        files={{
+          attached: [file],
+          onFileChange: vi.fn(),
+          onRemove: handleRemove,
+          onPreview: handlePreview,
+        }}
       />
     );
 
@@ -106,13 +122,17 @@ describe("AiChatInputArea", () => {
   it("displays uploadError when present", () => {
     render(
       <AiChatInputArea
-        value=""
-        onChange={vi.fn()}
-        onSend={vi.fn()}
-        attachedFiles={[]}
-        onFileChange={vi.fn()}
-        onRemoveFile={vi.fn()}
-        onPreviewImage={vi.fn()}
+        composer={{
+          value: "",
+          onChange: vi.fn(),
+          onSend: vi.fn(),
+        }}
+        files={{
+          attached: [],
+          onFileChange: vi.fn(),
+          onRemove: vi.fn(),
+          onPreview: vi.fn(),
+        }}
         uploadError="Error al subir imagen"
       />
     );

@@ -10,33 +10,54 @@ import { cn } from "@/lib/utils";
 import { t } from "@/infrastructure/i18n/translations";
 import { DURATION_PRESETS, TIME_SLOTS } from "./useServiceProposalForm";
 
-export interface ProposalScheduleSectionProps {
+export interface ProposalScheduleState {
   scheduledDate: string;
   scheduledTime: string;
   selectedDurationPreset: string;
   estimatedDurationMinutes: string;
+}
+
+export interface ProposalScheduleHandlers {
   onChangeDate: (date: string) => void;
   onChangeTime: (time: string) => void;
   onChangeDurationPreset: (preset: string) => void;
   onChangeCustomDuration: (minutes: string) => void;
+}
+
+export interface ProposalScheduleErrors {
   dateError?: string;
   durationError?: string;
+}
+
+export interface ProposalScheduleSectionProps {
+  schedule: ProposalScheduleState;
+  onChange: ProposalScheduleHandlers;
+  errors?: ProposalScheduleErrors;
   disabled?: boolean;
 }
 
 export function ProposalScheduleSection({
-  scheduledDate,
-  scheduledTime,
-  selectedDurationPreset,
-  estimatedDurationMinutes,
-  onChangeDate,
-  onChangeTime,
-  onChangeDurationPreset,
-  onChangeCustomDuration,
-  dateError,
-  durationError,
+  schedule,
+  onChange,
+  errors,
   disabled = false,
 }: ProposalScheduleSectionProps) {
+  const {
+    scheduledDate,
+    scheduledTime,
+    selectedDurationPreset,
+    estimatedDurationMinutes,
+  } = schedule;
+
+  const {
+    onChangeDate,
+    onChangeTime,
+    onChangeDurationPreset,
+    onChangeCustomDuration,
+  } = onChange;
+
+  const dateError = errors?.dateError;
+  const durationError = errors?.durationError;
   return (
     <>
       {/* Scheduled Date and Time */}

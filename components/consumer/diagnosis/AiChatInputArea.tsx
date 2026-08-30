@@ -9,33 +9,44 @@ import { t } from "@/infrastructure/i18n/translations";
 import { useAutoResizeTextarea } from "@/hooks/useAutoResizeTextarea";
 import { cn } from "@/lib/utils";
 
-export interface AiChatInputAreaProps {
+export interface AiChatComposerProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
-  attachedFiles: File[];
+}
+
+export interface AiChatFilesProps {
+  attached: File[];
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onRemoveFile: (index: number) => void;
-  onPreviewImage: (image: { url: string; name: string }) => void;
+  onRemove: (index: number) => void;
+  onPreview: (image: { url: string; name: string }) => void;
+  fileInputRef?: React.RefObject<HTMLInputElement | null>;
+}
+
+export interface AiChatInputAreaProps {
+  composer: AiChatComposerProps;
+  files: AiChatFilesProps;
   disabled?: boolean;
   uploadError?: string | null;
-  fileInputRef?: React.RefObject<HTMLInputElement | null>;
   className?: string;
 }
 
 export function AiChatInputArea({
-  value,
-  onChange,
-  onSend,
-  attachedFiles,
-  onFileChange,
-  onRemoveFile,
-  onPreviewImage,
+  composer,
+  files,
   disabled = false,
   uploadError = null,
-  fileInputRef: externalFileInputRef,
   className,
 }: AiChatInputAreaProps) {
+  const { value, onChange, onSend } = composer;
+  const {
+    attached: attachedFiles,
+    onFileChange,
+    onRemove: onRemoveFile,
+    onPreview: onPreviewImage,
+    fileInputRef: externalFileInputRef,
+  } = files;
+
   const internalFileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = externalFileInputRef ?? internalFileInputRef;
 

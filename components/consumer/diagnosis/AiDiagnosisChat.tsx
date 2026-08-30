@@ -80,16 +80,20 @@ export default function AiDiagnosisChat({
       />
 
       <AiChatInputArea
-        value={messageInput}
-        onChange={setMessageInput}
-        onSend={handleSendMessage}
-        attachedFiles={attachedFiles}
-        onFileChange={handleFileChange}
-        onRemoveFile={handleRemoveFile}
-        onPreviewImage={setPreviewImage}
+        composer={{
+          value: messageInput,
+          onChange: setMessageInput,
+          onSend: handleSendMessage,
+        }}
+        files={{
+          attached: attachedFiles,
+          onFileChange: handleFileChange,
+          onRemove: handleRemoveFile,
+          onPreview: setPreviewImage,
+          fileInputRef: fileInputRef,
+        }}
         disabled={isInputDisabled}
         uploadError={uploadError}
-        fileInputRef={fileInputRef}
       />
 
       <ImagePreviewModal

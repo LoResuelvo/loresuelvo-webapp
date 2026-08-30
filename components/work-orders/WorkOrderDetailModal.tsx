@@ -3,25 +3,19 @@
 import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
-import { DollarSign, Calendar, FileText, CheckCircle2, Loader2, AlertCircle, Star, Clock } from "lucide-react";
-import { Money } from "@/domain/shared/Money";
-import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
-import { Duration } from "@/domain/shared/Duration";
+import { Loader2, AlertCircle } from "lucide-react";
 import { WorkOrder } from "@/domain/work-order/WorkOrder";
 import {
   getWorkOrderDetailAction,
-  createServiceBalanceCheckoutAction,
   createWorkOrderReviewAction,
 } from "@/app/work-orders/actions";
-import { DetailField } from "@/components/ui/detail-field";
-import { CompletionEvidenceSection } from "./CompletionEvidenceSection";
-import { ServiceBalancePayment } from "@/components/payments/ServiceBalancePayment";
+import { WorkOrderSummarySection } from "./WorkOrderSummarySection";
+import { WorkOrderActionsSection } from "./WorkOrderActionsSection";
 import { ReviewWorkOrderModal } from "./ReviewWorkOrderModal";
 import type { WorkOrderDetail } from "@/domain/work-order/types";
 
-interface WorkOrderDetailModalProps {
+export interface WorkOrderDetailModalProps {
   open: boolean;
   onClose: () => void;
   workOrderId?: number;
@@ -76,6 +70,7 @@ export function WorkOrderDetailModal({
 
   const { label: statusLabel, variant: statusVariant } = WorkOrder.getStatusBadge(currentStatus);
   const canRate = WorkOrder.canReview({ status: currentStatus, review: detail?.review }, isConsumer);
+  const resolvedWorkOrderId = workOrderId ?? detail?.id ?? 0;
 
   return (
     <>
@@ -126,121 +121,23 @@ export function WorkOrderDetailModal({
                 </Badge>
               </div>
 
-              {/* Contractual details */}
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <DetailField
-                    icon={<DollarSign className="w-5 h-5" />}
-                    label={t.workOrderDetail.amountLabel}
-                    value={Money.format(Money.create(amountCents))}
-                    variant="highlight"
-                  />
+              <WorkOrderSummarySection
+                amountCents={amountCents}
+                scheduledOn={scheduledOn}
+                description={description}
+                estimatedDurationMinutes={estimatedDurationMinutes}
+                paidOn={detail?.paidOn}
+                completionReport={detail?.completionReport}
+                review={detail?.review}
+              />
 
-                  <DetailField
-                    icon={<Calendar className="w-5 h-5" />}
-                    label={t.workOrderDetail.scheduledOnLabel}
-                    value={ScheduledDateTime.formatWithTime(ScheduledDateTime.create(scheduledOn))}
-                    variant="default"
-                  />
-
-                  {estimatedDurationMinutes && (
-                    <DetailField
-                      icon={<Clock className="w-5 h-5" />}
-                      label={t.workOrderDetail.durationLabel}
-                      value={Duration.format(estimatedDurationMinutes)}
-                      variant="default"
-                      dataTestId="work-order-duration-info"
-                    />
-                  )}
-
-                  {detail?.paidOn && (
-                    <DetailField
-                      icon={<CheckCircle2 className="w-5 h-5" />}
-                      label={t.workOrderDetail.paidOnLabel}
-                      value={ScheduledDateTime.formatWithTime(ScheduledDateTime.create(detail.paidOn))}
-                      className="bg-emerald-50/70 border-emerald-200/60 sm:col-span-2"
-                      iconClassName="border-emerald-200/70 text-emerald-600"
-                      labelClassName="text-emerald-600"
-                      valueClassName="text-emerald-950"
-                      dataTestId="work-order-paid-info"
-                    />
-                  )}
-                </div>
-
-                {description && (
-                  <div className="bg-slate-50/80 border border-slate-200/60 rounded-xl p-4 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-brand-primary shrink-0" />
-                      <span className="text-caption font-semibold text-slate-400 uppercase tracking-wider">
-                        {t.workOrderDetail.descriptionLabel}
-                      </span>
-                    </div>
-                    <p className="text-body leading-relaxed text-slate-700 whitespace-pre-wrap font-normal">
-                      {description}
-                    </p>
-                  </div>
-                )}
-
-                {detail?.completionReport && (
-                  <CompletionEvidenceSection report={detail.completionReport} />
-                )}
-
-                {currentStatus === "awaiting_payment" && (
-                  <ServiceBalancePayment
-                    workOrderId={workOrderId ?? detail?.id ?? 0}
-                    totalServiceAmountCents={amountCents}
-                    createCheckout={createServiceBalanceCheckoutAction}
-                  />
-                )}
-
-                {canRate && (
-                  <div className="pt-2">
-                    <Button
-                      type="button"
-                      variant="brand"
-                      className="w-full h-11 rounded-xl text-sm font-semibold gap-2 shadow-xs cursor-pointer"
-                      data-testid="open-review-button"
-                      onClick={() => setIsReviewModalOpen(true)}
-                    >
-                      <Star className="w-4 h-4 fill-current" />
-                      {t.workOrderDetail.rateServiceButton}
-                    </Button>
-                  </div>
-                )}
-
-                {detail?.review && (
-                  <div
-                    data-testid="work-order-review-section"
-                    className="bg-amber-50/60 border border-amber-200/60 rounded-xl p-4 space-y-2.5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-caption font-semibold text-amber-900 uppercase tracking-wider">
-                        {t.workOrderDetail.reviewSectionTitle}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            data-testid={
-                              i < detail.review!.rating ? "star-filled" : "star-empty"
-                            }
-                            className={`w-4 h-4 ${
-                              i < detail.review!.rating
-                                ? "fill-amber-400 text-amber-400"
-                                : "text-slate-300"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    {detail.review.comment && (
-                      <p className="text-body text-slate-700 leading-relaxed font-normal italic">
-                        “{detail.review.comment}”
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
+              <WorkOrderActionsSection
+                workOrderId={resolvedWorkOrderId}
+                status={currentStatus}
+                amountCents={amountCents}
+                canRate={canRate}
+                onOpenReview={() => setIsReviewModalOpen(true)}
+              />
             </>
           )}
         </div>
@@ -250,9 +147,9 @@ export function WorkOrderDetailModal({
         <ReviewWorkOrderModal
           open={true}
           onClose={() => setIsReviewModalOpen(false)}
-          workOrderId={workOrderId ?? detail?.id ?? 0}
+          workOrderId={resolvedWorkOrderId}
           onSubmitReview={async (input) => {
-            const res = await createWorkOrderReviewAction(workOrderId ?? detail?.id ?? 0, input);
+            const res = await createWorkOrderReviewAction(resolvedWorkOrderId, input);
             if (res.ok) {
               setDetail((prev) =>
                 prev
@@ -271,3 +168,4 @@ export function WorkOrderDetailModal({
   );
 }
 
+export default WorkOrderDetailModal;

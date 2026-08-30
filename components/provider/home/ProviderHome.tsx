@@ -1,11 +1,11 @@
 import { AuthSession } from "@/infrastructure/auth/types";
 import { ProviderMetrics, ProviderWorkRequest } from "@/domain/provider/types";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
-import IncomePanel from "./IncomePanel";
-import ProviderHeader from "./ProviderHeader";
-import ProviderSidebar from "./ProviderSidebar";
-import ScheduledJobsSection from "./ScheduledJobsSection";
-import WorkRequestsSection from "./WorkRequestsSection";
+import IncomePanel from "./metrics/IncomePanel";
+import ProviderHeader from "./layout/ProviderHeader";
+import ProviderSidebar from "./layout/ProviderSidebar";
+import ScheduledJobsSection from "./scheduled-jobs/ScheduledJobsSection";
+import WorkRequestsSection from "./work-requests/WorkRequestsSection";
 
 interface ProviderHomeProps {
   session: AuthSession | null;

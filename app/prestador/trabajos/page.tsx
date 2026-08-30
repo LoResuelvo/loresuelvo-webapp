@@ -1,7 +1,7 @@
 import { getAuthService } from "@/infrastructure/auth";
 import { getServiceProposalsAction } from "@/app/prestador/mensajes/actions";
-import ProviderHeader from "@/components/provider/home/ProviderHeader";
-import ProviderSidebar from "@/components/provider/home/ProviderSidebar";
+import ProviderHeader from "@/components/provider/home/layout/ProviderHeader";
+import ProviderSidebar from "@/components/provider/home/layout/ProviderSidebar";
 import { ProposalHistoryView } from "@/components/messaging/proposals/ProposalHistoryView";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 

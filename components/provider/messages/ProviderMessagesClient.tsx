@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import ProviderSidebar from "@/components/provider/home/ProviderSidebar";
-import ProviderHeader from "@/components/provider/home/ProviderHeader";
+import ProviderSidebar from "@/components/provider/home/layout/ProviderSidebar";
+import ProviderHeader from "@/components/provider/home/layout/ProviderHeader";
 import ProviderMessagesView from "@/components/provider/messages/ProviderMessagesView";
 import ChatPanel from "@/components/messaging/chat/ChatPanel";
 import ChatHeader from "@/components/messaging/chat/ChatHeader";
@@ -11,7 +11,7 @@ import MessageInput, { type MessageInputHandle } from "@/components/messaging/ch
 import ResizableContactsSidebar from "@/components/messaging/contacts/ResizableContactsSidebar";
 import ServiceProposalDetailModal from "@/components/messaging/proposals/ServiceProposalDetailModal";
 import { AuthSession } from "@/infrastructure/auth/types";
-import RequestDetailModal from "@/components/provider/home/RequestDetailModal";
+import RequestDetailModal from "@/components/provider/home/work-requests/RequestDetailModal";
 import { ProviderConversationContact as ConversationContact, ServiceProposalSummary } from "@/domain/messaging/types";
 import { useProviderMessages } from "./useProviderMessages";
 import { t } from "@/infrastructure/i18n/translations";

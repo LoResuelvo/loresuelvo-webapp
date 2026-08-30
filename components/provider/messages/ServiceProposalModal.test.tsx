@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import React from "react";
+import ReactDOM from "react-dom";
 import { ServiceProposalModal } from "./ServiceProposalModal";
 
 vi.mock("@/components/ui/select", () => {
@@ -50,14 +51,15 @@ vi.mock("@/components/ui/popover", () => ({
 }));
 
 vi.mock("@/components/ui/alert-dialog", () => ({
-  AlertDialog: ({ children, open }: { children: React.ReactNode, open: boolean }) => open ? <div data-testid="alert-dialog-mock">{children}</div> : null,
+  AlertDialog: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
+    open ? ReactDOM.createPortal(<div data-testid="alert-dialog-mock">{children}</div>, document.body) : null,
   AlertDialogContent: ({ children }: { children: React.ReactNode }) => children,
   AlertDialogHeader: ({ children }: { children: React.ReactNode }) => children,
   AlertDialogTitle: ({ children }: { children: React.ReactNode }) => children,
   AlertDialogDescription: ({ children }: { children: React.ReactNode }) => children,
   AlertDialogFooter: ({ children }: { children: React.ReactNode }) => children,
-  AlertDialogAction: ({ children, onClick }: { children: React.ReactNode, onClick?: () => void }) => <button onClick={onClick}>{children}</button>,
-  AlertDialogCancel: ({ children, onClick }: { children: React.ReactNode, onClick?: () => void }) => <button onClick={onClick}>{children}</button>,
+  AlertDialogAction: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => <button onClick={onClick}>{children}</button>,
+  AlertDialogCancel: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => <button onClick={onClick}>{children}</button>,
 }));
 
 vi.mock("@/components/ui/calendar", () => ({

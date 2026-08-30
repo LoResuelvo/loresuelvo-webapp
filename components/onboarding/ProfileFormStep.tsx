@@ -6,11 +6,10 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { ChangeEvent, useState } from "react";
 import { Category } from "@/domain/shared/types";
-import { CategorySelect } from "./CategorySelect";
-import { ProfilePhotoUpload } from "./ProfilePhotoUpload";
+import { CategorySelector } from "./CategorySelector";
+import { AvatarUploader } from "./AvatarUploader";
 import { t } from "@/infrastructure/i18n/translations";
 import { validateProfileForm, validateProfilePhoto } from "@/domain/onboarding/validation";
-
 import { cn } from "@/lib/utils";
 
 interface ProfileFormStepProps {
@@ -49,18 +48,10 @@ export function ProfileFormStep({
     const lastName = formData.get("lastName") as string;
     const categoryId = formData.get("categoryId") as string;
 
-    let photoSize = 0;
-    let photoName = "";
-    let photoType = "";
-
-    if (role === "provider" || role === "consumer") {
-      const profilePhoto = formData.get("profilePhoto") as File;
-      if (profilePhoto) {
-        photoSize = profilePhoto.size;
-        photoName = profilePhoto.name;
-        photoType = profilePhoto.type;
-      }
-    }
+    const profilePhoto = (formData.get("profilePhoto") as File) || null;
+    const photoSize = profilePhoto?.size || 0;
+    const photoName = profilePhoto?.name || "";
+    const photoType = profilePhoto?.type || "";
 
     const { isValid, errors } = validateProfileForm(
       firstName,
@@ -78,9 +69,7 @@ export function ProfileFormStep({
     if (errors.categoryId) setCategoryError(errors.categoryId);
     if (errors.profilePhoto) setProfilePhotoError(errors.profilePhoto);
 
-    if (!isValid) {
-      return;
-    }
+    if (!isValid) return;
 
     await onSubmit(formData);
   }
@@ -113,19 +102,14 @@ export function ProfileFormStep({
 
       <form onSubmit={handleFormSubmit} className="space-y-5" noValidate>
         {(role === "provider" || role === "consumer") && (
-          <ProfilePhotoUpload
+          <AvatarUploader
             onPhotoSelected={(file) => {
-              if (file) {
-                const photoError = validateProfilePhoto(file, t.onboarding.profileForm);
-                setProfilePhotoError(photoError);
-              } else {
-                setProfilePhotoError(null);
-              }
+              setProfilePhotoError(file ? validateProfilePhoto(file, t.onboarding.profileForm) : null);
             }}
             error={profilePhotoError}
           />
         )}
-        
+
         <div className="space-y-2">
           <Label htmlFor="firstName" className="text-body font-semibold text-brand-primary">
             {t.onboarding.profileForm.name}
@@ -136,8 +120,9 @@ export function ProfileFormStep({
             placeholder="Ej. Juan"
             required
             autoFocus
-            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${firstNameError ? "border-destructive focus-visible:ring-destructive" : ""
-              }`}
+            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${
+              firstNameError ? "border-destructive focus-visible:ring-destructive" : ""
+            }`}
             onChange={() => setFirstNameError(null)}
           />
           {firstNameError && (
@@ -156,8 +141,9 @@ export function ProfileFormStep({
             name="lastName"
             placeholder="Ej. Pérez"
             required
-            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${lastNameError ? "border-destructive focus-visible:ring-destructive" : ""
-              }`}
+            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${
+              lastNameError ? "border-destructive focus-visible:ring-destructive" : ""
+            }`}
             onChange={() => setLastNameError(null)}
           />
           {lastNameError && (
@@ -168,7 +154,7 @@ export function ProfileFormStep({
         </div>
 
         {role === "provider" && (
-          <CategorySelect
+          <CategorySelector
             categories={categories}
             error={categoryError}
             onChange={() => setCategoryError(null)}

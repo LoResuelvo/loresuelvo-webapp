@@ -1,21 +1,15 @@
 "use client";
 
 import { AuthSession } from "@/infrastructure/auth/types";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-
-import { submitRegistration } from "@/app/onboarding/actions";
-import { getPresignedUrlAction, confirmUploadAction } from "@/app/files/actions";
 import { RoleSelectionStep } from "./RoleSelectionStep";
 import { ProfileFormStep } from "./ProfileFormStep";
 import { MercadoPagoConnectionStep } from "./MercadoPagoConnectionStep";
 import { Category } from "@/domain/shared/types";
-import { storageClient } from "@/infrastructure/storage/storage-client";
 import { cn } from "@/lib/utils";
-import { t } from "@/infrastructure/i18n/translations";
+import { useRegistrationForm } from "./useRegistrationForm";
 
 export default function RegistrationForm({
-  session: _session,
+  session,
   categories = [],
   className,
 }: {
@@ -23,44 +17,23 @@ export default function RegistrationForm({
   categories?: Category[];
   className?: string;
 }) {
-  const initialStep = (_session?.user?.role === "provider" && !_session?.user?.isOnboarded) ? 3 : 1;
-  const [step, setStep] = useState(initialStep);
-  const [role, setRole] = useState<"consumer" | "provider" | null>((_session?.user?.role as "consumer" | "provider") || null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-
-  async function handleFinalSubmit(formData: FormData) {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      if (role) {
-        formData.append("role", role);
-      }
-
-      if (role === "provider" || role === "consumer") {
-        await handleProfilePhotoUpload(formData);
-      }
-
-      const result = await submitRegistration(formData);
-      if (role === "provider") {
-        setStep(3);
-        setIsLoading(false);
-      } else {
-        if (result?.redirectTo) {
-          router.push(result.redirectTo);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      setError(t.onboarding.profileForm.errorSave);
-      setIsLoading(false);
-    }
-  }
+  const {
+    step,
+    setStep,
+    role,
+    setRole,
+    isLoading,
+    error,
+    handleFinalSubmit,
+  } = useRegistrationForm(session);
 
   return (
-    <div className={cn("w-full rounded-2xl border border-border bg-white p-8 shadow-sm transition-all duration-300", className)}>
+    <div
+      className={cn(
+        "w-full rounded-2xl border border-border bg-white p-8 shadow-sm transition-all duration-300",
+        className
+      )}
+    >
       {step === 1 && (
         <RoleSelectionStep
           role={role}
@@ -83,33 +56,4 @@ export default function RegistrationForm({
       )}
     </div>
   );
-
-  async function handleProfilePhotoUpload(formData: FormData) {
-    const profilePhoto = formData.get("profilePhoto") as File | null;
-    if (profilePhoto && profilePhoto.size > 0 && profilePhoto.name !== "") {
-      const presignedRes = await getPresignedUrlAction(
-        profilePhoto.name,
-        profilePhoto.type,
-        profilePhoto.size,
-        "profile_photo"
-      );
-      if (!presignedRes.success) throw new Error(presignedRes.error);
-      const presigned = presignedRes.data;
-
-      await storageClient.uploadFile(profilePhoto, presigned.upload_url, presigned.headers);
-
-      const confirmedRes = await confirmUploadAction(
-        presigned.file_id,
-        presigned.key,
-        profilePhoto.type,
-        profilePhoto.size
-      );
-      if (!confirmedRes.success) throw new Error(confirmedRes.error);
-      const confirmed = confirmedRes.data;
-
-      formData.delete("profilePhoto");
-      formData.append("profilePhotoId", confirmed.id);
-      formData.append("profilePhotoUrl", confirmed.url);
-    }
-  }
 }

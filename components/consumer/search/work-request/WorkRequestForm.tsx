@@ -1,10 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import { Provider } from "@/domain/provider/types";
-import { createJobRequest } from "@/app/consumidor/buscar/actions";
-import { useRouter } from "next/navigation";
-import { ROUTES } from "@/lib/routes";
 import { ProviderMiniProfile } from "./ProviderMiniProfile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,103 +8,33 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { t } from "@/infrastructure/i18n/translations";
 import { ImageAttachmentSelector } from "./ImageAttachmentSelector";
-import { ClientFileRepository } from "@/infrastructure/repositories/client-repositories";
+import { CharacterCounter } from "./CharacterCounter";
+import { useWorkRequestForm } from "./useWorkRequestForm";
 
 interface WorkRequestFormProps {
   provider: Provider;
 }
 
+const MAX_TITLE_LENGTH = 100;
+const MAX_DESC_LENGTH = 1000;
+
 export function WorkRequestForm({ provider }: WorkRequestFormProps) {
-  const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim() || !description.trim()) {
-      setError(t.consumerSearch.form.validationError);
-      return;
-    }
-
-    setIsSubmitting(true);
-    setError(null);
-
-    const fileRepository = new ClientFileRepository();
-    const uploadedFileIds: string[] = [];
-
-    if (attachedFiles.length > 0) {
-      setIsUploading(true);
-      try {
-        for (const file of attachedFiles) {
-          const presigned = await fileRepository.getPresignedUrl(
-            file.name,
-            file.type,
-            file.size,
-            "job_request_image"
-          );
-          await fileRepository.uploadFile(presigned.upload_url, file, presigned.headers);
-          const confirm = await fileRepository.confirmUpload(
-            presigned.file_id,
-            presigned.key,
-            file.type,
-            file.size
-          );
-          uploadedFileIds.push(confirm.id);
-        }
-      } catch (err: unknown) {
-        console.error("Error uploading files:", err);
-        setError(t.consumerSearch.form.errorUnexpected);
-        setIsUploading(false);
-        setIsSubmitting(false);
-        return;
-      } finally {
-        setIsUploading(false);
-      }
-    }
-
-    try {
-      const result = await createJobRequest(
-        provider.id,
-        title.trim(),
-        description.trim(),
-        uploadedFileIds.length > 0 ? uploadedFileIds : undefined
-      );
-
-      if (!result.success) {
-        let displayError = t.consumerSearch.form.errorGeneric;
-
-        if (result.error.includes("Job request already exists") || result.error.includes("Conversation already exists")) {
-          displayError = t.consumerSearch.form.errorDuplicate;
-        } else if (result.error.includes("Only consumers can create job requests")) {
-          displayError = t.consumerSearch.form.errorRole;
-        } else if (result.error.includes("Provider does not exist")) {
-          displayError = t.consumerSearch.form.errorUnavailable;
-        } else if (result.error.includes("Title is required") || result.error.includes("Provider id is required")) {
-          displayError = t.consumerSearch.form.errorMissing;
-        }
-
-        setError(displayError);
-        setIsSubmitting(false);
-        return;
-      }
-
-      router.push(
-        `${ROUTES.consumer.messages}?provider_id=${provider.id}&name=${encodeURIComponent(provider.name)}&surname=${encodeURIComponent(provider.surname)}`
-      );
-    } catch (err: unknown) {
-      console.error("Unexpected error creating work request:", err);
-      setError(t.consumerSearch.form.errorUnexpected);
-      setIsSubmitting(false);
-    }
-  };
+  const {
+    title,
+    setTitle,
+    description,
+    setDescription,
+    error,
+    setError,
+    isSubmitting,
+    attachedFiles,
+    setAttachedFiles,
+    isUploading,
+    handleSubmit,
+  } = useWorkRequestForm(provider);
 
   return (
     <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-5 overflow-y-auto">
-      
       <ProviderMiniProfile provider={provider} />
 
       <div className="text-small text-slate-500 leading-relaxed">
@@ -116,13 +42,17 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="title-input" className="text-caption font-bold text-slate-400 uppercase tracking-wider">
-          {t.consumerSearch.form.titleLabel}
-        </Label>
+        <div className="flex justify-between items-center">
+          <Label htmlFor="title-input" className="text-caption font-bold text-slate-400 uppercase tracking-wider">
+            {t.consumerSearch.form.titleLabel}
+          </Label>
+          <CharacterCounter current={title.length} max={MAX_TITLE_LENGTH} />
+        </div>
         <Input
           id="title-input"
           type="text"
           value={title}
+          maxLength={MAX_TITLE_LENGTH}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={t.consumerSearch.form.titlePlaceholder}
           className="px-4 py-2.5 h-auto bg-slate-50 hover:bg-slate-100 focus:bg-white border-slate-200 focus-visible:border-brand-primary focus-visible:ring-1 focus-visible:ring-brand-primary text-brand-primary placeholder:text-slate-400 font-medium text-small rounded-xl"
@@ -131,12 +61,16 @@ export function WorkRequestForm({ provider }: WorkRequestFormProps) {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="desc-input" className="text-caption font-bold text-slate-400 uppercase tracking-wider">
-          {t.consumerSearch.form.descLabel}
-        </Label>
+        <div className="flex justify-between items-center">
+          <Label htmlFor="desc-input" className="text-caption font-bold text-slate-400 uppercase tracking-wider">
+            {t.consumerSearch.form.descLabel}
+          </Label>
+          <CharacterCounter current={description.length} max={MAX_DESC_LENGTH} />
+        </div>
         <Textarea
           id="desc-input"
           value={description}
+          maxLength={MAX_DESC_LENGTH}
           onChange={(e) => setDescription(e.target.value)}
           placeholder={t.consumerSearch.form.descPlaceholder}
           rows={4}

@@ -55,31 +55,35 @@ export default function ConsumerHome({
               >
                 {/* Carousel de Propuestas Pendientes */}
                 <ProposalCarousel
-                  title={t.serviceProposals.consumerHome.pendingTitle}
-                  titleId="pending-proposals-title"
-                  icon={Clock}
-                  iconColor="text-amber-500"
-                  badgeClass="bg-amber-100 text-amber-800"
+                  config={{
+                    title: t.serviceProposals.consumerHome.pendingTitle,
+                    titleId: "pending-proposals-title",
+                    icon: Clock,
+                    iconColor: "text-amber-500",
+                    badgeClass: "bg-amber-100 text-amber-800",
+                    emptyMessage: t.serviceProposals.consumerHome.emptyPending,
+                    prevLabel: t.serviceProposals.consumerHome.prevProposal,
+                    nextLabel: t.serviceProposals.consumerHome.nextProposal,
+                    activeDotClass: "bg-amber-500",
+                  }}
                   proposals={pendingProposals}
-                  emptyMessage={t.serviceProposals.consumerHome.emptyPending}
-                  prevLabel={t.serviceProposals.consumerHome.prevProposal}
-                  nextLabel={t.serviceProposals.consumerHome.nextProposal}
-                  activeDotClass="bg-amber-500"
                   onViewConversation={handleViewConversation}
                 />
 
                 {/* Carousel de Servicios Próximos */}
                 <ProposalCarousel
-                  title={t.serviceProposals.consumerHome.acceptedTitle}
-                  titleId="accepted-proposals-title"
-                  icon={CalendarCheck}
-                  iconColor="text-emerald-600"
-                  badgeClass="bg-emerald-100 text-emerald-800"
+                  config={{
+                    title: t.serviceProposals.consumerHome.acceptedTitle,
+                    titleId: "accepted-proposals-title",
+                    icon: CalendarCheck,
+                    iconColor: "text-emerald-600",
+                    badgeClass: "bg-emerald-100 text-emerald-800",
+                    emptyMessage: t.serviceProposals.consumerHome.emptyAccepted,
+                    prevLabel: t.serviceProposals.consumerHome.prevService,
+                    nextLabel: t.serviceProposals.consumerHome.nextService,
+                    activeDotClass: "bg-emerald-600",
+                  }}
                   proposals={acceptedProposals}
-                  emptyMessage={t.serviceProposals.consumerHome.emptyAccepted}
-                  prevLabel={t.serviceProposals.consumerHome.prevService}
-                  nextLabel={t.serviceProposals.consumerHome.nextService}
-                  activeDotClass="bg-emerald-600"
                   onViewConversation={handleViewConversation}
                 />
               </aside>

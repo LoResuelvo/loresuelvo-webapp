@@ -5,51 +5,50 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 import { ProposalCard } from "@/components/messaging/proposals/ProposalCard";
 import ServiceProposalDetailModal from "@/components/messaging/proposals/ServiceProposalDetailModal";
+import { useCarouselNavigation } from "@/hooks/useCarouselNavigation";
 import { cn } from "@/lib/utils";
 
-interface ProposalCarouselProps {
+export interface CarouselConfig {
   title: string;
   subtitle?: string;
   titleId: string;
   icon: React.ComponentType<{ className?: string }>;
   iconColor?: string;
   badgeClass?: string;
-  proposals: ServiceProposalSummary[];
   emptyMessage: string;
   prevLabel: string;
   nextLabel: string;
   activeDotClass?: string;
+}
+
+export interface ProposalCarouselProps {
+  config: CarouselConfig;
+  proposals: ServiceProposalSummary[];
   onViewConversation: (proposal: ServiceProposalSummary) => void;
   className?: string;
 }
 
 export function ProposalCarousel({
-  title,
-  subtitle,
-  titleId,
-  icon: Icon,
-  iconColor = "text-brand-primary",
-  badgeClass: _badgeClass = "bg-slate-100 text-slate-800",
+  config,
   proposals,
-  emptyMessage,
-  prevLabel,
-  nextLabel,
-  activeDotClass = "bg-brand-primary",
   onViewConversation,
   className,
 }: ProposalCarouselProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedProposal, setSelectedProposal] = useState<ServiceProposalSummary | null>(null);
-
   const total = proposals.length;
+  const { currentIndex, handlePrev, handleNext, goToIndex, hasNavigation } = useCarouselNavigation(total);
 
-  const handlePrev = () => {
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : total - 1));
-  };
-
-  const handleNext = () => {
-    setCurrentIndex((prev) => (prev < total - 1 ? prev + 1 : 0));
-  };
+  const {
+    title,
+    subtitle,
+    titleId,
+    icon: Icon,
+    iconColor = "text-brand-primary",
+    emptyMessage,
+    prevLabel,
+    nextLabel,
+    activeDotClass = "bg-brand-primary",
+  } = config;
 
   return (
     <>
@@ -69,7 +68,7 @@ export function ProposalCarousel({
             )}
           </div>
 
-          {total > 1 && (
+          {hasNavigation && (
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -120,13 +119,13 @@ export function ProposalCarousel({
               </div>
             </div>
 
-            {total > 1 && (
+            {hasNavigation && (
               <div className="flex justify-center items-center gap-1.5 pt-1">
                 {proposals.map((_, idx) => (
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => setCurrentIndex(idx)}
+                    onClick={() => goToIndex(idx)}
                     aria-label={`Ir a tarjeta ${idx + 1}`}
                     className={cn(
                       "h-1.5 rounded-full transition-all duration-300 cursor-pointer",

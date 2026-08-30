@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ProposalCarousel } from "./ProposalCarousel";
+import { ProposalCarousel, CarouselConfig } from "./ProposalCarousel";
 import { Clock } from "lucide-react";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 
@@ -29,56 +29,50 @@ const mockProposals: ServiceProposalSummary[] = [
   },
 ];
 
+const mockConfig: CarouselConfig = {
+  title: "Propuestas Pendientes",
+  titleId: "pending-title",
+  icon: Clock,
+  emptyMessage: "No tenés propuestas pendientes",
+  prevLabel: "Propuesta anterior",
+  nextLabel: "Siguiente propuesta",
+};
+
 describe("ProposalCarousel", () => {
   it("renders empty state message when proposals array is empty", () => {
     render(
       <ProposalCarousel
-        title="Propuestas Pendientes"
-        titleId="pending-title"
-        icon={Clock}
+        config={mockConfig}
         proposals={[]}
-        emptyMessage="No tenés propuestas pendientes"
-        prevLabel="Anterior"
-        nextLabel="Siguiente"
         onViewConversation={vi.fn()}
       />
     );
 
     expect(screen.getByText("Propuestas Pendientes")).toBeInTheDocument();
     expect(screen.getByText("No tenés propuestas pendientes")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Anterior")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Propuesta anterior")).not.toBeInTheDocument();
   });
 
   it("renders single proposal without navigation buttons", () => {
     render(
       <ProposalCarousel
-        title="Propuestas Pendientes"
-        titleId="pending-title"
-        icon={Clock}
+        config={mockConfig}
         proposals={[mockProposals[0]]}
-        emptyMessage="No tenés propuestas pendientes"
-        prevLabel="Anterior"
-        nextLabel="Siguiente"
         onViewConversation={vi.fn()}
       />
     );
 
     expect(screen.getByText("Matex Laburante")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Anterior")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Siguiente")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Propuesta anterior")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Siguiente propuesta")).not.toBeInTheDocument();
   });
 
   it("renders multiple proposals with navigation controls and navigates between slides", () => {
     const handleViewConversation = vi.fn();
     render(
       <ProposalCarousel
-        title="Propuestas Pendientes"
-        titleId="pending-title"
-        icon={Clock}
+        config={mockConfig}
         proposals={mockProposals}
-        emptyMessage="No tenés propuestas pendientes"
-        prevLabel="Propuesta anterior"
-        nextLabel="Siguiente propuesta"
         onViewConversation={handleViewConversation}
       />
     );
@@ -101,13 +95,8 @@ describe("ProposalCarousel", () => {
   it("navigates directly when clicking pagination dot", () => {
     render(
       <ProposalCarousel
-        title="Propuestas Pendientes"
-        titleId="pending-title"
-        icon={Clock}
+        config={mockConfig}
         proposals={mockProposals}
-        emptyMessage="No tenés propuestas pendientes"
-        prevLabel="Propuesta anterior"
-        nextLabel="Siguiente propuesta"
         onViewConversation={vi.fn()}
       />
     );
@@ -122,13 +111,8 @@ describe("ProposalCarousel", () => {
     const handleViewConversation = vi.fn();
     render(
       <ProposalCarousel
-        title="Propuestas Pendientes"
-        titleId="pending-title"
-        icon={Clock}
+        config={mockConfig}
         proposals={mockProposals}
-        emptyMessage="No tenés propuestas pendientes"
-        prevLabel="Propuesta anterior"
-        nextLabel="Siguiente propuesta"
         onViewConversation={handleViewConversation}
       />
     );

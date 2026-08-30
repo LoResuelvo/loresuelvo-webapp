@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
-import { ProposalCard } from "@/components/messaging/ProposalCard";
-import ServiceProposalDetailModal from "@/components/messaging/ServiceProposalDetailModal";
+import { ProposalCard } from "@/components/messaging/proposals/ProposalCard";
+import ServiceProposalDetailModal from "@/components/messaging/proposals/ServiceProposalDetailModal";
 import { cn } from "@/lib/utils";
 
 interface ProposalCarouselProps {

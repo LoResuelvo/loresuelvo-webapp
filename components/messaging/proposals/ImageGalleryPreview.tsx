@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { MessageImage } from "@/domain/messaging/types";
-import { ImagePreviewModal } from "@/components/messaging/ImagePreviewModal";
+import { ImagePreviewModal } from "@/components/messaging/media/ImagePreviewModal";
 import { t } from "@/infrastructure/i18n/translations";
 
 interface ImageGalleryPreviewProps {

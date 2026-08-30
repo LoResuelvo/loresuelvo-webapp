@@ -11,7 +11,7 @@ import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/local
 import { sendMessageWithAttachments } from "@/application/messaging/send-message-with-attachments";
 import { AudioUploadError, sendAudioMessage as sendAudioMessageUseCase, type AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
 import { transformApiMessageToDomain, formatToLocalShortDateTime } from "@/infrastructure/repositories/conversation-mapper";
-import type { MessageInputHandle } from "@/components/messaging/MessageInput";
+import type { MessageInputHandle } from "@/components/messaging/chat/MessageInput";
 import { clearDraft, loadDraft, saveDraft, type DraftFileMeta } from "@/lib/message-drafts";
 import { useClock } from "@/hooks/useClock";
 import { formatMessagePreview } from "@/lib/message-preview";

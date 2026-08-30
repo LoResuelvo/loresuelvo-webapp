@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import ResizableContactsSidebar from "@/components/messaging/ResizableContactsSidebar";
+import ResizableContactsSidebar from "@/components/messaging/contacts/ResizableContactsSidebar";
 import type { ConversationContact } from "@/domain/messaging/types";
 
-vi.mock("@/components/messaging/ContactList", () => ({
+vi.mock("@/components/messaging/contacts/ContactList", () => ({
   default: vi.fn(({ contacts, selectedProviderId, onContactClick }: {
     contacts: ConversationContact[];
     selectedProviderId: string | null;

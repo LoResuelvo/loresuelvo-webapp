@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import ProviderSidebar from "@/components/provider/home/ProviderSidebar";
 import ProviderHeader from "@/components/provider/home/ProviderHeader";
 import ProviderMessagesView from "@/components/provider/messages/ProviderMessagesView";
-import type { MessageInputHandle } from "@/components/messaging/MessageInput";
+import type { MessageInputHandle } from "@/components/messaging/chat/MessageInput";
 import { AuthSession } from "@/infrastructure/auth/types";
 import RequestDetailModal from "@/components/provider/home/RequestDetailModal";
 import { ProviderConversationContact as ConversationContact } from "@/domain/messaging/types";

@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Paperclip, X } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { ImagePreviewModal } from "@/components/messaging/ImagePreviewModal";
+import { ImagePreviewModal } from "@/components/messaging/media/ImagePreviewModal";
 import { t } from "@/infrastructure/i18n/translations";
 
 interface ImageAttachmentSelectorProps {

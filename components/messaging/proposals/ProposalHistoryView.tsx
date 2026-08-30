@@ -2,8 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
-import { ProposalCard } from "@/components/messaging/ProposalCard";
-import ServiceProposalDetailModal from "@/components/messaging/ServiceProposalDetailModal";
+import { ProposalCard } from "@/components/messaging/proposals/ProposalCard";
+import ServiceProposalDetailModal from "@/components/messaging/proposals/ServiceProposalDetailModal";
 import { t } from "@/infrastructure/i18n/translations";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";

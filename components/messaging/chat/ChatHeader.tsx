@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import JobRequestPanel from "./JobRequestPanel";
+import JobRequestPanel from "@/components/messaging/JobRequestPanel";
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
 import { Avatar } from "@/components/ui/avatar";

@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { t } from "@/infrastructure/i18n/translations";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
-import { ProposalCard } from "@/components/messaging/ProposalCard";
-import ServiceProposalDetailModal from "@/components/messaging/ServiceProposalDetailModal";
+import { ProposalCard } from "@/components/messaging/proposals/ProposalCard";
+import ServiceProposalDetailModal from "@/components/messaging/proposals/ServiceProposalDetailModal";
 import { useRouter } from "next/navigation";
 
 interface ScheduledJobsSectionProps {

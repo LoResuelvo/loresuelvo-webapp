@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { t } from "@/infrastructure/i18n/translations";
 import { createAiConversationAction } from "@/app/consumidor/mensajes-ia/actions";
 import { getPresignedUrlAction, confirmUploadAction } from "@/app/files/actions";
-import { ImagePreviewModal } from "@/components/messaging/ImagePreviewModal";
+import { ImagePreviewModal } from "@/components/messaging/media/ImagePreviewModal";
 import { cn } from "@/lib/utils";
 import { logger } from "@/infrastructure/logging/logger";
 

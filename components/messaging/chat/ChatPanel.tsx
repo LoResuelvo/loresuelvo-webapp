@@ -5,7 +5,7 @@ import MessagesList from "./MessagesList";
 import MessageInput, { MessageInputHandle } from "./MessageInput";
 import { ConversationContact, Message, JobRequestInfo, ServiceProposalSummary } from "@/domain/messaging/types";
 import { t } from "@/infrastructure/i18n/translations";
-import ServiceProposalDetailModal from "./ServiceProposalDetailModal";
+import ServiceProposalDetailModal from "@/components/messaging/proposals/ServiceProposalDetailModal";
 import type { AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
 
 export const ChatPanel = forwardRef<MessageInputHandle, {

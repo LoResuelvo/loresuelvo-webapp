@@ -1,4 +1,4 @@
-import ContactList from "./ContactList";
+import ContactList from "@/components/messaging/contacts/ContactList";
 import { ConversationContact } from "@/domain/messaging/types";
 interface MessagesLayoutProps {
   contacts: ConversationContact[];

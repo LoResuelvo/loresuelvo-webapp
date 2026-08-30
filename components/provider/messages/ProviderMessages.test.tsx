@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import ContactList from "@/components/messaging/ContactList";
-import ContactItem from "@/components/messaging/ContactItem";
+import ContactList from "@/components/messaging/contacts/ContactList";
+import ContactItem from "@/components/messaging/contacts/ContactItem";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({

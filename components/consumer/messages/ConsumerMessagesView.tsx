@@ -1,7 +1,7 @@
 import { RefObject, forwardRef } from "react";
-import ChatPanel from "@/components/messaging/ChatPanel";
-import type { MessageInputHandle } from "@/components/messaging/MessageInput";
-import ResizableContactsSidebar from "@/components/messaging/ResizableContactsSidebar";
+import ChatPanel from "@/components/messaging/chat/ChatPanel";
+import type { MessageInputHandle } from "@/components/messaging/chat/MessageInput";
+import ResizableContactsSidebar from "@/components/messaging/contacts/ResizableContactsSidebar";
 import { Message, JobRequestInfo, ConsumerConversationContact as ConversationContact, ServiceProposalSummary } from "@/domain/messaging/types";
 import { cn } from "@/lib/utils";
 import type { AudioUploadFailureStage } from "@/application/messaging/send-audio-message";

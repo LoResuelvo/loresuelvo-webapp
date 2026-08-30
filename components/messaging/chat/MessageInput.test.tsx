@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeAll } from "vitest";
-import MessageInput, { MessageInputHandle } from "@/components/messaging/MessageInput";
+import MessageInput, { MessageInputHandle } from "@/components/messaging/chat/MessageInput";
 import { t } from "@/infrastructure/i18n/translations";
 
 beforeAll(() => {

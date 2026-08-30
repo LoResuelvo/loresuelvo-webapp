@@ -1,11 +1,11 @@
 import { RefObject, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import MessageBubble from "./MessageBubble";
-import { ProposalTimelineCard } from "./ProposalTimelineCard";
+import { ProposalTimelineCard } from "@/components/messaging/proposals/ProposalTimelineCard";
 import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
 import { shouldShowExpandButton } from "@/lib/text-utils";
 import { buildChatTimeline } from "@/lib/timeline-utils";
-import InfoBanner from "./InfoBanner";
+import InfoBanner from "@/components/messaging/InfoBanner";
 
 import { Message, ServiceProposalSummary } from "@/domain/messaging/types";
 

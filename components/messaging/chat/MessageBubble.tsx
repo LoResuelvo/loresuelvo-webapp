@@ -2,8 +2,8 @@ import { Button } from "@/components/ui/button";
 import { t } from "@/infrastructure/i18n/translations";
 import Image from "next/image";
 import { useState } from "react";
-import { ImagePreviewModal } from "./ImagePreviewModal";
-import { AudioPlayer } from "./AudioPlayer";
+import { ImagePreviewModal } from "@/components/messaging/media/ImagePreviewModal";
+import { AudioPlayer } from "@/components/messaging/media/AudioPlayer";
 
 interface MessageBubbleProps {
   id: string;

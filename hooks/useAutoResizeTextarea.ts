@@ -36,7 +36,7 @@ export function useAutoResizeTextarea(
     textarea.rows = rows;
     textarea.style.height = "auto";
     const maxHeight = lineHeight * maxRows;
-    const hasOverflow = textarea.scrollHeight > maxHeight;
+    const hasOverflow = lineCount > maxRows;
     textarea.style.overflowY = hasOverflow ? "auto" : "hidden";
     textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
   }, [value, rows, minRows, maxRows, lineHeight]);

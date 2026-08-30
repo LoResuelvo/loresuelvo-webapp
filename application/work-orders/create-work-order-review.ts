@@ -1,5 +1,5 @@
 import type { WorkOrderReview, WorkOrderReviewInput } from "@/domain/work-order/types";
-import type { WorkOrderRepository } from "@/ports/work-order-repository";
+import type { WorkOrderRepository } from "@/ports/work-orders/work-order-repository";
 import { validateReviewInput } from "@/domain/work-order/WorkOrderReview";
 
 export async function createWorkOrderReview(

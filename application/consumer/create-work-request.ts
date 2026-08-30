@@ -1,4 +1,4 @@
-import { JobRequestRepository, CreateJobRequestInput, JobRequestResult } from "@/ports/job-request-repository";
+import { JobRequestRepository, CreateJobRequestInput, JobRequestResult } from "@/ports/messaging/job-request-repository";
 
 export type CreateWorkRequestResult =
   | { success: true; data: JobRequestResult }

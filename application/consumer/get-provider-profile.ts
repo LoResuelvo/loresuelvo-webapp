@@ -1,5 +1,5 @@
 import { ProviderProfile } from "@/domain/provider/types";
-import { ProviderProfileRepository } from "@/ports/provider-profile-repository";
+import { ProviderProfileRepository } from "@/ports/consumer/provider-profile-repository";
 
 export async function getProviderProfile(
   repository: ProviderProfileRepository,

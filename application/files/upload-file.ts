@@ -1,5 +1,5 @@
-import { FileRepository, PresignedUrlResponse, ConfirmUploadResponse } from "@/ports/file-repository";
-import { AuthService } from "@/ports/auth-service";
+import { FileRepository, PresignedUrlResponse, ConfirmUploadResponse } from "@/ports/files/file-repository";
+import { AuthService } from "@/ports/onboarding/auth-service";
 
 export async function getPresignedUrl(
   fileRepository: FileRepository,

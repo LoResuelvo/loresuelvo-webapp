@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createWorkOrderReview } from "./create-work-order-review";
-import type { WorkOrderRepository } from "@/ports/work-order-repository";
+import type { WorkOrderRepository } from "@/ports/work-orders/work-order-repository";
 
 describe("createWorkOrderReview Use Case", () => {
   let mockRepository: WorkOrderRepository;

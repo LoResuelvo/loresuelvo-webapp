@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createConversation, sendMessage } from "./send-message";
-import { ConversationRepository } from "@/ports/conversation-repository";
+import { ConversationRepository } from "@/ports/messaging/conversation-repository";
 
 describe("send-message", () => {
   const mockConversationRepository = {

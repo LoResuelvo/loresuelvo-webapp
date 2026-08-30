@@ -1,4 +1,4 @@
-import { Clock } from "@/ports/clock";
+import { Clock } from "@/ports/shared/clock";
 
 export class FixedClock implements Clock {
   private readonly date: Date;

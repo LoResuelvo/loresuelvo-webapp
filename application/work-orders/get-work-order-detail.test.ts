@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { WorkOrderRepository } from "@/ports/work-order-repository";
+import type { WorkOrderRepository } from "@/ports/work-orders/work-order-repository";
 import type { WorkOrderDetail } from "@/domain/work-order/types";
 import { getWorkOrderDetail } from "./get-work-order-detail";
 

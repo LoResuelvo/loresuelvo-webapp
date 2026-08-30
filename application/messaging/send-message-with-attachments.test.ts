@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { sendMessageWithAttachments } from "./send-message-with-attachments";
-import { ConversationRepository } from "@/ports/conversation-repository";
-import { FileRepository } from "@/ports/file-repository";
+import { ConversationRepository } from "@/ports/messaging/conversation-repository";
+import { FileRepository } from "@/ports/files/file-repository";
 
 describe("sendMessageWithAttachments", () => {
   let mockConversationRepository: ConversationRepository;

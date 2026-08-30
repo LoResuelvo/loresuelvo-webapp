@@ -1,5 +1,5 @@
 import type { CompletionReport } from "@/domain/work-order/types";
-import type { WorkOrderRepository } from "@/ports/work-order-repository";
+import type { WorkOrderRepository } from "@/ports/work-orders/work-order-repository";
 
 export async function reportWorkCompletion(
   repository: WorkOrderRepository,

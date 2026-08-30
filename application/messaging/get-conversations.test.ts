@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { getConsumerConversations, getProviderConversations } from "./get-conversations";
-import { ConversationRepository } from "@/ports/conversation-repository";
+import { ConversationRepository } from "@/ports/messaging/conversation-repository";
 import { ConsumerConversationContact, ProviderConversationContact } from "@/domain/messaging/types";
 
 describe("get-conversations", () => {

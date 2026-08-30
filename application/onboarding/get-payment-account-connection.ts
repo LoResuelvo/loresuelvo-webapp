@@ -1,4 +1,4 @@
-import { PaymentAccountRepository } from "@/ports/payment-account-repository";
+import { PaymentAccountRepository } from "@/ports/payments/payment-account-repository";
 import { PaymentAccountConnection } from "@/domain/payment-account/types";
 
 export async function getPaymentAccountConnection(

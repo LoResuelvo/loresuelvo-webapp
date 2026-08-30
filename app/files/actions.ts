@@ -3,7 +3,7 @@
 import { ApiFileRepository } from "@/infrastructure/repositories/files/api-file-repository";
 import { getPresignedUrl, confirmUpload } from "@/application/files/upload-file";
 import { getAuthService } from "@/infrastructure/auth";
-import type { PresignedUrlResponse, ConfirmUploadResponse } from "@/ports/file-repository";
+import type { PresignedUrlResponse, ConfirmUploadResponse } from "@/ports/files/file-repository";
 
 export type ActionResult<T> =
   | { success: true; data: T }

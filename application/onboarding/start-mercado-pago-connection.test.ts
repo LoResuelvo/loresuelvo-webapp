@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { startMercadoPagoConnection } from "./start-mercado-pago-connection";
-import { PaymentAccountRepository } from "@/ports/payment-account-repository";
+import { PaymentAccountRepository } from "@/ports/payments/payment-account-repository";
 
 describe("startMercadoPagoConnection", () => {
   const mockPaymentAccountRepository = {

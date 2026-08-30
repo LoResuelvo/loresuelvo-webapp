@@ -1,4 +1,4 @@
-import { AiChatRepository } from "@/ports/ai-chat-repository";
+import { AiChatRepository } from "@/ports/consumer/ai-chat-repository";
 import { AiJobRequestResult } from "@/domain/messaging/types";
 
 export async function createAiJobRequest(

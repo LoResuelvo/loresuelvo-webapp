@@ -1,5 +1,5 @@
 import { ProviderHomeDashboard } from "@/domain/provider/types";
-import { ProviderHomeRepository } from "@/ports/provider-home-repository";
+import { ProviderHomeRepository } from "@/ports/provider/provider-home-repository";
 
 const mockDashboard: ProviderHomeDashboard = {
   workRequests: [

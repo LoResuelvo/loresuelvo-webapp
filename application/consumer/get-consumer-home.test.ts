@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { getConsumerHome } from "./get-consumer-home";
-import { CategoryRepository } from "@/ports/category-repository";
+import { CategoryRepository } from "@/ports/consumer/category-repository";
 
 describe("getConsumerHome", () => {
   const mockCategories = [{ id: 1, name: "Plomería" }];

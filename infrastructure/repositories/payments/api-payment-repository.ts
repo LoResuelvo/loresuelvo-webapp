@@ -5,7 +5,7 @@ import type {
   ApiServiceBalanceCheckoutSession,
 } from "@/infrastructure/api/types";
 import type { CheckoutSession, PaymentIntent } from "@/domain/payment/types";
-import type { PaymentRepository } from "@/ports/payment-repository";
+import type { PaymentRepository } from "@/ports/payments/payment-repository";
 import {
   mapApiCheckoutSession,
   mapApiPaymentIntent,

@@ -2,7 +2,7 @@
 
 import { ApiJobRequestRepository } from "@/infrastructure/repositories/messaging/api-job-request-repository";
 import { createWorkRequest } from "@/application/consumer/create-work-request";
-import { JobRequestResult } from "@/ports/job-request-repository";
+import { JobRequestResult } from "@/ports/messaging/job-request-repository";
 
 export type CreateJobRequestResult =
   | { success: true; data: JobRequestResult }

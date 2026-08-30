@@ -1,6 +1,6 @@
 import { api } from "@/infrastructure/api/base-client";
 import { RegisterUserData } from "@/domain/onboarding/types";
-import { UserRepository } from "@/ports/user-repository";
+import { UserRepository } from "@/ports/onboarding/user-repository";
 import { CurrentUser } from "@/domain/user/types";
 import { ApiCurrentUserResponse } from "@/infrastructure/api/types";
 import { mapApiToCurrentUser } from "./current-user-mapper";

@@ -15,9 +15,9 @@ import { sendServiceProposal as sendServiceProposalUseCase } from "@/application
 import { getServiceProposals } from "@/application/messaging/get-service-proposals";
 import { acceptWorkRequest } from "@/application/provider/accept-work-request";
 import { ConversationDetailInfo, CreateServiceProposalInput, ServiceProposal, ServiceProposalSummary } from "@/domain/messaging/types";
-import { JobRequestSummary } from "@/ports/job-request-repository";
+import { JobRequestSummary } from "@/ports/messaging/job-request-repository";
 import { logger } from "@/infrastructure/logging/logger";
-import { SendAudioMessagePayload } from "@/ports/audio-conversation-repository";
+import { SendAudioMessagePayload } from "@/ports/messaging/audio-conversation-repository";
 
 export async function getConversationDetail(id: string): Promise<ConversationDetailInfo> {
   const repository = new ApiConversationRepository();

@@ -1,4 +1,4 @@
-import { AssistantClient } from "@/ports/assistant-client";
+import { AssistantClient } from "@/ports/consumer/assistant-client";
 import type { ApiStub } from "@/infrastructure/api/types";
 import { logger } from "@/infrastructure/logging/logger";
 

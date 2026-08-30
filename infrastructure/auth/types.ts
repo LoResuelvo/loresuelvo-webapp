@@ -1,1 +1,1 @@
-export * from "@/ports/auth-service";
+export * from "@/ports/onboarding/auth-service";

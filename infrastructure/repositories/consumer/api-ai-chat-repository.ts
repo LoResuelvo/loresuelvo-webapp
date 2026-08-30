@@ -1,6 +1,6 @@
 import { api } from "@/infrastructure/api/base-client";
 import type { ApiAiConversation, ApiAiConversationDetail } from "@/infrastructure/api/types";
-import type { AiChatRepository } from "@/ports/ai-chat-repository";
+import type { AiChatRepository } from "@/ports/consumer/ai-chat-repository";
 import { AiConversationContact, AiConversationDetail, AiJobRequestResult } from "@/domain/messaging/types";
 import { mapApiToAiConversationContact, mapApiToAiConversationDetail } from "./ai-chat-mapper";
 

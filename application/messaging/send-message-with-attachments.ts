@@ -1,5 +1,5 @@
-import { ConversationRepository } from "@/ports/conversation-repository";
-import { FileRepository } from "@/ports/file-repository";
+import { ConversationRepository } from "@/ports/messaging/conversation-repository";
+import { FileRepository } from "@/ports/files/file-repository";
 import { Message } from "@/domain/messaging/types";
 import { ApiConversationMessage } from "@/infrastructure/api/types";
 import { transformApiMessageToDomain } from "@/infrastructure/repositories/messaging/conversation-mapper";

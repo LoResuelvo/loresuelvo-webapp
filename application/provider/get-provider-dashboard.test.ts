@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { getProviderDashboard } from "./get-provider-dashboard";
-import { ProviderHomeRepository } from "@/ports/provider-home-repository";
+import { ProviderHomeRepository } from "@/ports/provider/provider-home-repository";
 import { ProviderHomeDashboard } from "@/domain/provider/types";
 
 describe("getProviderDashboard", () => {

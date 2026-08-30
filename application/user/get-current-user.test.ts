@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { getCurrentUser } from "./get-current-user";
-import { UserRepository } from "@/ports/user-repository";
-import { AuthService } from "@/ports/auth-service";
+import { UserRepository } from "@/ports/onboarding/user-repository";
+import { AuthService } from "@/ports/onboarding/auth-service";
 import { CurrentUser } from "@/domain/user/types";
 
 describe("getCurrentUser", () => {

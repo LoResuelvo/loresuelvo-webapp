@@ -1,5 +1,5 @@
 import { getAssistantReply } from "@/domain/diagnosis/assistant";
-import { AssistantClient } from "@/ports/assistant-client";
+import { AssistantClient } from "@/ports/consumer/assistant-client";
 
 export const DEFAULT_ASSISTANT_DELAY_MS = 800;
 

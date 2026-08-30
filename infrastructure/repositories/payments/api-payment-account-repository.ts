@@ -1,5 +1,5 @@
 import { api } from "@/infrastructure/api/base-client";
-import { PaymentAccountRepository } from "@/ports/payment-account-repository";
+import { PaymentAccountRepository } from "@/ports/payments/payment-account-repository";
 import { PaymentAccountConnection, PaymentAccountAuthorization } from "@/domain/payment-account/types";
 import { ApiPaymentAccountConnection, ApiPaymentAccountAuthorization } from "@/infrastructure/api/types";
 import { mapApiToPaymentAccountConnection, mapApiToPaymentAccountAuthorization } from "./payment-account-mapper";

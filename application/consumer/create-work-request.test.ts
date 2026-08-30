@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createWorkRequest } from "./create-work-request";
-import { JobRequestRepository, JobRequestResult } from "@/ports/job-request-repository";
+import { JobRequestRepository, JobRequestResult } from "@/ports/messaging/job-request-repository";
 
 describe("createWorkRequest", () => {
   const mockJobRequestResponse: JobRequestResult = {

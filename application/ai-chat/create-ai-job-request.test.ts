@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createAiJobRequest } from "./create-ai-job-request";
-import { AiChatRepository } from "@/ports/ai-chat-repository";
+import { AiChatRepository } from "@/ports/consumer/ai-chat-repository";
 
 describe("createAiJobRequest", () => {
   const mockAiChatRepository = {

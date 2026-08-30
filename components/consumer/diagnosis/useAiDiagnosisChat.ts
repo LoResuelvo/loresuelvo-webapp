@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
-import { AssistantClient } from "@/ports/assistant-client";
-import type { AiChatRepository } from "@/ports/ai-chat-repository";
+import { AssistantClient } from "@/ports/consumer/assistant-client";
+import type { AiChatRepository } from "@/ports/consumer/ai-chat-repository";
 import {
   createMockAssistantClient,
   DEFAULT_ASSISTANT_DELAY_MS,

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { PaymentRepository } from "@/ports/payment-repository";
+import type { PaymentRepository } from "@/ports/payments/payment-repository";
 import { createServiceBalanceCheckout } from "./create-service-balance-checkout";
 
 describe("createServiceBalanceCheckout", () => {

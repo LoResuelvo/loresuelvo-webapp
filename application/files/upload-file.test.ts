@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { getPresignedUrl, confirmUpload } from "./upload-file";
-import { FileRepository } from "@/ports/file-repository";
-import { AuthService } from "@/ports/auth-service";
+import { FileRepository } from "@/ports/files/file-repository";
+import { AuthService } from "@/ports/onboarding/auth-service";
 
 describe("upload-file", () => {
   const mockFileRepository = {

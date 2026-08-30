@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { sendServiceProposal } from "./send-service-proposal";
-import { ServiceProposalRepository } from "@/ports/service-proposal-repository";
+import { ServiceProposalRepository } from "@/ports/messaging/service-proposal-repository";
 import { ServiceProposal } from "@/domain/messaging/types";
 
 describe("sendServiceProposal", () => {

@@ -1,5 +1,5 @@
 import type { PaymentIntent } from "@/domain/payment/types";
-import type { PaymentRepository } from "@/ports/payment-repository";
+import type { PaymentRepository } from "@/ports/payments/payment-repository";
 
 export async function getPaymentIntent(
   repository: PaymentRepository,

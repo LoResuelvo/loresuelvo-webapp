@@ -1,4 +1,4 @@
-import { OfflineQueueRepository } from "@/ports/offline-queue-repository";
+import { OfflineQueueRepository } from "@/ports/shared/offline-queue-repository";
 import { Message } from "@/domain/messaging/types";
 
 export class LocalOfflineQueueRepository implements OfflineQueueRepository {

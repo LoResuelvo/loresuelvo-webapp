@@ -1,6 +1,6 @@
 import { api } from "@/infrastructure/api/base-client";
 import { ProviderHomeDashboard, ProviderWorkRequest } from "@/domain/provider/types";
-import { ProviderHomeRepository } from "@/ports/provider-home-repository";
+import { ProviderHomeRepository } from "@/ports/provider/provider-home-repository";
 
 import { ApiMessageImage } from "@/infrastructure/api/types";
 

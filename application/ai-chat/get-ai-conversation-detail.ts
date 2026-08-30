@@ -1,4 +1,4 @@
-import type { AiChatRepository } from "@/ports/ai-chat-repository";
+import type { AiChatRepository } from "@/ports/consumer/ai-chat-repository";
 import type { AiConversationDetail } from "@/domain/messaging/types";
 
 export async function getAiConversationDetail(

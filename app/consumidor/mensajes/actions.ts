@@ -12,9 +12,9 @@ import {
   createConversation as createConvUseCase,
   sendMessage as sendMsgUseCase,
 } from "@/application/messaging/send-message";
-import { SendAudioMessagePayload } from "@/ports/audio-conversation-repository";
+import { SendAudioMessagePayload } from "@/ports/messaging/audio-conversation-repository";
 import { ConversationDetailInfo, ServiceProposalSummary } from "@/domain/messaging/types";
-import { JobRequestSummary } from "@/ports/job-request-repository";
+import { JobRequestSummary } from "@/ports/messaging/job-request-repository";
 
 export async function getConversationDetail(id: string): Promise<ConversationDetailInfo> {
   const repository = new ApiConversationRepository();

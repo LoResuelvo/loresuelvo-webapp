@@ -1,4 +1,4 @@
-import { ServiceProposalRepository } from "@/ports/service-proposal-repository";
+import { ServiceProposalRepository } from "@/ports/messaging/service-proposal-repository";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 
 export async function getServiceProposals(

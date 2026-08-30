@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { getConversationDetail, getJobRequestForConversation } from "./get-conversation-detail";
-import { ConversationRepository } from "@/ports/conversation-repository";
-import { JobRequestRepository, JobRequestSummary } from "@/ports/job-request-repository";
+import { ConversationRepository } from "@/ports/messaging/conversation-repository";
+import { JobRequestRepository, JobRequestSummary } from "@/ports/messaging/job-request-repository";
 import { ConversationDetailInfo } from "@/domain/messaging/types";
 
 describe("get-conversation-detail", () => {

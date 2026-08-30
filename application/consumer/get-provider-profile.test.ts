@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ProviderProfile } from "@/domain/provider/types";
-import type { ProviderProfileRepository } from "@/ports/provider-profile-repository";
+import type { ProviderProfileRepository } from "@/ports/consumer/provider-profile-repository";
 import { getProviderProfile } from "./get-provider-profile";
 
 const provider: ProviderProfile = {

@@ -1,4 +1,4 @@
-import { ConversationRepository } from "@/ports/conversation-repository";
+import { ConversationRepository } from "@/ports/messaging/conversation-repository";
 import { ConsumerConversationContact, ProviderConversationContact } from "@/domain/messaging/types";
 
 export async function getConsumerConversations(

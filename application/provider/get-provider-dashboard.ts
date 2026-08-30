@@ -1,4 +1,4 @@
-import { ProviderHomeRepository } from "@/ports/provider-home-repository";
+import { ProviderHomeRepository } from "@/ports/provider/provider-home-repository";
 import { ProviderHomeDashboard } from "@/domain/provider/types";
 
 export async function getProviderDashboard(

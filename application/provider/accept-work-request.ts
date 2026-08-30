@@ -1,4 +1,4 @@
-import { JobRequestRepository } from "@/ports/job-request-repository";
+import { JobRequestRepository } from "@/ports/messaging/job-request-repository";
 
 export async function acceptWorkRequest(
   jobRequestRepository: JobRequestRepository,

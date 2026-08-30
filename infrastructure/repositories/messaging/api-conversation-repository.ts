@@ -1,10 +1,10 @@
 import { api } from "@/infrastructure/api/base-client";
 import { ApiConversation, ApiConversationMessage } from "@/infrastructure/api/types";
 import { ConversationDetailInfo, ConsumerConversationContact, ProviderConversationContact } from "@/domain/messaging/types";
-import { ConversationRepository } from "@/ports/conversation-repository";
+import { ConversationRepository } from "@/ports/messaging/conversation-repository";
 import { transformApiToConsumerContact, transformApiToProviderContact, transformApiToConversationDetail } from "./conversation-mapper";
 import { ApiConversationDetail } from "@/infrastructure/api/types";
-import { AudioConversationRepository, SendAudioMessagePayload } from "@/ports/audio-conversation-repository";
+import { AudioConversationRepository, SendAudioMessagePayload } from "@/ports/messaging/audio-conversation-repository";
 
 export class ApiConversationRepository implements ConversationRepository, AudioConversationRepository {
   async getConsumerConversations(): Promise<ConsumerConversationContact[]> {

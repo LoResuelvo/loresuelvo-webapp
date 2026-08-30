@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { searchProviders } from "./search-providers";
-import { CategoryRepository } from "@/ports/category-repository";
-import { ProviderRepository } from "@/ports/provider-repository";
+import { CategoryRepository } from "@/ports/consumer/category-repository";
+import { ProviderRepository } from "@/ports/consumer/provider-repository";
 import { Category } from "@/domain/shared/types";
 import { Provider } from "@/domain/provider/types";
 

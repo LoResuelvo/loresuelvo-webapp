@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { getServiceProposals } from "./get-service-proposals";
-import { ServiceProposalRepository } from "@/ports/service-proposal-repository";
+import { ServiceProposalRepository } from "@/ports/messaging/service-proposal-repository";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 
 describe("getServiceProposals", () => {

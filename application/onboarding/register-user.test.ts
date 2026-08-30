@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { registerUser } from "./register-user";
-import { UserRepository } from "@/ports/user-repository";
-import { AuthService } from "@/ports/auth-service";
+import { UserRepository } from "@/ports/onboarding/user-repository";
+import { AuthService } from "@/ports/onboarding/auth-service";
 import { ROUTES } from "@/lib/routes";
 
 describe("registerUser", () => {

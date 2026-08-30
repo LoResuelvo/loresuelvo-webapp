@@ -1,5 +1,5 @@
 import { api } from "@/infrastructure/api/base-client";
-import { WorkOrderRepository } from "@/ports/work-order-repository";
+import { WorkOrderRepository } from "@/ports/work-orders/work-order-repository";
 import {
   WorkOrder,
   WorkOrderDetail,

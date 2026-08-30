@@ -1,5 +1,5 @@
-import { ConversationRepository } from "@/ports/conversation-repository";
-import { JobRequestRepository, JobRequestSummary } from "@/ports/job-request-repository";
+import { ConversationRepository } from "@/ports/messaging/conversation-repository";
+import { JobRequestRepository, JobRequestSummary } from "@/ports/messaging/job-request-repository";
 import { ConversationDetailInfo } from "@/domain/messaging/types";
 
 export async function getConversationDetail(

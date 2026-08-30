@@ -1,4 +1,4 @@
-import { Clock } from "@/ports/clock";
+import { Clock } from "@/ports/shared/clock";
 
 export class SimulatedClock implements Clock {
   private simulatedDate: Date | null = null;

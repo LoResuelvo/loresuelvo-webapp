@@ -4,7 +4,7 @@ import {
   JobRequestResult,
   JobRequestSummary,
   JobRequestRepository
-} from "@/ports/job-request-repository";
+} from "@/ports/messaging/job-request-repository";
 import { ApiMessageImage } from "@/infrastructure/api/types";
 import { MessageImage } from "@/domain/messaging/types";
 

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AudioUploadError, sendAudioMessage } from "./send-audio-message";
-import { AudioConversationRepository } from "@/ports/audio-conversation-repository";
-import { FileRepository } from "@/ports/file-repository";
+import { AudioConversationRepository } from "@/ports/messaging/audio-conversation-repository";
+import { FileRepository } from "@/ports/files/file-repository";
 
 describe("sendAudioMessage", () => {
   let conversationRepository: AudioConversationRepository;

@@ -3,7 +3,7 @@ import {
   PresignedUrlResponse,
   ConfirmUploadResponse,
   FileRepository
-} from "@/ports/file-repository";
+} from "@/ports/files/file-repository";
 
 export class ApiFileRepository implements FileRepository {
   async getPresignedUrl(

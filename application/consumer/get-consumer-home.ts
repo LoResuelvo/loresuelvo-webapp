@@ -1,4 +1,4 @@
-import { CategoryRepository } from "@/ports/category-repository";
+import { CategoryRepository } from "@/ports/consumer/category-repository";
 import { Category } from "@/domain/shared/types";
 import { logger } from "@/infrastructure/logging/logger";
 

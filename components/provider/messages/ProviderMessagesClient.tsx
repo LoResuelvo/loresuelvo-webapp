@@ -4,10 +4,15 @@ import { useRef, useState } from "react";
 import ProviderSidebar from "@/components/provider/home/ProviderSidebar";
 import ProviderHeader from "@/components/provider/home/ProviderHeader";
 import ProviderMessagesView from "@/components/provider/messages/ProviderMessagesView";
-import type { MessageInputHandle } from "@/components/messaging/chat/MessageInput";
+import ChatPanel from "@/components/messaging/chat/ChatPanel";
+import ChatHeader from "@/components/messaging/chat/ChatHeader";
+import MessagesList from "@/components/messaging/chat/MessagesList";
+import MessageInput, { type MessageInputHandle } from "@/components/messaging/chat/MessageInput";
+import ResizableContactsSidebar from "@/components/messaging/contacts/ResizableContactsSidebar";
+import ServiceProposalDetailModal from "@/components/messaging/proposals/ServiceProposalDetailModal";
 import { AuthSession } from "@/infrastructure/auth/types";
 import RequestDetailModal from "@/components/provider/home/RequestDetailModal";
-import { ProviderConversationContact as ConversationContact } from "@/domain/messaging/types";
+import { ProviderConversationContact as ConversationContact, ServiceProposalSummary } from "@/domain/messaging/types";
 import { useProviderMessages } from "./useProviderMessages";
 import { t } from "@/infrastructure/i18n/translations";
 import { ServiceProposalModal } from "@/components/provider/messages/ServiceProposalModal";
@@ -49,8 +54,10 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
   } = useProviderMessages(session, contacts, myUserId);
 
   const inputRef = useRef<MessageInputHandle>(null);
-  
+  const [selectedProposalModal, setSelectedProposalModal] = useState<ServiceProposalSummary | null>(null);
   const [proposalDrafts, setProposalDrafts] = useState<Record<number, { amount: string; scheduledDate: string; scheduledTime: string; description: string }>>({});
+
+  const isContactPending = selectedContact ? isPending(selectedContact) : false;
 
   return (
     <div className="h-screen flex overflow-hidden bg-brand-neutral/30 font-sans text-brand-primary">
@@ -58,33 +65,87 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
       <div className="flex-1 flex flex-col min-w-0">
         <ProviderHeader session={session} />
         <ProviderMessagesView
-          ref={inputRef}
-          contacts={contactsWithUnread}
-          selectedContact={selectedContact ? { ...selectedContact, pending: isPending(selectedContact) } : null}
-          selectedConsumerId={selectedConsumerId}
-          messages={viewMessages}
-          expandedMessages={expandedMessages}
-          onToggleExpand={toggleMessageExpanded}
-          onContactClick={handleContactClick}
-          messagesEndRef={messagesEndRef}
-          messageInput={messageInput}
-          onMessageInputChange={setMessageInput}
-          onSendMessage={handleSendMessage}
-          onSendAudio={handleSendAudio}
-          isSending={isSending}
-          onAccept={activeJobRequest ? () => setShowRequestModal(true) : undefined}
-          myUserId={myUserId}
-          isLoadingJobRequest={activeJobRequest === undefined}
-          pendingBannerText={t.messaging.pendingBannerProvider}
-          attachedFiles={attachedFiles}
-          onAttachFiles={(files) => setAttachedFiles(prev => [...prev, ...files].slice(0, 5))}
-          onRemoveFile={(idx) => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
-          onOpenServiceProposal={
-            selectedContact && !isPending(selectedContact)
-              ? () => setShowServiceProposalModal(true)
-              : undefined
+          isChatActive={!!selectedConsumerId}
+          sidebar={
+            <ResizableContactsSidebar
+              contacts={contactsWithUnread.map(c => ({
+                id: c.id,
+                providerId: c.consumerId,
+                providerName: c.consumerName,
+                providerSurname: c.consumerSurname,
+                lastMessage: c.lastMessage,
+                lastMessageAt: c.lastMessageAt,
+                pending: c.pending,
+              }))}
+              selectedProviderId={selectedConsumerId}
+              onContactClick={handleContactClick}
+              className={selectedConsumerId ? "hidden md:flex" : "flex w-full md:w-auto"}
+            />
           }
-          activeServiceProposal={activeServiceProposal || undefined}
+          chat={
+            selectedContact ? (
+              <ChatPanel
+                header={
+                  <ChatHeader
+                    providerName={selectedContact.consumerName}
+                    providerSurname={selectedContact.consumerSurname}
+                    pending={isContactPending}
+                    jobRequest={activeJobRequest ? {
+                      title: activeJobRequest.title,
+                      description: activeJobRequest.description,
+                      providerName: selectedContact.consumerName,
+                      providerSurname: selectedContact.consumerSurname,
+                      images: activeJobRequest.images,
+                    } : activeJobRequest}
+                    isLoadingJobRequest={activeJobRequest === undefined}
+                    onAccept={activeJobRequest ? () => setShowRequestModal(true) : undefined}
+                    serviceProposal={activeServiceProposal || undefined}
+                    onOpenProposal={
+                      activeServiceProposal
+                        ? () => setSelectedProposalModal(activeServiceProposal)
+                        : undefined
+                    }
+                    isProvider
+                  />
+                }
+                footer={
+                  <MessageInput
+                    ref={inputRef}
+                    value={messageInput}
+                    onChange={setMessageInput}
+                    onSend={handleSendMessage}
+                    onSendAudio={handleSendAudio}
+                    disabled={isSending}
+                    attachedFiles={attachedFiles}
+                    onAttachFiles={(files) => setAttachedFiles(prev => [...prev, ...files].slice(0, 5))}
+                    onRemoveFile={(idx) => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
+                    onOpenServiceProposal={
+                      !isContactPending
+                        ? () => setShowServiceProposalModal(true)
+                        : undefined
+                    }
+                    disableAudio={isContactPending}
+                  />
+                }
+              >
+                <MessagesList
+                  messages={viewMessages}
+                  expandedMessages={expandedMessages}
+                  onToggleExpand={toggleMessageExpanded}
+                  messagesEndRef={messagesEndRef}
+                  showPendingBanner={isContactPending}
+                  myUserId={myUserId}
+                  pendingBannerText={t.messaging.pendingBannerProvider}
+                  conversationId={selectedContact.id}
+                  serviceProposal={activeServiceProposal || undefined}
+                  onOpenProposal={(proposal) => setSelectedProposalModal(proposal)}
+                  isProvider
+                />
+              </ChatPanel>
+            ) : (
+              <ChatPanel />
+            )
+          }
         />
       </div>
 
@@ -122,6 +183,14 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
           }}
         />
       )}
+
+      {selectedProposalModal && (
+        <ServiceProposalDetailModal
+          proposal={selectedProposalModal}
+          onClose={() => setSelectedProposalModal(null)}
+        />
+      )}
     </div>
   );
 }
+

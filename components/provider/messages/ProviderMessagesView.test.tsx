@@ -1,11 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import ConsumerMessagesView from "@/components/consumer/messages/ConsumerMessagesView";
+import ProviderMessagesView from "@/components/provider/messages/ProviderMessagesView";
 
-describe("ConsumerMessagesView", () => {
+describe("ProviderMessagesView", () => {
   it("renders sidebar and chat slots in inactive chat state", () => {
     render(
-      <ConsumerMessagesView
+      <ProviderMessagesView
         isChatActive={false}
         sidebar={<div data-testid="sidebar-slot">Sidebar</div>}
         chat={<div data-testid="chat-slot">Chat</div>}
@@ -18,7 +18,7 @@ describe("ConsumerMessagesView", () => {
 
   it("renders with active chat layout classes", () => {
     const { container } = render(
-      <ConsumerMessagesView
+      <ProviderMessagesView
         isChatActive={true}
         sidebar={<div data-testid="sidebar-slot">Sidebar</div>}
         chat={<div data-testid="chat-slot">Chat</div>}
@@ -31,14 +31,14 @@ describe("ConsumerMessagesView", () => {
 
   it("applies custom className", () => {
     render(
-      <ConsumerMessagesView
-        className="custom-consumer-view"
+      <ProviderMessagesView
+        className="custom-provider-view"
         isChatActive={false}
         sidebar={<div>Sidebar</div>}
         chat={<div>Chat</div>}
       />
     );
 
-    expect(screen.getByRole("main")).toHaveClass("custom-consumer-view");
+    expect(screen.getByRole("main")).toHaveClass("custom-provider-view");
   });
 });

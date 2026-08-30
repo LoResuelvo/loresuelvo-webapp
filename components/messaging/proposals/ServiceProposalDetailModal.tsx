@@ -6,7 +6,7 @@ import { WorkOrder } from "@/domain/work-order/types";
 import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
 import { Modal } from "@/components/ui/modal";
 import { t } from "@/infrastructure/i18n/translations";
-import ReportWorkCompletionModal from "@/components/provider/ReportWorkCompletionModal";
+import ReportWorkCompletionModal from "@/components/work-orders/ReportWorkCompletionModal";
 import { WorkOrderDetailModal } from "@/components/work-orders/WorkOrderDetailModal";
 import { getWorkOrderByProposalAction } from "@/app/work-orders/actions";
 import { useClock } from "@/hooks/useClock";

@@ -6,17 +6,18 @@ import { t } from "@/infrastructure/i18n/translations";
 import { shouldShowExpandButton } from "@/lib/text-utils";
 import { buildChatTimeline } from "@/lib/timeline-utils";
 import InfoBanner from "@/components/messaging/InfoBanner";
-
-import { Message, ServiceProposalSummary } from "@/domain/messaging/types";
+import { useSmartScroll } from "@/hooks/useSmartScroll";
+import { cn } from "@/lib/utils";
+import type { Message, ServiceProposalSummary } from "@/domain/messaging/types";
 
 const sharedScrollPositions = new Map<string, number>();
 
-interface MessagesListProps {
+export interface MessagesListProps {
   messages: Message[];
-  expandedMessages: Set<string>;
-  onToggleExpand: (messageId: string) => void;
-  messagesEndRef: RefObject<HTMLDivElement | null>;
-  showPendingBanner: boolean;
+  expandedMessages?: Set<string>;
+  onToggleExpand?: (messageId: string) => void;
+  messagesEndRef?: RefObject<HTMLDivElement | null>;
+  showPendingBanner?: boolean;
   myUserId: string;
   pendingBannerText?: string;
   conversationId?: string;
@@ -24,14 +25,15 @@ interface MessagesListProps {
   proposals?: ServiceProposalSummary[];
   onOpenProposal?: (proposal: ServiceProposalSummary) => void;
   isProvider?: boolean;
+  className?: string;
 }
 
 export default function MessagesList({
   messages,
-  expandedMessages,
+  expandedMessages = new Set(),
   onToggleExpand,
   messagesEndRef,
-  showPendingBanner,
+  showPendingBanner = false,
   myUserId,
   pendingBannerText = t.messaging.pendingBannerDefault,
   conversationId,
@@ -39,15 +41,21 @@ export default function MessagesList({
   proposals,
   onOpenProposal,
   isProvider = false,
+  className,
 }: MessagesListProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isAtBottom, setIsAtBottom] = useState(true);
-  const [hasNewMessage, setHasNewMessage] = useState(false);
   const timelineItems = useMemo(() => {
     const proposalList = proposals ?? (serviceProposal ? [serviceProposal] : []);
     return buildChatTimeline(messages, proposalList);
   }, [messages, proposals, serviceProposal]);
 
+  const hasSavedScroll = conversationId ? sharedScrollPositions.has(conversationId) : false;
+
+  const { containerRef, endRef, isAtBottom, scrollToBottom } = useSmartScroll(timelineItems, {
+    threshold: 50,
+    autoScrollOnMount: !hasSavedScroll,
+  });
+
+  const [hasNewMessage, setHasNewMessage] = useState(false);
   const prevCountRef = useRef(timelineItems.length);
   const scrollPositionsRef = useRef<Map<string, number>>(sharedScrollPositions);
   const conversationIdRef = useRef(conversationId);
@@ -61,12 +69,12 @@ export default function MessagesList({
   const handleScroll = () => {
     const el = containerRef.current;
     if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
-    setIsAtBottom(atBottom);
-    if (atBottom) setHasNewMessage(false);
 
     if (conversationIdRef.current) {
       scrollPositionsRef.current.set(conversationIdRef.current, el.scrollTop);
+    }
+    if (isAtBottom) {
+      setHasNewMessage(false);
     }
   };
 
@@ -77,7 +85,7 @@ export default function MessagesList({
         containerRef.current.scrollTop = saved;
       }
     }
-  }, [conversationId, timelineItems]);
+  }, [conversationId, timelineItems, containerRef]);
 
   useEffect(() => {
     if (timelineItems.length > prevCountRef.current) {
@@ -88,21 +96,26 @@ export default function MessagesList({
         String(latest.data.senderId) === String(myUserId);
 
       if (isFromMe || isAtBottom) {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        scrollToBottom();
         setHasNewMessage(false);
       } else {
         setHasNewMessage(true);
       }
     }
     prevCountRef.current = timelineItems.length;
-  }, [timelineItems, isAtBottom, messagesEndRef, myUserId]);
+  }, [timelineItems, isAtBottom, scrollToBottom, myUserId]);
+
+  const handleScrollToBottom = () => {
+    scrollToBottom();
+    setHasNewMessage(false);
+  };
 
   return (
     <div
       ref={containerRef}
       onScroll={handleScroll}
       data-testid="messages-list"
-      className="flex-1 p-6 overflow-y-auto flex flex-col gap-4 relative"
+      className={cn("flex-1 p-6 overflow-y-auto flex flex-col gap-4 relative", className)}
     >
       {showPendingBanner && (
         <InfoBanner tone="info">{pendingBannerText}</InfoBanner>
@@ -132,22 +145,26 @@ export default function MessagesList({
             sentAt={msg.sentAt}
             isExpanded={isExpanded}
             showExpandButton={showExpandButton}
-            onToggleExpand={onToggleExpand}
+            onToggleExpand={onToggleExpand ?? (() => {})}
             isOwnMessage={isOwnMessage}
             images={msg.images}
             audio={msg.audio}
           />
         );
       })}
-      <div ref={messagesEndRef} />
+      <div
+        ref={(node) => {
+          (endRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+          if (messagesEndRef) {
+            (messagesEndRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+          }
+        }}
+      />
 
       {hasNewMessage && (
         <Button
           data-testid="new-message-alert"
-          onClick={() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            setHasNewMessage(false);
-          }}
+          onClick={handleScrollToBottom}
           className="sticky bottom-2 mx-auto bg-brand-primary text-white px-4 py-2 rounded-full shadow-[0_4px_12px_rgba(26,43,72,0.12)] text-sm font-semibold z-10 h-auto"
         >
           {t.messaging.newMessageAlert}

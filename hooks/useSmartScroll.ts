@@ -3,6 +3,7 @@ import { useRef, useCallback, useEffect, useState, type RefObject } from "react"
 export interface UseSmartScrollOptions {
   threshold?: number;
   behavior?: ScrollBehavior;
+  autoScrollOnMount?: boolean;
 }
 
 export interface UseSmartScrollReturn {
@@ -18,6 +19,7 @@ export function useSmartScroll<T = unknown>(
 ): UseSmartScrollReturn {
   const threshold = typeof options === "number" ? options : (options?.threshold ?? 100);
   const defaultBehavior = typeof options === "object" ? (options?.behavior ?? "smooth") : "smooth";
+  const autoScrollOnMount = typeof options === "object" ? (options?.autoScrollOnMount ?? true) : true;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -65,7 +67,7 @@ export function useSmartScroll<T = unknown>(
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
-      if (isAtBottomRef.current) {
+      if (autoScrollOnMount && isAtBottomRef.current) {
         scrollToBottom();
       }
       return;
@@ -86,3 +88,4 @@ export function useSmartScroll<T = unknown>(
 
   return { containerRef, endRef, isAtBottom, scrollToBottom };
 }
+

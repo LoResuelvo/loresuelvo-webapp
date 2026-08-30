@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronLeft } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
 import JobRequestPanel from "@/components/messaging/JobRequestPanel";
-import { Button } from "@/components/ui/button";
-import { t } from "@/infrastructure/i18n/translations";
 import { Avatar } from "@/components/ui/avatar";
+import { t } from "@/infrastructure/i18n/translations";
+import type { JobRequestInfo, ServiceProposalSummary } from "@/domain/messaging/types";
+import ChatHeaderActions from "./ChatHeaderActions";
 
-import { JobRequestInfo, ServiceProposalSummary } from "@/domain/messaging/types";
-import { Money } from "@/domain/shared/Money";
-
-interface ChatHeaderProps {
+export interface ChatHeaderProps {
   providerName: string;
   providerSurname: string;
   pending: boolean;
@@ -21,9 +21,6 @@ interface ChatHeaderProps {
   onOpenProposal?: () => void;
   isProvider?: boolean;
 }
-
-import { ChevronLeft } from "lucide-react";
-import { useRouter, usePathname } from "next/navigation";
 
 export default function ChatHeader({
   providerName,
@@ -71,54 +68,16 @@ export default function ChatHeader({
             )}
           </div>
 
-          {serviceProposal && serviceProposal.status === "pending" && onOpenProposal && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onOpenProposal}
-              className="h-8 px-2.5 sm:px-3 text-xs font-semibold border-amber-300 bg-amber-50/80 text-amber-900 hover:bg-amber-100/90 hover:border-amber-400 cursor-pointer shadow-2xs gap-1.5 shrink-0"
-              aria-label="Ver propuesta de servicio pendiente"
-            >
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
-              <span className="hidden sm:inline">
-                {isProvider
-                  ? t.messaging.serviceProposal.headerPendingProviderChip
-                  : t.messaging.serviceProposal.headerPendingChip}
-              </span>
-              <span className="font-bold">{Money.format(Money.create(serviceProposal.amountCents))}</span>
-            </Button>
-          )}
-
-          {isLoadingJobRequest ? (
-            <Button
-              variant="brandSecondary"
-              disabled
-              className="animate-pulse opacity-70"
-            >
-              {t.messaging.viewJobRequest}
-            </Button>
-          ) : (
-            <>
-              {jobRequest && (
-                <Button
-                  variant="brandSecondary"
-                  onClick={() => setShowPanel(true)}
-                  aria-label={t.messaging.viewJobRequestLabel}
-                >
-                  {t.messaging.viewJobRequest}
-                </Button>
-              )}
-
-              {pending && onAccept && (
-                <Button
-                  variant="brandSecondary"
-                  onClick={onAccept}
-                >
-                  {t.messaging.viewJobRequest}
-                </Button>
-              )}
-            </>
-          )}
+          <ChatHeaderActions
+            pending={pending}
+            jobRequest={jobRequest}
+            isLoadingJobRequest={isLoadingJobRequest}
+            onAccept={onAccept}
+            onViewJobRequest={() => setShowPanel(true)}
+            serviceProposal={serviceProposal}
+            onOpenProposal={onOpenProposal}
+            isProvider={isProvider}
+          />
         </div>
       </div>
 

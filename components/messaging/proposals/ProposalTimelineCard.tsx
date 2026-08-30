@@ -6,12 +6,12 @@ import { Money } from "@/domain/shared/Money";
 import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
 import { ServiceProposal } from "@/domain/messaging/ServiceProposal";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Calendar, FileText, ArrowRight } from "lucide-react";
+import { Calendar, FileText } from "lucide-react";
 import { t } from "@/infrastructure/i18n/translations";
 import { cn } from "@/lib/utils";
+import ProposalTimelineActions from "./ProposalTimelineActions";
 
-interface ProposalTimelineCardProps {
+export interface ProposalTimelineCardProps {
   proposal: ServiceProposalSummary;
   isProvider: boolean;
   onClick: () => void;
@@ -25,25 +25,6 @@ export function ProposalTimelineCard({
   className,
 }: ProposalTimelineCardProps) {
   const statusBadge = ServiceProposal.getStatusBadge(proposal.status);
-
-  const getButtonContent = () => {
-    if (proposal.status === "pending") {
-      return isProvider
-        ? t.messaging.serviceProposal.viewSentCTA
-        : t.messaging.serviceProposal.reviewAndPayCTA;
-    }
-    if (proposal.status === "accepted") {
-      return t.messaging.serviceProposal.viewAcceptedCTA;
-    }
-    return t.messaging.serviceProposal.viewRejectedCTA;
-  };
-
-  const getButtonVariant = () => {
-    if (proposal.status === "pending" && !isProvider) {
-      return "brand" as const;
-    }
-    return "outline" as const;
-  };
 
   return (
     <div
@@ -116,24 +97,11 @@ export function ProposalTimelineCard({
         </div>
 
         {/* Action Button */}
-        <Button
-          type="button"
-          variant={getButtonVariant()}
-          size="action"
-          onClick={(e) => {
-            e.stopPropagation();
-            onClick();
-          }}
-          className={cn(
-            "w-full h-10 py-2 text-body font-semibold rounded-xl cursor-pointer shadow-2xs gap-1.5",
-            proposal.status === "pending" && !isProvider
-              ? "bg-brand-primary text-white hover:bg-brand-primary/90"
-              : "hover:bg-slate-50",
-          )}
-        >
-          <span>{getButtonContent()}</span>
-          <ArrowRight className="w-4 h-4 shrink-0" />
-        </Button>
+        <ProposalTimelineActions
+          proposal={proposal}
+          isProvider={isProvider}
+          onClick={onClick}
+        />
 
         {/* Timestamp */}
         {proposal.createdOn && (
@@ -147,3 +115,4 @@ export function ProposalTimelineCard({
 }
 
 export default ProposalTimelineCard;
+

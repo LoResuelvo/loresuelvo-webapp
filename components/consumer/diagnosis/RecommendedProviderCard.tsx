@@ -5,36 +5,47 @@ import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
-interface RecommendedProviderCardProps {
+export type ContactProviderStatus = "idle" | "contacting" | "contacted" | "duplicate" | "error";
+
+export function getContactErrorStatus(err: unknown): "duplicate" | "error" {
+  const status =
+    err && typeof err === "object" && "status" in err
+      ? (err as { status: unknown }).status
+      : undefined;
+  const message = err instanceof Error ? err.message : String(err);
+  if (status === 409 || message.includes("409") || message.includes("Ya existe")) {
+    return "duplicate";
+  }
+  return "error";
+}
+
+export interface RecommendedProviderCardProps {
   provider: RecommendedProvider;
   assessment?: ProblemAssessment;
   onContactProvider?: (providerId: number) => Promise<void>;
+  status?: ContactProviderStatus;
 }
 
 export function RecommendedProviderCard({
   provider,
   assessment,
   onContactProvider,
+  status: controlledStatus,
 }: RecommendedProviderCardProps) {
-  const [state, setState] = useState<"idle" | "sending" | "sent" | "error" | "duplicate">("idle");
+  const [internalStatus, setInternalStatus] = useState<ContactProviderStatus>("idle");
+  const currentStatus = controlledStatus ?? internalStatus;
 
   const showButton = assessment?.outcome === "professional_required";
 
   const handleContact = async () => {
-    setState("sending");
+    setInternalStatus("contacting");
     try {
       if (onContactProvider) {
         await onContactProvider(provider.id);
       }
-      setState("sent");
+      setInternalStatus("contacted");
     } catch (err: unknown) {
-      const status = err && typeof err === "object" && "status" in err ? (err as { status: unknown }).status : undefined;
-      const message = err instanceof Error ? err.message : String(err);
-      if (status === 409 || message.includes("409") || message.includes("Ya existe")) {
-        setState("duplicate");
-      } else {
-        setState("error");
-      }
+      setInternalStatus(getContactErrorStatus(err));
     }
   };
 
@@ -63,7 +74,7 @@ export function RecommendedProviderCard({
 
       {showButton && (
         <div className="flex flex-col items-end gap-1 ml-4 min-w-[120px]">
-          {state === "idle" && (
+          {currentStatus === "idle" && (
             <Button
               variant="brand"
               size="action"
@@ -72,17 +83,17 @@ export function RecommendedProviderCard({
               {t.aiDiagnosis.contactProvider}
             </Button>
           )}
-          {state === "sending" && (
+          {currentStatus === "contacting" && (
             <Button variant="brand" size="action" disabled>
               {t.aiDiagnosis.jobRequestSending}
             </Button>
           )}
-          {state === "sent" && (
+          {currentStatus === "contacted" && (
             <span className="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full">
               {t.aiDiagnosis.jobRequestSent}
             </span>
           )}
-          {state === "error" && (
+          {currentStatus === "error" && (
             <div className="flex flex-col items-end gap-1.5">
               <span className="text-caption text-red-500 text-right leading-tight max-w-[150px]">
                 {t.aiDiagnosis.jobRequestError}
@@ -96,7 +107,7 @@ export function RecommendedProviderCard({
               </Button>
             </div>
           )}
-          {state === "duplicate" && (
+          {currentStatus === "duplicate" && (
             <span className="text-caption text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl text-right leading-tight max-w-[180px]">
               {t.aiDiagnosis.jobRequestDuplicate}
             </span>

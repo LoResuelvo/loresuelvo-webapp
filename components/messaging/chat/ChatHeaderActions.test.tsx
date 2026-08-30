@@ -7,7 +7,10 @@ describe("ChatHeaderActions", () => {
     const handleOpenProposal = vi.fn();
     render(
       <ChatHeaderActions
-        pending={false}
+        conversationState={{
+          pending: false,
+          isProvider: false,
+        }}
         serviceProposal={{
           id: 42,
           conversationId: 10,
@@ -19,8 +22,9 @@ describe("ChatHeaderActions", () => {
           createdOn: "2026-08-18T14:00:00Z",
           counterpart: { id: 1, role: "provider", name: "Juan", surname: "Perez" },
         }}
-        onOpenProposal={handleOpenProposal}
-        isProvider={false}
+        actions={{
+          onOpenProposal: handleOpenProposal,
+        }}
       />
     );
 
@@ -35,8 +39,10 @@ describe("ChatHeaderActions", () => {
   it("renders loading state when isLoadingJobRequest is true", () => {
     render(
       <ChatHeaderActions
-        pending={false}
-        isLoadingJobRequest={true}
+        conversationState={{
+          pending: false,
+          isLoadingJobRequest: true,
+        }}
       />
     );
 
@@ -47,12 +53,16 @@ describe("ChatHeaderActions", () => {
     const handleViewJobRequest = vi.fn();
     render(
       <ChatHeaderActions
-        pending={false}
+        conversationState={{
+          pending: false,
+        }}
         jobRequest={{
           title: "Reparación",
           description: "Descripción",
         }}
-        onViewJobRequest={handleViewJobRequest}
+        actions={{
+          onViewJobRequest: handleViewJobRequest,
+        }}
       />
     );
 
@@ -66,8 +76,12 @@ describe("ChatHeaderActions", () => {
     const handleAccept = vi.fn();
     render(
       <ChatHeaderActions
-        pending={true}
-        onAccept={handleAccept}
+        conversationState={{
+          pending: true,
+        }}
+        actions={{
+          onAccept: handleAccept,
+        }}
       />
     );
 

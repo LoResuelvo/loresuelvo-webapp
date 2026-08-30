@@ -14,9 +14,13 @@ describe("08-VMP: Continuar conversación - ChatHeader con botón aceptar", () =
   it("no muestra botón aceptar cuando la conversación no está pendiente", () => {
     render(
       <ChatHeader
-        providerName="Maria"
-        providerSurname="Fernandez"
-        pending={false}
+        contact={{
+          name: "Maria",
+          surname: "Fernandez",
+        }}
+        conversationState={{
+          pending: false,
+        }}
       />
     );
 
@@ -27,10 +31,16 @@ describe("08-VMP: Continuar conversación - ChatHeader con botón aceptar", () =
     const onAccept = vi.fn();
     render(
       <ChatHeader
-        providerName="Maria"
-        providerSurname="Fernandez"
-        pending={true}
-        onAccept={onAccept}
+        contact={{
+          name: "Maria",
+          surname: "Fernandez",
+        }}
+        conversationState={{
+          pending: true,
+        }}
+        actions={{
+          onAccept,
+        }}
       />
     );
 
@@ -42,10 +52,16 @@ describe("08-VMP: Continuar conversación - ChatHeader con botón aceptar", () =
     const onAccept = vi.fn();
     render(
       <ChatHeader
-        providerName="Maria"
-        providerSurname="Fernandez"
-        pending={true}
-        onAccept={onAccept}
+        contact={{
+          name: "Maria",
+          surname: "Fernandez",
+        }}
+        conversationState={{
+          pending: true,
+        }}
+        actions={{
+          onAccept,
+        }}
       />
     );
 
@@ -107,10 +123,6 @@ describe("MessagesList - integración de mensajes", () => {
       <MessagesList
         myUserId="user-id"
         messages={mockMessages}
-        expandedMessages={new Set()}
-        onToggleExpand={vi.fn()}
-        messagesEndRef={{ current: null }}
-        showPendingBanner={false}
       />
     );
 
@@ -125,10 +137,9 @@ describe("MessagesList - integración de mensajes", () => {
       <MessagesList
         myUserId="user-id"
         messages={[]}
-        expandedMessages={new Set()}
-        onToggleExpand={vi.fn()}
-        messagesEndRef={{ current: null }}
-        showPendingBanner={true}
+        pendingBanner={{
+          show: true,
+        }}
       />
     );
 

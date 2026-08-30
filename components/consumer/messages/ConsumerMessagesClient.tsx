@@ -65,18 +65,22 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
               <ChatPanel
                 header={
                   <ChatHeader
-                    providerName={selectedContact.providerName}
-                    providerSurname={selectedContact.providerSurname}
-                    profilePhotoUrl={selectedContact.profilePhotoUrl}
-                    pending={isConversationPending}
+                    contact={{
+                      name: selectedContact.providerName,
+                      surname: selectedContact.providerSurname,
+                      photoUrl: selectedContact.profilePhotoUrl,
+                    }}
+                    conversationState={{
+                      pending: isConversationPending,
+                      isLoadingJobRequest: activeJobRequest === undefined,
+                    }}
                     jobRequest={activeJobRequest}
-                    isLoadingJobRequest={activeJobRequest === undefined}
                     serviceProposal={activeServiceProposal || undefined}
-                    onOpenProposal={
-                      activeServiceProposal
+                    actions={{
+                      onOpenProposal: activeServiceProposal
                         ? () => setSelectedProposalModal(activeServiceProposal)
-                        : undefined
-                    }
+                        : undefined,
+                    }}
                   />
                 }
                 footer={
@@ -95,14 +99,20 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
               >
                 <MessagesList
                   messages={viewMessages}
-                  expandedMessages={expandedMessages}
-                  onToggleExpand={toggleMessageExpanded}
-                  messagesEndRef={messagesEndRef}
-                  showPendingBanner={isConversationPending}
                   myUserId={myUserId}
                   conversationId={selectedContact.id}
-                  serviceProposal={activeServiceProposal || undefined}
-                  onOpenProposal={(proposal) => setSelectedProposalModal(proposal)}
+                  messagesEndRef={messagesEndRef}
+                  pendingBanner={{
+                    show: isConversationPending,
+                  }}
+                  expandState={{
+                    expandedMessages,
+                    onToggleExpand: toggleMessageExpanded,
+                  }}
+                  proposals={{
+                    serviceProposal: activeServiceProposal || undefined,
+                    onOpenProposal: (proposal) => setSelectedProposalModal(proposal),
+                  }}
                 />
               </ChatPanel>
             ) : (

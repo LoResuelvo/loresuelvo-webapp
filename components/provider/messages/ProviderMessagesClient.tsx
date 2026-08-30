@@ -87,9 +87,15 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
               <ChatPanel
                 header={
                   <ChatHeader
-                    providerName={selectedContact.consumerName}
-                    providerSurname={selectedContact.consumerSurname}
-                    pending={isContactPending}
+                    contact={{
+                      name: selectedContact.consumerName,
+                      surname: selectedContact.consumerSurname,
+                    }}
+                    conversationState={{
+                      pending: isContactPending,
+                      isProvider: true,
+                      isLoadingJobRequest: activeJobRequest === undefined,
+                    }}
                     jobRequest={activeJobRequest ? {
                       title: activeJobRequest.title,
                       description: activeJobRequest.description,
@@ -97,15 +103,13 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
                       providerSurname: selectedContact.consumerSurname,
                       images: activeJobRequest.images,
                     } : activeJobRequest}
-                    isLoadingJobRequest={activeJobRequest === undefined}
-                    onAccept={activeJobRequest ? () => setShowRequestModal(true) : undefined}
                     serviceProposal={activeServiceProposal || undefined}
-                    onOpenProposal={
-                      activeServiceProposal
+                    actions={{
+                      onAccept: activeJobRequest ? () => setShowRequestModal(true) : undefined,
+                      onOpenProposal: activeServiceProposal
                         ? () => setSelectedProposalModal(activeServiceProposal)
-                        : undefined
-                    }
-                    isProvider
+                        : undefined,
+                    }}
                   />
                 }
                 footer={
@@ -130,16 +134,22 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
               >
                 <MessagesList
                   messages={viewMessages}
-                  expandedMessages={expandedMessages}
-                  onToggleExpand={toggleMessageExpanded}
-                  messagesEndRef={messagesEndRef}
-                  showPendingBanner={isContactPending}
                   myUserId={myUserId}
-                  pendingBannerText={t.messaging.pendingBannerProvider}
                   conversationId={selectedContact.id}
-                  serviceProposal={activeServiceProposal || undefined}
-                  onOpenProposal={(proposal) => setSelectedProposalModal(proposal)}
-                  isProvider
+                  messagesEndRef={messagesEndRef}
+                  pendingBanner={{
+                    show: isContactPending,
+                    text: t.messaging.pendingBannerProvider,
+                  }}
+                  expandState={{
+                    expandedMessages,
+                    onToggleExpand: toggleMessageExpanded,
+                  }}
+                  proposals={{
+                    serviceProposal: activeServiceProposal || undefined,
+                    onOpenProposal: (proposal) => setSelectedProposalModal(proposal),
+                    isProvider: true,
+                  }}
                 />
               </ChatPanel>
             ) : (

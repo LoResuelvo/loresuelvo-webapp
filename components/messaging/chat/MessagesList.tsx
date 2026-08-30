@@ -12,41 +12,57 @@ import type { Message, ServiceProposalSummary } from "@/domain/messaging/types";
 
 const sharedScrollPositions = new Map<string, number>();
 
-export interface MessagesListProps {
-  messages: Message[];
+export interface MessagesListPendingBanner {
+  show?: boolean;
+  text?: string;
+}
+
+export interface MessagesListExpandState {
   expandedMessages?: Set<string>;
   onToggleExpand?: (messageId: string) => void;
-  messagesEndRef?: RefObject<HTMLDivElement | null>;
-  showPendingBanner?: boolean;
-  myUserId: string;
-  pendingBannerText?: string;
-  conversationId?: string;
+}
+
+export interface MessagesListProposals {
   serviceProposal?: ServiceProposalSummary | null;
   proposals?: ServiceProposalSummary[];
   onOpenProposal?: (proposal: ServiceProposalSummary) => void;
   isProvider?: boolean;
+}
+
+export interface MessagesListProps {
+  messages: Message[];
+  myUserId: string;
+  conversationId?: string;
+  messagesEndRef?: RefObject<HTMLDivElement | null>;
+  pendingBanner?: MessagesListPendingBanner;
+  expandState?: MessagesListExpandState;
+  proposals?: MessagesListProposals;
   className?: string;
 }
 
 export default function MessagesList({
   messages,
-  expandedMessages = new Set(),
-  onToggleExpand,
-  messagesEndRef,
-  showPendingBanner = false,
   myUserId,
-  pendingBannerText = t.messaging.pendingBannerDefault,
   conversationId,
-  serviceProposal,
+  messagesEndRef,
+  pendingBanner,
+  expandState,
   proposals,
-  onOpenProposal,
-  isProvider = false,
   className,
 }: MessagesListProps) {
+  const showPendingBanner = pendingBanner?.show ?? false;
+  const pendingBannerText = pendingBanner?.text ?? t.messaging.pendingBannerDefault;
+  const expandedMessages = expandState?.expandedMessages ?? new Set();
+  const onToggleExpand = expandState?.onToggleExpand;
+  const serviceProposal = proposals?.serviceProposal;
+  const proposalListProp = proposals?.proposals;
+  const onOpenProposal = proposals?.onOpenProposal;
+  const isProvider = proposals?.isProvider ?? false;
+
   const timelineItems = useMemo(() => {
-    const proposalList = proposals ?? (serviceProposal ? [serviceProposal] : []);
+    const proposalList = proposalListProp ?? (serviceProposal ? [serviceProposal] : []);
     return buildChatTimeline(messages, proposalList);
-  }, [messages, proposals, serviceProposal]);
+  }, [messages, proposalListProp, serviceProposal]);
 
   const hasSavedScroll = conversationId ? sharedScrollPositions.has(conversationId) : false;
 

@@ -5,27 +5,37 @@ import { t } from "@/infrastructure/i18n/translations";
 import { Money } from "@/domain/shared/Money";
 import type { JobRequestInfo, ServiceProposalSummary } from "@/domain/messaging/types";
 
-export interface ChatHeaderActionsProps {
-  pending: boolean;
-  jobRequest?: JobRequestInfo | null;
+export interface ChatHeaderActionsState {
+  pending?: boolean;
+  isProvider?: boolean;
   isLoadingJobRequest?: boolean;
+}
+
+export interface ChatHeaderActionHandlers {
   onAccept?: () => void;
   onViewJobRequest?: () => void;
-  serviceProposal?: ServiceProposalSummary | null;
   onOpenProposal?: () => void;
-  isProvider?: boolean;
+}
+
+export interface ChatHeaderActionsProps {
+  conversationState?: ChatHeaderActionsState;
+  jobRequest?: JobRequestInfo | null;
+  serviceProposal?: ServiceProposalSummary | null;
+  actions?: ChatHeaderActionHandlers;
 }
 
 export function ChatHeaderActions({
-  pending,
+  conversationState,
   jobRequest,
-  isLoadingJobRequest,
-  onAccept,
-  onViewJobRequest,
   serviceProposal,
-  onOpenProposal,
-  isProvider = false,
+  actions,
 }: ChatHeaderActionsProps) {
+  const pending = conversationState?.pending ?? false;
+  const isProvider = conversationState?.isProvider ?? false;
+  const isLoadingJobRequest = conversationState?.isLoadingJobRequest ?? false;
+  const onAccept = actions?.onAccept;
+  const onViewJobRequest = actions?.onViewJobRequest;
+  const onOpenProposal = actions?.onOpenProposal;
   return (
     <>
       {serviceProposal && serviceProposal.status === "pending" && onOpenProposal && (

@@ -9,30 +9,38 @@ import { t } from "@/infrastructure/i18n/translations";
 import type { JobRequestInfo, ServiceProposalSummary } from "@/domain/messaging/types";
 import ChatHeaderActions from "./ChatHeaderActions";
 
-export interface ChatHeaderProps {
-  providerName: string;
-  providerSurname: string;
-  pending: boolean;
-  jobRequest?: JobRequestInfo | null;
-  isLoadingJobRequest?: boolean;
-  onAccept?: () => void;
-  profilePhotoUrl?: string;
-  serviceProposal?: ServiceProposalSummary | null;
-  onOpenProposal?: () => void;
+export interface ChatHeaderContact {
+  name: string;
+  surname?: string;
+  photoUrl?: string;
+  role?: string;
+}
+
+export interface ChatHeaderConversationState {
+  pending?: boolean;
   isProvider?: boolean;
+  isLoadingJobRequest?: boolean;
+}
+
+export interface ChatHeaderActionsHandlers {
+  onAccept?: () => void;
+  onOpenProposal?: () => void;
+}
+
+export interface ChatHeaderProps {
+  contact: ChatHeaderContact;
+  conversationState?: ChatHeaderConversationState;
+  jobRequest?: JobRequestInfo | null;
+  serviceProposal?: ServiceProposalSummary | null;
+  actions?: ChatHeaderActionsHandlers;
 }
 
 export default function ChatHeader({
-  providerName,
-  providerSurname,
-  pending,
+  contact,
+  conversationState,
   jobRequest,
-  isLoadingJobRequest,
-  onAccept,
-  profilePhotoUrl,
   serviceProposal,
-  onOpenProposal,
-  isProvider = false,
+  actions,
 }: ChatHeaderProps) {
   const [showPanel, setShowPanel] = useState(false);
   const router = useRouter();
@@ -41,6 +49,9 @@ export default function ChatHeader({
   const handleBack = () => {
     router.push(pathname);
   };
+
+  const pending = conversationState?.pending ?? false;
+  const fullName = [contact.name, contact.surname].filter(Boolean).join(" ");
 
   return (
     <>
@@ -54,14 +65,14 @@ export default function ChatHeader({
             <ChevronLeft className="w-5 h-5" />
           </button>
           <Avatar
-            src={profilePhotoUrl}
-            alt={`${t.messaging.photoAlt} ${providerName}`}
+            src={contact.photoUrl}
+            alt={`${t.messaging.photoAlt} ${contact.name}`}
             size="sm"
             imgTestId="chat-header-profile-photo"
           />
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-brand-primary truncate">
-              {providerName} {providerSurname}
+              {fullName}
             </p>
             {pending && (
               <p className="text-caption text-amber-600">{t.messaging.waitingAcceptance}</p>
@@ -69,14 +80,14 @@ export default function ChatHeader({
           </div>
 
           <ChatHeaderActions
-            pending={pending}
+            conversationState={conversationState}
             jobRequest={jobRequest}
-            isLoadingJobRequest={isLoadingJobRequest}
-            onAccept={onAccept}
-            onViewJobRequest={() => setShowPanel(true)}
             serviceProposal={serviceProposal}
-            onOpenProposal={onOpenProposal}
-            isProvider={isProvider}
+            actions={{
+              onAccept: actions?.onAccept,
+              onViewJobRequest: () => setShowPanel(true),
+              onOpenProposal: actions?.onOpenProposal,
+            }}
           />
         </div>
       </div>
@@ -86,9 +97,9 @@ export default function ChatHeader({
           jobRequest={{
             title: jobRequest.title,
             description: jobRequest.description,
-            providerName: jobRequest.providerName ?? providerName,
-            providerSurname: jobRequest.providerSurname ?? providerSurname,
-            providerProfilePhotoUrl: jobRequest.providerProfilePhotoUrl ?? profilePhotoUrl,
+            providerName: jobRequest.providerName ?? contact.name,
+            providerSurname: jobRequest.providerSurname ?? contact.surname,
+            providerProfilePhotoUrl: jobRequest.providerProfilePhotoUrl ?? contact.photoUrl,
             images: jobRequest.images,
           }}
           onClose={() => setShowPanel(false)}

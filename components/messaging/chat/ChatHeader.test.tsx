@@ -6,10 +6,14 @@ describe("ChatHeader", () => {
   it("displays the contact's profile photo when profilePhotoUrl is present", () => {
     render(
       <ChatHeader
-        providerName="Juan"
-        providerSurname="Perez"
-        pending={false}
-        profilePhotoUrl="https://example.com/photo.jpg"
+        contact={{
+          name: "Juan",
+          surname: "Perez",
+          photoUrl: "https://example.com/photo.jpg",
+        }}
+        conversationState={{
+          pending: false,
+        }}
       />
     );
 
@@ -21,9 +25,13 @@ describe("ChatHeader", () => {
   it("displays the default user icon when profilePhotoUrl is missing", () => {
     const { container } = render(
       <ChatHeader
-        providerName="Juan"
-        providerSurname="Perez"
-        pending={false}
+        contact={{
+          name: "Juan",
+          surname: "Perez",
+        }}
+        conversationState={{
+          pending: false,
+        }}
       />
     );
 
@@ -35,9 +43,13 @@ describe("ChatHeader", () => {
   it("shows Ver Solicitud button when jobRequest is present", () => {
     render(
       <ChatHeader
-        providerName="Juan"
-        providerSurname="Perez"
-        pending={false}
+        contact={{
+          name: "Juan",
+          surname: "Perez",
+        }}
+        conversationState={{
+          pending: false,
+        }}
         jobRequest={{
           title: "Reparación",
           description: "Necesito reparar algo",
@@ -53,10 +65,14 @@ describe("ChatHeader", () => {
   it("opens JobRequestPanel with provider photo when clicking Ver Solicitud", () => {
     render(
       <ChatHeader
-        providerName="Juan"
-        providerSurname="Perez"
-        pending={false}
-        profilePhotoUrl="https://example.com/provider-photo.jpg"
+        contact={{
+          name: "Juan",
+          surname: "Perez",
+          photoUrl: "https://example.com/provider-photo.jpg",
+        }}
+        conversationState={{
+          pending: false,
+        }}
         jobRequest={{
           title: "Reparación",
           description: "Necesito reparar algo",
@@ -77,9 +93,14 @@ describe("ChatHeader", () => {
     const handleOpenProposal = vi.fn();
     render(
       <ChatHeader
-        providerName="Juan"
-        providerSurname="Perez"
-        pending={false}
+        contact={{
+          name: "Juan",
+          surname: "Perez",
+        }}
+        conversationState={{
+          pending: false,
+          isProvider: false,
+        }}
         serviceProposal={{
           id: 42,
           conversationId: 10,
@@ -91,8 +112,9 @@ describe("ChatHeader", () => {
           createdOn: "2026-08-18T14:00:00Z",
           counterpart: { id: 1, role: "provider", name: "Juan", surname: "Perez" },
         }}
-        onOpenProposal={handleOpenProposal}
-        isProvider={false}
+        actions={{
+          onOpenProposal: handleOpenProposal,
+        }}
       />,
     );
 
@@ -107,9 +129,13 @@ describe("ChatHeader", () => {
   it("does not show pending proposal chip when serviceProposal is accepted", () => {
     render(
       <ChatHeader
-        providerName="Juan"
-        providerSurname="Perez"
-        pending={false}
+        contact={{
+          name: "Juan",
+          surname: "Perez",
+        }}
+        conversationState={{
+          pending: false,
+        }}
         serviceProposal={{
           id: 42,
           conversationId: 10,
@@ -121,7 +147,9 @@ describe("ChatHeader", () => {
           createdOn: "2026-08-18T14:00:00Z",
           counterpart: { id: 1, role: "provider", name: "Juan", surname: "Perez" },
         }}
-        onOpenProposal={vi.fn()}
+        actions={{
+          onOpenProposal: vi.fn(),
+        }}
       />,
     );
 

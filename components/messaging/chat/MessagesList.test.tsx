@@ -41,10 +41,6 @@ describe("MessagesList", () => {
     render(
       <MessagesList
         messages={mockMessages}
-        expandedMessages={new Set()}
-        onToggleExpand={vi.fn()}
-        messagesEndRef={{ current: null }}
-        showPendingBanner={false}
         myUserId="consumer-001"
       />
     );
@@ -58,10 +54,6 @@ describe("MessagesList", () => {
     render(
       <MessagesList
         messages={mockMessages}
-        expandedMessages={new Set()}
-        onToggleExpand={vi.fn()}
-        messagesEndRef={{ current: null }}
-        showPendingBanner={false}
         myUserId="provider-001"
       />
     );
@@ -80,10 +72,6 @@ describe("MessagesList", () => {
     render(
       <MessagesList
         messages={messagesWithNumberSender}
-        expandedMessages={new Set()}
-        onToggleExpand={vi.fn()}
-        messagesEndRef={{ current: null }}
-        showPendingBanner={false}
         myUserId="provider-001"
       />
     );
@@ -102,10 +90,6 @@ describe("MessagesList", () => {
     render(
       <MessagesList
         messages={messages}
-        expandedMessages={new Set()}
-        onToggleExpand={vi.fn()}
-        messagesEndRef={{ current: null }}
-        showPendingBanner={false}
         myUserId="consumer-001"
       />
     );
@@ -142,10 +126,6 @@ describe("MessagesList - scroll preservation across conversations", () => {
       <MessagesList
         conversationId="conv-A"
         messages={messagesA}
-        expandedMessages={new Set()}
-        onToggleExpand={vi.fn()}
-        messagesEndRef={{ current: null }}
-        showPendingBanner={false}
         myUserId="consumer-001"
       />
     );
@@ -163,10 +143,6 @@ describe("MessagesList - scroll preservation across conversations", () => {
       <MessagesList
         conversationId="conv-B"
         messages={messagesB}
-        expandedMessages={new Set()}
-        onToggleExpand={vi.fn()}
-        messagesEndRef={{ current: null }}
-        showPendingBanner={false}
         myUserId="consumer-001"
       />
     );
@@ -181,10 +157,6 @@ describe("MessagesList - scroll preservation across conversations", () => {
       <MessagesList
         conversationId="conv-A"
         messages={messagesA}
-        expandedMessages={new Set()}
-        onToggleExpand={vi.fn()}
-        messagesEndRef={{ current: null }}
-        showPendingBanner={false}
         myUserId="consumer-001"
       />
     );
@@ -199,10 +171,6 @@ describe("MessagesList - scroll preservation across conversations", () => {
       <MessagesList
         conversationId="conv-unmount-test"
         messages={messagesA}
-        expandedMessages={new Set()}
-        onToggleExpand={vi.fn()}
-        messagesEndRef={{ current: null }}
-        showPendingBanner={false}
         myUserId="consumer-001"
       />
     );
@@ -222,10 +190,6 @@ describe("MessagesList - scroll preservation across conversations", () => {
       <MessagesList
         conversationId="conv-unmount-test"
         messages={messagesA}
-        expandedMessages={new Set()}
-        onToggleExpand={vi.fn()}
-        messagesEndRef={{ current: null }}
-        showPendingBanner={false}
         myUserId="consumer-001"
       />
     );
@@ -253,10 +217,6 @@ describe("MessagesList - scroll preservation across conversations", () => {
         <MessagesList
           conversationId="conv-send-test"
           messages={initialMessages}
-          expandedMessages={new Set()}
-          onToggleExpand={vi.fn()}
-          messagesEndRef={{ current: null }}
-          showPendingBanner={false}
           myUserId="consumer-001"
         />
       );
@@ -281,10 +241,6 @@ describe("MessagesList - scroll preservation across conversations", () => {
         <MessagesList
           conversationId="conv-send-test"
           messages={messagesAfterSend}
-          expandedMessages={new Set()}
-          onToggleExpand={vi.fn()}
-          messagesEndRef={{ current: null }}
-          showPendingBanner={false}
           myUserId="consumer-001"
         />
       );
@@ -312,13 +268,11 @@ describe("MessagesList - scroll preservation across conversations", () => {
     render(
       <MessagesList
         messages={mockMessages}
-        expandedMessages={new Set()}
-        onToggleExpand={vi.fn()}
-        messagesEndRef={{ current: null }}
-        showPendingBanner={false}
         myUserId="consumer-001"
-        serviceProposal={proposal}
-        onOpenProposal={handleOpenProposal}
+        proposals={{
+          serviceProposal: proposal,
+          onOpenProposal: handleOpenProposal,
+        }}
       />,
     );
 

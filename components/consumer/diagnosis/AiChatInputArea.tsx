@@ -2,12 +2,13 @@
 
 import { useRef } from "react";
 import Image from "next/image";
-import { Paperclip, Send, X } from "lucide-react";
+import { Paperclip, Send, X, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { t } from "@/infrastructure/i18n/translations";
 import { useAutoResizeTextarea } from "@/hooks/useAutoResizeTextarea";
 import { cn } from "@/lib/utils";
+import type { AiImageAttachment } from "./attachments/ai-image-attachment";
 
 export interface AiChatComposerProps {
   value: string;
@@ -16,9 +17,9 @@ export interface AiChatComposerProps {
 }
 
 export interface AiChatFilesProps {
-  attached: File[];
+  attachments: AiImageAttachment[];
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onRemove: (index: number) => void;
+  onRemove: (id: string) => void;
   onPreview: (image: { url: string; name: string }) => void;
   fileInputRef?: React.RefObject<HTMLInputElement | null>;
 }
@@ -40,9 +41,9 @@ export function AiChatInputArea({
 }: AiChatInputAreaProps) {
   const { value, onChange, onSend } = composer;
   const {
-    attached: attachedFiles,
+    attachments,
     onFileChange,
-    onRemove: onRemoveFile,
+    onRemove: onRemoveAttachment,
     onPreview: onPreviewImage,
     fileInputRef: externalFileInputRef,
   } = files;
@@ -56,35 +57,61 @@ export function AiChatInputArea({
     lineHeight: 24,
   });
 
-  const canAttach = !disabled && attachedFiles.length < 5;
-  const canSend = !disabled && (Boolean(value.trim()) || attachedFiles.length > 0);
+  const isAnyUploading = attachments.some((a) => a.status === "uploading");
+  const hasFailed = attachments.some((a) => a.status === "failed");
+  const canAttach = !disabled && attachments.length < 5;
+  const canSend =
+    !disabled && !isAnyUploading && !hasFailed && (Boolean(value.trim()) || attachments.length > 0);
 
   return (
     <div className={cn("flex flex-col border-t border-slate-200 bg-white flex-shrink-0", className)}>
-      {attachedFiles.length > 0 && (
+      {attachments.length > 0 && (
         <div role="region" aria-label={t.aiDiagnosis.attachedImages} className="flex gap-2 overflow-x-auto p-4 pb-0">
-          {attachedFiles.map((file, idx) => {
-            const url = URL.createObjectURL(file);
+          {attachments.map((attachment) => {
+            const isUploading = attachment.status === "uploading";
+            const isFailed = attachment.status === "failed";
+
             return (
-              <div key={`${file.name}-${idx}`} className="relative flex-shrink-0">
+              <div key={attachment.id} className="relative flex-shrink-0">
                 <button
                   type="button"
-                  onClick={() => onPreviewImage({ url, name: file.name })}
-                  className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 relative cursor-pointer block hover:ring-2 hover:ring-brand-primary/40 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
+                  onClick={() => onPreviewImage({ url: attachment.previewUrl, name: attachment.file.name })}
+                  className={cn(
+                    "w-16 h-16 rounded-lg overflow-hidden border bg-slate-50 relative cursor-pointer block transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40",
+                    isFailed
+                      ? "border-red-500 ring-1 ring-red-500"
+                      : "border-slate-200 hover:ring-2 hover:ring-brand-primary/40"
+                  )}
                 >
                   <Image
-                    src={url}
-                    alt={`Vista previa de ${file.name}`}
+                    src={attachment.previewUrl}
+                    alt={`Vista previa de ${attachment.file.name}`}
                     fill
-                    className="object-cover"
+                    className={cn("object-cover", isUploading && "opacity-60")}
                     unoptimized
                   />
+                  {isUploading && (
+                    <div
+                      className="absolute inset-0 flex items-center justify-center bg-black/30"
+                      aria-label="Cargando imagen"
+                    >
+                      <Loader2 className="w-5 h-5 text-white animate-spin" />
+                    </div>
+                  )}
+                  {isFailed && (
+                    <div
+                      className="absolute inset-0 flex items-center justify-center bg-red-950/40"
+                      aria-label="Error al cargar imagen"
+                    >
+                      <AlertCircle className="w-5 h-5 text-red-500" />
+                    </div>
+                  )}
                 </button>
                 <button
                   type="button"
-                  onClick={() => onRemoveFile(idx)}
+                  onClick={() => onRemoveAttachment(attachment.id)}
                   className="absolute -top-2 -right-2 bg-slate-800 text-white rounded-full p-1 hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
-                  aria-label={`Eliminar ${file.name}`}
+                  aria-label={`Eliminar ${attachment.file.name}`}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -121,7 +148,9 @@ export function AiChatInputArea({
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              onSend();
+              if (canSend) {
+                onSend();
+              }
             }
           }}
           placeholder={t.messaging.inputPlaceholder}

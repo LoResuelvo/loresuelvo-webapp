@@ -13,6 +13,35 @@ import { createAiJobRequest } from "@/application/ai-chat/create-ai-job-request"
 import { useClock } from "@/hooks/useClock";
 import { t } from "@/infrastructure/i18n/translations";
 import { USER_ID, ASSISTANT_ID } from "./useAiConversationLoader";
+import type {
+  AiImageAttachment,
+  UploadedAiImageAttachment,
+} from "./attachments/ai-image-attachment";
+
+type AiMessageImage = NonNullable<AiMessage["images"]>[number];
+
+function areAttachmentsSendable(
+  attachments: AiImageAttachment[]
+): attachments is UploadedAiImageAttachment[] {
+  return attachments.every(
+    (attachment) => attachment.status === "uploaded" && Boolean(attachment.uploaded)
+  );
+}
+
+function snapshotAttachments(attachments: UploadedAiImageAttachment[]): {
+  imageIds: string[];
+  images: AiMessageImage[] | undefined;
+} {
+  if (attachments.length === 0) return { imageIds: [], images: undefined };
+  return {
+    imageIds: attachments.map((attachment) => attachment.uploaded.fileId),
+    images: attachments.map((attachment) => ({
+      id: attachment.uploaded.fileId,
+      url: attachment.uploaded.url,
+      originalName: attachment.uploaded.originalName || attachment.file.name,
+    })),
+  };
+}
 
 export interface UseAiMessageSenderProps {
   client?: AssistantClient;
@@ -22,9 +51,8 @@ export interface UseAiMessageSenderProps {
   messages: AiMessage[];
   setMessages: React.Dispatch<React.SetStateAction<AiMessage[]>>;
   isInitialized: boolean;
-  attachedFiles: File[];
-  clearFiles: () => void;
-  getUploadedImageIds: () => string[];
+  attachments: AiImageAttachment[];
+  clearAttachments: () => void;
   jobRequestFn?: (conversationId: string, providerId: number) => Promise<unknown>;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }
@@ -37,9 +65,8 @@ export function useAiMessageSender({
   messages,
   setMessages,
   isInitialized,
-  attachedFiles,
-  clearFiles,
-  getUploadedImageIds,
+  attachments,
+  clearAttachments,
   jobRequestFn,
   textareaRef,
 }: UseAiMessageSenderProps) {
@@ -54,11 +81,8 @@ export function useAiMessageSender({
   const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
   const uploadedImageIdsRef = useRef<string[]>([]);
 
-  const clearFilesRef = useRef(clearFiles);
-  clearFilesRef.current = clearFiles;
-
-  const getUploadedImageIdsRef = useRef(getUploadedImageIds);
-  getUploadedImageIdsRef.current = getUploadedImageIds;
+  const clearAttachmentsRef = useRef(clearAttachments);
+  clearAttachmentsRef.current = clearAttachments;
 
   const jobRequestFnRef = useRef(jobRequestFn);
   jobRequestFnRef.current = jobRequestFn;
@@ -174,35 +198,28 @@ export function useAiMessageSender({
     setIsWaitingForReply(true);
   }, [lastUserMessage]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = () => {
     const trimmed = messageInput.trim();
-    if (!trimmed && attachedFiles.length === 0) return;
+    if ((!trimmed && attachments.length === 0) || isSending) return;
+    if (!areAttachmentsSendable(attachments)) return;
 
-    uploadedImageIdsRef.current = getUploadedImageIdsRef.current();
+    const { imageIds, images } = snapshotAttachments(attachments);
+    uploadedImageIdsRef.current = imageIds;
 
     setIsSending(true);
     setChatError(null);
-
-    const imagesToDisplay =
-      attachedFiles.length > 0
-        ? attachedFiles.map((file) => ({
-            id: `temp-${Date.now()}-${file.name}`,
-            url: URL.createObjectURL(file),
-            originalName: file.name,
-          }))
-        : undefined;
 
     const userMessage: AiMessage = {
       id: `msg-user-${Date.now()}`,
       content: trimmed,
       senderId: USER_ID,
-      images: imagesToDisplay,
+      images,
       sentAt: formatToLocalShortDateTime(now().toISOString()),
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setMessageInput("");
-    clearFilesRef.current();
+    clearAttachmentsRef.current();
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "50px";

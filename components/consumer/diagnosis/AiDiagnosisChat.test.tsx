@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import AiDiagnosisChat from "@/components/consumer/diagnosis/AiDiagnosisChat";
 import { AssistantClient } from "@/ports/consumer/assistant-client";
 import { AiChatRepository } from "@/ports/consumer/ai-chat-repository";
+import * as executeUploadModule from "@/application/files/execute-file-upload";
 
 const ASSISTANT_REPLY =
   "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?";
@@ -23,6 +24,7 @@ Object.defineProperty(global, "localStorage", {
 });
 
 global.URL.createObjectURL = vi.fn(() => "blob:https://loresuelvo.com/mock-blob");
+global.URL.revokeObjectURL = vi.fn();
 
 const mockUseSearchParams = vi.fn();
 const mockUseRouter = vi.fn();
@@ -33,15 +35,21 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/application/files/execute-file-upload", () => ({
-  executeFileUpload: vi.fn().mockResolvedValue({
-    fileId: "confirmed-file-id-123",
-    url: "https://storage.test/file.png",
-    originalName: "file.png",
-  }),
+  executeFileUpload: vi.fn(),
 }));
 
 global.fetch = vi.fn().mockResolvedValue({
   ok: true,
+});
+
+beforeEach(() => {
+  vi.mocked(executeUploadModule.executeFileUpload).mockReset().mockResolvedValue({
+    fileId: "confirmed-file-id-123",
+    url: "https://storage.test/file.png",
+    originalName: "file.png",
+  });
+  global.URL.createObjectURL = vi.fn(() => "blob:https://loresuelvo.com/mock-blob");
+  global.URL.revokeObjectURL = vi.fn();
 });
 
 function instantClient(): AssistantClient {
@@ -372,6 +380,68 @@ describe("AiDiagnosisChat", () => {
       expect(screen.getByAltText(/vista previa de fuga.jpg/i)).toBeInTheDocument();
     });
 
+    it("bloquea el envío durante la carga y lo habilita al confirmar", async () => {
+      let resolveUpload: (value: {
+        fileId: string;
+        url: string;
+        originalName: string;
+      }) => void = () => {};
+      vi.mocked(executeUploadModule.executeFileUpload).mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveUpload = resolve;
+        })
+      );
+      render(<AiDiagnosisChat client={instantClient()} />);
+      const file = new File(["pending"], "pendiente.jpg", { type: "image/jpeg" });
+      const fileInput = screen.getByLabelText(/adjuntar imágenes/i).previousSibling as HTMLInputElement;
+
+      act(() => {
+        fireEvent.change(fileInput, { target: { files: [file] } });
+      });
+
+      expect(screen.getByLabelText("Cargando imagen")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/escribe un mensaje/i)).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: /enviar mensaje/i })).toBeDisabled();
+
+      await act(async () => {
+        resolveUpload({
+          fileId: "confirmed-pending",
+          url: "https://storage.test/pendiente.jpg",
+          originalName: "pendiente.jpg",
+        });
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByLabelText("Cargando imagen")).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /enviar mensaje/i })).not.toBeDisabled();
+      });
+    });
+
+    it("mantiene visible una carga fallida y permite enviar después de eliminarla", async () => {
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      vi.mocked(executeUploadModule.executeFileUpload).mockRejectedValueOnce(
+        new Error("Upload failed")
+      );
+      render(<AiDiagnosisChat client={instantClient()} />);
+      const input = screen.getByPlaceholderText(/escribe un mensaje/i);
+      fireEvent.change(input, { target: { value: "Texto listo" } });
+      const file = new File(["failed"], "fallida.jpg", { type: "image/jpeg" });
+      const fileInput = screen.getByLabelText(/adjuntar imágenes/i).previousSibling as HTMLInputElement;
+
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [file] } });
+      });
+
+      expect(screen.getByAltText(/vista previa de fallida.jpg/i)).toBeInTheDocument();
+      expect(screen.getByLabelText("Error al cargar imagen")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /enviar mensaje/i })).toBeDisabled();
+
+      fireEvent.click(screen.getByRole("button", { name: /eliminar fallida.jpg/i }));
+      expect(screen.queryByAltText(/vista previa de fallida.jpg/i)).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /enviar mensaje/i })).not.toBeDisabled();
+      consoleError.mockRestore();
+    });
+
     it("muestra error al intentar adjuntar un archivo mayor a 5MB", async () => {
       render(<AiDiagnosisChat client={instantClient()} />);
 
@@ -417,6 +487,25 @@ describe("AiDiagnosisChat", () => {
       fireEvent.click(removeBtn);
 
       expect(screen.queryByAltText(/vista previa de fuga.jpg/i)).not.toBeInTheDocument();
+    });
+
+    it("permite adjuntar dos archivos con el mismo nombre y muestra ambos", async () => {
+      render(<AiDiagnosisChat client={instantClient()} />);
+
+      const file1 = new File(["content 1"], "fuga.jpg", { type: "image/jpeg" });
+      const file2 = new File(["content 2"], "fuga.jpg", { type: "image/jpeg" });
+      const fileInput = screen.getByLabelText(/adjuntar imágenes/i).previousSibling as HTMLInputElement;
+
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [file1, file2] } });
+      });
+
+      const previews = screen.getAllByAltText(/vista previa de fuga.jpg/i);
+      expect(previews).toHaveLength(2);
+
+      fireEvent.click(screen.getAllByRole("button", { name: /eliminar fuga.jpg/i })[0]);
+      expect(screen.getAllByAltText(/vista previa de fuga.jpg/i)).toHaveLength(1);
+      expect(global.URL.revokeObjectURL).toHaveBeenCalledTimes(1);
     });
   });
 });

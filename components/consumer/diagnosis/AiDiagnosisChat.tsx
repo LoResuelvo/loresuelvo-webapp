@@ -36,7 +36,7 @@ export default function AiDiagnosisChat({
     chatError,
     messageInput,
     setMessageInput,
-    attachedFiles,
+    attachments,
     previewImage,
     setPreviewImage,
     uploadError,
@@ -47,7 +47,7 @@ export default function AiDiagnosisChat({
     fileInputRef,
     handleRetry,
     handleFileChange,
-    handleRemoveFile,
+    handleRemoveAttachment,
     handleSendMessage,
     handleContactProvider,
     USER_ID,
@@ -86,11 +86,11 @@ export default function AiDiagnosisChat({
           onSend: handleSendMessage,
         }}
         files={{
-          attached: attachedFiles,
+          attachments,
           onFileChange: handleFileChange,
-          onRemove: handleRemoveFile,
+          onRemove: handleRemoveAttachment,
           onPreview: setPreviewImage,
-          fileInputRef: fileInputRef,
+          fileInputRef,
         }}
         disabled={isInputDisabled}
         uploadError={uploadError}

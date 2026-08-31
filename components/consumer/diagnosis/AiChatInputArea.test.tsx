@@ -2,12 +2,12 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AiChatInputArea } from "./AiChatInputArea";
 import { t } from "@/infrastructure/i18n/translations";
-
-global.URL.createObjectURL = vi.fn(() => "blob:https://loresuelvo.com/mock-blob");
+import type { AiImageAttachment } from "./attachments/ai-image-attachment";
 
 describe("AiChatInputArea", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.URL.createObjectURL = vi.fn();
   });
 
   it("renders input placeholder, attach button, and send button", () => {
@@ -19,7 +19,7 @@ describe("AiChatInputArea", () => {
           onSend: vi.fn(),
         }}
         files={{
-          attached: [],
+          attachments: [],
           onFileChange: vi.fn(),
           onRemove: vi.fn(),
           onPreview: vi.fn(),
@@ -42,7 +42,7 @@ describe("AiChatInputArea", () => {
           onSend: vi.fn(),
         }}
         files={{
-          attached: [],
+          attachments: [],
           onFileChange: vi.fn(),
           onRemove: vi.fn(),
           onPreview: vi.fn(),
@@ -66,7 +66,7 @@ describe("AiChatInputArea", () => {
           onSend: handleSend,
         }}
         files={{
-          attached: [],
+          attachments: [],
           onFileChange: vi.fn(),
           onRemove: vi.fn(),
           onPreview: vi.fn(),
@@ -89,6 +89,17 @@ describe("AiChatInputArea", () => {
     const handleRemove = vi.fn();
     const handlePreview = vi.fn();
     const file = new File(["test"], "foto.jpg", { type: "image/jpeg" });
+    const attachment: AiImageAttachment = {
+      id: "att-123",
+      file,
+      previewUrl: "blob:mock/foto.jpg",
+      status: "uploaded",
+      uploaded: {
+        fileId: "file-123",
+        url: "https://storage.test/foto.jpg",
+        originalName: "foto.jpg",
+      },
+    };
 
     render(
       <AiChatInputArea
@@ -98,7 +109,7 @@ describe("AiChatInputArea", () => {
           onSend: vi.fn(),
         }}
         files={{
-          attached: [file],
+          attachments: [attachment],
           onFileChange: vi.fn(),
           onRemove: handleRemove,
           onPreview: handlePreview,
@@ -111,12 +122,133 @@ describe("AiChatInputArea", () => {
     const previewButton = screen.getByAltText("Vista previa de foto.jpg").closest("button");
     if (previewButton) {
       fireEvent.click(previewButton);
-      expect(handlePreview).toHaveBeenCalledTimes(1);
+      expect(handlePreview).toHaveBeenCalledWith({
+        url: "blob:mock/foto.jpg",
+        name: "foto.jpg",
+      });
     }
 
     const removeButton = screen.getByRole("button", { name: "Eliminar foto.jpg" });
     fireEvent.click(removeButton);
-    expect(handleRemove).toHaveBeenCalledWith(0);
+    expect(handleRemove).toHaveBeenCalledWith("att-123");
+  });
+
+  it("does not create object URLs while rendering or rerendering previews", () => {
+    const file = new File(["test"], "foto.jpg", { type: "image/jpeg" });
+    const attachment: AiImageAttachment = {
+      id: "att-123",
+      file,
+      previewUrl: "blob:managed/foto.jpg",
+      status: "uploading",
+    };
+    const props = {
+      composer: { value: "", onChange: vi.fn(), onSend: vi.fn() },
+      files: {
+        attachments: [attachment],
+        onFileChange: vi.fn(),
+        onRemove: vi.fn(),
+        onPreview: vi.fn(),
+      },
+    };
+
+    const { rerender } = render(<AiChatInputArea {...props} />);
+    rerender(<AiChatInputArea {...props} />);
+
+    expect(window.URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("disables send button when an attachment is uploading", () => {
+    const handleSend = vi.fn();
+    const file = new File(["test"], "foto.jpg", { type: "image/jpeg" });
+    const attachment: AiImageAttachment = {
+      id: "att-123",
+      file,
+      previewUrl: "blob:mock/foto.jpg",
+      status: "uploading",
+    };
+
+    render(
+      <AiChatInputArea
+        composer={{
+          value: "Texto listo",
+          onChange: vi.fn(),
+          onSend: handleSend,
+        }}
+        files={{
+          attachments: [attachment],
+          onFileChange: vi.fn(),
+          onRemove: vi.fn(),
+          onPreview: vi.fn(),
+        }}
+      />
+    );
+
+    const sendButton = screen.getByRole("button", { name: t.messaging.sendLabel });
+    expect(sendButton).toBeDisabled();
+    expect(screen.getByLabelText("Cargando imagen")).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByPlaceholderText(t.messaging.inputPlaceholder), {
+      key: "Enter",
+      shiftKey: false,
+    });
+    expect(handleSend).not.toHaveBeenCalled();
+  });
+
+  it("disables send button when an attachment has failed", () => {
+    const handleSend = vi.fn();
+    const file = new File(["test"], "foto.jpg", { type: "image/jpeg" });
+    const attachment: AiImageAttachment = {
+      id: "att-123",
+      file,
+      previewUrl: "blob:mock/foto.jpg",
+      status: "failed",
+      error: "No se pudo cargar",
+    };
+
+    render(
+      <AiChatInputArea
+        composer={{
+          value: "Texto listo",
+          onChange: vi.fn(),
+          onSend: handleSend,
+        }}
+        files={{
+          attachments: [attachment],
+          onFileChange: vi.fn(),
+          onRemove: vi.fn(),
+          onPreview: vi.fn(),
+        }}
+      />
+    );
+
+    const sendButton = screen.getByRole("button", { name: t.messaging.sendLabel });
+    expect(sendButton).toBeDisabled();
+    expect(screen.getByLabelText("Error al cargar imagen")).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByPlaceholderText(t.messaging.inputPlaceholder), {
+      key: "Enter",
+      shiftKey: false,
+    });
+    expect(handleSend).not.toHaveBeenCalled();
+  });
+
+  it("keeps Shift+Enter as a line break without sending", () => {
+    const handleSend = vi.fn();
+    render(
+      <AiChatInputArea
+        composer={{ value: "Texto listo", onChange: vi.fn(), onSend: handleSend }}
+        files={{
+          attachments: [],
+          onFileChange: vi.fn(),
+          onRemove: vi.fn(),
+          onPreview: vi.fn(),
+        }}
+      />
+    );
+
+    fireEvent.keyDown(screen.getByPlaceholderText(t.messaging.inputPlaceholder), {
+      key: "Enter",
+      shiftKey: true,
+    });
+    expect(handleSend).not.toHaveBeenCalled();
   });
 
   it("displays uploadError when present", () => {
@@ -128,7 +260,7 @@ describe("AiChatInputArea", () => {
           onSend: vi.fn(),
         }}
         files={{
-          attached: [],
+          attachments: [],
           onFileChange: vi.fn(),
           onRemove: vi.fn(),
           onPreview: vi.fn(),

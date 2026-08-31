@@ -38,8 +38,11 @@ export interface ConfirmedFileUpload {
   originalName: string;
 }
 
-export interface FileUploadRepository {
+export interface FileUploadSessionRepository {
   prepareUpload(command: PrepareFileUploadCommand): Promise<PreparedFileUpload>;
-  upload(command: UploadPreparedFileCommand): Promise<void>;
   confirmUpload(command: ConfirmFileUploadCommand): Promise<ConfirmedFileUpload>;
+}
+
+export interface FileUploadRepository extends FileUploadSessionRepository {
+  upload(command: UploadPreparedFileCommand): Promise<void>;
 }

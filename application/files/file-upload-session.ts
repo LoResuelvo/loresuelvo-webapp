@@ -1,5 +1,5 @@
 import {
-  FileUploadRepository,
+  FileUploadSessionRepository,
   PrepareFileUploadCommand,
   PreparedFileUpload,
   ConfirmFileUploadCommand,
@@ -8,7 +8,7 @@ import {
 import { AuthService } from "@/ports/onboarding/auth-service";
 
 export async function prepareFileUpload(
-  fileRepository: FileUploadRepository,
+  fileRepository: FileUploadSessionRepository,
   authService: AuthService,
   command: PrepareFileUploadCommand
 ): Promise<PreparedFileUpload> {
@@ -21,7 +21,7 @@ export async function prepareFileUpload(
 }
 
 export async function confirmFileUpload(
-  fileRepository: FileUploadRepository,
+  fileRepository: FileUploadSessionRepository,
   authService: AuthService,
   command: ConfirmFileUploadCommand
 ): Promise<ConfirmedFileUpload> {

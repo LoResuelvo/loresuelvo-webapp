@@ -76,38 +76,4 @@ describe("ApiFileUploadRepository", () => {
       });
     });
   });
-
-  describe("upload", () => {
-    it("performs PUT request with file body and headers", async () => {
-      const mockFetch = vi.fn().mockResolvedValue({ ok: true });
-      global.fetch = mockFetch;
-
-      const blob = new Blob(["test-data"], { type: "image/png" });
-      await repository.upload({
-        uploadUrl: "https://storage.test/upload",
-        file: blob,
-        headers: { "Content-Type": "image/png" },
-      });
-
-      expect(mockFetch).toHaveBeenCalledWith("https://storage.test/upload", {
-        method: "PUT",
-        body: blob,
-        headers: { "Content-Type": "image/png" },
-      });
-    });
-
-    it("throws an error when PUT request fails", async () => {
-      const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
-      global.fetch = mockFetch;
-
-      const blob = new Blob(["test-data"], { type: "image/png" });
-      await expect(
-        repository.upload({
-          uploadUrl: "https://storage.test/upload",
-          file: blob,
-          headers: {},
-        })
-      ).rejects.toThrow("Error al subir archivo a S3/R2");
-    });
-  });
 });

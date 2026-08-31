@@ -4,32 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthSession } from "@/infrastructure/auth/types";
 import { submitRegistration } from "@/app/onboarding/actions";
-import { prepareFileUploadAction, confirmFileUploadAction } from "@/app/files/actions";
-import { storageClient } from "@/infrastructure/storage/storage-client";
+import { clientFileUploadRepository } from "@/app/files/client-file-upload";
+import { executeFileUpload } from "@/application/files/execute-file-upload";
 import { t } from "@/infrastructure/i18n/translations";
 
 export async function uploadProfilePhoto(formData: FormData): Promise<void> {
   const profilePhoto = formData.get("profilePhoto") as File | null;
   if (profilePhoto && profilePhoto.size > 0 && profilePhoto.name !== "") {
-    const presignedRes = await prepareFileUploadAction({
+    const confirmed = await executeFileUpload(clientFileUploadRepository, {
+      file: profilePhoto,
       originalName: profilePhoto.name,
       mimeType: profilePhoto.type,
-      sizeBytes: profilePhoto.size,
       purpose: "profile_photo",
     });
-    if (!presignedRes.success) throw new Error(presignedRes.error);
-    const presigned = presignedRes.data;
-
-    await storageClient.uploadFile(profilePhoto, presigned.uploadUrl, presigned.headers);
-
-    const confirmedRes = await confirmFileUploadAction({
-      fileId: presigned.fileId,
-      storageKey: presigned.storageKey,
-      mimeType: profilePhoto.type,
-      sizeBytes: profilePhoto.size,
-    });
-    if (!confirmedRes.success) throw new Error(confirmedRes.error);
-    const confirmed = confirmedRes.data;
 
     formData.delete("profilePhoto");
     formData.append("profilePhotoId", confirmed.fileId);

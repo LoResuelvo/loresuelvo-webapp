@@ -9,23 +9,11 @@ vi.mock("@/app/onboarding/actions", () => ({
   submitRegistration: vi.fn().mockResolvedValue(true),
 }));
 
-vi.mock("@/app/files/actions", () => ({
-  prepareFileUploadAction: vi.fn().mockResolvedValue({
-    success: true,
-    data: {
-      uploadUrl: "http://mock-upload.test/url",
-      fileId: "mock-file-id",
-      storageKey: "mock-key",
-      headers: {},
-    },
-  }),
-  confirmFileUploadAction: vi.fn().mockResolvedValue({
-    success: true,
-    data: {
-      fileId: "mock-file-id",
-      url: "http://mock-cdn.test/url.jpg",
-      originalName: "mock.png",
-    },
+vi.mock("@/application/files/execute-file-upload", () => ({
+  executeFileUpload: vi.fn().mockResolvedValue({
+    fileId: "mock-file-id",
+    url: "http://mock-cdn.test/url.jpg",
+    originalName: "mock.png",
   }),
 }));
 
@@ -35,12 +23,6 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/app/onboarding/mercado-pago-actions", () => ({
   startMercadoPagoConnectionAction: vi.fn(),
-}));
-
-vi.mock("@/infrastructure/storage/storage-client", () => ({
-  storageClient: {
-    uploadFile: vi.fn().mockResolvedValue(undefined),
-  },
 }));
 
 describe("RegistrationForm", () => {

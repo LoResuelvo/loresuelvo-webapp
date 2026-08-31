@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Provider } from "@/domain/provider/types";
 import { createJobRequest } from "@/app/consumidor/buscar/actions";
-import { prepareFileUploadAction, confirmFileUploadAction } from "@/app/files/actions";
+import { clientFileUploadRepository } from "@/app/files/client-file-upload";
+import { executeFileUpload } from "@/application/files/execute-file-upload";
 import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
-import { ClientFileUploadRepository } from "@/infrastructure/repositories/files/client-file-upload-repository";
 
 export function parseWorkRequestError(errorMessage: string): string {
   if (errorMessage.includes("Job request already exists") || errorMessage.includes("Conversation already exists")) {
@@ -44,32 +44,17 @@ export function useWorkRequestForm(provider: Provider) {
     setIsSubmitting(true);
     setError(null);
 
-    const fileRepository = new ClientFileUploadRepository({
-      prepareUpload: prepareFileUploadAction,
-      confirmUpload: confirmFileUploadAction,
-    });
     const uploadedFileIds: string[] = [];
 
     if (attachedFiles.length > 0) {
       setIsUploading(true);
       try {
         for (const file of attachedFiles) {
-          const presigned = await fileRepository.prepareUpload({
+          const confirm = await executeFileUpload(clientFileUploadRepository, {
+            file,
             originalName: file.name,
             mimeType: file.type,
-            sizeBytes: file.size,
             purpose: "job_request_image",
-          });
-          await fileRepository.upload({
-            uploadUrl: presigned.uploadUrl,
-            file,
-            headers: presigned.headers,
-          });
-          const confirm = await fileRepository.confirmUpload({
-            fileId: presigned.fileId,
-            storageKey: presigned.storageKey,
-            mimeType: file.type,
-            sizeBytes: file.size,
           });
           uploadedFileIds.push(confirm.fileId);
         }

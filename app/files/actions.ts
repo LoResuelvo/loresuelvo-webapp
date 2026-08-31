@@ -1,7 +1,7 @@
 "use server";
 
 import { ApiFileUploadRepository } from "@/infrastructure/repositories/files/api-file-upload-repository";
-import { prepareFileUpload, confirmFileUpload } from "@/application/files/upload-file";
+import { prepareFileUpload, confirmFileUpload } from "@/application/files/file-upload-session";
 import { getAuthService } from "@/infrastructure/auth";
 import type {
   PrepareFileUploadCommand,

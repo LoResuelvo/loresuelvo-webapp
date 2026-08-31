@@ -1,12 +1,7 @@
 import { useState, useRef } from "react";
-import { prepareFileUploadAction, confirmFileUploadAction } from "@/app/files/actions";
-import { ClientFileUploadRepository } from "@/infrastructure/repositories/files/client-file-upload-repository";
+import { clientFileUploadRepository } from "@/app/files/client-file-upload";
+import { executeFileUpload } from "@/application/files/execute-file-upload";
 import { t } from "@/infrastructure/i18n/translations";
-
-const fileRepository = new ClientFileUploadRepository({
-  prepareUpload: prepareFileUploadAction,
-  confirmUpload: confirmFileUploadAction,
-});
 
 export interface UseAiFileManagerProps {
   onUploadError?: (error: string) => void;
@@ -44,22 +39,11 @@ export function useAiFileManager(props?: UseAiFileManagerProps) {
 
         for (const file of validFiles) {
           try {
-            const prepared = await fileRepository.prepareUpload({
+            const confirmed = await executeFileUpload(clientFileUploadRepository, {
+              file,
               originalName: file.name,
               mimeType: file.type,
-              sizeBytes: file.size,
               purpose: "conversation_message_image",
-            });
-            await fileRepository.upload({
-              uploadUrl: prepared.uploadUrl,
-              file,
-              headers: prepared.headers,
-            });
-            const confirmed = await fileRepository.confirmUpload({
-              fileId: prepared.fileId,
-              storageKey: prepared.storageKey,
-              mimeType: file.type,
-              sizeBytes: file.size,
             });
             uploadedImagesMapRef.current.push({
               fileName: file.name,

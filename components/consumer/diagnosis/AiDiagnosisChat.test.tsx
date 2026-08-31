@@ -32,14 +32,8 @@ vi.mock("next/navigation", () => ({
   useRouter: () => mockUseRouter(),
 }));
 
-vi.mock("@/app/files/actions", () => ({
-  prepareFileUploadAction: vi.fn().mockResolvedValue({
-    fileId: "file-id-123",
-    storageKey: "key-123",
-    uploadUrl: "https://upload.url",
-    headers: {},
-  }),
-  confirmFileUploadAction: vi.fn().mockResolvedValue({
+vi.mock("@/application/files/execute-file-upload", () => ({
+  executeFileUpload: vi.fn().mockResolvedValue({
     fileId: "confirmed-file-id-123",
     url: "https://storage.test/file.png",
     originalName: "file.png",

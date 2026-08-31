@@ -1,5 +1,6 @@
 import { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
 import { FileUploadRepository } from "@/ports/files/file-upload-repository";
+import { executeFileUpload } from "@/application/files/execute-file-upload";
 import { Message } from "@/domain/messaging/types";
 
 export interface SendMessageWithAttachmentsParams {
@@ -20,28 +21,14 @@ export async function sendMessageWithAttachments(
 
   if (params.files && params.files.length > 0) {
     for (const file of params.files) {
-      const name = (file as File).name || "image.jpg";
-      const type = file.type || "image/jpeg";
-      const size = file.size;
+      const originalName = (file as File).name || "image.jpg";
+      const mimeType = file.type || "image/jpeg";
 
-      const prepared = await fileRepository.prepareUpload({
-        originalName: name,
-        mimeType: type,
-        sizeBytes: size,
-        purpose: "conversation_message_image",
-      });
-
-      await fileRepository.upload({
-        uploadUrl: prepared.uploadUrl,
+      const confirmed = await executeFileUpload(fileRepository, {
         file,
-        headers: prepared.headers,
-      });
-
-      const confirmed = await fileRepository.confirmUpload({
-        fileId: prepared.fileId,
-        storageKey: prepared.storageKey,
-        mimeType: type,
-        sizeBytes: size,
+        originalName,
+        mimeType,
+        purpose: "conversation_message_image",
       });
       uploadedImageIds.push(confirmed.fileId);
     }

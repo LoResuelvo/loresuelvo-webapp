@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { prepareFileUploadAction, confirmFileUploadAction } from "@/app/files/actions";
-import { storageClient } from "@/infrastructure/storage/storage-client";
+import { clientFileUploadRepository } from "@/app/files/client-file-upload";
+import { executeFileUpload } from "@/application/files/execute-file-upload";
 import { t } from "@/infrastructure/i18n/translations";
 import type { FileUploadPurpose } from "@/ports/files/file-upload-repository";
 
@@ -20,29 +20,12 @@ async function uploadSingleFilePipeline(
   file: File,
   options: UploadFileOptions
 ): Promise<UploadedFileResult> {
-  const presignedRes = await prepareFileUploadAction({
+  const confirmed = await executeFileUpload(clientFileUploadRepository, {
+    file,
     originalName: file.name,
     mimeType: file.type,
-    sizeBytes: file.size,
     purpose: options.purpose,
   });
-  if (!presignedRes.success) {
-    throw new Error(presignedRes.error);
-  }
-  const presigned = presignedRes.data;
-
-  await storageClient.uploadFile(file, presigned.uploadUrl, presigned.headers);
-
-  const confirmedRes = await confirmFileUploadAction({
-    fileId: presigned.fileId,
-    storageKey: presigned.storageKey,
-    mimeType: file.type,
-    sizeBytes: file.size,
-  });
-  if (!confirmedRes.success) {
-    throw new Error(confirmedRes.error);
-  }
-  const confirmed = confirmedRes.data;
 
   return {
     fileId: confirmed.fileId,

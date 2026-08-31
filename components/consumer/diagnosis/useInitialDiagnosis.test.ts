@@ -25,23 +25,13 @@ vi.mock("@/app/consumidor/mensajes-ia/actions", () => ({
   createAiConversationAction: vi.fn().mockResolvedValue({ success: true, data: { id: 10 } }),
 }));
 
-vi.mock("@/app/files/actions", () => ({
-  prepareFileUploadAction: vi.fn().mockResolvedValue({
-    success: true,
-    data: {
-      fileId: "file-123",
-      storageKey: "key-123",
-      uploadUrl: "https://upload.url",
-      headers: {},
-    },
-  }),
-  confirmFileUploadAction: vi.fn().mockResolvedValue({
-    success: true,
-    data: { fileId: "confirmed-123", url: "https://storage.test/img.png", originalName: "test.png" },
+vi.mock("@/application/files/execute-file-upload", () => ({
+  executeFileUpload: vi.fn().mockResolvedValue({
+    fileId: "confirmed-123",
+    url: "https://storage.test/img.png",
+    originalName: "test.png",
   }),
 }));
-
-global.fetch = vi.fn().mockResolvedValue({ ok: true });
 
 describe("useInitialDiagnosis", () => {
   beforeEach(() => {

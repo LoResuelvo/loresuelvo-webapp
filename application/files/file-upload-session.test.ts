@@ -1,16 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import { prepareFileUpload, confirmFileUpload } from "./upload-file";
+import { prepareFileUpload, confirmFileUpload } from "./file-upload-session";
 import {
-  FileUploadRepository,
+  FileUploadSessionRepository,
   PrepareFileUploadCommand,
   ConfirmFileUploadCommand,
 } from "@/ports/files/file-upload-repository";
 import { AuthService } from "@/ports/onboarding/auth-service";
 
-describe("upload-file", () => {
-  const mockFileRepository: FileUploadRepository = {
+describe("file-upload-session", () => {
+  const mockFileRepository: FileUploadSessionRepository = {
     prepareUpload: vi.fn(),
-    upload: vi.fn(),
     confirmUpload: vi.fn(),
   };
 

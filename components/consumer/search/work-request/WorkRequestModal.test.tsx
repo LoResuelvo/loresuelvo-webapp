@@ -2,7 +2,9 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import WorkRequestModal from "@/components/consumer/search/work-request/WorkRequestModal";
 import * as actions from "@/app/consumidor/buscar/actions";
+import * as executeUploadModule from "@/application/files/execute-file-upload";
 import { Provider } from "@/domain/provider/types";
+import { clientFileUploadRepository } from "@/app/files/client-file-upload";
 
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -15,20 +17,9 @@ vi.mock("@/app/consumidor/buscar/actions", () => ({
   createJobRequest: vi.fn(),
 }));
 
-const mockPrepareUpload = vi.fn();
-const mockUpload = vi.fn();
-const mockConfirmUpload = vi.fn();
-
-vi.mock("@/infrastructure/repositories/files/client-file-upload-repository", () => {
-  class MockClientFileUploadRepository {
-    prepareUpload = mockPrepareUpload;
-    upload = mockUpload;
-    confirmUpload = mockConfirmUpload;
-  }
-  return {
-    ClientFileUploadRepository: MockClientFileUploadRepository,
-  };
-});
+vi.mock("@/application/files/execute-file-upload", () => ({
+  executeFileUpload: vi.fn(),
+}));
 
 // Mock URL.createObjectURL
 if (typeof window !== "undefined") {
@@ -180,14 +171,11 @@ describe("WorkRequestModal", () => {
   });
 
   it("submits form with image file ids", async () => {
-    mockPrepareUpload.mockResolvedValue({
-      fileId: "fid-1",
-      storageKey: "k-1",
-      uploadUrl: "http://upload.com/1",
-      headers: {}
+    vi.mocked(executeUploadModule.executeFileUpload).mockResolvedValue({
+      fileId: "uploaded-id-1",
+      url: "http://r2.com/1",
+      originalName: "test.png",
     });
-    mockUpload.mockResolvedValue(undefined);
-    mockConfirmUpload.mockResolvedValue({ fileId: "uploaded-id-1", url: "http://r2.com/1", originalName: "test.png" });
 
     (actions.createJobRequest as ReturnType<typeof vi.fn>).mockResolvedValue({
       success: true,
@@ -214,23 +202,15 @@ describe("WorkRequestModal", () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(mockPrepareUpload).toHaveBeenCalledWith({
-        originalName: "test.png",
-        mimeType: "image/png",
-        sizeBytes: file.size,
-        purpose: "job_request_image",
-      });
-      expect(mockUpload).toHaveBeenCalledWith({
-        uploadUrl: "http://upload.com/1",
-        file,
-        headers: {},
-      });
-      expect(mockConfirmUpload).toHaveBeenCalledWith({
-        fileId: "fid-1",
-        storageKey: "k-1",
-        mimeType: "image/png",
-        sizeBytes: file.size,
-      });
+      expect(executeUploadModule.executeFileUpload).toHaveBeenCalledWith(
+        clientFileUploadRepository,
+        {
+          file,
+          originalName: "test.png",
+          mimeType: "image/png",
+          purpose: "job_request_image",
+        }
+      );
       expect(actions.createJobRequest).toHaveBeenCalledWith(
         mockProvider.id,
         "Gotera en cocina",

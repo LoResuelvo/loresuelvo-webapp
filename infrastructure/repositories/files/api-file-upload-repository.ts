@@ -1,9 +1,8 @@
 import { api } from "@/infrastructure/api/base-client";
 import {
-  FileUploadRepository,
+  FileUploadSessionRepository,
   PrepareFileUploadCommand,
   PreparedFileUpload,
-  UploadPreparedFileCommand,
   ConfirmFileUploadCommand,
   ConfirmedFileUpload,
 } from "@/ports/files/file-upload-repository";
@@ -21,7 +20,7 @@ interface ConfirmResponseDto {
   original_name: string;
 }
 
-export class ApiFileUploadRepository implements FileUploadRepository {
+export class ApiFileUploadRepository implements FileUploadSessionRepository {
   async prepareUpload(command: PrepareFileUploadCommand): Promise<PreparedFileUpload> {
     const result = await api.post<PresignResponseDto>("/files/presign", {
       original_name: command.originalName,
@@ -50,16 +49,5 @@ export class ApiFileUploadRepository implements FileUploadRepository {
       url: result.url,
       originalName: result.original_name,
     };
-  }
-
-  async upload(command: UploadPreparedFileCommand): Promise<void> {
-    const uploadRes = await fetch(command.uploadUrl, {
-      method: "PUT",
-      body: command.file,
-      headers: command.headers,
-    });
-    if (!uploadRes.ok) {
-      throw new Error("Error al subir archivo a S3/R2");
-    }
   }
 }

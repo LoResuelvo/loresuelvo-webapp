@@ -1,5 +1,6 @@
 import { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
-import { FileUploadRepository } from "@/ports/files/file-upload-repository";
+import { FileUploadRepository, ConfirmedFileUpload } from "@/ports/files/file-upload-repository";
+import { executeFileUpload, FileUploadError } from "@/application/files/execute-file-upload";
 import { Message } from "@/domain/messaging/types";
 import { normalizeAudioMimeType } from "@/lib/audio/audio-validation";
 
@@ -20,6 +21,12 @@ export interface SendAudioMessageParams {
   myRole?: "consumer" | "provider";
 }
 
+const STAGE_MAP: Record<"prepare" | "transfer" | "confirm", AudioUploadFailureStage> = {
+  prepare: "presign",
+  transfer: "PUT",
+  confirm: "confirm",
+};
+
 export async function sendAudioMessage(
   conversationRepository: ConversationCommandRepository,
   fileRepository: FileUploadRepository,
@@ -27,38 +34,20 @@ export async function sendAudioMessage(
 ): Promise<{ message: Message }> {
   const originalName = (params.file as File).name || "audio.webm";
   const mimeType = normalizeAudioMimeType(params.file.type);
-  let prepared;
+
+  let confirmed: ConfirmedFileUpload;
   try {
-    prepared = await fileRepository.prepareUpload({
+    confirmed = await executeFileUpload(fileRepository, {
+      file: params.file,
       originalName,
       mimeType,
-      sizeBytes: params.file.size,
       purpose: "conversation_message_audio",
     });
   } catch (error) {
+    if (error instanceof FileUploadError) {
+      throw new AudioUploadError(STAGE_MAP[error.stage], error);
+    }
     throw new AudioUploadError("presign", error);
-  }
-
-  try {
-    await fileRepository.upload({
-      uploadUrl: prepared.uploadUrl,
-      file: params.file,
-      headers: prepared.headers,
-    });
-  } catch (error) {
-    throw new AudioUploadError("PUT", error);
-  }
-
-  let confirmed;
-  try {
-    confirmed = await fileRepository.confirmUpload({
-      fileId: prepared.fileId,
-      storageKey: prepared.storageKey,
-      mimeType,
-      sizeBytes: params.file.size,
-    });
-  } catch (error) {
-    throw new AudioUploadError("confirm", error);
   }
 
   let message: Message;

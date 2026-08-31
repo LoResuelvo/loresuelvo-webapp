@@ -11,16 +11,12 @@ import {
   sendAudioMessage as sendAudioMessageAction,
   getServiceProposalsAction,
 } from "@/app/prestador/mensajes/actions";
-import {
-  prepareFileUploadAction,
-  confirmFileUploadAction,
-} from "@/app/files/actions";
 import type { ProviderWorkRequest } from "@/domain/provider/types";
 import {
   ProviderConversationContact as ConversationContact,
   ServiceProposalSummary,
 } from "@/domain/messaging/types";
-import { ClientFileUploadRepository } from "@/infrastructure/repositories/files/client-file-upload-repository";
+import { clientFileUploadRepository } from "@/app/files/client-file-upload";
 import { ClientConversationCommandRepository } from "@/infrastructure/repositories/messaging/client-conversation-command-repository";
 import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/shared/local-offline-queue-repository";
 import { useMessagingCore } from "@/hooks/messaging/useMessagingCore";
@@ -30,10 +26,7 @@ const conversationRepository = new ClientConversationCommandRepository({
   sendMessage,
   sendAudioMessage: sendAudioMessageAction,
 });
-const fileRepository = new ClientFileUploadRepository({
-  prepareUpload: prepareFileUploadAction,
-  confirmUpload: confirmFileUploadAction,
-});
+const fileRepository = clientFileUploadRepository;
 const offlineQueueRepo = new LocalOfflineQueueRepository();
 
 export function useProviderMessages(

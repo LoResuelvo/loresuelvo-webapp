@@ -1,34 +1,20 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { useAiFileManager } from "./useAiFileManager";
+import * as executeUploadModule from "@/application/files/execute-file-upload";
 
-vi.mock("@/app/files/actions", () => ({
-  prepareFileUploadAction: vi.fn().mockResolvedValue({
-    success: true,
-    data: {
-      fileId: "fid-1",
-      uploadUrl: "http://upload",
-      storageKey: "k1",
-      headers: {},
-    },
-  }),
-  confirmFileUploadAction: vi.fn().mockResolvedValue({
-    success: true,
-    data: {
-      fileId: "fid-1",
-      url: "http://file",
-      originalName: "test.png",
-    },
-  }),
+vi.mock("@/application/files/execute-file-upload", () => ({
+  executeFileUpload: vi.fn(),
 }));
-
-global.fetch = vi.fn().mockResolvedValue({
-  ok: true,
-});
 
 describe("useAiFileManager", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(executeUploadModule.executeFileUpload).mockResolvedValue({
+      fileId: "fid-1",
+      url: "http://file",
+      originalName: "test.png",
+    });
   });
 
   it("handles valid file uploads and stores attachments", async () => {

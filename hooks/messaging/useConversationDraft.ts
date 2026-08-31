@@ -18,6 +18,7 @@ export function useConversationDraft({ conversationId, isSending }: UseConversat
   const [messageInput, setMessageInput] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const draftWasJustLoadedRef = useRef(false);
+  const submissionDraftIsPreservedRef = useRef(false);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -35,6 +36,11 @@ export function useConversationDraft({ conversationId, isSending }: UseConversat
       return;
     }
 
+    if (submissionDraftIsPreservedRef.current) {
+      if (!messageInput && attachedFiles.length === 0) return;
+      submissionDraftIsPreservedRef.current = false;
+    }
+
     if (messageInput || attachedFiles.length > 0) {
       saveDraft(conversationId, messageInput, attachedFiles.map(fileToMeta));
     } else {
@@ -47,6 +53,14 @@ export function useConversationDraft({ conversationId, isSending }: UseConversat
     setMessageInput,
     attachedFiles,
     setAttachedFiles,
-    clearConversationDraft: (id: string) => clearDraft(id),
+    preserveDraftForSubmission: (text: string, files: File[]) => {
+      if (!conversationId) return;
+      saveDraft(conversationId, text, files.map(fileToMeta));
+      submissionDraftIsPreservedRef.current = true;
+    },
+    discardConversationDraft: (id: string) => {
+      submissionDraftIsPreservedRef.current = false;
+      clearDraft(id);
+    },
   };
 }

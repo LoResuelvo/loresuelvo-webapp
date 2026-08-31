@@ -32,7 +32,8 @@ interface UseMessageOutboxConfig {
   replaceLocalMessage: (optimisticMessageId: string, message: Message) => void;
   addLoadedMessage: (message: Message) => void;
   updateContactPreview: (lastMessage: string) => void;
-  clearConversationDraft: (conversationId: string) => void;
+  preserveDraftForSubmission: (text: string, files: File[]) => void;
+  discardConversationDraft: (conversationId: string) => void;
   markConversationJustCreated: () => void;
 }
 
@@ -82,6 +83,11 @@ function createOptimisticAudioMessage(id: string, file: File, senderId: string, 
   };
 }
 
+/**
+ * Text and audio are separate, readable delivery workflows, but share one concurrency lock,
+ * optimistic lifecycle, and contact preview contract. Keeping them together prevents those
+ * delivery rules from being duplicated across two hooks.
+ */
 export function useMessageOutbox(config: UseMessageOutboxConfig) {
   const sendingRef = useRef(false);
 
@@ -112,6 +118,7 @@ export function useMessageOutbox(config: UseMessageOutboxConfig) {
     );
     config.addLocalMessage(optimisticMessage);
     config.updateContactPreview(content ? formatTextPreview(content) : `📷 ${t.messaging.attachedImage}`);
+    config.preserveDraftForSubmission(config.messageInput, files);
     config.setMessageInput("");
     config.setAttachedFiles([]);
 
@@ -130,7 +137,7 @@ export function useMessageOutbox(config: UseMessageOutboxConfig) {
       }
       config.removeLocalMessage(optimisticMessage.id);
       config.addLoadedMessage(result.message);
-      config.clearConversationDraft(config.currentConversationId ?? config.effectiveConversationId ?? "");
+      config.discardConversationDraft(config.currentConversationId ?? config.effectiveConversationId ?? "");
     } catch (error) {
       console.error("Error sending message:", error);
       const pendingMessage = { ...optimisticMessage, id: `pending-${optimisticMessage.id}` };

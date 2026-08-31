@@ -28,7 +28,6 @@ export function useMessagingCore<TContact extends BaseConversationContact>({
     contacts,
     selectedCounterpartId,
     effectiveConversationId,
-    getCounterpartIdFromContact,
     ...config,
   });
   const outbox = useMessageOutbox({
@@ -55,7 +54,8 @@ export function useMessagingCore<TContact extends BaseConversationContact>({
           getCounterpartIdFromContact
         )
       ),
-    clearConversationDraft: draft.clearConversationDraft,
+    preserveDraftForSubmission: draft.preserveDraftForSubmission,
+    discardConversationDraft: draft.discardConversationDraft,
   });
 
   return {

@@ -4,7 +4,14 @@ import type { ConversationDetailInfo, Message } from "@/domain/messaging/types";
 import type { OfflineQueueRepository } from "@/ports/shared/offline-queue-repository";
 import { formatToLocalShortDateTime, transformApiMessageToDomain } from "@/infrastructure/repositories/messaging/conversation-mapper";
 import { formatMessagePreview } from "@/lib/messaging/message-preview";
-import { appendMessageIfMissing, combineVisibleMessages, mergeConversationMessages, updateContactPreview } from "./message-state";
+import {
+  appendMessageIfMissing,
+  combineVisibleMessages,
+  mergeConversationMessages,
+  removeMessage,
+  replaceOptimisticMessage,
+  updateContactPreview,
+} from "./message-state";
 import type { BaseConversationContact } from "./types";
 
 interface UseConversationFeedConfig<TContact extends BaseConversationContact> {
@@ -13,20 +20,23 @@ interface UseConversationFeedConfig<TContact extends BaseConversationContact> {
   effectiveConversationId: string | undefined;
   myUserId: string;
   myRole: "consumer" | "provider";
-  getCounterpartIdFromContact: (contact: TContact) => string;
   getConversationDetail: (id: string) => Promise<ConversationDetailInfo>;
   offlineQueueRepository: OfflineQueueRepository;
   onConversationLoaded?: (conversationId: string, data: ConversationDetailInfo) => void;
   onNewIncomingMessage?: (message: Message) => void;
 }
 
+/**
+ * This hook owns the three feed synchronization processes: contact updates, realtime events,
+ * and initial conversation loading. Its size keeps those related processes together while
+ * the message transitions themselves remain pure in message-state.ts.
+ */
 export function useConversationFeed<TContact extends BaseConversationContact>({
   contacts,
   selectedCounterpartId,
   effectiveConversationId,
   myUserId,
   myRole,
-  getCounterpartIdFromContact,
   getConversationDetail,
   offlineQueueRepository,
   onConversationLoaded,
@@ -111,13 +121,9 @@ export function useConversationFeed<TContact extends BaseConversationContact>({
     localContacts,
     setLocalContacts,
     addLocalMessage: (message: Message) => setLocalMessages((current) => [...current, message]),
-    removeLocalMessage: (messageId: string) =>
-      setLocalMessages((current) => current.filter((message) => message.id !== messageId)),
+    removeLocalMessage: (messageId: string) => setLocalMessages((current) => removeMessage(current, messageId)),
     replaceLocalMessage: (optimisticMessageId: string, message: Message) =>
-      setLocalMessages((current) => [
-        ...current.filter((currentMessage) => currentMessage.id !== optimisticMessageId),
-        message,
-      ]),
+      setLocalMessages((current) => replaceOptimisticMessage(current, optimisticMessageId, message)),
     addLoadedMessage: (message: Message) =>
       setLoadedMessages((current) => appendMessageIfMissing(current, message)),
     viewMessages: combineVisibleMessages(loadedMessages, localMessages).map((message) => ({ ...message })),

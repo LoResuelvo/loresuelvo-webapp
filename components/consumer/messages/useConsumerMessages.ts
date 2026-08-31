@@ -21,7 +21,7 @@ import {
 } from "@/infrastructure/repositories/shared/client-repositories";
 import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/shared/local-offline-queue-repository";
 import type { MessageInputHandle } from "@/components/messaging/chat/MessageInput";
-import { useMessagingCore } from "@/hooks/useMessagingCore";
+import { useMessagingCore } from "@/hooks/messaging/useMessagingCore";
 
 const conversationRepository = new ClientConversationRepository({
   create: createConversation,

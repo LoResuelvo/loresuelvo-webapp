@@ -1,0 +1,50 @@
+import type { Dispatch, RefObject, SetStateAction } from "react";
+import type { AuthSession } from "@/infrastructure/auth/types";
+import type { ConversationDetailInfo, Message } from "@/domain/messaging/types";
+import type { ConversationRepository } from "@/ports/messaging/conversation-repository";
+import type { AudioConversationRepository } from "@/ports/messaging/audio-conversation-repository";
+import type { FileRepository } from "@/ports/files/file-repository";
+import type { OfflineQueueRepository } from "@/ports/shared/offline-queue-repository";
+import type { AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
+
+export interface BaseConversationContact {
+  id: string;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  pending?: boolean;
+}
+
+export interface UseMessagingCoreConfig<TContact extends BaseConversationContact> {
+  session: AuthSession | null;
+  myUserId: string;
+  myRole: "consumer" | "provider";
+  selectedCounterpartId: string | null;
+  contacts: TContact[];
+  getCounterpartIdFromContact: (contact: TContact) => string;
+  getConversationDetail: (id: string) => Promise<ConversationDetailInfo>;
+  conversationRepository: ConversationRepository & AudioConversationRepository;
+  fileRepository: FileRepository;
+  offlineQueueRepository: OfflineQueueRepository;
+  onConversationLoaded?: (conversationId: string, data: ConversationDetailInfo) => void;
+  onNewIncomingMessage?: (message: Message) => void;
+}
+
+export interface UseMessagingCoreReturn<TContact extends BaseConversationContact> {
+  messageInput: string;
+  setMessageInput: Dispatch<SetStateAction<string>>;
+  attachedFiles: File[];
+  setAttachedFiles: Dispatch<SetStateAction<File[]>>;
+  isSending: boolean;
+  expandedMessages: Set<string>;
+  toggleMessageExpanded: (messageId: string) => void;
+  messagesEndRef: RefObject<HTMLDivElement | null>;
+  viewMessages: Message[];
+  localContacts: TContact[];
+  setLocalContacts: Dispatch<SetStateAction<TContact[]>>;
+  selectedContact: TContact | undefined;
+  effectiveConversationId: string | undefined;
+  activeConversationId: string | null;
+  setActiveConversationId: (id: string | null) => void;
+  handleSendMessage: () => Promise<void>;
+  handleSendAudio: (file: File) => Promise<boolean | AudioUploadFailureStage>;
+}

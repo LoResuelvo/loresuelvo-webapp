@@ -21,7 +21,7 @@ import {
   ClientFileRepository,
 } from "@/infrastructure/repositories/shared/client-repositories";
 import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/shared/local-offline-queue-repository";
-import { useMessagingCore } from "@/hooks/useMessagingCore";
+import { useMessagingCore } from "@/hooks/messaging/useMessagingCore";
 
 const conversationRepository = new ClientConversationRepository({
   create: createConversation,

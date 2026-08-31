@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, type Mock } from "vitest";
-import { useMessagingCore, BaseConversationContact } from "./useMessagingCore";
+import { useMessagingCore, BaseConversationContact } from "./messaging/useMessagingCore";
 import { ConversationRepository } from "@/ports/messaging/conversation-repository";
 import { AudioConversationRepository } from "@/ports/messaging/audio-conversation-repository";
 import { FileRepository } from "@/ports/files/file-repository";
@@ -229,5 +229,92 @@ describe("useMessagingCore", () => {
     expect(onIncoming).toHaveBeenCalled();
     expect(mockResetUnread).toHaveBeenCalled();
     expect(result.current.viewMessages.some((m) => m.content === "Hola! En qué puedo ayudarte?")).toBe(true);
+  });
+
+  it("merges queued messages after loading and clears the offline queue", async () => {
+    (mockOfflineQueueRepo.loadPendingMessages as Mock).mockReturnValue([
+      { id: "pending-1", content: "Sin conexión", senderId: "user-1", sentAt: "Ahora" },
+    ]);
+
+    const { result } = renderHook(() =>
+      useMessagingCore<TestContact>({
+        session: null,
+        myUserId: "user-1",
+        myRole: "consumer",
+        selectedCounterpartId: "100",
+        contacts: mockContacts,
+        getCounterpartIdFromContact: (c) => c.providerId,
+        getConversationDetail: mockGetConversationDetail,
+        conversationRepository: mockConversationRepo,
+        fileRepository: mockFileRepo,
+        offlineQueueRepository: mockOfflineQueueRepo,
+      })
+    );
+
+    await waitFor(() => expect(mockOfflineQueueRepo.clearPendingMessages).toHaveBeenCalledWith("1"));
+    expect(result.current.viewMessages.map((message) => message.id)).toContain("pending-1");
+  });
+
+  it("does not append a duplicated realtime message", async () => {
+    const { result } = renderHook(() =>
+      useMessagingCore<TestContact>({
+        session: null,
+        myUserId: "user-1",
+        myRole: "consumer",
+        selectedCounterpartId: "100",
+        contacts: mockContacts,
+        getCounterpartIdFromContact: (c) => c.providerId,
+        getConversationDetail: mockGetConversationDetail,
+        conversationRepository: mockConversationRepo,
+        fileRepository: mockFileRepo,
+        offlineQueueRepository: mockOfflineQueueRepo,
+      })
+    );
+
+    await waitFor(() => expect(mockWsCallback).not.toBeNull());
+    const event = {
+      type: "conversation.message.created",
+      conversation_id: 1,
+      message: {
+        id: 55,
+        conversation_id: 1,
+        sender_role: "provider",
+        content: "Una sola vez",
+        created_on: new Date().toISOString(),
+      },
+    };
+
+    act(() => {
+      mockWsCallback!(event);
+      mockWsCallback!(event);
+    });
+
+    expect(result.current.viewMessages.filter((message) => message.id === "55")).toHaveLength(1);
+  });
+
+  it("queues a failed text message for later delivery", async () => {
+    mockConversationRepo.sendMessage = vi.fn().mockRejectedValue(new Error("offline"));
+    const { result } = renderHook(() =>
+      useMessagingCore<TestContact>({
+        session: null,
+        myUserId: "user-1",
+        myRole: "consumer",
+        selectedCounterpartId: "100",
+        contacts: mockContacts,
+        getCounterpartIdFromContact: (c) => c.providerId,
+        getConversationDetail: mockGetConversationDetail,
+        conversationRepository: mockConversationRepo,
+        fileRepository: mockFileRepo,
+        offlineQueueRepository: mockOfflineQueueRepo,
+      })
+    );
+
+    act(() => result.current.setMessageInput("Guardar en cola"));
+    await act(async () => result.current.handleSendMessage());
+
+    expect(mockOfflineQueueRepo.savePendingMessages).toHaveBeenCalledWith(
+      "1",
+      expect.arrayContaining([expect.objectContaining({ content: "Guardar en cola" })])
+    );
   });
 });

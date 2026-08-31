@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import type { ConversationDetailInfo, Message } from "@/domain/messaging/types";
 import type { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
-import type { FileRepository } from "@/ports/files/file-repository";
+import type { FileUploadRepository } from "@/ports/files/file-upload-repository";
 import type { OfflineQueueRepository } from "@/ports/shared/offline-queue-repository";
 import { useMessagingCore, type BaseConversationContact, type UseMessagingCoreConfig } from "./useMessagingCore";
 
@@ -47,7 +47,7 @@ const contacts: TestContact[] = [
 
 describe("useMessagingCore selection and feed", () => {
   let conversationRepository: ConversationCommandRepository;
-  let fileRepository: FileRepository;
+  let fileRepository: FileUploadRepository;
   let offlineQueueRepository: OfflineQueueRepository;
   let getConversationDetail: Mock<(id: string) => Promise<ConversationDetailInfo>>;
   const dummyDetail: ConversationDetailInfo = {
@@ -100,8 +100,8 @@ describe("useMessagingCore selection and feed", () => {
       sendAudioMessage: vi.fn(),
     };
     fileRepository = {
-      getPresignedUrl: vi.fn(),
-      uploadFile: vi.fn(),
+      prepareUpload: vi.fn(),
+      upload: vi.fn(),
       confirmUpload: vi.fn(),
     };
     offlineQueueRepository = {

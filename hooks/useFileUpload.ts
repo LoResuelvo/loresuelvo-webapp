@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { getPresignedUrlAction, confirmUploadAction } from "@/app/files/actions";
+import { prepareFileUploadAction, confirmFileUploadAction } from "@/app/files/actions";
 import { storageClient } from "@/infrastructure/storage/storage-client";
 import { t } from "@/infrastructure/i18n/translations";
+import type { FileUploadPurpose } from "@/ports/files/file-upload-repository";
 
 export interface UploadFileOptions {
-  purpose: string;
+  purpose: FileUploadPurpose;
 }
 
 export interface UploadedFileResult {
@@ -19,34 +20,34 @@ async function uploadSingleFilePipeline(
   file: File,
   options: UploadFileOptions
 ): Promise<UploadedFileResult> {
-  const presignedRes = await getPresignedUrlAction(
-    file.name,
-    file.type,
-    file.size,
-    options.purpose
-  );
+  const presignedRes = await prepareFileUploadAction({
+    originalName: file.name,
+    mimeType: file.type,
+    sizeBytes: file.size,
+    purpose: options.purpose,
+  });
   if (!presignedRes.success) {
     throw new Error(presignedRes.error);
   }
   const presigned = presignedRes.data;
 
-  await storageClient.uploadFile(file, presigned.upload_url, presigned.headers);
+  await storageClient.uploadFile(file, presigned.uploadUrl, presigned.headers);
 
-  const confirmedRes = await confirmUploadAction(
-    presigned.file_id,
-    presigned.key,
-    file.type,
-    file.size
-  );
+  const confirmedRes = await confirmFileUploadAction({
+    fileId: presigned.fileId,
+    storageKey: presigned.storageKey,
+    mimeType: file.type,
+    sizeBytes: file.size,
+  });
   if (!confirmedRes.success) {
     throw new Error(confirmedRes.error);
   }
   const confirmed = confirmedRes.data;
 
   return {
-    fileId: confirmed.id,
+    fileId: confirmed.fileId,
     url: confirmed.url,
-    originalName: confirmed.original_name || file.name,
+    originalName: confirmed.originalName || file.name,
   };
 }
 

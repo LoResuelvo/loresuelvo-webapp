@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Provider } from "@/domain/provider/types";
 import { createJobRequest } from "@/app/consumidor/buscar/actions";
+import { prepareFileUploadAction, confirmFileUploadAction } from "@/app/files/actions";
 import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
-import { ClientFileRepository } from "@/infrastructure/repositories/shared/client-repositories";
+import { ClientFileUploadRepository } from "@/infrastructure/repositories/files/client-file-upload-repository";
 
 export function parseWorkRequestError(errorMessage: string): string {
   if (errorMessage.includes("Job request already exists") || errorMessage.includes("Conversation already exists")) {
@@ -43,27 +44,34 @@ export function useWorkRequestForm(provider: Provider) {
     setIsSubmitting(true);
     setError(null);
 
-    const fileRepository = new ClientFileRepository();
+    const fileRepository = new ClientFileUploadRepository({
+      prepareUpload: prepareFileUploadAction,
+      confirmUpload: confirmFileUploadAction,
+    });
     const uploadedFileIds: string[] = [];
 
     if (attachedFiles.length > 0) {
       setIsUploading(true);
       try {
         for (const file of attachedFiles) {
-          const presigned = await fileRepository.getPresignedUrl(
-            file.name,
-            file.type,
-            file.size,
-            "job_request_image"
-          );
-          await fileRepository.uploadFile(presigned.upload_url, file, presigned.headers);
-          const confirm = await fileRepository.confirmUpload(
-            presigned.file_id,
-            presigned.key,
-            file.type,
-            file.size
-          );
-          uploadedFileIds.push(confirm.id);
+          const presigned = await fileRepository.prepareUpload({
+            originalName: file.name,
+            mimeType: file.type,
+            sizeBytes: file.size,
+            purpose: "job_request_image",
+          });
+          await fileRepository.upload({
+            uploadUrl: presigned.uploadUrl,
+            file,
+            headers: presigned.headers,
+          });
+          const confirm = await fileRepository.confirmUpload({
+            fileId: presigned.fileId,
+            storageKey: presigned.storageKey,
+            mimeType: file.type,
+            sizeBytes: file.size,
+          });
+          uploadedFileIds.push(confirm.fileId);
         }
       } catch (err: unknown) {
         console.error("Error uploading files:", err);

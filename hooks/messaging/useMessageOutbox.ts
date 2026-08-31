@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { sendMessageWithAttachments } from "@/application/messaging/send-message-with-attachments";
 import { AudioUploadError, sendAudioMessage, type AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
 import type { Message } from "@/domain/messaging/types";
-import type { FileRepository } from "@/ports/files/file-repository";
+import type { FileUploadRepository } from "@/ports/files/file-upload-repository";
 import type { OfflineQueueRepository } from "@/ports/shared/offline-queue-repository";
 import type { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
 import { t } from "@/infrastructure/i18n/translations";
@@ -23,7 +23,7 @@ interface UseMessageOutboxConfig {
   setIsSending: (isSending: boolean) => void;
   setActiveConversationId: (conversationId: string) => void;
   conversationRepository: ConversationCommandRepository;
-  fileRepository: FileRepository;
+  fileRepository: FileUploadRepository;
   offlineQueueRepository: OfflineQueueRepository;
   now: () => Date;
   addLocalMessage: (message: Message) => void;

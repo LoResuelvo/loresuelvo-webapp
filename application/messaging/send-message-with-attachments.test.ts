@@ -1,12 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { sendMessageWithAttachments } from "./send-message-with-attachments";
 import { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
-import { FileRepository } from "@/ports/files/file-repository";
+import { FileUploadRepository } from "@/ports/files/file-upload-repository";
 import { Message } from "@/domain/messaging/types";
 
 describe("sendMessageWithAttachments", () => {
   let mockConversationRepository: ConversationCommandRepository;
-  let mockFileRepository: FileRepository;
+  let mockFileRepository: FileUploadRepository;
 
   beforeEach(() => {
     mockConversationRepository = {
@@ -16,9 +16,9 @@ describe("sendMessageWithAttachments", () => {
     };
 
     mockFileRepository = {
-      getPresignedUrl: vi.fn(),
+      prepareUpload: vi.fn(),
+      upload: vi.fn(),
       confirmUpload: vi.fn(),
-      uploadFile: vi.fn(),
     };
   });
 
@@ -55,7 +55,7 @@ describe("sendMessageWithAttachments", () => {
       content: "Hello there",
       imageFileIds: undefined,
     });
-    expect(mockFileRepository.getPresignedUrl).not.toHaveBeenCalled();
+    expect(mockFileRepository.prepareUpload).not.toHaveBeenCalled();
   });
 
   it("creates a conversation first if conversationId is not provided", async () => {
@@ -97,16 +97,16 @@ describe("sendMessageWithAttachments", () => {
   });
 
   it("uploads files and sends a message with attachment IDs", async () => {
-    vi.mocked(mockFileRepository.getPresignedUrl).mockResolvedValue({
-      file_id: "fid-1",
-      key: "key-1",
-      upload_url: "http://upload.url",
+    vi.mocked(mockFileRepository.prepareUpload).mockResolvedValue({
+      fileId: "fid-1",
+      storageKey: "key-1",
+      uploadUrl: "http://upload.url",
       headers: { Authorization: "Bearer xyz" },
     });
     vi.mocked(mockFileRepository.confirmUpload).mockResolvedValue({
-      id: "img-123",
+      fileId: "img-123",
       url: "http://s3.url/img.png",
-      original_name: "test.png",
+      originalName: "test.png",
     });
 
     const dummyMessage: Message = {
@@ -137,9 +137,23 @@ describe("sendMessageWithAttachments", () => {
 
     expect(res.conversationId).toBe("123");
     expect(res.message).toEqual(dummyMessage);
-    expect(mockFileRepository.getPresignedUrl).toHaveBeenCalledWith("test.png", "image/png", file.size, "conversation_message_image");
-    expect(mockFileRepository.uploadFile).toHaveBeenCalledWith("http://upload.url", file, { Authorization: "Bearer xyz" });
-    expect(mockFileRepository.confirmUpload).toHaveBeenCalledWith("fid-1", "key-1", "image/png", file.size);
+    expect(mockFileRepository.prepareUpload).toHaveBeenCalledWith({
+      originalName: "test.png",
+      mimeType: "image/png",
+      sizeBytes: file.size,
+      purpose: "conversation_message_image",
+    });
+    expect(mockFileRepository.upload).toHaveBeenCalledWith({
+      uploadUrl: "http://upload.url",
+      file,
+      headers: { Authorization: "Bearer xyz" },
+    });
+    expect(mockFileRepository.confirmUpload).toHaveBeenCalledWith({
+      fileId: "fid-1",
+      storageKey: "key-1",
+      mimeType: "image/png",
+      sizeBytes: file.size,
+    });
     expect(mockConversationRepository.sendMessage).toHaveBeenCalledWith({
       conversationId: "123",
       counterpartId: 99,

@@ -11,13 +11,15 @@ import {
   getServiceProposalsAction,
 } from "@/app/consumidor/mensajes/actions";
 import {
+  prepareFileUploadAction,
+  confirmFileUploadAction,
+} from "@/app/files/actions";
+import {
   JobRequestInfo,
   ConsumerConversationContact as ConversationContact,
   ServiceProposalSummary,
 } from "@/domain/messaging/types";
-import {
-  ClientFileRepository,
-} from "@/infrastructure/repositories/shared/client-repositories";
+import { ClientFileUploadRepository } from "@/infrastructure/repositories/files/client-file-upload-repository";
 import { ClientConversationCommandRepository } from "@/infrastructure/repositories/messaging/client-conversation-command-repository";
 import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/shared/local-offline-queue-repository";
 import type { MessageInputHandle } from "@/components/messaging/chat/MessageInput";
@@ -28,7 +30,10 @@ const conversationRepository = new ClientConversationCommandRepository({
   sendMessage,
   sendAudioMessage: sendAudioMessageAction,
 });
-const fileRepository = new ClientFileRepository();
+const fileRepository = new ClientFileUploadRepository({
+  prepareUpload: prepareFileUploadAction,
+  confirmUpload: confirmFileUploadAction,
+});
 const offlineQueueRepo = new LocalOfflineQueueRepository();
 
 export function useConsumerMessages(

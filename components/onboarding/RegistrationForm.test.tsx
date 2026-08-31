@@ -10,21 +10,21 @@ vi.mock("@/app/onboarding/actions", () => ({
 }));
 
 vi.mock("@/app/files/actions", () => ({
-  getPresignedUrlAction: vi.fn().mockResolvedValue({
+  prepareFileUploadAction: vi.fn().mockResolvedValue({
     success: true,
     data: {
-      upload_url: "http://mock-upload.test/url",
-      file_id: "mock-file-id",
-      key: "mock-key",
+      uploadUrl: "http://mock-upload.test/url",
+      fileId: "mock-file-id",
+      storageKey: "mock-key",
       headers: {},
     },
   }),
-  confirmUploadAction: vi.fn().mockResolvedValue({
+  confirmFileUploadAction: vi.fn().mockResolvedValue({
     success: true,
     data: {
-      id: "mock-file-id",
+      fileId: "mock-file-id",
       url: "http://mock-cdn.test/url.jpg",
-      original_name: "mock.png",
+      originalName: "mock.png",
     },
   }),
 }));

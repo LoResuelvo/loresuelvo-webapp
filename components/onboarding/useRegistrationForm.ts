@@ -4,35 +4,35 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthSession } from "@/infrastructure/auth/types";
 import { submitRegistration } from "@/app/onboarding/actions";
-import { getPresignedUrlAction, confirmUploadAction } from "@/app/files/actions";
+import { prepareFileUploadAction, confirmFileUploadAction } from "@/app/files/actions";
 import { storageClient } from "@/infrastructure/storage/storage-client";
 import { t } from "@/infrastructure/i18n/translations";
 
 export async function uploadProfilePhoto(formData: FormData): Promise<void> {
   const profilePhoto = formData.get("profilePhoto") as File | null;
   if (profilePhoto && profilePhoto.size > 0 && profilePhoto.name !== "") {
-    const presignedRes = await getPresignedUrlAction(
-      profilePhoto.name,
-      profilePhoto.type,
-      profilePhoto.size,
-      "profile_photo"
-    );
+    const presignedRes = await prepareFileUploadAction({
+      originalName: profilePhoto.name,
+      mimeType: profilePhoto.type,
+      sizeBytes: profilePhoto.size,
+      purpose: "profile_photo",
+    });
     if (!presignedRes.success) throw new Error(presignedRes.error);
     const presigned = presignedRes.data;
 
-    await storageClient.uploadFile(profilePhoto, presigned.upload_url, presigned.headers);
+    await storageClient.uploadFile(profilePhoto, presigned.uploadUrl, presigned.headers);
 
-    const confirmedRes = await confirmUploadAction(
-      presigned.file_id,
-      presigned.key,
-      profilePhoto.type,
-      profilePhoto.size
-    );
+    const confirmedRes = await confirmFileUploadAction({
+      fileId: presigned.fileId,
+      storageKey: presigned.storageKey,
+      mimeType: profilePhoto.type,
+      sizeBytes: profilePhoto.size,
+    });
     if (!confirmedRes.success) throw new Error(confirmedRes.error);
     const confirmed = confirmedRes.data;
 
     formData.delete("profilePhoto");
-    formData.append("profilePhotoId", confirmed.id);
+    formData.append("profilePhotoId", confirmed.fileId);
     formData.append("profilePhotoUrl", confirmed.url);
   }
 }

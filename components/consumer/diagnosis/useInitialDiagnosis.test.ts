@@ -26,18 +26,18 @@ vi.mock("@/app/consumidor/mensajes-ia/actions", () => ({
 }));
 
 vi.mock("@/app/files/actions", () => ({
-  getPresignedUrlAction: vi.fn().mockResolvedValue({
+  prepareFileUploadAction: vi.fn().mockResolvedValue({
     success: true,
     data: {
-      file_id: "file-123",
-      key: "key-123",
-      upload_url: "https://upload.url",
+      fileId: "file-123",
+      storageKey: "key-123",
+      uploadUrl: "https://upload.url",
       headers: {},
     },
   }),
-  confirmUploadAction: vi.fn().mockResolvedValue({
+  confirmFileUploadAction: vi.fn().mockResolvedValue({
     success: true,
-    data: { id: "confirmed-123" },
+    data: { fileId: "confirmed-123", url: "https://storage.test/img.png", originalName: "test.png" },
   }),
 }));
 

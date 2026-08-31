@@ -5,8 +5,8 @@ import * as fileActions from "@/app/files/actions";
 import { storageClient } from "@/infrastructure/storage/storage-client";
 
 vi.mock("@/app/files/actions", () => ({
-  getPresignedUrlAction: vi.fn(),
-  confirmUploadAction: vi.fn(),
+  prepareFileUploadAction: vi.fn(),
+  confirmFileUploadAction: vi.fn(),
 }));
 
 vi.mock("@/infrastructure/storage/storage-client", () => ({
@@ -21,24 +21,24 @@ describe("useFileUpload", () => {
   });
 
   it("uploads a single file successfully through the 3-step pipeline", async () => {
-    vi.mocked(fileActions.getPresignedUrlAction).mockResolvedValue({
+    vi.mocked(fileActions.prepareFileUploadAction).mockResolvedValue({
       success: true,
       data: {
-        file_id: "file-123",
-        key: "work_order_completion_image/file-123",
-        upload_url: "https://s3.aws.com/upload/file-123",
+        fileId: "file-123",
+        storageKey: "work_order_completion_image/file-123",
+        uploadUrl: "https://s3.aws.com/upload/file-123",
         headers: { "x-amz-acl": "public-read" },
       },
     });
 
     vi.mocked(storageClient.uploadFile).mockResolvedValue();
 
-    vi.mocked(fileActions.confirmUploadAction).mockResolvedValue({
+    vi.mocked(fileActions.confirmFileUploadAction).mockResolvedValue({
       success: true,
       data: {
-        id: "file-123",
+        fileId: "file-123",
         url: "https://storage.loresuelvo.test/file-123.jpg",
-        original_name: "evidencia.jpg",
+        originalName: "evidencia.jpg",
       },
     });
 
@@ -53,12 +53,12 @@ describe("useFileUpload", () => {
       });
     });
 
-    expect(fileActions.getPresignedUrlAction).toHaveBeenCalledWith(
-      "evidencia.jpg",
-      "image/jpeg",
-      file.size,
-      "work_order_completion_image"
-    );
+    expect(fileActions.prepareFileUploadAction).toHaveBeenCalledWith({
+      originalName: "evidencia.jpg",
+      mimeType: "image/jpeg",
+      sizeBytes: file.size,
+      purpose: "work_order_completion_image",
+    });
 
     expect(storageClient.uploadFile).toHaveBeenCalledWith(
       file,
@@ -66,12 +66,12 @@ describe("useFileUpload", () => {
       { "x-amz-acl": "public-read" }
     );
 
-    expect(fileActions.confirmUploadAction).toHaveBeenCalledWith(
-      "file-123",
-      "work_order_completion_image/file-123",
-      "image/jpeg",
-      file.size
-    );
+    expect(fileActions.confirmFileUploadAction).toHaveBeenCalledWith({
+      fileId: "file-123",
+      storageKey: "work_order_completion_image/file-123",
+      mimeType: "image/jpeg",
+      sizeBytes: file.size,
+    });
 
     expect(uploadResult).toEqual({
       fileId: "file-123",
@@ -84,43 +84,43 @@ describe("useFileUpload", () => {
   });
 
   it("handles multiple files upload with uploadMultipleFiles", async () => {
-    vi.mocked(fileActions.getPresignedUrlAction)
+    vi.mocked(fileActions.prepareFileUploadAction)
       .mockResolvedValueOnce({
         success: true,
         data: {
-          file_id: "file-1",
-          key: "work_order_completion_image/file-1",
-          upload_url: "https://s3.aws.com/upload/file-1",
+          fileId: "file-1",
+          storageKey: "work_order_completion_image/file-1",
+          uploadUrl: "https://s3.aws.com/upload/file-1",
           headers: {},
         },
       })
       .mockResolvedValueOnce({
         success: true,
         data: {
-          file_id: "file-2",
-          key: "work_order_completion_image/file-2",
-          upload_url: "https://s3.aws.com/upload/file-2",
+          fileId: "file-2",
+          storageKey: "work_order_completion_image/file-2",
+          uploadUrl: "https://s3.aws.com/upload/file-2",
           headers: {},
         },
       });
 
     vi.mocked(storageClient.uploadFile).mockResolvedValue();
 
-    vi.mocked(fileActions.confirmUploadAction)
+    vi.mocked(fileActions.confirmFileUploadAction)
       .mockResolvedValueOnce({
         success: true,
         data: {
-          id: "file-1",
+          fileId: "file-1",
           url: "https://storage.loresuelvo.test/file-1.jpg",
-          original_name: "foto1.jpg",
+          originalName: "foto1.jpg",
         },
       })
       .mockResolvedValueOnce({
         success: true,
         data: {
-          id: "file-2",
+          fileId: "file-2",
           url: "https://storage.loresuelvo.test/file-2.jpg",
-          original_name: "foto2.jpg",
+          originalName: "foto2.jpg",
         },
       });
 
@@ -143,7 +143,7 @@ describe("useFileUpload", () => {
   });
 
   it("sets error and rethrows when presigned URL action fails", async () => {
-    vi.mocked(fileActions.getPresignedUrlAction).mockRejectedValue(new Error("Presign failed"));
+    vi.mocked(fileActions.prepareFileUploadAction).mockRejectedValue(new Error("Presign failed"));
 
     const { result } = renderHook(() => useFileUpload());
     const file = new File(["dummy"], "error.jpg", { type: "image/jpeg" });
@@ -159,7 +159,7 @@ describe("useFileUpload", () => {
   });
 
   it("allows clearing the error via resetError", async () => {
-    vi.mocked(fileActions.getPresignedUrlAction).mockRejectedValue(new Error("Upload failed"));
+    vi.mocked(fileActions.prepareFileUploadAction).mockRejectedValue(new Error("Upload failed"));
 
     const { result } = renderHook(() => useFileUpload());
     const file = new File(["dummy"], "error.jpg", { type: "image/jpeg" });

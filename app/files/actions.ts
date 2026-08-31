@@ -1,24 +1,26 @@
 "use server";
 
-import { ApiFileRepository } from "@/infrastructure/repositories/files/api-file-repository";
-import { getPresignedUrl, confirmUpload } from "@/application/files/upload-file";
+import { ApiFileUploadRepository } from "@/infrastructure/repositories/files/api-file-upload-repository";
+import { prepareFileUpload, confirmFileUpload } from "@/application/files/upload-file";
 import { getAuthService } from "@/infrastructure/auth";
-import type { PresignedUrlResponse, ConfirmUploadResponse } from "@/ports/files/file-repository";
+import type {
+  PrepareFileUploadCommand,
+  PreparedFileUpload,
+  ConfirmFileUploadCommand,
+  ConfirmedFileUpload,
+} from "@/ports/files/file-upload-repository";
 
 export type ActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string };
 
-export async function getPresignedUrlAction(
-  originalName: string,
-  mimeType: string,
-  sizeBytes: number,
-  purpose: string
-): Promise<ActionResult<PresignedUrlResponse>> {
+export async function prepareFileUploadAction(
+  command: PrepareFileUploadCommand
+): Promise<ActionResult<PreparedFileUpload>> {
   try {
-    const fileRepo = new ApiFileRepository();
+    const fileRepo = new ApiFileUploadRepository();
     const authService = getAuthService();
-    const data = await getPresignedUrl(fileRepo, authService, originalName, mimeType, sizeBytes, purpose);
+    const data = await prepareFileUpload(fileRepo, authService, command);
     return { success: true, data };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error al obtener URL de subida";
@@ -26,16 +28,13 @@ export async function getPresignedUrlAction(
   }
 }
 
-export async function confirmUploadAction(
-  fileId: string,
-  key: string,
-  mimeType: string,
-  sizeBytes: number
-): Promise<ActionResult<ConfirmUploadResponse>> {
+export async function confirmFileUploadAction(
+  command: ConfirmFileUploadCommand
+): Promise<ActionResult<ConfirmedFileUpload>> {
   try {
-    const fileRepo = new ApiFileRepository();
+    const fileRepo = new ApiFileUploadRepository();
     const authService = getAuthService();
-    const data = await confirmUpload(fileRepo, authService, fileId, key, mimeType, sizeBytes);
+    const data = await confirmFileUpload(fileRepo, authService, command);
     return { success: true, data };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error al confirmar subida";

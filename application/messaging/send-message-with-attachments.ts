@@ -1,5 +1,5 @@
 import { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
-import { FileRepository } from "@/ports/files/file-repository";
+import { FileUploadRepository } from "@/ports/files/file-upload-repository";
 import { Message } from "@/domain/messaging/types";
 
 export interface SendMessageWithAttachmentsParams {
@@ -13,7 +13,7 @@ export interface SendMessageWithAttachmentsParams {
 
 export async function sendMessageWithAttachments(
   conversationRepository: ConversationCommandRepository,
-  fileRepository: FileRepository,
+  fileRepository: FileUploadRepository,
   params: SendMessageWithAttachmentsParams
 ): Promise<{ message: Message; conversationId: string }> {
   const uploadedImageIds: string[] = [];
@@ -24,22 +24,26 @@ export async function sendMessageWithAttachments(
       const type = file.type || "image/jpeg";
       const size = file.size;
 
-      const presigned = await fileRepository.getPresignedUrl(
-        name,
-        type,
-        size,
-        "conversation_message_image"
-      );
+      const prepared = await fileRepository.prepareUpload({
+        originalName: name,
+        mimeType: type,
+        sizeBytes: size,
+        purpose: "conversation_message_image",
+      });
 
-      await fileRepository.uploadFile(presigned.upload_url, file, presigned.headers);
+      await fileRepository.upload({
+        uploadUrl: prepared.uploadUrl,
+        file,
+        headers: prepared.headers,
+      });
 
-      const confirm = await fileRepository.confirmUpload(
-        presigned.file_id,
-        presigned.key,
-        type,
-        size
-      );
-      uploadedImageIds.push(confirm.id);
+      const confirmed = await fileRepository.confirmUpload({
+        fileId: prepared.fileId,
+        storageKey: prepared.storageKey,
+        mimeType: type,
+        sizeBytes: size,
+      });
+      uploadedImageIds.push(confirmed.fileId);
     }
   }
 

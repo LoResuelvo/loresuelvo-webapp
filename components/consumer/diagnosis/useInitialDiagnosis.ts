@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
 import { createAiConversationAction } from "@/app/consumidor/mensajes-ia/actions";
-import { getPresignedUrlAction, confirmUploadAction } from "@/app/files/actions";
+import { prepareFileUploadAction, confirmFileUploadAction } from "@/app/files/actions";
 import { logger } from "@/infrastructure/logging/logger";
 
 export interface UseInitialDiagnosisReturn {
@@ -74,29 +74,29 @@ export function useInitialDiagnosis(): UseInitialDiagnosisReturn {
     try {
       if (attachedFiles.length > 0) {
         for (const file of attachedFiles) {
-          const presignedRes = await getPresignedUrlAction(
-            file.name,
-            file.type,
-            file.size,
-            "conversation_message_image"
-          );
+          const presignedRes = await prepareFileUploadAction({
+            originalName: file.name,
+            mimeType: file.type,
+            sizeBytes: file.size,
+            purpose: "conversation_message_image",
+          });
           if (!presignedRes.success) throw new Error(presignedRes.error);
           const presigned = presignedRes.data;
 
-          const uploadRes = await fetch(presigned.upload_url, {
+          const uploadRes = await fetch(presigned.uploadUrl, {
             method: "PUT",
             body: file,
             headers: presigned.headers,
           });
           if (!uploadRes.ok) throw new Error("Error al subir archivo a R2");
-          const confirmRes = await confirmUploadAction(
-            presigned.file_id,
-            presigned.key,
-            file.type,
-            file.size
-          );
+          const confirmRes = await confirmFileUploadAction({
+            fileId: presigned.fileId,
+            storageKey: presigned.storageKey,
+            mimeType: file.type,
+            sizeBytes: file.size,
+          });
           if (!confirmRes.success) throw new Error(confirmRes.error);
-          uploadedImageIds.push(confirmRes.data.id);
+          uploadedImageIds.push(confirmRes.data.fileId);
         }
       }
 

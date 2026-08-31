@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import type { ConversationDetailInfo } from "@/domain/messaging/types";
 import type { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
-import type { FileRepository } from "@/ports/files/file-repository";
+import type { FileUploadRepository } from "@/ports/files/file-upload-repository";
 import type { OfflineQueueRepository } from "@/ports/shared/offline-queue-repository";
 import { clearDraft, saveDraft } from "@/lib/messaging/message-drafts";
 import { useMessagingCore, type BaseConversationContact, type UseMessagingCoreConfig } from "./useMessagingCore";
@@ -36,7 +36,7 @@ const contacts: TestContact[] = [
 
 describe("useMessagingCore outbox", () => {
   let conversationRepository: ConversationCommandRepository;
-  let fileRepository: FileRepository;
+  let fileRepository: FileUploadRepository;
   let offlineQueueRepository: OfflineQueueRepository;
   let getConversationDetail: Mock<(id: string) => Promise<ConversationDetailInfo>>;
 
@@ -89,17 +89,17 @@ describe("useMessagingCore outbox", () => {
       }),
     };
     fileRepository = {
-      getPresignedUrl: vi.fn().mockResolvedValue({
-        file_id: "audio-1",
-        key: "audio-key",
-        upload_url: "https://upload.test/audio",
+      prepareUpload: vi.fn().mockResolvedValue({
+        fileId: "audio-1",
+        storageKey: "audio-key",
+        uploadUrl: "https://upload.test/audio",
         headers: {},
       }),
-      uploadFile: vi.fn().mockResolvedValue(undefined),
+      upload: vi.fn().mockResolvedValue(undefined),
       confirmUpload: vi.fn().mockResolvedValue({
-        id: "audio-1",
+        fileId: "audio-1",
         url: "https://files.test/audio.webm",
-        original_name: "audio.webm",
+        originalName: "audio.webm",
       }),
     };
     offlineQueueRepository = {
@@ -156,7 +156,7 @@ describe("useMessagingCore outbox", () => {
   });
 
   it("returns the audio failure stage and revokes its optimistic URL", async () => {
-    fileRepository.getPresignedUrl = vi.fn().mockRejectedValue(new Error("presign failed"));
+    fileRepository.prepareUpload = vi.fn().mockRejectedValue(new Error("presign failed"));
     const { result } = renderHook(() => useMessagingCore(createConfig()));
     const file = new File(["audio"], "audio.webm", { type: "audio/webm" });
 

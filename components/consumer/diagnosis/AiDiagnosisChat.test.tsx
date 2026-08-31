@@ -33,14 +33,16 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/app/files/actions", () => ({
-  getPresignedUrlAction: vi.fn().mockResolvedValue({
-    file_id: "file-id-123",
-    key: "key-123",
-    upload_url: "https://upload.url",
+  prepareFileUploadAction: vi.fn().mockResolvedValue({
+    fileId: "file-id-123",
+    storageKey: "key-123",
+    uploadUrl: "https://upload.url",
     headers: {},
   }),
-  confirmUploadAction: vi.fn().mockResolvedValue({
-    id: "confirmed-file-id-123",
+  confirmFileUploadAction: vi.fn().mockResolvedValue({
+    fileId: "confirmed-file-id-123",
+    url: "https://storage.test/file.png",
+    originalName: "file.png",
   }),
 }));
 

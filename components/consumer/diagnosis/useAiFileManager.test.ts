@@ -3,19 +3,19 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { useAiFileManager } from "./useAiFileManager";
 
 vi.mock("@/app/files/actions", () => ({
-  getPresignedUrlAction: vi.fn().mockResolvedValue({
+  prepareFileUploadAction: vi.fn().mockResolvedValue({
     success: true,
     data: {
-      file_id: "fid-1",
-      upload_url: "http://upload",
-      key: "k1",
+      fileId: "fid-1",
+      uploadUrl: "http://upload",
+      storageKey: "k1",
       headers: {},
     },
   }),
-  confirmUploadAction: vi.fn().mockResolvedValue({
+  confirmFileUploadAction: vi.fn().mockResolvedValue({
     success: true,
     data: {
-      id: "fid-1",
+      fileId: "fid-1",
       url: "http://file",
       originalName: "test.png",
     },

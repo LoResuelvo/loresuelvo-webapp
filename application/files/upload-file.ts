@@ -1,34 +1,34 @@
-import { FileRepository, PresignedUrlResponse, ConfirmUploadResponse } from "@/ports/files/file-repository";
+import {
+  FileUploadRepository,
+  PrepareFileUploadCommand,
+  PreparedFileUpload,
+  ConfirmFileUploadCommand,
+  ConfirmedFileUpload,
+} from "@/ports/files/file-upload-repository";
 import { AuthService } from "@/ports/onboarding/auth-service";
 
-export async function getPresignedUrl(
-  fileRepository: FileRepository,
+export async function prepareFileUpload(
+  fileRepository: FileUploadRepository,
   authService: AuthService,
-  originalName: string,
-  mimeType: string,
-  sizeBytes: number,
-  purpose: string
-): Promise<PresignedUrlResponse> {
+  command: PrepareFileUploadCommand
+): Promise<PreparedFileUpload> {
   const session = await authService.getSession();
   if (!session) {
     throw new Error("User is unauthenticated");
   }
 
-  return fileRepository.getPresignedUrl(originalName, mimeType, sizeBytes, purpose);
+  return fileRepository.prepareUpload(command);
 }
 
-export async function confirmUpload(
-  fileRepository: FileRepository,
+export async function confirmFileUpload(
+  fileRepository: FileUploadRepository,
   authService: AuthService,
-  fileId: string,
-  key: string,
-  mimeType: string,
-  sizeBytes: number
-): Promise<ConfirmUploadResponse> {
+  command: ConfirmFileUploadCommand
+): Promise<ConfirmedFileUpload> {
   const session = await authService.getSession();
   if (!session) {
     throw new Error("User is unauthenticated");
   }
 
-  return fileRepository.confirmUpload(fileId, key, mimeType, sizeBytes);
+  return fileRepository.confirmUpload(command);
 }

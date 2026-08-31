@@ -1,52 +1,72 @@
 import { describe, expect, it, vi } from "vitest";
-import { getPresignedUrl, confirmUpload } from "./upload-file";
-import { FileRepository } from "@/ports/files/file-repository";
+import { prepareFileUpload, confirmFileUpload } from "./upload-file";
+import {
+  FileUploadRepository,
+  PrepareFileUploadCommand,
+  ConfirmFileUploadCommand,
+} from "@/ports/files/file-upload-repository";
 import { AuthService } from "@/ports/onboarding/auth-service";
 
 describe("upload-file", () => {
-  const mockFileRepository = {
-    getPresignedUrl: vi.fn(),
+  const mockFileRepository: FileUploadRepository = {
+    prepareUpload: vi.fn(),
+    upload: vi.fn(),
     confirmUpload: vi.fn(),
-  } as unknown as FileRepository;
+  };
 
-  const mockAuthService = {
+  const mockAuthService: AuthService = {
     getSession: vi.fn(),
     updateSession: vi.fn(),
-  } as unknown as AuthService;
+  };
 
-  describe("getPresignedUrl", () => {
+  describe("prepareFileUpload", () => {
+    const command: PrepareFileUploadCommand = {
+      originalName: "photo.jpg",
+      mimeType: "image/jpeg",
+      sizeBytes: 1000,
+      purpose: "profile_photo",
+    };
+
     it("throws an error if the user is unauthenticated", async () => {
       vi.mocked(mockAuthService.getSession).mockResolvedValue(null);
 
       await expect(
-        getPresignedUrl(mockFileRepository, mockAuthService, "photo.jpg", "image/jpeg", 1000, "profile_photo")
+        prepareFileUpload(mockFileRepository, mockAuthService, command)
       ).rejects.toThrow("User is unauthenticated");
     });
 
-    it("gets the presigned URL successfully if authenticated", async () => {
+    it("gets the prepared file upload successfully if authenticated", async () => {
       vi.mocked(mockAuthService.getSession).mockResolvedValue({
         user: { id: "1", email: "test@test.com", firstName: "A", lastName: "B" },
       });
-      vi.mocked(mockFileRepository.getPresignedUrl).mockResolvedValue({
-        file_id: "file-id",
-        key: "key-123",
-        upload_url: "http://upload.url",
+      vi.mocked(mockFileRepository.prepareUpload).mockResolvedValue({
+        fileId: "file-id",
+        storageKey: "key-123",
+        uploadUrl: "http://upload.url",
         headers: {},
       });
 
-      const res = await getPresignedUrl(mockFileRepository, mockAuthService, "photo.jpg", "image/jpeg", 1000, "profile_photo");
-      expect(res.file_id).toBe("file-id");
-      expect(res.upload_url).toBe("http://upload.url");
-      expect(mockFileRepository.getPresignedUrl).toHaveBeenCalledWith("photo.jpg", "image/jpeg", 1000, "profile_photo");
+      const res = await prepareFileUpload(mockFileRepository, mockAuthService, command);
+      expect(res.fileId).toBe("file-id");
+      expect(res.storageKey).toBe("key-123");
+      expect(res.uploadUrl).toBe("http://upload.url");
+      expect(mockFileRepository.prepareUpload).toHaveBeenCalledWith(command);
     });
   });
 
-  describe("confirmUpload", () => {
+  describe("confirmFileUpload", () => {
+    const command: ConfirmFileUploadCommand = {
+      fileId: "file-id",
+      storageKey: "key",
+      mimeType: "image/jpeg",
+      sizeBytes: 1000,
+    };
+
     it("throws an error if the user is unauthenticated", async () => {
       vi.mocked(mockAuthService.getSession).mockResolvedValue(null);
 
       await expect(
-        confirmUpload(mockFileRepository, mockAuthService, "file-id", "key", "image/jpeg", 1000)
+        confirmFileUpload(mockFileRepository, mockAuthService, command)
       ).rejects.toThrow("User is unauthenticated");
     });
 
@@ -55,14 +75,16 @@ describe("upload-file", () => {
         user: { id: "1", email: "test@test.com", firstName: "A", lastName: "B" },
       });
       vi.mocked(mockFileRepository.confirmUpload).mockResolvedValue({
-        id: "file-id",
+        fileId: "file-id",
         url: "http://final.url/photo.jpg",
-        original_name: "photo.jpg",
+        originalName: "photo.jpg",
       });
 
-      const res = await confirmUpload(mockFileRepository, mockAuthService, "file-id", "key", "image/jpeg", 1000);
+      const res = await confirmFileUpload(mockFileRepository, mockAuthService, command);
+      expect(res.fileId).toBe("file-id");
       expect(res.url).toBe("http://final.url/photo.jpg");
-      expect(mockFileRepository.confirmUpload).toHaveBeenCalledWith("file-id", "key", "image/jpeg", 1000);
+      expect(res.originalName).toBe("photo.jpg");
+      expect(mockFileRepository.confirmUpload).toHaveBeenCalledWith(command);
     });
   });
 });

@@ -15,18 +15,18 @@ vi.mock("@/app/consumidor/buscar/actions", () => ({
   createJobRequest: vi.fn(),
 }));
 
-const mockGetPresignedUrl = vi.fn();
-const mockUploadFile = vi.fn();
+const mockPrepareUpload = vi.fn();
+const mockUpload = vi.fn();
 const mockConfirmUpload = vi.fn();
 
-vi.mock("@/infrastructure/repositories/shared/client-repositories", () => {
-  class MockClientFileRepository {
-    getPresignedUrl = mockGetPresignedUrl;
-    uploadFile = mockUploadFile;
+vi.mock("@/infrastructure/repositories/files/client-file-upload-repository", () => {
+  class MockClientFileUploadRepository {
+    prepareUpload = mockPrepareUpload;
+    upload = mockUpload;
     confirmUpload = mockConfirmUpload;
   }
   return {
-    ClientFileRepository: MockClientFileRepository,
+    ClientFileUploadRepository: MockClientFileUploadRepository,
   };
 });
 
@@ -180,14 +180,14 @@ describe("WorkRequestModal", () => {
   });
 
   it("submits form with image file ids", async () => {
-    mockGetPresignedUrl.mockResolvedValue({
-      file_id: "fid-1",
-      key: "k-1",
-      upload_url: "http://upload.com/1",
+    mockPrepareUpload.mockResolvedValue({
+      fileId: "fid-1",
+      storageKey: "k-1",
+      uploadUrl: "http://upload.com/1",
       headers: {}
     });
-    mockUploadFile.mockResolvedValue(undefined);
-    mockConfirmUpload.mockResolvedValue({ id: "uploaded-id-1", url: "http://r2.com/1", original_name: "test.png" });
+    mockUpload.mockResolvedValue(undefined);
+    mockConfirmUpload.mockResolvedValue({ fileId: "uploaded-id-1", url: "http://r2.com/1", originalName: "test.png" });
 
     (actions.createJobRequest as ReturnType<typeof vi.fn>).mockResolvedValue({
       success: true,
@@ -214,9 +214,23 @@ describe("WorkRequestModal", () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(mockGetPresignedUrl).toHaveBeenCalledWith("test.png", "image/png", file.size, "job_request_image");
-      expect(mockUploadFile).toHaveBeenCalled();
-      expect(mockConfirmUpload).toHaveBeenCalledWith("fid-1", "k-1", "image/png", file.size);
+      expect(mockPrepareUpload).toHaveBeenCalledWith({
+        originalName: "test.png",
+        mimeType: "image/png",
+        sizeBytes: file.size,
+        purpose: "job_request_image",
+      });
+      expect(mockUpload).toHaveBeenCalledWith({
+        uploadUrl: "http://upload.com/1",
+        file,
+        headers: {},
+      });
+      expect(mockConfirmUpload).toHaveBeenCalledWith({
+        fileId: "fid-1",
+        storageKey: "k-1",
+        mimeType: "image/png",
+        sizeBytes: file.size,
+      });
       expect(actions.createJobRequest).toHaveBeenCalledWith(
         mockProvider.id,
         "Gotera en cocina",

@@ -1,5 +1,5 @@
 import { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
-import { FileRepository } from "@/ports/files/file-repository";
+import { FileUploadRepository } from "@/ports/files/file-upload-repository";
 import { Message } from "@/domain/messaging/types";
 import { normalizeAudioMimeType } from "@/lib/audio/audio-validation";
 
@@ -22,37 +22,41 @@ export interface SendAudioMessageParams {
 
 export async function sendAudioMessage(
   conversationRepository: ConversationCommandRepository,
-  fileRepository: FileRepository,
+  fileRepository: FileUploadRepository,
   params: SendAudioMessageParams
 ): Promise<{ message: Message }> {
   const originalName = (params.file as File).name || "audio.webm";
   const mimeType = normalizeAudioMimeType(params.file.type);
-  let presigned;
+  let prepared;
   try {
-    presigned = await fileRepository.getPresignedUrl(
+    prepared = await fileRepository.prepareUpload({
       originalName,
       mimeType,
-      params.file.size,
-      "conversation_message_audio"
-    );
+      sizeBytes: params.file.size,
+      purpose: "conversation_message_audio",
+    });
   } catch (error) {
     throw new AudioUploadError("presign", error);
   }
 
   try {
-    await fileRepository.uploadFile(presigned.upload_url, params.file, presigned.headers);
+    await fileRepository.upload({
+      uploadUrl: prepared.uploadUrl,
+      file: params.file,
+      headers: prepared.headers,
+    });
   } catch (error) {
     throw new AudioUploadError("PUT", error);
   }
 
   let confirmed;
   try {
-    confirmed = await fileRepository.confirmUpload(
-      presigned.file_id,
-      presigned.key,
+    confirmed = await fileRepository.confirmUpload({
+      fileId: prepared.fileId,
+      storageKey: prepared.storageKey,
       mimeType,
-      params.file.size
-    );
+      sizeBytes: params.file.size,
+    });
   } catch (error) {
     throw new AudioUploadError("confirm", error);
   }
@@ -64,7 +68,7 @@ export async function sendAudioMessage(
       counterpartId: params.counterpartId,
       currentUserId: params.myUserId,
       currentUserRole: params.myRole ?? "consumer",
-      audioFileId: confirmed.id,
+      audioFileId: confirmed.fileId,
     });
   } catch (error) {
     throw new AudioUploadError("send", error);

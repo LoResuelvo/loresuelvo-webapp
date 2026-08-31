@@ -4,8 +4,8 @@ import * as fileActions from "@/app/files/actions";
 import { storageClient } from "@/infrastructure/storage/storage-client";
 
 vi.mock("@/app/files/actions", () => ({
-  getPresignedUrlAction: vi.fn(),
-  confirmUploadAction: vi.fn(),
+  prepareFileUploadAction: vi.fn(),
+  confirmFileUploadAction: vi.fn(),
 }));
 
 vi.mock("@/infrastructure/storage/storage-client", () => ({
@@ -23,7 +23,7 @@ describe("uploadProfilePhoto", () => {
     const formData = new FormData();
     await uploadProfilePhoto(formData);
 
-    expect(fileActions.getPresignedUrlAction).not.toHaveBeenCalled();
+    expect(fileActions.prepareFileUploadAction).not.toHaveBeenCalled();
   });
 
   it("uploads profile photo and updates formData fields", async () => {
@@ -31,46 +31,46 @@ describe("uploadProfilePhoto", () => {
     const formData = new FormData();
     formData.append("profilePhoto", file);
 
-    vi.mocked(fileActions.getPresignedUrlAction).mockResolvedValue({
+    vi.mocked(fileActions.prepareFileUploadAction).mockResolvedValue({
       success: true,
       data: {
-        upload_url: "https://upload.example.com",
-        file_id: "fid-123",
-        key: "key-123",
+        uploadUrl: "https://upload.example.com",
+        fileId: "fid-123",
+        storageKey: "key-123",
         headers: {},
       },
     });
 
     vi.mocked(storageClient.uploadFile).mockResolvedValue(undefined);
 
-    vi.mocked(fileActions.confirmUploadAction).mockResolvedValue({
+    vi.mocked(fileActions.confirmFileUploadAction).mockResolvedValue({
       success: true,
       data: {
-        id: "confirmed-id",
+        fileId: "confirmed-id",
         url: "https://cdn.example.com/avatar.png",
-        original_name: "avatar.png",
+        originalName: "avatar.png",
       },
     });
 
     await uploadProfilePhoto(formData);
 
-    expect(fileActions.getPresignedUrlAction).toHaveBeenCalledWith(
-      "avatar.png",
-      "image/png",
-      file.size,
-      "profile_photo"
-    );
+    expect(fileActions.prepareFileUploadAction).toHaveBeenCalledWith({
+      originalName: "avatar.png",
+      mimeType: "image/png",
+      sizeBytes: file.size,
+      purpose: "profile_photo",
+    });
     expect(storageClient.uploadFile).toHaveBeenCalledWith(
       file,
       "https://upload.example.com",
       {}
     );
-    expect(fileActions.confirmUploadAction).toHaveBeenCalledWith(
-      "fid-123",
-      "key-123",
-      "image/png",
-      file.size
-    );
+    expect(fileActions.confirmFileUploadAction).toHaveBeenCalledWith({
+      fileId: "fid-123",
+      storageKey: "key-123",
+      mimeType: "image/png",
+      sizeBytes: file.size,
+    });
 
     expect(formData.get("profilePhoto")).toBeNull();
     expect(formData.get("profilePhotoId")).toBe("confirmed-id");

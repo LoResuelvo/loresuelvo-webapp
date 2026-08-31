@@ -1,14 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AudioUploadError, sendAudioMessage } from "./send-audio-message";
-import { AudioConversationRepository } from "@/ports/messaging/audio-conversation-repository";
+import { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
 import { FileRepository } from "@/ports/files/file-repository";
 
 describe("sendAudioMessage", () => {
-  let conversationRepository: AudioConversationRepository;
+  let conversationRepository: ConversationCommandRepository;
   let fileRepository: FileRepository;
 
   beforeEach(() => {
-    conversationRepository = { sendAudioMessage: vi.fn() };
+    conversationRepository = {
+      create: vi.fn(),
+      sendMessage: vi.fn(),
+      sendAudioMessage: vi.fn(),
+    };
     fileRepository = {
       getPresignedUrl: vi.fn(),
       uploadFile: vi.fn(),
@@ -30,15 +34,16 @@ describe("sendAudioMessage", () => {
       original_name: file.name,
     });
     vi.mocked(conversationRepository.sendAudioMessage).mockResolvedValue({
-      id: 99,
-      sender_role: "consumer",
-      created_on: "2026-08-25T21:00:00Z",
+      id: "99",
+      senderId: "consumer-001",
+      sentAt: "12:00",
+      createdOn: "2026-08-25T21:00:00Z",
       audio: {
         id: "audio-1",
         url: "https://cdn.test/ruido-bomba.webm",
-        original_name: file.name,
-        duration_seconds: 18,
-        mime_type: "audio/webm",
+        originalName: file.name,
+        durationSeconds: 18,
+        mimeType: "audio/webm",
       },
     });
 
@@ -66,8 +71,11 @@ describe("sendAudioMessage", () => {
       "audio/webm",
       file.size
     );
-    expect(conversationRepository.sendAudioMessage).toHaveBeenCalledWith("1", {
-      kind: "audio",
+    expect(conversationRepository.sendAudioMessage).toHaveBeenCalledWith({
+      conversationId: "1",
+      counterpartId: 2,
+      currentUserId: "consumer-001",
+      currentUserRole: "consumer",
       audioFileId: "audio-1",
     });
     expect(result.message.audio?.durationSeconds).toBe(18);
@@ -88,15 +96,16 @@ describe("sendAudioMessage", () => {
       original_name: file.name,
     });
     vi.mocked(conversationRepository.sendAudioMessage).mockResolvedValue({
-      id: 100,
-      sender_role: "provider",
-      created_on: "2026-08-25T21:05:00Z",
+      id: "100",
+      senderId: "provider-001",
+      sentAt: "12:00",
+      createdOn: "2026-08-25T21:05:00Z",
       audio: {
         id: "audio-2",
         url: "https://cdn.test/audio.webm",
-        original_name: file.name,
-        duration_seconds: 10,
-        mime_type: "audio/webm",
+        originalName: file.name,
+        durationSeconds: 10,
+        mimeType: "audio/webm",
       },
     });
 
@@ -120,6 +129,13 @@ describe("sendAudioMessage", () => {
       "audio/webm",
       file.size
     );
+    expect(conversationRepository.sendAudioMessage).toHaveBeenCalledWith({
+      conversationId: "2",
+      counterpartId: 3,
+      currentUserId: "provider-001",
+      currentUserRole: "provider",
+      audioFileId: "audio-2",
+    });
   });
 
   it.each([

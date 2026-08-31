@@ -28,7 +28,7 @@ export function transformApiMessageToDomain(
     images: apiMsg.images ? apiMsg.images.map(img => ({
       id: String(img.id),
       url: img.url,
-      originalName: (img as any).originalName || img.original_name,
+      originalName: img.original_name,
     })) : undefined,
     audio: apiMsg.audio ? {
       id: String(apiMsg.audio.id),
@@ -40,6 +40,26 @@ export function transformApiMessageToDomain(
     } : undefined,
     sentAt: formatToLocalTime(apiMsg.created_on),
     createdOn: apiMsg.created_on,
+  };
+}
+
+export function createSyntheticMessage(
+  content: string | undefined,
+  imageFileIds: string[] | undefined,
+  myUserId: string,
+  now: Date = new Date()
+): Message {
+  return {
+    id: String(now.getTime()),
+    content,
+    senderId: myUserId,
+    images: imageFileIds && imageFileIds.length > 0 ? imageFileIds.map(id => ({
+      id,
+      url: "",
+      originalName: "",
+    })) : undefined,
+    sentAt: formatToLocalTime(now),
+    createdOn: now.toISOString(),
   };
 }
 

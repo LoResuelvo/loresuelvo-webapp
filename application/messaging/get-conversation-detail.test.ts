@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { getConversationDetail, getJobRequestForConversation } from "./get-conversation-detail";
-import { ConversationRepository } from "@/ports/messaging/conversation-repository";
+import { ConversationQueryRepository } from "@/ports/messaging/conversation-query-repository";
 import { JobRequestRepository, JobRequestSummary } from "@/ports/messaging/job-request-repository";
 import { ConversationDetailInfo } from "@/domain/messaging/types";
 
@@ -27,13 +27,17 @@ describe("get-conversation-detail", () => {
     },
   ];
 
-  const mockConversationRepository = {
+  const mockConversationRepository: ConversationQueryRepository = {
     getById: vi.fn(),
-  } as unknown as ConversationRepository;
+    getConsumerConversations: vi.fn(),
+    getProviderConversations: vi.fn(),
+  };
 
-  const mockJobRequestRepository = {
+  const mockJobRequestRepository: JobRequestRepository = {
     list: vi.fn(),
-  } as unknown as JobRequestRepository;
+    create: vi.fn(),
+    accept: vi.fn(),
+  };
 
   describe("getConversationDetail", () => {
     it("gets the conversation detail by ID successfully", async () => {

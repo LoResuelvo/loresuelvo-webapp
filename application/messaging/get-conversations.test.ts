@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { getConsumerConversations, getProviderConversations } from "./get-conversations";
-import { ConversationRepository } from "@/ports/messaging/conversation-repository";
+import { ConversationQueryRepository } from "@/ports/messaging/conversation-query-repository";
 import { ConsumerConversationContact, ProviderConversationContact } from "@/domain/messaging/types";
 
 describe("get-conversations", () => {
@@ -28,13 +28,11 @@ describe("get-conversations", () => {
     },
   ];
 
-  const mockConversationRepository = {
+  const mockConversationRepository: ConversationQueryRepository = {
     getConsumerConversations: vi.fn(),
     getProviderConversations: vi.fn(),
     getById: vi.fn(),
-    create: vi.fn(),
-    sendMessage: vi.fn(),
-  } as unknown as ConversationRepository;
+  };
 
   describe("getConsumerConversations", () => {
     it("gets consumer conversations successfully", async () => {

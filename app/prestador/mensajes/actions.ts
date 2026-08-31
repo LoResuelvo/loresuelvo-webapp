@@ -1,6 +1,7 @@
 "use server";
 
-import { ApiConversationRepository } from "@/infrastructure/repositories/messaging/api-conversation-repository";
+import { ApiConversationQueryRepository } from "@/infrastructure/repositories/messaging/api-conversation-query-repository";
+import { ApiConversationCommandRepository } from "@/infrastructure/repositories/messaging/api-conversation-command-repository";
 import { ApiJobRequestRepository } from "@/infrastructure/repositories/messaging/api-job-request-repository";
 import { ApiServiceProposalRepository } from "@/infrastructure/repositories/messaging/api-service-proposal-repository";
 import {
@@ -14,29 +15,40 @@ import {
 import { sendServiceProposal as sendServiceProposalUseCase } from "@/application/messaging/send-service-proposal";
 import { getServiceProposals } from "@/application/messaging/get-service-proposals";
 import { acceptWorkRequest } from "@/application/provider/accept-work-request";
-import { ConversationDetailInfo, CreateServiceProposalInput, ServiceProposal, ServiceProposalSummary } from "@/domain/messaging/types";
+import {
+  ConversationDetailInfo,
+  CreateServiceProposalInput,
+  Message,
+  ServiceProposal,
+  ServiceProposalSummary,
+} from "@/domain/messaging/types";
+import {
+  CreateConversationCommand,
+  CreatedConversation,
+  SendConversationAudioCommand,
+  SendConversationMessageCommand,
+} from "@/ports/messaging/conversation-command-repository";
 import { JobRequestSummary } from "@/ports/messaging/job-request-repository";
 import { logger } from "@/infrastructure/logging/logger";
-import { SendAudioMessagePayload } from "@/ports/messaging/audio-conversation-repository";
 
 export async function getConversationDetail(id: string): Promise<ConversationDetailInfo> {
-  const repository = new ApiConversationRepository();
+  const repository = new ApiConversationQueryRepository();
   return getConvDetailUseCase(repository, id);
 }
 
-export async function createConversation(consumerId: number, content?: string, imageFileIds?: string[]): Promise<{ id: number }> {
-  const repository = new ApiConversationRepository();
-  return createConvUseCase(repository, consumerId, content, imageFileIds);
+export async function createConversation(command: CreateConversationCommand): Promise<CreatedConversation> {
+  const repository = new ApiConversationCommandRepository();
+  return createConvUseCase(repository, command);
 }
 
-export async function sendMessage(conversationId: string, content?: string, imageFileIds?: string[]): Promise<unknown> {
-  const repository = new ApiConversationRepository();
-  return sendMsgUseCase(repository, conversationId, content, imageFileIds);
+export async function sendMessage(command: SendConversationMessageCommand): Promise<Message> {
+  const repository = new ApiConversationCommandRepository();
+  return sendMsgUseCase(repository, command);
 }
 
-export async function sendAudioMessage(conversationId: string, payload: SendAudioMessagePayload): Promise<unknown> {
-  const repository = new ApiConversationRepository();
-  return repository.sendAudioMessage(conversationId, payload);
+export async function sendAudioMessage(command: SendConversationAudioCommand): Promise<Message> {
+  const repository = new ApiConversationCommandRepository();
+  return repository.sendAudioMessage(command);
 }
 
 export async function acceptJobRequest(jobRequestId: number): Promise<void> {

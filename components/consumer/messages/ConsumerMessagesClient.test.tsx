@@ -111,11 +111,11 @@ describe("ConsumerMessagesClient", () => {
     });
 
     (actions.sendMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 2,
-      conversation_id: 1,
-      sender_role: "consumer",
+      id: "2",
+      senderId: "user-id",
       content: "Nuevo mensaje de prueba",
-      created_on: "2026-05-31T12:05:00Z",
+      sentAt: "12:05",
+      createdOn: "2026-05-31T12:05:00Z",
     });
 
     render(

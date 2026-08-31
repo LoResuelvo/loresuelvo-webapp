@@ -1,8 +1,7 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { AuthSession } from "@/infrastructure/auth/types";
 import type { ConversationDetailInfo, Message } from "@/domain/messaging/types";
-import type { ConversationRepository } from "@/ports/messaging/conversation-repository";
-import type { AudioConversationRepository } from "@/ports/messaging/audio-conversation-repository";
+import type { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
 import type { FileRepository } from "@/ports/files/file-repository";
 import type { OfflineQueueRepository } from "@/ports/shared/offline-queue-repository";
 import type { AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
@@ -22,7 +21,7 @@ export interface UseMessagingCoreConfig<TContact extends BaseConversationContact
   contacts: TContact[];
   getCounterpartIdFromContact: (contact: TContact) => string;
   getConversationDetail: (id: string) => Promise<ConversationDetailInfo>;
-  conversationRepository: ConversationRepository & AudioConversationRepository;
+  conversationRepository: ConversationCommandRepository;
   fileRepository: FileRepository;
   offlineQueueRepository: OfflineQueueRepository;
   onConversationLoaded?: (conversationId: string, data: ConversationDetailInfo) => void;

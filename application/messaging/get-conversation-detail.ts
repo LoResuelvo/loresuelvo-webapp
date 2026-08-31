@@ -1,9 +1,9 @@
-import { ConversationRepository } from "@/ports/messaging/conversation-repository";
+import { ConversationQueryRepository } from "@/ports/messaging/conversation-query-repository";
 import { JobRequestRepository, JobRequestSummary } from "@/ports/messaging/job-request-repository";
 import { ConversationDetailInfo } from "@/domain/messaging/types";
 
 export async function getConversationDetail(
-  conversationRepository: ConversationRepository,
+  conversationRepository: ConversationQueryRepository,
   id: string
 ): Promise<ConversationDetailInfo> {
   return conversationRepository.getById(id);

@@ -1,8 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
-import type { ConversationDetailInfo } from "@/domain/messaging/types";
-import type { AudioConversationRepository } from "@/ports/messaging/audio-conversation-repository";
-import type { ConversationRepository } from "@/ports/messaging/conversation-repository";
+import type { ConversationDetailInfo, Message } from "@/domain/messaging/types";
+import type { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
 import type { FileRepository } from "@/ports/files/file-repository";
 import type { OfflineQueueRepository } from "@/ports/shared/offline-queue-repository";
 import { useMessagingCore, type BaseConversationContact, type UseMessagingCoreConfig } from "./useMessagingCore";
@@ -47,10 +46,17 @@ const contacts: TestContact[] = [
 ];
 
 describe("useMessagingCore selection and feed", () => {
-  let conversationRepository: ConversationRepository & AudioConversationRepository;
+  let conversationRepository: ConversationCommandRepository;
   let fileRepository: FileRepository;
   let offlineQueueRepository: OfflineQueueRepository;
   let getConversationDetail: Mock<(id: string) => Promise<ConversationDetailInfo>>;
+  const dummyDetail: ConversationDetailInfo = {
+    id: 1,
+    status: "active",
+    counterpart: { id: 100, role: "provider", name: "Juan", surname: "Perez", categoryName: "Gas" },
+    messages: [{ id: "remote-1", content: "Mensaje existente", senderId: "consumer", sentAt: "10:00" }],
+    updatedOn: "2026-05-31T12:00:00Z",
+  };
 
   const createConfig = (
     overrides: Partial<UseMessagingCoreConfig<TestContact>> = {}
@@ -72,26 +78,26 @@ describe("useMessagingCore selection and feed", () => {
     vi.clearAllMocks();
     websocketCallback = null;
     Object.keys(draftStorage).forEach((id) => delete draftStorage[id]);
-    getConversationDetail = vi.fn().mockResolvedValue({
-      id: 1,
-      status: "active",
-      counterpart: { id: 100, role: "provider", name: "Juan", surname: "Perez", categoryName: "Gas" },
-      messages: [{ id: "remote-1", content: "Mensaje existente", senderId: "consumer", sentAt: "10:00" }],
-      updatedOn: "2026-05-31T12:00:00Z",
-    });
+    getConversationDetail = vi.fn().mockResolvedValue(dummyDetail);
     conversationRepository = {
-      create: vi.fn().mockResolvedValue({ id: 3 }),
-      sendMessage: vi.fn().mockResolvedValue({
-        id: 2,
-        conversation_id: 1,
-        sender_role: "consumer",
-        content: "Enviado",
-        created_on: new Date().toISOString(),
+      create: vi.fn().mockResolvedValue({
+        conversationId: "3",
+        message: {
+          id: "msg-3",
+          senderId: "user-1",
+          content: "Primer mensaje",
+          sentAt: "10:00",
+          createdOn: new Date().toISOString(),
+        } satisfies Message,
       }),
+      sendMessage: vi.fn().mockResolvedValue({
+        id: "2",
+        senderId: "user-1",
+        content: "Enviado",
+        sentAt: "10:00",
+        createdOn: new Date().toISOString(),
+      } satisfies Message),
       sendAudioMessage: vi.fn(),
-      getConsumerConversations: vi.fn().mockResolvedValue([]),
-      getProviderConversations: vi.fn().mockResolvedValue([]),
-      getById: vi.fn(),
     };
     fileRepository = {
       getPresignedUrl: vi.fn(),
@@ -106,12 +112,14 @@ describe("useMessagingCore selection and feed", () => {
   });
 
   it("loads a conversation and merges its pending messages", async () => {
+    const onConversationLoaded = vi.fn();
     (offlineQueueRepository.loadPendingMessages as Mock).mockReturnValue([
       { id: "pending-1", content: "Sin conexión", senderId: "user-1", sentAt: "Ahora" },
     ]);
-    const { result } = renderHook(() => useMessagingCore(createConfig()));
+    const { result } = renderHook(() => useMessagingCore(createConfig({ onConversationLoaded })));
 
     await waitFor(() => expect(offlineQueueRepository.clearPendingMessages).toHaveBeenCalledWith("1"));
+    await waitFor(() => expect(onConversationLoaded).toHaveBeenCalledWith("1", dummyDetail));
 
     expect(result.current.selectedContact?.providerName).toBe("Juan");
     expect(result.current.viewMessages.map((message) => message.id)).toEqual(

@@ -16,14 +16,14 @@ import {
   ServiceProposalSummary,
 } from "@/domain/messaging/types";
 import {
-  ClientConversationRepository,
   ClientFileRepository,
 } from "@/infrastructure/repositories/shared/client-repositories";
+import { ClientConversationCommandRepository } from "@/infrastructure/repositories/messaging/client-conversation-command-repository";
 import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/shared/local-offline-queue-repository";
 import type { MessageInputHandle } from "@/components/messaging/chat/MessageInput";
 import { useMessagingCore } from "@/hooks/messaging/useMessagingCore";
 
-const conversationRepository = new ClientConversationRepository({
+const conversationRepository = new ClientConversationCommandRepository({
   create: createConversation,
   sendMessage,
   sendAudioMessage: sendAudioMessageAction,

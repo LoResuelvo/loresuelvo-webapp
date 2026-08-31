@@ -1,8 +1,6 @@
-import { ConversationRepository } from "@/ports/messaging/conversation-repository";
+import { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
 import { FileRepository } from "@/ports/files/file-repository";
 import { Message } from "@/domain/messaging/types";
-import { ApiConversationMessage } from "@/infrastructure/api/types";
-import { transformApiMessageToDomain } from "@/infrastructure/repositories/messaging/conversation-mapper";
 
 export interface SendMessageWithAttachmentsParams {
   conversationId: string | null;
@@ -14,7 +12,7 @@ export interface SendMessageWithAttachmentsParams {
 }
 
 export async function sendMessageWithAttachments(
-  conversationRepository: ConversationRepository,
+  conversationRepository: ConversationCommandRepository,
   fileRepository: FileRepository,
   params: SendMessageWithAttachmentsParams
 ): Promise<{ message: Message; conversationId: string }> {
@@ -45,53 +43,33 @@ export async function sendMessageWithAttachments(
     }
   }
 
-  let conversationIdToUse = params.conversationId;
-  let isNew = false;
+  const imageFileIds = uploadedImageIds.length > 0 ? uploadedImageIds : undefined;
 
-  if (!conversationIdToUse || !/^\d+$/.test(conversationIdToUse)) {
-    const createData = await conversationRepository.create({
-      counterpart_id: params.counterpartId,
+  if (!params.conversationId || !/^\d+$/.test(params.conversationId)) {
+    const created = await conversationRepository.create({
+      counterpartId: params.counterpartId,
+      currentUserId: params.myUserId,
+      currentUserRole: params.myRole,
       content: params.content,
-      image_file_ids: uploadedImageIds.length > 0 ? uploadedImageIds : undefined,
+      imageFileIds,
     });
-    conversationIdToUse = String(createData.id);
-    isNew = true;
-  }
-
-  let apiMsg: ApiConversationMessage;
-
-  if (isNew) {
-    // If conversation is newly created, the first message details are not returned by the API create call.
-    // We synthesize the message locally (equivalent to the UI optimistic message behavior).
-    apiMsg = {
-      id: Date.now(),
-      sender_role: params.myRole,
-      content: params.content,
-      created_on: new Date().toISOString(),
-      images: uploadedImageIds.map(id => ({
-        id,
-        url: "", // temp/empty URL for newly uploaded local images
-        original_name: "",
-      })),
+    return {
+      conversationId: created.conversationId,
+      message: created.message,
     };
-  } else {
-    const response = await conversationRepository.sendMessage(
-      conversationIdToUse,
-      params.content,
-      uploadedImageIds.length > 0 ? uploadedImageIds : undefined
-    );
-    apiMsg = response as ApiConversationMessage;
   }
 
-  const domainMsg = transformApiMessageToDomain(
-    apiMsg,
-    params.myUserId,
-    String(params.counterpartId),
-    params.myRole
-  );
+  const message = await conversationRepository.sendMessage({
+    conversationId: params.conversationId,
+    counterpartId: params.counterpartId,
+    currentUserId: params.myUserId,
+    currentUserRole: params.myRole,
+    content: params.content,
+    imageFileIds,
+  });
 
   return {
-    message: domainMsg,
-    conversationId: conversationIdToUse,
+    conversationId: params.conversationId,
+    message,
   };
 }

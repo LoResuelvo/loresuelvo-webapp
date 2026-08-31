@@ -1,8 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import type { ConversationDetailInfo } from "@/domain/messaging/types";
-import type { AudioConversationRepository } from "@/ports/messaging/audio-conversation-repository";
-import type { ConversationRepository } from "@/ports/messaging/conversation-repository";
+import type { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
 import type { FileRepository } from "@/ports/files/file-repository";
 import type { OfflineQueueRepository } from "@/ports/shared/offline-queue-repository";
 import { clearDraft, saveDraft } from "@/lib/messaging/message-drafts";
@@ -36,7 +35,7 @@ const contacts: TestContact[] = [
 ];
 
 describe("useMessagingCore outbox", () => {
-  let conversationRepository: ConversationRepository & AudioConversationRepository;
+  let conversationRepository: ConversationCommandRepository;
   let fileRepository: FileRepository;
   let offlineQueueRepository: OfflineQueueRepository;
   let getConversationDetail: Mock<(id: string) => Promise<ConversationDetailInfo>>;
@@ -69,28 +68,25 @@ describe("useMessagingCore outbox", () => {
     conversationRepository = {
       create: vi.fn(),
       sendMessage: vi.fn().mockResolvedValue({
-        id: 2,
-        conversation_id: 1,
-        sender_role: "consumer",
+        id: "2",
+        senderId: "user-1",
         content: "Mensaje enviado",
-        created_on: new Date().toISOString(),
+        sentAt: "12:00",
+        createdOn: new Date().toISOString(),
       }),
       sendAudioMessage: vi.fn().mockResolvedValue({
-        id: 3,
-        conversation_id: 1,
-        sender_role: "consumer",
-        created_on: new Date().toISOString(),
+        id: "3",
+        senderId: "user-1",
+        sentAt: "12:00",
+        createdOn: new Date().toISOString(),
         audio: {
           id: "audio-1",
           url: "https://files.test/audio.webm",
-          original_name: "audio.webm",
-          duration_seconds: 1,
-          mime_type: "audio/webm",
+          originalName: "audio.webm",
+          durationSeconds: 1,
+          mimeType: "audio/webm",
         },
       }),
-      getConsumerConversations: vi.fn().mockResolvedValue([]),
-      getProviderConversations: vi.fn().mockResolvedValue([]),
-      getById: vi.fn(),
     };
     fileRepository = {
       getPresignedUrl: vi.fn().mockResolvedValue({
@@ -149,8 +145,11 @@ describe("useMessagingCore outbox", () => {
 
     await act(async () => expect(await result.current.handleSendAudio(file)).toBe(true));
 
-    expect(conversationRepository.sendAudioMessage).toHaveBeenCalledWith("1", {
-      kind: "audio",
+    expect(conversationRepository.sendAudioMessage).toHaveBeenCalledWith({
+      conversationId: "1",
+      counterpartId: 100,
+      currentUserId: "user-1",
+      currentUserRole: "consumer",
       audioFileId: "audio-1",
     });
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:optimistic-audio");

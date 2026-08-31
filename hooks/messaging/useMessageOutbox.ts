@@ -4,8 +4,7 @@ import { AudioUploadError, sendAudioMessage, type AudioUploadFailureStage } from
 import type { Message } from "@/domain/messaging/types";
 import type { FileRepository } from "@/ports/files/file-repository";
 import type { OfflineQueueRepository } from "@/ports/shared/offline-queue-repository";
-import type { ConversationRepository } from "@/ports/messaging/conversation-repository";
-import type { AudioConversationRepository } from "@/ports/messaging/audio-conversation-repository";
+import type { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
 import { t } from "@/infrastructure/i18n/translations";
 import type { AuthSession } from "@/infrastructure/auth/types";
 
@@ -23,7 +22,7 @@ interface UseMessageOutboxConfig {
   setAttachedFiles: (files: File[]) => void;
   setIsSending: (isSending: boolean) => void;
   setActiveConversationId: (conversationId: string) => void;
-  conversationRepository: ConversationRepository & AudioConversationRepository;
+  conversationRepository: ConversationCommandRepository;
   fileRepository: FileRepository;
   offlineQueueRepository: OfflineQueueRepository;
   now: () => Date;

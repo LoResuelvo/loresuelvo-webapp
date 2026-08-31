@@ -1,19 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { sendMessageWithAttachments } from "./send-message-with-attachments";
-import { ConversationRepository } from "@/ports/messaging/conversation-repository";
+import { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
 import { FileRepository } from "@/ports/files/file-repository";
+import { Message } from "@/domain/messaging/types";
 
 describe("sendMessageWithAttachments", () => {
-  let mockConversationRepository: ConversationRepository;
+  let mockConversationRepository: ConversationCommandRepository;
   let mockFileRepository: FileRepository;
 
   beforeEach(() => {
     mockConversationRepository = {
       create: vi.fn(),
       sendMessage: vi.fn(),
-      getConsumerConversations: vi.fn(),
-      getProviderConversations: vi.fn(),
-      getById: vi.fn(),
+      sendAudioMessage: vi.fn(),
     };
 
     mockFileRepository = {
@@ -24,12 +23,15 @@ describe("sendMessageWithAttachments", () => {
   });
 
   it("sends a simple message without attachments to an existing conversation", async () => {
-    vi.mocked(mockConversationRepository.sendMessage).mockResolvedValue({
-      id: 100,
-      sender_role: "consumer",
+    const dummyMessage: Message = {
+      id: "100",
+      senderId: "user-1",
       content: "Hello there",
-      created_on: "2026-06-16T12:00:00Z",
-    });
+      sentAt: "12:00",
+      createdOn: "2026-06-16T12:00:00Z",
+    };
+
+    vi.mocked(mockConversationRepository.sendMessage).mockResolvedValue(dummyMessage);
 
     const res = await sendMessageWithAttachments(
       mockConversationRepository,
@@ -44,14 +46,31 @@ describe("sendMessageWithAttachments", () => {
     );
 
     expect(res.conversationId).toBe("123");
-    expect(res.message.content).toBe("Hello there");
-    expect(res.message.senderId).toBe("user-1");
-    expect(mockConversationRepository.sendMessage).toHaveBeenCalledWith("123", "Hello there", undefined);
+    expect(res.message).toEqual(dummyMessage);
+    expect(mockConversationRepository.sendMessage).toHaveBeenCalledWith({
+      conversationId: "123",
+      counterpartId: 99,
+      currentUserId: "user-1",
+      currentUserRole: "consumer",
+      content: "Hello there",
+      imageFileIds: undefined,
+    });
     expect(mockFileRepository.getPresignedUrl).not.toHaveBeenCalled();
   });
 
   it("creates a conversation first if conversationId is not provided", async () => {
-    vi.mocked(mockConversationRepository.create).mockResolvedValue({ id: 456 });
+    const dummyMessage: Message = {
+      id: "456",
+      senderId: "user-1",
+      content: "First message",
+      sentAt: "12:00",
+      createdOn: "2026-06-16T12:00:00Z",
+    };
+
+    vi.mocked(mockConversationRepository.create).mockResolvedValue({
+      conversationId: "456",
+      message: dummyMessage,
+    });
 
     const res = await sendMessageWithAttachments(
       mockConversationRepository,
@@ -66,12 +85,13 @@ describe("sendMessageWithAttachments", () => {
     );
 
     expect(res.conversationId).toBe("456");
-    expect(res.message.content).toBe("First message");
-    expect(res.message.senderId).toBe("user-1");
+    expect(res.message).toEqual(dummyMessage);
     expect(mockConversationRepository.create).toHaveBeenCalledWith({
-      counterpart_id: 99,
+      counterpartId: 99,
+      currentUserId: "user-1",
+      currentUserRole: "consumer",
       content: "First message",
-      image_file_ids: undefined,
+      imageFileIds: undefined,
     });
     expect(mockConversationRepository.sendMessage).not.toHaveBeenCalled();
   });
@@ -88,13 +108,17 @@ describe("sendMessageWithAttachments", () => {
       url: "http://s3.url/img.png",
       original_name: "test.png",
     });
-    vi.mocked(mockConversationRepository.sendMessage).mockResolvedValue({
-      id: 101,
-      sender_role: "provider",
+
+    const dummyMessage: Message = {
+      id: "101",
+      senderId: "user-provider-id",
       content: "Here is the photo",
-      created_on: "2026-06-16T12:00:00Z",
-      images: [{ id: "img-123", url: "http://s3.url/img.png", original_name: "test.png" }],
-    });
+      sentAt: "12:00",
+      createdOn: "2026-06-16T12:00:00Z",
+      images: [{ id: "img-123", url: "http://s3.url/img.png", originalName: "test.png" }],
+    };
+
+    vi.mocked(mockConversationRepository.sendMessage).mockResolvedValue(dummyMessage);
 
     const file = new File(["dummy content"], "test.png", { type: "image/png" });
 
@@ -112,11 +136,17 @@ describe("sendMessageWithAttachments", () => {
     );
 
     expect(res.conversationId).toBe("123");
-    expect(res.message.images).toHaveLength(1);
-    expect(res.message.images?.[0].id).toBe("img-123");
+    expect(res.message).toEqual(dummyMessage);
     expect(mockFileRepository.getPresignedUrl).toHaveBeenCalledWith("test.png", "image/png", file.size, "conversation_message_image");
     expect(mockFileRepository.uploadFile).toHaveBeenCalledWith("http://upload.url", file, { Authorization: "Bearer xyz" });
     expect(mockFileRepository.confirmUpload).toHaveBeenCalledWith("fid-1", "key-1", "image/png", file.size);
-    expect(mockConversationRepository.sendMessage).toHaveBeenCalledWith("123", "Here is the photo", ["img-123"]);
+    expect(mockConversationRepository.sendMessage).toHaveBeenCalledWith({
+      conversationId: "123",
+      counterpartId: 99,
+      currentUserId: "user-provider-id",
+      currentUserRole: "provider",
+      content: "Here is the photo",
+      imageFileIds: ["img-123"],
+    });
   });
 });

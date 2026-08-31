@@ -1,14 +1,14 @@
-import { ConversationRepository } from "@/ports/messaging/conversation-repository";
+import { ConversationQueryRepository } from "@/ports/messaging/conversation-query-repository";
 import { ConsumerConversationContact, ProviderConversationContact } from "@/domain/messaging/types";
 
 export async function getConsumerConversations(
-  conversationRepository: ConversationRepository
+  conversationRepository: ConversationQueryRepository
 ): Promise<ConsumerConversationContact[]> {
   return conversationRepository.getConsumerConversations();
 }
 
 export async function getProviderConversations(
-  conversationRepository: ConversationRepository
+  conversationRepository: ConversationQueryRepository
 ): Promise<ProviderConversationContact[]> {
   return conversationRepository.getProviderConversations();
 }

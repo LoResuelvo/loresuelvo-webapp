@@ -1,7 +1,7 @@
 import { getAuthService } from "@/infrastructure/auth";
 import ConsumerMessagesClient from "@/components/consumer/messages/ConsumerMessagesClient";
 import { getConsumerConversations } from "@/application/messaging/get-conversations";
-import { ApiConversationRepository } from "@/infrastructure/repositories/messaging/api-conversation-repository";
+import { ApiConversationQueryRepository } from "@/infrastructure/repositories/messaging/api-conversation-query-repository";
 
 interface PageProps {
   searchParams: Promise<{ provider_id?: string; name?: string; surname?: string }>;
@@ -11,7 +11,7 @@ export default async function ConsumerMessagesPage({ searchParams }: PageProps) 
   const session = await getAuthService().getSession();
   const params = await searchParams;
 
-  const conversationRepo = new ApiConversationRepository();
+  const conversationRepo = new ApiConversationQueryRepository();
   const contacts = await getConsumerConversations(conversationRepo);
 
 

@@ -459,28 +459,27 @@ Given("que estoy autenticado como prestador", async function (this: CustomWorld)
   );
 });
 
-Given("que tengo confirmado el audio {string}", async function (this: CustomWorld, fileName: string) {
-  if ((this as CustomWorld & { pendingProviderChat?: boolean }).pendingProviderChat) return;
+async function attachAudioFile(world: CustomWorld, fileName: string, bufferContent: string) {
+  const messageInput = world.page.getByPlaceholder("Escribe un mensaje...");
+  await messageInput.waitFor({ state: "visible", timeout: 5000 });
 
-  const audioInput = this.page.locator('input[accept="audio/webm"]');
+  const audioInput = world.page.locator('input[accept="audio/webm"]');
   await audioInput.waitFor({ state: "attached", timeout: 5000 });
   await audioInput.setInputFiles({
     name: fileName,
     mimeType: "audio/webm",
-    buffer: Buffer.from("deterministic-confirmed-audio"),
+    buffer: Buffer.from(bufferContent),
   });
-  await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+  await world.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+}
+
+Given("que tengo confirmado el audio {string}", async function (this: CustomWorld, fileName: string) {
+  if ((this as CustomWorld & { pendingProviderChat?: boolean }).pendingProviderChat) return;
+  await attachAudioFile(this, fileName, "deterministic-confirmed-audio");
 });
 
 Given("que tengo la preview del audio {string}", async function (this: CustomWorld, fileName: string) {
-  const audioInput = this.page.locator('input[accept="audio/webm"]');
-  await audioInput.waitFor({ state: "attached", timeout: 5000 });
-  await audioInput.setInputFiles({
-    name: fileName,
-    mimeType: "audio/webm",
-    buffer: Buffer.from("deterministic-preview-audio"),
-  });
-  await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+  await attachAudioFile(this, fileName, "deterministic-preview-audio");
 });
 
 Given("que la carga del audio falla durante la etapa {string}", async function (this: CustomWorld, stage: string) {
@@ -518,14 +517,7 @@ Given("que la carga del audio falla durante la etapa {string}", async function (
 });
 
 Given("que tengo seleccionado el audio {string}", async function (this: CustomWorld, fileName: string) {
-  const audioInput = this.page.locator('input[accept="audio/webm"]');
-  await audioInput.waitFor({ state: "attached", timeout: 5000 });
-  await audioInput.setInputFiles({
-    name: fileName,
-    mimeType: "audio/webm",
-    buffer: Buffer.from("deterministic-selected-audio"),
-  });
-  await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+  await attachAudioFile(this, fileName, "deterministic-selected-audio");
 });
 
 Given("que el chat contiene el audio recibido {string}", async function (this: CustomWorld, fileName: string) {
@@ -641,14 +633,7 @@ Given("que abrí el menú de adjuntos", async function (this: CustomWorld) {
 
 Given("que tengo un audio WebM con codec Opus de {int} segundos", async function (this: CustomWorld, duration: number) {
   (this as CustomWorld & { audioDurationSeconds?: number }).audioDurationSeconds = duration;
-  const audioInput = this.page.locator('input[accept="audio/webm"]');
-  await audioInput.waitFor({ state: "attached", timeout: 10000 });
-  await audioInput.setInputFiles({
-    name: `audio-${duration}s.webm`,
-    mimeType: "audio/webm",
-    buffer: Buffer.from("deterministic-audio-with-metadata"),
-  });
-  await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+  await attachAudioFile(this, `audio-${duration}s.webm`, "deterministic-audio-with-metadata");
 });
 
 When("grabo un audio WebM con codec Opus de 5 segundos", async function (this: CustomWorld) {
@@ -676,12 +661,7 @@ When(
 );
 
 When("selecciono el audio WebM con codec Opus {string} de {int} segundos", async function (this: CustomWorld, fileName: string, _duration: number) {
-  await this.page.locator('input[accept="audio/webm"]').setInputFiles({
-    name: fileName,
-    mimeType: "audio/webm",
-    buffer: Buffer.from("deterministic-selected-audio"),
-  });
-  await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+  await attachAudioFile(this, fileName, "deterministic-selected-audio");
 });
 
 When("cancelo el audio antes de enviarlo", async function (this: CustomWorld) {

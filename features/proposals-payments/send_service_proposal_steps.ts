@@ -422,7 +422,12 @@ When("selecciono una fecha y hora en el pasado", async function (this: CustomWor
   const modal = this.page.getByRole("dialog", { name: "Propuesta de Servicio" });
   const dateTrigger = modal.getByRole("button", { name: /Seleccionar|\d{2}\/\d{2}\/\d{4}/ });
   await dateTrigger.click();
-  const pastDay = this.page.locator("button").filter({ hasText: /^1$/ }).first();
+
+  const prevMonthButton = this.page.locator("button.rdp-button_previous").first();
+  await prevMonthButton.waitFor({ state: "visible" });
+  await prevMonthButton.click();
+
+  const pastDay = this.page.locator("button").filter({ hasText: /^15$/ }).first();
   await pastDay.waitFor({ state: "visible" });
   await pastDay.click();
 

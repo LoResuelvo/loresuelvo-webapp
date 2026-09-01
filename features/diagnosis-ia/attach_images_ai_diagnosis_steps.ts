@@ -230,6 +230,15 @@ Then("puedo reintentar la carga", async function (this: CustomWorld) {
   const retryBtn = this.page.getByRole("button", { name: /reintentar/i });
   await retryBtn.waitFor(visibleTimeout);
   assert.ok(await retryBtn.isVisible(), "No se ve el botón para reintentar la carga");
+
+  await stubDiagnosisFileUpload(this, "foto-corrupta.jpg", "retry-diag-file-123");
+  await retryBtn.click();
+  await this.page.getByText(/no se pudo cargar la imagen/i).waitFor({ state: "hidden", timeout: 5000 });
+  await this.page.getByLabel("Error al cargar imagen").waitFor({ state: "hidden", timeout: 5000 });
+  await this.page.getByLabel("Cargando imagen").waitFor({ state: "hidden", timeout: 5000 });
+  const thumbnail = this.page.getByRole("img", { name: /^vista previa de/i }).first();
+  await thumbnail.waitFor(visibleTimeout);
+  assert.ok(await thumbnail.isVisible(), "La imagen no quedó visible en el área de adjuntos tras el reintento");
 });
 
 Then("veo un mensaje de error indicando que la imagen es demasiado grande", async function (this: CustomWorld) {

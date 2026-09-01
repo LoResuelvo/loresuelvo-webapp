@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { AssistantClient } from "@/ports/consumer/assistant-client";
 import type { AiChatRepository } from "@/ports/consumer/ai-chat-repository";
@@ -28,9 +28,7 @@ export function useAiDiagnosisChat({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const files = useAiFileManager({
-    onUploadError: (err) => sender.setChatError(err),
-  });
+  const files = useAiFileManager();
 
   const loader = useAiConversationLoader({
     conversationId,
@@ -53,10 +51,20 @@ export function useAiDiagnosisChat({
     textareaRef,
   });
 
+  const handleRetry = useCallback(async () => {
+    if (files.fileUploadError) {
+      await files.retryFailedUploads();
+    } else {
+      await sender.handleRetry();
+    }
+  }, [files, sender]);
+
+  const effectiveChatError = files.fileUploadError ?? sender.chatError;
+
   return {
     messages: loader.messages,
     assistantReply: sender.assistantReply,
-    chatError: sender.chatError,
+    chatError: effectiveChatError,
     messageInput: sender.messageInput,
     setMessageInput: sender.setMessageInput,
     attachments: files.attachments,
@@ -74,7 +82,7 @@ export function useAiDiagnosisChat({
     messagesEndRef,
     textareaRef,
     fileInputRef: files.fileInputRef,
-    handleRetry: sender.handleRetry,
+    handleRetry,
     handleFileChange: files.handleFileChange,
     handleRemoveAttachment: files.handleRemoveAttachment,
     handleSendMessage: sender.handleSendMessage,

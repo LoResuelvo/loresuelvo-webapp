@@ -189,5 +189,41 @@ describe("DiagnosisHero", () => {
 
       expect(screen.queryByAltText(/vista previa de fuga.jpg/i)).not.toBeInTheDocument();
     });
+
+    it("permite adjuntar dos archivos con el mismo nombre y muestra ambos", async () => {
+      const { container } = render(<DiagnosisHero />);
+
+      const file1 = new File(["content 1"], "fuga.jpg", { type: "image/jpeg" });
+      const file2 = new File(["content 2"], "fuga.jpg", { type: "image/jpeg" });
+      const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [file1, file2] } });
+      });
+
+      const previews = screen.getAllByAltText(/vista previa de fuga.jpg/i);
+      expect(previews).toHaveLength(2);
+    });
+
+    it("cierra el modal de vista previa cuando se elimina el adjunto mostrado", async () => {
+      const { container } = render(<DiagnosisHero />);
+
+      const file = new File(["dummy content"], "fuga.jpg", { type: "image/jpeg" });
+      const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [file] } });
+      });
+
+      const thumbnail = screen.getByAltText(/vista previa de fuga.jpg/i);
+      fireEvent.click(thumbnail);
+
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+      const removeBtn = screen.getByRole("button", { name: /eliminar fuga.jpg/i, hidden: true });
+      fireEvent.click(removeBtn);
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
   });
 });

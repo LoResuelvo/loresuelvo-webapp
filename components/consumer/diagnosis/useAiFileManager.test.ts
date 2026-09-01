@@ -122,8 +122,7 @@ describe("useAiFileManager", () => {
     vi.mocked(executeUploadModule.executeFileUpload).mockRejectedValueOnce(
       new Error("Upload failed")
     );
-    const onUploadError = vi.fn();
-    const { result } = renderHook(() => useAiFileManager({ onUploadError }));
+    const { result } = renderHook(() => useAiFileManager());
 
     const file = new File(["dummy content"], "test.png", { type: "image/png" });
     const event = {
@@ -140,7 +139,7 @@ describe("useAiFileManager", () => {
     expect(result.current.attachments[0].status).toBe("failed");
     expect(result.current.hasFailedFiles).toBe(true);
     expect(result.current.areAttachmentsReady).toBe(false);
-    expect(onUploadError).toHaveBeenCalled();
+    expect(result.current.fileUploadError).toBe("No se pudo cargar la imagen");
   });
 
   it("removes attachment by ID and clears all attachments", async () => {
@@ -222,9 +221,8 @@ describe("useAiFileManager", () => {
         rejectUpload = reject;
       })
     );
-    const onUploadError = vi.fn();
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const { result } = renderHook(() => useAiFileManager({ onUploadError }));
+    const { result } = renderHook(() => useAiFileManager());
     const file = new File(["async"], "async.png", { type: "image/png" });
     const event = { target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>;
 
@@ -240,7 +238,7 @@ describe("useAiFileManager", () => {
 
     expect(result.current.attachments).toHaveLength(0);
     expect(result.current.uploadError).toBeNull();
-    expect(onUploadError).not.toHaveBeenCalled();
+    expect(result.current.fileUploadError).toBeNull();
     expect(consoleError).not.toHaveBeenCalled();
     consoleError.mockRestore();
   });
@@ -252,8 +250,7 @@ describe("useAiFileManager", () => {
         resolveUpload = resolve;
       })
     );
-    const onUploadError = vi.fn();
-    const { result, unmount } = renderHook(() => useAiFileManager({ onUploadError }));
+    const { result, unmount } = renderHook(() => useAiFileManager());
     const files = [
       new File(["1"], "1.png", { type: "image/png" }),
       new File(["2"], "2.png", { type: "image/png" }),
@@ -271,7 +268,6 @@ describe("useAiFileManager", () => {
     });
 
     expect(executeUploadModule.executeFileUpload).toHaveBeenCalledTimes(1);
-    expect(onUploadError).not.toHaveBeenCalled();
     expect(window.URL.revokeObjectURL).toHaveBeenCalledTimes(2);
   });
 
@@ -295,5 +291,105 @@ describe("useAiFileManager", () => {
     if (result.current.attachments[0].status === "uploaded") {
       expect(result.current.attachments[0].uploaded.fileId).toBe("second-id");
     }
+  });
+
+  it("sets fileUploadError on upload failure without setting local uploadError", async () => {
+    vi.mocked(executeUploadModule.executeFileUpload).mockRejectedValueOnce(new Error("Server error"));
+    const { result } = renderHook(() => useAiFileManager());
+    const file = new File(["1"], "foto.png", { type: "image/png" });
+    const event = { target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>;
+
+    await act(async () => result.current.handleFileChange(event));
+
+    expect(result.current.uploadError).toBeNull();
+    expect(result.current.fileUploadError).toBe("No se pudo cargar la imagen");
+    expect(result.current.hasFailedFiles).toBe(true);
+  });
+
+  it("clears fileUploadError when the failed attachment is removed", async () => {
+    vi.mocked(executeUploadModule.executeFileUpload).mockRejectedValueOnce(new Error("Server error"));
+    const { result } = renderHook(() => useAiFileManager());
+    const file = new File(["1"], "foto.png", { type: "image/png" });
+    const event = { target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>;
+
+    await act(async () => result.current.handleFileChange(event));
+    expect(result.current.fileUploadError).toBe("No se pudo cargar la imagen");
+
+    const failedId = result.current.attachments[0].id;
+    act(() => result.current.handleRemoveAttachment(failedId));
+
+    expect(result.current.fileUploadError).toBeNull();
+    expect(result.current.attachments).toHaveLength(0);
+  });
+
+  it("retries failed uploads and clears fileUploadError upon success", async () => {
+    vi.mocked(executeUploadModule.executeFileUpload)
+      .mockRejectedValueOnce(new Error("Server error"))
+      .mockResolvedValueOnce({ fileId: "retry-id", url: "https://retry", originalName: "retry.png" });
+
+    const { result } = renderHook(() => useAiFileManager());
+    const file = new File(["1"], "retry.png", { type: "image/png" });
+    const event = { target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>;
+
+    await act(async () => result.current.handleFileChange(event));
+    expect(result.current.fileUploadError).toBe("No se pudo cargar la imagen");
+    expect(result.current.attachments[0].status).toBe("failed");
+
+    await act(async () => result.current.retryFailedUploads());
+    expect(result.current.fileUploadError).toBeNull();
+    expect(result.current.attachments[0].status).toBe("uploaded");
+    expect(result.current.hasFailedFiles).toBe(false);
+  });
+
+  it("keeps fileUploadError when first file fails and second file succeeds", async () => {
+    vi.mocked(executeUploadModule.executeFileUpload)
+      .mockRejectedValueOnce(new Error("First file server error"))
+      .mockResolvedValueOnce({ fileId: "second-id", url: "https://second", originalName: "second.png" });
+
+    const { result } = renderHook(() => useAiFileManager());
+    const files = [
+      new File(["1"], "first.png", { type: "image/png" }),
+      new File(["2"], "second.png", { type: "image/png" }),
+    ];
+    const event = { target: { files } } as unknown as React.ChangeEvent<HTMLInputElement>;
+
+    await act(async () => result.current.handleFileChange(event));
+
+    expect(result.current.attachments).toHaveLength(2);
+    expect(result.current.attachments[0].status).toBe("failed");
+    expect(result.current.attachments[1].status).toBe("uploaded");
+    expect(result.current.hasFailedFiles).toBe(true);
+    expect(result.current.fileUploadError).toBe("No se pudo cargar la imagen");
+  });
+
+  it("keeps fileUploadError when during retry of two failed files one fails and another succeeds", async () => {
+    vi.mocked(executeUploadModule.executeFileUpload)
+      .mockRejectedValueOnce(new Error("Initial fail 1"))
+      .mockRejectedValueOnce(new Error("Initial fail 2"));
+
+    const { result } = renderHook(() => useAiFileManager());
+    const files = [
+      new File(["1"], "first.png", { type: "image/png" }),
+      new File(["2"], "second.png", { type: "image/png" }),
+    ];
+    const event = { target: { files } } as unknown as React.ChangeEvent<HTMLInputElement>;
+
+    await act(async () => result.current.handleFileChange(event));
+
+    expect(result.current.attachments[0].status).toBe("failed");
+    expect(result.current.attachments[1].status).toBe("failed");
+    expect(result.current.fileUploadError).toBe("No se pudo cargar la imagen");
+
+    // On retry: first fails again, second succeeds
+    vi.mocked(executeUploadModule.executeFileUpload)
+      .mockRejectedValueOnce(new Error("Retry fail 1"))
+      .mockResolvedValueOnce({ fileId: "retry-second-id", url: "https://second", originalName: "second.png" });
+
+    await act(async () => result.current.retryFailedUploads());
+
+    expect(result.current.attachments[0].status).toBe("failed");
+    expect(result.current.attachments[1].status).toBe("uploaded");
+    expect(result.current.hasFailedFiles).toBe(true);
+    expect(result.current.fileUploadError).toBe("No se pudo cargar la imagen");
   });
 });

@@ -21,13 +21,13 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
     message,
     setMessage,
     isSubmitting,
-    attachedFiles,
+    attachments,
     error,
     previewImage,
     setPreviewImage,
     fileInputRef,
     handleFileChange,
-    handleRemoveFile,
+    handleRemoveAttachment,
     handleSubmit,
   } = useInitialDiagnosis();
 
@@ -65,10 +65,10 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
           </Label>
           <div className="flex flex-col gap-2 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 p-2">
             <DiagnosisImageUploader
-              attachedFiles={attachedFiles}
+              attachments={attachments}
               fileInputRef={fileInputRef}
               onFileChange={handleFileChange}
-              onRemoveFile={handleRemoveFile}
+              onRemoveAttachment={handleRemoveAttachment}
               onPreviewImage={setPreviewImage}
               disabled={isSubmitting}
             />
@@ -78,7 +78,7 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
                 variant="ghost"
                 size="icon"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isSubmitting || attachedFiles.length >= 5}
+                disabled={isSubmitting || attachments.length >= 5}
                 aria-label="Adjuntar imágenes"
                 className="text-white hover:text-white/80 hover:bg-white/10 flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
               >

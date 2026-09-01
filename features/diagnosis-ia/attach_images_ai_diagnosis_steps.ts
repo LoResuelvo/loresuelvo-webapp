@@ -1,10 +1,27 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
-import { CustomWorld, APP_URL, visibleTimeout, attachedTimeout, waitTimeout, attachedState } from "../support/world";
+import type { Request } from "playwright";
+import { CustomWorld, APP_URL, visibleTimeout } from "../support/world";
 import { ROUTES } from "../../lib/routes";
 import { aPresignedUpload, aConfirmedFile, aAiConversation, aAiConversationDetail, anAiMessage, aMessageImage, anApiError } from "../support/factories";
 
-let currentDiagnosisImages: string[] = [];
+interface DiagnosisScenarioState {
+  images: string[];
+  lastSentText: string;
+  retryRequestPromise?: Promise<Request>;
+}
+
+type DiagnosisWorld = CustomWorld & {
+  diagnosisState?: DiagnosisScenarioState;
+};
+
+function getDiagnosisState(world: CustomWorld): DiagnosisScenarioState {
+  const diagWorld = world as DiagnosisWorld;
+  if (!diagWorld.diagnosisState) {
+    diagWorld.diagnosisState = { images: [], lastSentText: "" };
+  }
+  return diagWorld.diagnosisState;
+}
 
 async function stubDiagnosisFileUpload(world: CustomWorld, fileName: string, fileId: string = "mock-diag-file-123") {
   await world.stubPost(
@@ -68,7 +85,7 @@ function buildAiConversationResponse(images: string[] = [], content: string = ""
 }
 
 Given("tengo una conversación activa con el asistente de diagnóstico", async function (this: CustomWorld) {
-  currentDiagnosisImages = [];
+  getDiagnosisState(this).images = [];
   await this.stubGet("/chatbot/conversations", [aAiConversation()]);
   await this.stubGet("/conversations/1", aAiConversationDetail());
 });
@@ -79,7 +96,7 @@ Given("estoy en el chat con el asistente de diagnóstico", async function (this:
 });
 
 Given("adjunté la imagen {string} para el diagnóstico", async function (this: CustomWorld, imagen: string) {
-  currentDiagnosisImages.push(imagen);
+  getDiagnosisState(this).images.push(imagen);
   await stubDiagnosisFileUpload(this, imagen);
 
   const fileChooserPromise = this.page.waitForEvent("filechooser");
@@ -94,7 +111,7 @@ Given("adjunté la imagen {string} para el diagnóstico", async function (this: 
 });
 
 Given("adjunté las imágenes {string} y {string} para el diagnóstico", async function (this: CustomWorld, img1: string, img2: string) {
-  currentDiagnosisImages.push(img1, img2);
+  getDiagnosisState(this).images.push(img1, img2);
   await stubDiagnosisFileUpload(this, img1, "mock-diag-file-0");
   await stubDiagnosisFileUpload(this, img2, "mock-diag-file-1");
 
@@ -109,7 +126,7 @@ Given("adjunté las imágenes {string} y {string} para el diagnóstico", async f
 });
 
 When("adjunto una imagen {string} desde la galería", async function (this: CustomWorld, imagen: string) {
-  currentDiagnosisImages.push(imagen);
+  getDiagnosisState(this).images.push(imagen);
   await stubDiagnosisFileUpload(this, imagen);
 
   const fileChooserPromise = this.page.waitForEvent("filechooser");
@@ -121,7 +138,8 @@ When("adjunto una imagen {string} desde la galería", async function (this: Cust
 });
 
 When("elimino la imagen {string} del área de adjuntos", async function (this: CustomWorld, imagen: string) {
-  currentDiagnosisImages = currentDiagnosisImages.filter((img) => img !== imagen);
+  const state = getDiagnosisState(this);
+  state.images = state.images.filter((img) => img !== imagen);
   const deleteBtn = this.page.getByRole("button", { name: `Eliminar ${imagen}` });
   await deleteBtn.click();
 });
@@ -132,13 +150,14 @@ When("reviso las imágenes adjuntas antes de enviar", async function (this: Cust
 });
 
 When("envío el mensaje de diagnóstico {string}", async function (this: CustomWorld, mensaje: string) {
+  const state = getDiagnosisState(this);
   await this.stubPost(
     "/chatbot/conversations/1/messages",
     201,
-    buildAiConversationResponse(currentDiagnosisImages, mensaje)
+    buildAiConversationResponse(state.images, mensaje)
   );
 
-  currentDiagnosisImages = [];
+  state.images = [];
 
   const input = this.page.getByPlaceholder(/escribe un mensaje/i);
   await input.fill(mensaje);
@@ -148,13 +167,14 @@ When("envío el mensaje de diagnóstico {string}", async function (this: CustomW
 });
 
 When("envío el mensaje de diagnóstico sin texto", async function (this: CustomWorld) {
+  const state = getDiagnosisState(this);
   await this.stubPost(
     "/chatbot/conversations/1/messages",
     201,
-    buildAiConversationResponse(currentDiagnosisImages, "")
+    buildAiConversationResponse(state.images, "")
   );
 
-  currentDiagnosisImages = [];
+  state.images = [];
 
   const sendButton = this.page.getByRole("button", { name: /enviar mensaje/i });
   await sendButton.click();
@@ -174,7 +194,7 @@ When("la carga de la imagen {string} falla por un error del servidor", async fun
 When("envío el mensaje de diagnóstico {string} y el procesamiento falla", async function (this: CustomWorld, mensaje: string) {
   await this.stubPost("/chatbot/conversations/1/messages", 500, anApiError("Internal Server Error"));
 
-  currentDiagnosisImages = [];
+  getDiagnosisState(this).images = [];
 
   const input = this.page.getByPlaceholder(/escribe un mensaje/i);
   await input.fill(mensaje);
@@ -281,11 +301,11 @@ function buildHomeAiConversationResponse(
 }
 
 Given("adjunté la imagen {string} en el campo de diagnóstico", async function (this: CustomWorld, imagen: string) {
-  currentDiagnosisImages.push(imagen);
+  getDiagnosisState(this).images.push(imagen);
   await stubDiagnosisFileUpload(this, imagen);
 
-  await this.stubPost("/chatbot/conversations", 200, buildHomeAiConversationResponse(currentDiagnosisImages));
-  await this.stubGet("/conversations/1", buildHomeAiConversationResponse(currentDiagnosisImages));
+  await this.stubPost("/chatbot/conversations", 200, buildHomeAiConversationResponse(getDiagnosisState(this).images));
+  await this.stubGet("/conversations/1", buildHomeAiConversationResponse(getDiagnosisState(this).images));
 
   const fileChooserPromise = this.page.waitForEvent("filechooser");
   await this.page.getByRole("button", { name: /adjuntar/i }).click();
@@ -301,17 +321,98 @@ Given("adjunté la imagen {string} en el campo de diagnóstico", async function 
 When(
   "adjunto una imagen {string} en el campo de diagnóstico desde la galería",
   async function (this: CustomWorld, imagen: string) {
-    currentDiagnosisImages.push(imagen);
+    getDiagnosisState(this).images.push(imagen);
     await stubDiagnosisFileUpload(this, imagen);
 
-    await this.stubPost("/chatbot/conversations", 200, buildHomeAiConversationResponse(currentDiagnosisImages));
-    await this.stubGet("/conversations/1", buildHomeAiConversationResponse(currentDiagnosisImages));
+    await this.stubPost("/chatbot/conversations", 200, buildHomeAiConversationResponse(getDiagnosisState(this).images));
+    await this.stubGet("/conversations/1", buildHomeAiConversationResponse(getDiagnosisState(this).images));
 
     const fileChooserPromise = this.page.waitForEvent("filechooser");
     await this.page.getByRole("button", { name: /adjuntar/i }).click();
     const fileChooser = await fileChooserPromise;
 
     const fileData = { name: imagen, mimeType: "image/jpeg", buffer: Buffer.from("mock-image-data") };
-  await fileChooser.setFiles([fileData]);
+    await fileChooser.setFiles([fileData]);
   }
 );
+
+Given("falló el procesamiento de mi mensaje con la imagen {string}", async function (this: CustomWorld, imagen: string) {
+  const state = getDiagnosisState(this);
+  state.lastSentText = "¿Qué problema se observa?";
+  state.images = [imagen];
+
+  await this.stubGet("/chatbot/conversations", [aAiConversation()]);
+  await this.stubGet("/conversations/1", aAiConversationDetail());
+  await this.page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);
+  await this.page.waitForLoadState("networkidle");
+
+  const fileId = "mock-diag-file-123";
+  await stubDiagnosisFileUpload(this, imagen, fileId);
+
+  const fileChooserPromise = this.page.waitForEvent("filechooser");
+  await this.page.getByRole("button", { name: /adjuntar/i }).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles([{ name: imagen, mimeType: "image/jpeg", buffer: Buffer.from("mock-image-data") }]);
+
+  const thumbnail = this.page.getByRole("img", { name: `Vista previa de ${imagen}` });
+  await thumbnail.waitFor(visibleTimeout).catch(() => {});
+
+  await this.stubPost("/chatbot/conversations/1/messages", 500, anApiError("Internal Server Error"));
+
+  const input = this.page.getByPlaceholder(/escribe un mensaje/i);
+  await input.fill(state.lastSentText);
+  const sendButton = this.page.getByRole("button", { name: /enviar mensaje/i });
+  await sendButton.click();
+
+  const retryButton = this.page.getByRole("button", { name: /reintentar/i });
+  await retryButton.waitFor(visibleTimeout);
+
+  // Configure success stub for the retry attempt
+  await this.stubPost(
+    "/chatbot/conversations/1/messages",
+    201,
+    buildAiConversationResponse([imagen], state.lastSentText)
+  );
+
+  // Register waitForRequest promise AFTER error appears and BEFORE the retry is clicked
+  state.retryRequestPromise = this.page.waitForRequest(
+    (req) => req.method() === "POST" && req.url().includes("/consumidor/mensajes-ia"),
+    { timeout: 10000 }
+  );
+});
+
+Then("el asistente procesa nuevamente el mismo mensaje con la misma imagen", async function (this: CustomWorld) {
+  const state = getDiagnosisState(this);
+  assert.ok(state.retryRequestPromise, "No se registró la promesa para capturar el reintento");
+
+  const request = await state.retryRequestPromise;
+  const postData = request.postDataJSON();
+  assert.ok(Array.isArray(postData), "El payload de Server Action debe ser un array con los argumentos");
+
+  const [, content, imageFileIds] = postData;
+  assert.strictEqual(
+    content,
+    state.lastSentText,
+    `El contenido reenviado ("${content}") no coincide con el original ("${state.lastSentText}")`
+  );
+  assert.deepStrictEqual(
+    imageFileIds,
+    ["mock-diag-file-123"],
+    "Los IDs de imágenes reenviados no coinciden con los originales"
+  );
+});
+
+Then("veo una respuesta del asistente", async function (this: CustomWorld) {
+  const reply = this.page
+    .getByText("Por la imagen, parece ser una fuga en la unión del sifón. Te recomiendo contactar un plomero.")
+    .first();
+  await reply.waitFor(visibleTimeout);
+  assert.ok(await reply.isVisible(), "No se ve la respuesta del asistente");
+});
+
+Then("mi mensaje original aparece una sola vez", async function (this: CustomWorld) {
+  const state = getDiagnosisState(this);
+  const userMessages = this.page.getByText(state.lastSentText);
+  const count = await userMessages.count();
+  assert.strictEqual(count, 1, `Se esperaba 1 mensaje del usuario pero se encontraron ${count}`);
+});

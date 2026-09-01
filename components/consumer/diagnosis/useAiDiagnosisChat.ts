@@ -2,7 +2,7 @@ import { useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { AssistantClient } from "@/ports/consumer/assistant-client";
 import type { AiChatRepository } from "@/ports/consumer/ai-chat-repository";
-import { useAiConversationLoader, USER_ID, ASSISTANT_ID } from "./useAiConversationLoader";
+import { useAiConversationLoader, USER_ID } from "./useAiConversationLoader";
 import { useAiFileManager } from "./useAiFileManager";
 import { useAiMessageSender } from "./useAiMessageSender";
 
@@ -33,8 +33,6 @@ export function useAiDiagnosisChat({
   const loader = useAiConversationLoader({
     conversationId,
     chatRepository,
-    onCreationError: (err) => sender.setChatError(err),
-    setIsWaitingForReply: (waiting) => sender.setIsWaitingForReply(waiting),
   });
 
   const sender = useAiMessageSender({
@@ -42,28 +40,37 @@ export function useAiDiagnosisChat({
     chatRepository,
     simulateError: shouldSimulateError,
     effectiveConversationId: loader.effectiveConversationId,
-    messages: loader.messages,
     setMessages: loader.setMessages,
-    isInitialized: loader.isInitialized,
     attachments: files.attachments,
     clearAttachments: files.clearAttachments,
     jobRequestFn,
     textareaRef,
   });
 
-  const handleRetry = useCallback(async () => {
-    if (files.fileUploadError) {
-      await files.retryFailedUploads();
-    } else {
-      await sender.handleRetry();
-    }
-  }, [files, sender]);
+  let effectiveChatError: string | null = null;
+  let retryAction: (() => Promise<void>) | null = null;
 
-  const effectiveChatError = files.fileUploadError ?? sender.chatError;
+  if (files.fileUploadError) {
+    effectiveChatError = files.fileUploadError;
+    retryAction = files.retryFailedUploads;
+  } else if (loader.creationError) {
+    effectiveChatError = loader.creationError;
+    retryAction = loader.retryPendingCreation;
+  } else if (sender.chatError) {
+    effectiveChatError = sender.chatError;
+    retryAction = sender.handleRetry;
+  }
+
+  const handleRetry = useCallback(async () => {
+    if (retryAction) {
+      await retryAction();
+    }
+  }, [retryAction]);
+
+  const isWaitingForReply = sender.isWaitingForReply || loader.isCreatingPending;
 
   return {
     messages: loader.messages,
-    assistantReply: sender.assistantReply,
     chatError: effectiveChatError,
     messageInput: sender.messageInput,
     setMessageInput: sender.setMessageInput,
@@ -76,9 +83,8 @@ export function useAiDiagnosisChat({
     uploadError: files.uploadError,
     isSending: sender.isSending,
     isInitialized: loader.isInitialized,
-    isWaitingForReply: sender.isWaitingForReply,
+    isWaitingForReply,
     isLoadingMessages: loader.isLoadingMessages,
-    lastUserMessage: sender.lastUserMessage,
     messagesEndRef,
     textareaRef,
     fileInputRef: files.fileInputRef,
@@ -88,6 +94,5 @@ export function useAiDiagnosisChat({
     handleSendMessage: sender.handleSendMessage,
     handleContactProvider: sender.handleContactProvider,
     USER_ID,
-    ASSISTANT_ID,
   };
 }

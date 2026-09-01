@@ -59,6 +59,13 @@ Feature: Adjuntar imágenes del problema en el chat con la IA
         Then veo el mensaje del asistente "No pudimos obtener una respuesta en este momento"
         And puedo volver a intentarlo
 
+    Scenario: 07.1-AIDI Reintentar el procesamiento conservando la imagen
+        Given falló el procesamiento de mi mensaje con la imagen "perdida-canilla.jpg"
+        When presiono "Reintentar"
+        Then el asistente procesa nuevamente el mismo mensaje con la misma imagen
+        And veo una respuesta del asistente
+        And mi mensaje original aparece una sola vez
+
     Scenario: 08-AIDI Rechazar imagen que supera el tamaño máximo
         Given tengo una conversación activa con el asistente de diagnóstico
         And estoy en el chat con el asistente de diagnóstico

@@ -5,7 +5,7 @@ description: "Aplicar animaciones, transiciones y microinteracciones en Lo Resue
 
 # Frontend Motion Effects
 
-Leer primero `skills/frontend-design/SKILL.md`. Si hay formularios/overlays, leer tambien `skills/frontend-accessibility-gates/SKILL.md`.
+Leer primero `.agents/skills/frontend-design/SKILL.md`. Si hay formularios/overlays, leer también `.agents/skills/frontend-accessibility-gates/SKILL.md`.
 
 ## Principios
 

@@ -1,6 +1,6 @@
 # AGENTS.md — Lo Resuelvo Webapp
 
-Fuente canónica de reglas globales y de routing. Cargar solo las skills necesarias para la tarea; no leer todas por defecto.
+Fuente canónica de reglas globales y de routing. Las skills del repositorio viven en `.agents/skills/`; cargar solo las necesarias para la tarea y no leer todas por defecto.
 
 ## Stack y arquitectura
 

@@ -13,7 +13,7 @@ Mantener documentación útil, compacta y lazy-load friendly.
 
 1. `AGENTS.md` es la fuente canónica para agentes.
 2. `CLAUDE.md` debe referenciar `AGENTS.md` y no duplicar reglas extensas.
-3. Skills locales viven en `skills/<nombre>/SKILL.md`.
+3. Skills locales viven en `.agents/skills/<nombre>/SKILL.md` para que Codex las descubra desde el repositorio.
 4. El índice de skills en `AGENTS.md` debe resumir cuándo cargar cada skill.
 5. Evitar walkthroughs y documentación narrativa extensa sin valor operativo.
 6. Preferir bullets accionables, comandos exactos y rutas reales del repo.

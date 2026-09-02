@@ -29,6 +29,7 @@ Las capas internas no dependen de las externas. `domain/` y `ports/` no importan
 - No hardcodear secretos ni commitear archivos de entorno. No mostrar datos sensibles en logs.
 - No convertir Server Components en Client Components sin una necesidad concreta.
 - Un componente principal por archivo; separar responsabilidades cuando mejore la cohesión.
+- Todo cambio productivo no trivial debe cerrar la revisión de `frontend-maintainability-governance`; tests verdes no sustituyen evidencia de legibilidad.
 
 ## Principios de ingeniería
 
@@ -69,11 +70,12 @@ El presupuesto de reparación pertenece a la firma de falla y se comparte entre 
 
 ## Routing de skills
 
-Para una US, cargar `frontend-us-delivery`, `frontend-ai-development-workflow`, `frontend-bdd-tdd-process`, `frontend-testing-gates` y `frontend-commit-governance`.
+Para una US, cargar `frontend-us-delivery`, `frontend-ai-development-workflow`, `frontend-bdd-tdd-process`, `frontend-maintainability-governance`, `frontend-testing-gates` y `frontend-commit-governance`.
 
 Cargar además, solo si aplica:
 
 - Exploración estructural, callers, dependencias o impacto: `codebase-memory`.
+- Código productivo no trivial, hooks, refactors, archivos grandes o reorganización: `frontend-maintainability-governance`.
 - API, auth, Server Actions o mappers: `frontend-api-client-governance`.
 - Reglas de negocio o tipos de dominio: `frontend-domain-governance`.
 - Diseño o nuevas pantallas: `frontend-design`.

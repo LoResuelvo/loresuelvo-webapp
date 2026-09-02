@@ -7,6 +7,8 @@ description: "Diseñar o refactorizar componentes React de Lo Resuelvo con cohes
 
 Usar al crear, refactorizar o evaluar componentes en `components/` o `app/`.
 
+Complementar con `frontend-maintainability-governance` para tamaño, funciones internas, hooks colaboradores, APIs públicas y decisiones de extracción.
+
 ## Criterios de diseño
 
 - Los componentes visuales renderizan UI y capturan interacción; las reglas de negocio, red, parsing y manipulación de DOM compleja viven en dominio, acciones, hooks o utilidades específicas.

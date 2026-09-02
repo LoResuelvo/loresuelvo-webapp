@@ -28,6 +28,8 @@ Debe:
 
 No dividir por archivo ni por cantidad de líneas. Si el diff es grande, buscar un corte vertical independiente; si no existe, conservar el cambio coherente.
 
+Antes del gate y del commit de código productivo no trivial, ejecutar `frontend-maintainability-governance` y resolver cada señal mediante una extracción cohesionada o una justificación explícita en el reporte. Un test verde no cierra esa revisión.
+
 ## Mensajes
 
 - Con User Story: `<type>[XX]: descripción en inglés imperativa`.

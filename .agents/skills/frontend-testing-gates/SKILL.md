@@ -7,6 +7,8 @@ description: "Ejecutar gates explícitos de calidad en Lo Resuelvo: RED BDD, tes
 
 Usar durante el desarrollo y obligatoriamente antes de cada commit y push. El ejecutor depende de la granularidad y los owners declarados; quien cambia el diff es responsable de dejar su gate en GREEN.
 
+Los gates verifican comportamiento y salud técnica, no legibilidad por sí solos. Para código productivo no trivial, ejecutar y resolver primero la auditoría de `frontend-maintainability-governance`; sus umbrales son señales de revisión, no nuevos tests rígidos.
+
 ## Gate 0 — Outer RED
 
 Para steps de un escenario `@wip`:

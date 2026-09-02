@@ -57,13 +57,16 @@ Antes del batch, actúa como senior: define el contrato, evalúa afinidad y ries
 Antes de delegar, realiza un preflight compacto: escenarios aprobados y sus
 criterios, contrato público y tipos que deben fluir, capas y pruebas de valor
 esperadas, atajos prohibidos (casts inseguros, DTOs en UI y escenarios
-reescritos) y archivos materiales que revisará al cierre.
+reescritos), mapa de responsabilidades y señales de mantenibilidad esperables,
+y archivos materiales que revisará al cierre.
 
 Durante un batch autónomo permanece disponible, pero no duplica tests, inspecciones de logs ni monitoreo de SHAs que pertenecen al desarrollador. Interviene ante una escalación o una decisión fuera del contrato.
 
 Ante una firma de falla escalada, dispone de una única intervención senior: revisar evidencia focalizada, opcionalmente realizar una consulta de triage y formular como máximo la tercera hipótesis global. No puede reiniciar el presupuesto, encadenar subagentes ni continuar reparando después de `STOP_USER`.
 
 Después del batch consume un reporte compacto, verifica de forma agregada commits, CI y diff en proporción al riesgo, y decide el siguiente batch. Confirma trazabilidad escenario → comportamiento → prueba y revisa los archivos materiales por atajos peligrosos (`as any`, `as never`, `@ts-ignore`, `TODO`, DTOs en UI), con mayor profundidad en tipos públicos, privacidad, auth, API, rutas y componentes compartidos. No reproduce rutinariamente gates ni carga logs verdes sin nueva evidencia.
+
+En código productivo no trivial también comprueba la evidencia de `frontend-maintainability-governance`: responsabilidades, señales resueltas o justificadas, API mínima y dueño de lifecycle, concurrencia, cleanup y errores visibles.
 
 ## Contrato de delegación
 
@@ -87,6 +90,7 @@ Evidence tier / bounded scope:
 Graph queries, pagination and qualified symbols:
 Relevant paths, traces and coverage:
 Source fallback already performed / unresolved questions:
+Responsibility map / expected maintainability signals:
 ```
 
 El desarrollador debe leer `AGENTS.md` y las skills obligatorias antes de actuar. Si el contrato contiene requisitos contradictorios o una frontera necesita dependencias prohibidas, debe escalar antes de editar.
@@ -179,6 +183,7 @@ Escalaciones / riesgos:
 Cambios de contrato/tipos:
 Archivos productivos materiales:
 Pruebas de valor ejecutadas:
+Señales de mantenibilidad / decisiones / justificaciones:
 Siguiente acción permitida:
 ```
 

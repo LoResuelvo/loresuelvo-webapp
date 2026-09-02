@@ -46,6 +46,7 @@ Alcance permitido:
 Prohibido:
 Skills obligatorias:
 Handoff técnico:
+Mapa de responsabilidades / señales de mantenibilidad esperadas:
 Próxima frontera atómica: comportamiento / archivos mínimos esperados / gate / commit tentativo
 Gates y condiciones de continuación:
 CI y ventana de SHAs:
@@ -69,6 +70,7 @@ Escalaciones / riesgos:
 Cambios de contrato/tipos:
 Archivos productivos materiales:
 Pruebas de valor ejecutadas:
+Señales de mantenibilidad / decisiones / justificaciones:
 Siguiente acción permitida:
 ```
 
@@ -83,6 +85,7 @@ Granularidad: MICROSTEP | SCENARIO | SCENARIO_GROUP
 Escenarios activos:
 Objetivo, alcance y prohibiciones nuevas:
 Skills nuevas obligatorias:
+Delta de responsabilidades / señales de mantenibilidad esperadas:
 Próxima frontera atómica y gates:
 Condiciones de continuación y escalamiento:
 Formato de escalación:
@@ -103,6 +106,7 @@ Escalaciones / riesgos:
 Cambios de contrato/tipos:
 Archivos productivos materiales:
 Pruebas de valor ejecutadas:
+Señales de mantenibilidad / decisiones / justificaciones:
 Siguiente acción permitida:
 ```
 
@@ -157,7 +161,8 @@ Secuencia prevista:
 1. Steps del escenario en RED observable.
 2. Presentación mínima aislada con props o mocks.
 3. Contratos y acceso a datos requeridos.
-4. Página, route builder, link e integración E2E GREEN.
+4. Revisión de mantenibilidad del código productivo y resolución de señales.
+5. Página, route builder, link e integración E2E GREEN.
 
 Gates: Gate 0 en steps; Gate A en piezas aisladas; Gate B al integrar;
 Gate C/D al cerrar según `frontend-testing-gates`.
@@ -193,9 +198,12 @@ Completá exclusivamente estos escenarios en el orden indicado.
 Para cada escenario recorré sus micro-pasos Outside-In, ejecutá sus gates,
 dejalo E2E GREEN y recién entonces continuá con el siguiente.
 Aplicá Gate 0/A/B/C/D según `frontend-testing-gates` y el riesgo de cada frontera.
+Antes del gate de cada frontera productiva no trivial, aplicá
+`frontend-maintainability-governance` y resolvé o justificá sus señales.
 
 Condiciones de continuación:
 - el escenario actual está GREEN y sin @wip;
+- las señales de mantenibilidad del código productivo están resueltas o justificadas;
 - su commit es desplegable, fue pusheado y su SHA está registrado;
 - CI respeta la ventana máxima de 3 commits pendientes;
 - el siguiente escenario no exige cambiar alcance, arquitectura ni gates.
@@ -229,6 +237,7 @@ Commits/SHAs: <lista breve de commits atómicos>
 Gates: <comandos y resultado final por escenario>
 CI: <estado por SHA>
 Escalaciones/hipótesis: <ninguna o resumen compacto>
+Mantenibilidad: <señales, decisiones y justificaciones>
 Riesgos residuales: <ninguno o lista breve>
 ```
 

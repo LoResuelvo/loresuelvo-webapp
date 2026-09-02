@@ -1,0 +1,6 @@
+interface:
+  display_name: "Frontend Maintainability"
+  short_description: "Mantén TypeScript y React legibles para personas"
+  default_prompt: "Usa $frontend-maintainability-governance para revisar y mejorar la mantenibilidad de este cambio frontend."
+policy:
+  allow_implicit_invocation: true

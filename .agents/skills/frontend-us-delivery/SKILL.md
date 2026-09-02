@@ -20,19 +20,22 @@ Usar para implementar una User Story o feature completa. Esta skill define el ci
 2. Avanzar Outside-In: steps en RED; presentación mínima aislada con props o mocks; dominio/contratos; infraestructura/aplicación; conexión de ruta o Server Action e integración E2E.
 3. Cada micro-paso agrega un único comportamiento observable. No conectar la presentación a rutas, fetch, repositorios o Server Actions antes del paso de integración correspondiente.
 4. Agregar solamente el código requerido por el escenario actual dentro del batch. No preparar capas completas para escenarios futuros ni saltar al siguiente antes de cerrar el actual en GREEN.
-5. Ejecutar el gate correspondiente antes del commit; quién commitea y pushea depende de la granularidad de delegación declarada.
-6. Retirar `@wip` solo cuando el E2E del escenario esté en GREEN.
-7. Continuar con el siguiente escenario solo si pertenece al batch aprobado y se cumplen sus condiciones de continuación; de lo contrario, cerrar el batch y reportar.
+5. Revisar el código productivo no trivial con `frontend-maintainability-governance` y resolver sus señales sin introducir alcance ajeno.
+6. Ejecutar el gate correspondiente antes del commit; quién commitea y pushea depende de la granularidad de delegación declarada.
+7. Retirar `@wip` solo cuando el E2E del escenario esté en GREEN.
+8. Continuar con el siguiente escenario solo si pertenece al batch aprobado y se cumplen sus condiciones de continuación; de lo contrario, cerrar el batch y reportar.
 
 ## Cierre
 
 - Ejecutar los gates integrales definidos en `frontend-testing-gates`.
+- Informar señales de mantenibilidad, extracciones o justificaciones y cualquier riesgo residual.
 - Confirmar que CI está verde para los commits de la US.
 - Informar alcance entregado, validaciones ejecutadas y cualquier riesgo residual.
 
 ## Routing
 
 - Escenarios, steps y TDD: `frontend-bdd-tdd-process`.
+- Código productivo, hooks, tamaño y límites de módulos: `frontend-maintainability-governance`.
 - Gates locales y CI: `frontend-testing-gates`.
 - Commits: `frontend-commit-governance`.
 - API, dominio, diseño, responsive, accesibilidad, query o motion: cargar solo la skill específica que aplique.

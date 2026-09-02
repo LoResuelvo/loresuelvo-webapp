@@ -9,24 +9,18 @@ Usar durante el desarrollo y obligatoriamente antes de cada commit y push. El ej
 
 Los gates verifican comportamiento y salud técnica, no legibilidad por sí solos. Para código productivo no trivial, ejecutar y resolver primero la auditoría de `frontend-maintainability-governance`; sus umbrales son señales de revisión, no nuevos tests rígidos.
 
-## Gate 0 — Outer RED
+## Gate 0 — Compatibilidad de steps
 
-Para steps de un escenario `@wip`:
-
-```bash
-make test-e2e-wip-file-managed FILE=features/...feature NAME='<scenario>'
-```
-
-- Debe ejecutar al menos un escenario y fallar por el comportamiento observable todavía ausente.
-- Ese RED es esperado y no requiere escalamiento.
-- Antes de commitear steps, ejecutar:
+Comprobar que los steps nuevos o modificados no rompan, eliminen ni vuelvan ambiguos los steps existentes:
 
 ```bash
-npx tsc --project tsconfig.cucumber.json --noEmit
-make test-e2e-managed
+make test-e2e-steps-compatible
 ```
 
-La suite normal excluye `@wip` y debe permanecer GREEN para proteger el pipeline mientras el nuevo escenario continúa en RED.
+- Este target ejecuta el typecheck de `tsconfig.cucumber.json` y el perfil Cucumber `steps-compatibility`.
+- Valida que todos los steps compilen y resuelvan unívocamente a sus step definitions sin ambigüedad.
+- No inicia Next.js ni Playwright (usa `dryRun` y excluye `@wip`).
+- La suite normal debe permanecer libre de colisiones o definiciones rotas.
 
 ## Gate A — Código nuevo aislado
 

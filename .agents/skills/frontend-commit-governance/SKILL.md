@@ -28,7 +28,18 @@ Debe:
 
 No dividir por archivo ni por cantidad de líneas. Si el diff es grande, buscar un corte vertical independiente; si no existe, conservar el cambio coherente.
 
-Antes del gate y del commit de código productivo no trivial, ejecutar `frontend-maintainability-governance` y resolver cada señal mediante una extracción cohesionada o una justificación explícita en el reporte. Un test verde no cierra esa revisión.
+Antes de cada commit, invocar la herramienta MCP `delivery_inspect` con el `intent` aplicable (`prepare_commit`, `close_scenario`, `close_batch`, `close_us`) y el mensaje propuesto. El inspector selecciona el gate correspondiente y audita la mantenibilidad de los archivos productivos modificados.
+
+Registrar en el handoff o reporte la evidencia compacta generada por la herramienta:
+
+```text
+snapshotHash: <sha256>
+status: <ready | review_required | blocked | needs_input | no_changes>
+gate: <NONE | 0 | A | B | C | D>
+señales pendientes: <ninguna | detalle y justificaciones>
+```
+
+Si el estado es `review_required`, resolver cada señal mediante una extracción cohesionada o una justificación explícita; un test verde no cierra esa revisión. Si se modifican hooks o adaptadores React, preservar las directrices de `references/react-hooks.md`; si se crean, mueven o dividen carpetas o archivos, respetar `references/module-boundaries.md`.
 
 ## Mensajes
 

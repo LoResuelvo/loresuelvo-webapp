@@ -37,16 +37,16 @@ Considerar no trivial cualquier cambio que altere lógica, estado, efectos, asin
 
 ## Señales de revisión
 
-Son umbrales aproximados, no prohibiciones. Cuando aparezca una señal, refactorizar si existe una frontera con nombre y contrato claros; si no, conservar la solución cohesionada y registrar una justificación de una oración.
+Los umbrales cuantitativos de auditoría están definidos en `.delivery/policy.v1.json`. Son señales de atención, no prohibiciones. Cuando aparezca una señal, refactorizar si existe una frontera con nombre y contrato claros; si no, conservar la solución cohesionada y registrar una justificación de una oración.
 
-| Señal | Revisión obligatoria |
+| Dimensión | Revisión obligatoria |
 | --- | --- |
-| Función, método o callback mayor a unas 60 líneas físicas | Buscar más de una responsabilidad, niveles mezclados o una operación extraíble. |
-| Cuerpo principal de hook o componente mayor a unas 120 líneas | Escribir el mapa de responsabilidades y evaluar composición, reducer o núcleo puro. |
-| Archivo productivo mayor a unas 250 líneas | Revisar si contiene más de un concepto o razón de cambio. |
-| Hook con más de 5 estados, 5 refs, 6 callbacks o 3 efectos | Revisar estados imposibles, lifecycle disperso y necesidad de reducer o adaptador. |
-| API pública con más de 10 miembros, flags booleanos combinables o datos no usados por consumidores | Reducir el contrato o representar variantes explícitamente. |
-| Más de 3 niveles de anidación o ramas que combinan varios estados | Introducir guard clauses, decisiones con nombre o una transición explícita. |
+| Longitud física de función, método o callback | Buscar más de una responsabilidad, niveles mezclados o una operación extraíble. |
+| Cuerpo principal de hook o componente | Escribir el mapa de responsabilidades y evaluar composición, reducer o núcleo puro. |
+| Tamaño total de archivo productivo | Revisar si contiene más de un concepto o razón de cambio. |
+| Concentración de estado y efectos en hook (`useState`, `useRef`, `useCallback`, `useEffect`) | Revisar estados imposibles, lifecycle disperso y necesidad de reducer o adaptador. |
+| API pública con miembros excesivos o combinaciones complejas | Reducir el contrato o representar variantes explícitamente. |
+| Profundidad de anidación o ramas condicionales combinadas | Introducir guard clauses, decisiones con nombre o una transición explícita. |
 
 No dividir por cumplir una cifra. Un algoritmo cohesionado puede superar un umbral; mover bloques a archivos vagos o crear una clase solo para bajar líneas empeora el diseño.
 
@@ -66,14 +66,16 @@ Una clase no es el patrón predeterminado para hacer legible un hook. Preferir n
 
 ## Auditoría antes del gate
 
-Obtener primero las rutas cambiadas y luego pasar únicamente los archivos productivos TypeScript/JavaScript al auditor:
+El flujo canónico es invocar la herramienta MCP `delivery_inspect`, que clasifica de forma automática los archivos productivos staged, ejecuta el auditor y reporta el estado y las señales detectadas.
+
+Como fallback manual para inspecciones fuera de MCP o revisiones focalizadas sobre archivos concretos:
 
 ```bash
 git diff --name-only --diff-filter=ACMR HEAD
 node .agents/skills/frontend-maintainability-governance/scripts/audit-changed-code.mjs <rutas-productivas>
 ```
 
-Para revisar un commit ya creado, obtener sus rutas con `git diff --name-only --diff-filter=ACMR HEAD^ HEAD`. Para una revisión focalizada, pasar los archivos concretos:
+Para revisar un commit ya creado o un archivo específico:
 
 ```bash
 node .agents/skills/frontend-maintainability-governance/scripts/audit-changed-code.mjs hooks/audio/useAudioRecorder.ts
@@ -83,16 +85,13 @@ No usar sustituciones de shell opacas para construir la lista: inspeccionarla y 
 
 ## Evidencia de cierre
 
-Incluir en el handoff o reporte:
+Incluir en el handoff o reporte la evidencia generada por `delivery_inspect`:
 
 ```text
-Responsabilidad preservada:
-Símbolos productivos revisados:
-Señales detectadas: <ninguna | lista>
-Decisiones de extracción o justificaciones:
-API pública agregada/cambiada: <ninguna | detalle y consumidores>
-Lifecycle, concurrencia y cleanup: <no aplica | dueño e invariantes>
-Riesgo residual de mantenibilidad:
+snapshotHash: <sha256>
+status: <ready | review_required | blocked | needs_input | no_changes>
+gate: <NONE | 0 | A | B | C | D>
+señales pendientes: <ninguna | detalle y justificaciones>
 ```
 
 No declarar “código limpio” solo porque compila o pasa tests. La evidencia debe describir por qué el próximo lector puede entender y modificar el cambio con seguridad.

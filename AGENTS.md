@@ -70,7 +70,7 @@ El presupuesto de reparación pertenece a la firma de falla y se comparte entre 
 
 ## Routing de skills
 
-Para una US, cargar `frontend-us-delivery`, `frontend-ai-development-workflow`, `frontend-bdd-tdd-process`, `frontend-maintainability-governance`, `frontend-testing-gates` y `frontend-commit-governance`.
+Para una US, cargar `frontend-us-delivery`, `frontend-ai-development-workflow`, `frontend-bdd-tdd-process`, `frontend-testing-gates` y `frontend-commit-governance`.
 
 Cargar además, solo si aplica:
 

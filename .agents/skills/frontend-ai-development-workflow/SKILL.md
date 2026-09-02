@@ -190,7 +190,8 @@ completo si corresponde, o una decisión de escalamiento.
 - Mantener un desarrollador persistente para conservar contexto y evitar handoffs repetidos.
 - No cargar logs crudos completos: usar `rtk`, salidas focalizadas y el paquete de diagnóstico de `frontend-testing-gates`.
 - El desarrollador consume como máximo las dos primeras hipótesis. El orquestador puede usar una sola consulta de triage para sustentar la tercera y última hipótesis global.
-- Usar un modelo rápido como `gpt-5.6-luna` para triage estrecho y repetible; `gpt-5.6-terra` para lectura o análisis auxiliar; reservar el modelo más capaz y razonamiento alto para ambigüedad arquitectónica o cambios transversales.
-- No usar razonamiento extra alto por defecto para ahorrar tokens. La consulta de triage no ejecuta reparaciones, no crea más agentes y no reinicia ningún contador.
+- `gpt-5.6-luna` puede implementar batches acotados cuando el contrato, las prohibiciones y la evidencia de cierre son explícitos; no limitarlo a triage si el usuario o el orquestador lo seleccionan para desarrollo.
+- Usar un modelo rápido como `gpt-5.6-luna` para triage estrecho y repetible; `gpt-5.6-terra` para lectura o análisis auxiliar; reservar el modelo más capaz y razonamiento alto para ambigüedad arquitectónica o cambios transversales cuando no exista una elección explícita.
+- No usar razonamiento extra alto por defecto para ahorrar tokens, salvo selección explícita del usuario o riesgo que lo justifique. La consulta de triage no ejecuta reparaciones, no crea más agentes y no reinicia ningún contador.
 
 Antes de delegar una US con agentes, leer [orquestación, granularidad y ejemplos](references/delegation-modes.md).

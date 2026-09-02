@@ -1,0 +1,80 @@
+{
+  "$schema": "./schemas/policy.schema.json",
+  "version": 1,
+  "policyName": "loresuelvo-delivery-policy",
+  "limits": {
+    "maxStagedFiles": 500,
+    "maxDiffSizeBytes": 2097152,
+    "maxSignals": 20,
+    "maxDiagnostics": 20
+  },
+  "maintainabilityThresholds": {
+    "fileLines": 250,
+    "functionLines": 60,
+    "mainBodyLines": 120,
+    "useState": 5,
+    "useRef": 5,
+    "useCallback": 6,
+    "useEffect": 3
+  },
+  "gates": {
+    "NONE": {
+      "id": "NONE",
+      "description": "No verification gate required for documentation, styles, non-functional config, or empty diff",
+      "priority": 0,
+      "checks": []
+    },
+    "0": {
+      "id": "0",
+      "description": "Step definition compatibility check without starting app or browser",
+      "priority": 1,
+      "checks": [
+        "make test-e2e-steps-compatible"
+      ]
+    },
+    "A": {
+      "id": "A",
+      "description": "Isolated domain, helper, or unit-tested production code check",
+      "priority": 2,
+      "checks": [
+        "npm run test -- <pattern>",
+        "npx tsc --noEmit"
+      ]
+    },
+    "B": {
+      "id": "B",
+      "description": "Low-risk scenario closure integration check against its feature",
+      "priority": 3,
+      "checks": [
+        "make test-e2e-managed E2E_FILE=<featureFile>"
+      ]
+    },
+    "C": {
+      "id": "C",
+      "description": "Shared architecture or high-risk changes verification",
+      "priority": 4,
+      "checks": [
+        "npm run lint",
+        "npx tsc --noEmit",
+        "npx tsc --project tsconfig.cucumber.json --noEmit",
+        "npm run test",
+        "make test-e2e-managed"
+      ]
+    },
+    "D": {
+      "id": "D",
+      "description": "Batch or User Story closure full regression check",
+      "priority": 5,
+      "checks": [
+        "npm run lint",
+        "npx tsc --noEmit",
+        "npx tsc --project tsconfig.cucumber.json --noEmit",
+        "npm run test",
+        "make test-e2e-managed",
+        "verify no @wip tags remaining in scope",
+        "verify clean working tree",
+        "verify CI status green"
+      ]
+    }
+  }
+}

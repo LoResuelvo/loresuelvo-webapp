@@ -21,7 +21,7 @@ E2E_SCENARIO_REPORT ?= .next/cucumber-managed-report.json
 DOCKER_TEST_IMAGE     ?= loresuelvo-webapp-test
 DOCKER_TEST_CONTAINER ?= loresuelvo-webapp-test-container
 
-.PHONY: help install dev build start start-test lint test test-e2e test-e2e-port test-e2e-file test-e2e-file-port test-e2e-managed test-e2e-file-managed test-e2e-wip-file-managed test-e2e-wip test-e2e-report test-all-once \
+.PHONY: help install dev build start start-test lint test test-e2e test-e2e-port test-e2e-file test-e2e-file-port test-e2e-managed test-e2e-file-managed test-e2e-wip-file-managed test-e2e-wip test-e2e-report test-e2e-steps-compatible test-all-once \
 	docker-dev docker-dev-d docker-dev-down docker-build docker-sh docker-lint docker-test \
 	docker-start-test docker-stop-test docker-test-e2e
 
@@ -174,6 +174,10 @@ test-e2e-wip:
 
 test-e2e-report:
 	APP_URL=$(APP_URL) npm run test:e2e:report
+
+test-e2e-steps-compatible:
+	npx tsc --project tsconfig.cucumber.json --noEmit
+	TS_NODE_PROJECT=tsconfig.cucumber.json npx cucumber-js --profile steps-compatibility
 
 test-all-once:
 	npm run test

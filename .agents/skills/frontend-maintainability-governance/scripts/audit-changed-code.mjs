@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 
-const THRESHOLDS = {
+const DEFAULT_THRESHOLDS = {
   fileLines: 250,
   functionLines: 60,
   mainBodyLines: 120,
@@ -12,13 +12,30 @@ const THRESHOLDS = {
   useEffect: 3,
 };
 
+function loadThresholds() {
+  const policyPath = path.resolve(".delivery/policy.v1.json");
+  if (fs.existsSync(policyPath)) {
+    try {
+      const policy = JSON.parse(fs.readFileSync(policyPath, "utf8"));
+      if (policy && policy.maintainabilityThresholds) {
+        return { ...DEFAULT_THRESHOLDS, ...policy.maintainabilityThresholds };
+      }
+    } catch {
+      // Fallback to default thresholds
+    }
+  }
+  return DEFAULT_THRESHOLDS;
+}
+
+const THRESHOLDS = loadThresholds();
+
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
-const EXCLUDED_PARTS = new Set([".agents", ".next", "node_modules", "reports", ".cucumber-dist"]);
+const EXCLUDED_PARTS = new Set([".agents", ".next", "node_modules", "reports", ".cucumber-dist", ".delivery", ".codex", "tools"]);
 const TEST_FILE_PATTERN = /(?:^|\/)(?:features\/|.*\.(?:test|spec)\.[cm]?[jt]sx?$)/;
 
 function usage() {
   console.log(`Uso:
-  node audit-changed-code.mjs <archivo> [archivo...]
+  node audit-changed-code.mjs [--format=human|json] <archivo> [archivo...]
 
 Obtené antes las rutas con git diff --name-only y pasá únicamente fuentes
 productivas TypeScript/JavaScript. Las señales no producen un exit code de falla.`);
@@ -26,14 +43,23 @@ productivas TypeScript/JavaScript. Las señales no producen un exit code de fall
 
 function parseArgs(argv) {
   const files = [];
+  let format = "human";
 
   for (const value of argv) {
-    if (value === "--help" || value === "-h") return { help: true, files };
+    if (value === "--help" || value === "-h") return { help: true, files, format };
+    if (value === "--format=json") {
+      format = "json";
+      continue;
+    }
+    if (value === "--format=human") {
+      format = "human";
+      continue;
+    }
     if (value.startsWith("-")) throw new Error(`Opción desconocida: ${value}`);
     files.push(value);
   }
 
-  return { help: false, files };
+  return { help: false, files, format };
 }
 
 function isProductSource(file) {
@@ -112,13 +138,23 @@ function inspectFile(relativeFile) {
     true
   );
   const findings = [];
+  const signals = [];
   const fileLines = sourceText.split(/\r?\n/).length;
 
   if (fileLines > THRESHOLDS.fileLines) {
+    const msg = `archivo: ${fileLines} líneas (>${THRESHOLDS.fileLines})`;
     findings.push({
       line: 1,
       count: 1,
-      message: `archivo: ${fileLines} líneas (>${THRESHOLDS.fileLines})`,
+      message: msg,
+    });
+    signals.push({
+      rule: "fileLines",
+      file: relativeFile,
+      line: 1,
+      observed: fileLines,
+      threshold: THRESHOLDS.fileLines,
+      message: msg,
     });
   }
 
@@ -130,29 +166,56 @@ function inspectFile(relativeFile) {
       const name = functionName(node, sourceFile, start);
       const isHook = /^use[A-Z]/.test(name);
       const isComponent = /^[A-Z]/.test(name);
-      const signals = [];
+      const nodeSignals = [];
 
       if (lines > THRESHOLDS.functionLines) {
-        signals.push(`${lines} líneas (>${THRESHOLDS.functionLines})`);
+        const msg = `${lines} líneas (>${THRESHOLDS.functionLines})`;
+        nodeSignals.push(msg);
+        signals.push({
+          rule: "functionLines",
+          file: relativeFile,
+          line: start,
+          observed: lines,
+          threshold: THRESHOLDS.functionLines,
+          message: `${name}: ${msg}`,
+        });
       }
       if ((isHook || isComponent) && lines > THRESHOLDS.mainBodyLines) {
-        signals.push(`${isHook ? "hook" : "componente"} principal >${THRESHOLDS.mainBodyLines}`);
+        const msg = `${isHook ? "hook" : "componente"} principal >${THRESHOLDS.mainBodyLines}`;
+        nodeSignals.push(msg);
+        signals.push({
+          rule: "mainBodyLines",
+          file: relativeFile,
+          line: start,
+          observed: lines,
+          threshold: THRESHOLDS.mainBodyLines,
+          message: `${name}: ${msg}`,
+        });
       }
 
       if (isHook || isComponent) {
         const counts = hookCounts(node.body);
         for (const hook of ["useState", "useRef", "useCallback", "useEffect"]) {
           if (counts[hook] > THRESHOLDS[hook]) {
-            signals.push(`${hook}=${counts[hook]} (>${THRESHOLDS[hook]})`);
+            const msg = `${hook}=${counts[hook]} (>${THRESHOLDS[hook]})`;
+            nodeSignals.push(msg);
+            signals.push({
+              rule: hook,
+              file: relativeFile,
+              line: start,
+              observed: counts[hook],
+              threshold: THRESHOLDS[hook],
+              message: `${name}: ${msg}`,
+            });
           }
         }
       }
 
-      if (signals.length > 0) {
+      if (nodeSignals.length > 0) {
         findings.push({
           line: start,
-          count: signals.length,
-          message: `${name}: ${signals.join("; ")}`,
+          count: nodeSignals.length,
+          message: `${name}: ${nodeSignals.join("; ")}`,
         });
       }
     }
@@ -161,15 +224,22 @@ function inspectFile(relativeFile) {
   }
 
   visit(sourceFile);
-  return findings;
+  return { findings, signals };
 }
 
 function existingProductFiles(files) {
   const missing = [];
   const valid = [];
+  const repoRoot = path.resolve(".");
 
   for (const file of files) {
-    if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
+    const absoluteFile = path.resolve(file);
+    const relativeToRepo = path.relative(repoRoot, absoluteFile);
+    if (relativeToRepo.startsWith("..") || path.isAbsolute(relativeToRepo)) {
+      throw new Error(`Archivo fuera del repositorio no permitido: ${file}`);
+    }
+
+    if (!fs.existsSync(absoluteFile) || !fs.statSync(absoluteFile).isFile()) {
       missing.push(file);
       continue;
     }
@@ -197,16 +267,37 @@ function main() {
   const files = existingProductFiles(options.files);
 
   if (files.length === 0) {
-    console.log("Mantenibilidad: no hay archivos productivos TypeScript/JavaScript para revisar.");
+    if (options.format === "json") {
+      console.log(JSON.stringify({ filesReviewed: [], signalCount: 0, signals: [] }));
+    } else {
+      console.log("Mantenibilidad: no hay archivos productivos TypeScript/JavaScript para revisar.");
+    }
     return;
   }
 
-  const reviewed = files.map((file) => ({ file, findings: inspectFile(file) }));
-  const signalCount = reviewed.reduce(
-    (total, result) =>
-      total + result.findings.reduce((subtotal, finding) => subtotal + finding.count, 0),
-    0
-  );
+  const reviewed = files.map((file) => {
+    const { findings, signals } = inspectFile(file);
+    return { file, findings, signals };
+  });
+
+  const allSignals = reviewed.flatMap((r) => r.signals);
+  const signalCount = allSignals.length;
+
+  if (options.format === "json") {
+    console.log(
+      JSON.stringify(
+        {
+          filesReviewed: files,
+          signalCount,
+          signals: allSignals,
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
   console.log(`Mantenibilidad: ${files.length} archivo(s) revisado(s); ${signalCount} señal(es).`);
 
   for (const result of reviewed) {

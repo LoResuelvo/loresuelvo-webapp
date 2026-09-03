@@ -32,6 +32,17 @@ export const DeliveryPrepareInputSchema = DeliveryInspectInputSchema.extend({
     .optional(),
 });
 
+export const DeliveryContextInputSchema = z.object({
+  action: z.enum(["set", "inspect", "clear", "consume"]).default("set"),
+  intent: z
+    .enum(["prepare_commit", "close_scenario", "close_batch", "close_us"])
+    .optional(),
+  usId: z.string().max(500).optional(),
+  featureFile: z.string().max(500).optional(),
+  scenarioName: z.string().max(500).optional(),
+  scopeFiles: z.array(z.string().max(500)).max(100).default([]),
+});
+
 export function formatInputIssues(error) {
   return error.issues
     .slice(0, 5)

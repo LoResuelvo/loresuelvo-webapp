@@ -17,7 +17,8 @@
     "delivery:mcp": "node tools/delivery-mcp/server.mjs",
     "delivery:smoke": "node tools/delivery-mcp/smoke.mjs",
     "delivery:inspect": "node tools/delivery-mcp/cli.mjs inspect",
-    "delivery:prepare": "node tools/delivery-mcp/cli.mjs prepare"
+    "delivery:prepare": "node tools/delivery-mcp/cli.mjs prepare",
+    "delivery:context": "node tools/delivery-mcp/cli.mjs context"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.20.0",

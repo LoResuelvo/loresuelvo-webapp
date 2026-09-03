@@ -227,6 +227,7 @@ export async function captureGitSnapshot({
     unrelatedUnstaged,
     untracked,
     diffSizeBytes,
+    stagedDiffText: diffBuffer.toString("utf8"),
     snapshotHash,
     proposedCommitMessage,
     proposedUsId,

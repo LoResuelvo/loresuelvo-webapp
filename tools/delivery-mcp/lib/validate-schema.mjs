@@ -115,3 +115,7 @@ export function validateInspectionResult(result, repoRoot) {
 export function validateExecutionResult(result, repoRoot) {
   return validateAgainstSchema(result, "execution-result.schema.json", repoRoot);
 }
+
+export function validateDeliveryContextResult(result, repoRoot) {
+  return validateAgainstSchema(result, "delivery-context.schema.json", repoRoot);
+}

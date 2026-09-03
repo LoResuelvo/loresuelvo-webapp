@@ -2,6 +2,8 @@ import { inspectDelivery } from "./inspect-delivery.mjs";
 import { runGate } from "./run-gate.mjs";
 import { findRepoRoot } from "./repo-root.mjs";
 import { validateExecutionResult } from "./validate-schema.mjs";
+import { recordPreparedEvidence } from "./delivery-ledger.mjs";
+
 
 function stoppedResult(inspection, status, extraDiagnostic, repoRoot) {
   const diagnostics = [
@@ -157,11 +159,25 @@ export async function prepareDelivery({
     return stoppedResult(inspection, review.status || "review_required", review.diagnostic, root);
   }
 
-  return runGate({
+  const outcome = await runGate({
     inspection,
     snapshot,
     policy,
     repoRoot: root,
     review: review.review,
   });
+
+  try {
+    await recordPreparedEvidence({
+      repoRoot: root,
+      snapshotHash: outcome.snapshotHash,
+      runKey: outcome.runKey,
+      status: outcome.status,
+      recordPath: outcome.evidence?.recordPath,
+    });
+  } catch {
+    // Ignore ledger write issues
+  }
+
+  return outcome;
 }

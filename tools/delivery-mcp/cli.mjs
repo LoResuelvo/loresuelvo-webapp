@@ -14,6 +14,14 @@ import {
   consumeDeliveryContext,
   validateDeliveryContext,
 } from "./lib/delivery-context.mjs";
+import {
+  runPreCommitHook,
+  runCommitMsgHook,
+  runPostCommitHook,
+  runPrePushHook,
+  installHooks,
+  getHooksStatus,
+} from "./lib/git-hooks.mjs";
 import { captureGitSnapshot } from "./lib/git-snapshot.mjs";
 import { findRepoRoot } from "./lib/repo-root.mjs";
 
@@ -22,6 +30,8 @@ function usage() {
   npm run delivery:inspect -- [options]
   npm run delivery:prepare -- [options]
   npm run delivery:context -- [options]
+  npm run delivery:hooks:install
+  npm run delivery:hooks:status
 
 Options for delivery:inspect / delivery:prepare:
   --intent <prepare_commit|close_scenario|close_batch|close_us>
@@ -57,9 +67,19 @@ function takeValue(args, index, option) {
 function parseArguments(argv) {
   const args = [...argv];
   let command = "inspect";
-  if (args[0] === "inspect" || args[0] === "prepare" || args[0] === "context") {
+  let subAction = "";
+  let hookArgs = [];
+
+  if (["inspect", "prepare", "context", "hooks", "hook"].includes(args[0])) {
     command = args.shift();
   }
+
+  if (command === "hooks" || command === "hook") {
+    subAction = args.shift() || "";
+    hookArgs = args;
+    return { command, subAction, hookArgs, input: {}, pretty: false, help: false };
+  }
+
   const input = { intent: "prepare_commit", scopeFiles: [] };
   let contextAction = "set";
   let pretty = false;
@@ -144,6 +164,14 @@ function writeJson(value, pretty) {
   process.stdout.write(`${JSON.stringify(value, null, pretty ? 2 : 0)}\n`);
 }
 
+async function readStdin() {
+  const chunks = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
 async function main() {
   const options = parseArguments(process.argv.slice(2));
   if (options.help) {
@@ -153,6 +181,72 @@ async function main() {
 
   const root = findRepoRoot();
 
+  // 1. Hooks management (npm run delivery:hooks:install / status)
+  if (options.command === "hooks") {
+    if (options.subAction === "install") {
+      const res = await installHooks({ repoRoot: root });
+      writeJson(res, options.pretty);
+      process.exitCode = 0;
+      return;
+    }
+    if (options.subAction === "status") {
+      const res = await getHooksStatus({ repoRoot: root });
+      writeJson(res, options.pretty);
+      process.exitCode = 0;
+      return;
+    }
+    throw new Error(`Unknown hooks action: ${options.subAction}`);
+  }
+
+  // 2. Hook invocations from .githooks/*
+  if (options.command === "hook") {
+    const hookName = options.subAction;
+    if (hookName === "pre-commit") {
+      const res = await runPreCommitHook({ repoRoot: root });
+      if (res.passed) {
+        process.stdout.write(`[delivery-hook] pre-commit passed (gate: ${res.outcome.gate.id})\n`);
+        process.exitCode = 0;
+      } else {
+        process.stderr.write(`[delivery-hook] pre-commit failed: ${res.message}\n`);
+        process.exitCode = 1;
+      }
+      return;
+    }
+    if (hookName === "commit-msg") {
+      const messageFile = options.hookArgs[0];
+      const res = await runCommitMsgHook({ repoRoot: root, messageFilePath: messageFile });
+      if (res.passed) {
+        process.stdout.write(`[delivery-hook] commit-msg passed (type: ${res.validation.type})\n`);
+        process.exitCode = 0;
+      } else {
+        process.stderr.write(`[delivery-hook] commit-msg failed: ${res.message}\n`);
+        process.exitCode = 1;
+      }
+      return;
+    }
+    if (hookName === "post-commit") {
+      const res = await runPostCommitHook({ repoRoot: root });
+      process.stdout.write(`[delivery-hook] post-commit: recorded evidence for ${res.commitSha.slice(0, 8)}\n`);
+      process.exitCode = 0;
+      return;
+    }
+    if (hookName === "pre-push") {
+      const rawStdin = await readStdin();
+      const stdinLines = rawStdin.trim().split("\n").filter(Boolean);
+      const res = await runPrePushHook({ repoRoot: root, stdinLines });
+      if (res.passed) {
+        process.stdout.write(`[delivery-hook] pre-push passed\n`);
+        process.exitCode = 0;
+      } else {
+        process.stderr.write(`[delivery-hook] pre-push failed: ${res.message}\n`);
+        process.exitCode = 1;
+      }
+      return;
+    }
+    throw new Error(`Unknown hook: ${hookName}`);
+  }
+
+  // 3. Delivery context management
   if (options.command === "context") {
     if (options.contextAction === "clear") {
       const res = await clearDeliveryContext({ repoRoot: root });
@@ -198,6 +292,7 @@ async function main() {
     return;
   }
 
+  // 4. Delivery inspect / prepare
   const schema = options.command === "prepare" ? DeliveryPrepareInputSchema : DeliveryInspectInputSchema;
   const parsed = schema.safeParse(options.input);
   if (!parsed.success) throw new Error(formatInputIssues(parsed.error));

@@ -69,7 +69,10 @@ export async function runMaintainabilityAudit({ stagedFiles = [], repoRoot = pro
 
     const parsed = JSON.parse(stdout.toString("utf8"));
     const filesReviewed = parsed.filesReviewed || productFiles;
-    const allSignals = parsed.signals || [];
+    const allSignals = (parsed.signals || []).map((s) => ({
+      id: s.id || `${s.rule}:${s.file}:${s.line}`,
+      ...s,
+    }));
     const signalCount = parsed.signalCount ?? allSignals.length;
 
     return {

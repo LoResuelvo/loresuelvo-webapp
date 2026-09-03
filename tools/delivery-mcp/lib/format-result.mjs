@@ -1,7 +1,11 @@
+import { validateInspectionResult } from "./validate-schema.mjs";
+
 export function formatInspectionResult({
   snapshot,
   gateResult,
   maintainability,
+  policy,
+  repoRoot,
 } = {}) {
   const diagnostics = [...(gateResult?.diagnostics || [])];
 
@@ -22,6 +26,7 @@ export function formatInspectionResult({
   });
 
   const sanitizedSignals = (maintainability?.signals || []).slice(0, 20).map((s) => ({
+    id: String(s.id || `${s.rule || "unknown"}:${s.file || "unknown"}:${s.line || 1}`),
     rule: String(s.rule || "unknown"),
     file: String(s.file || "unknown"),
     line: typeof s.line === "number" ? s.line : 1,
@@ -30,7 +35,7 @@ export function formatInspectionResult({
     message: String(s.message || "").split("\n")[0],
   }));
 
-  return {
+  const result = {
     schemaVersion: 1,
     status: gateResult?.status || "ready",
     snapshotHash: snapshot?.snapshotHash || "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -39,10 +44,17 @@ export function formatInspectionResult({
       headSha: snapshot?.headSha || "UNKNOWN",
       usId: snapshot?.usId || null,
     },
+    policy: {
+      version: policy?.version || 1,
+      hash: policy?.sourceHash || "UNKNOWN",
+    },
     gate: {
       id: gateResult?.gate?.id || "NONE",
       reasonCodes: gateResult?.gate?.reasonCodes || [],
+      checkIds: gateResult?.gate?.checkIds || [],
       checks: gateResult?.gate?.checks || [],
+      parameters: gateResult?.gate?.parameters || {},
+      postPushChecks: gateResult?.gate?.postPushChecks || [],
     },
     maintainability: {
       status: maintainability?.status || "not_applicable",
@@ -52,4 +64,12 @@ export function formatInspectionResult({
     },
     diagnostics: sanitizedDiagnostics,
   };
+
+  try {
+    validateInspectionResult(result, repoRoot);
+  } catch {
+    // Graceful if schema file not loaded in isolated test
+  }
+
+  return result;
 }

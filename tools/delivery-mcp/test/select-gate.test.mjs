@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { selectGate } from "../lib/select-gate.mjs";
+import { selectGate as selectGateWithPolicy } from "../lib/select-gate.mjs";
+import { loadDeliveryPolicy } from "../lib/policy-loader.mjs";
+
+const policy = await loadDeliveryPolicy();
+
+function selectGate(input) {
+  return selectGateWithPolicy({ ...input, policy });
+}
 
 test("selectGate: sin cambios staged -> Gate NONE y status no_changes", () => {
   const result = selectGate({
@@ -42,7 +49,7 @@ test("selectGate: dominio/helper aislado -> Gate A", () => {
 
   assert.strictEqual(result.gate.id, "A");
   assert.strictEqual(result.status, "ready");
-  assert.ok(result.gate.checks.includes("npx tsc --noEmit"));
+  assert.ok(result.gate.checks.includes("npx --no-install tsc --noEmit"));
 });
 
 test("selectGate: cierre de escenario de bajo riesgo con feature única inferida -> Gate B", () => {
@@ -110,22 +117,42 @@ test("selectGate: Server Action, layout, routing, auth, API o componente compart
 test("selectGate: cierre de batch o US -> Gate D", () => {
   const batchResult = selectGate({
     intent: "close_batch",
+    scopeFiles: ["features/order/order.feature"],
     snapshot: {
       stagedFiles: ["domain/order/order.ts"],
     },
   });
   assert.strictEqual(batchResult.gate.id, "D");
   assert.strictEqual(batchResult.status, "ready");
-  assert.ok(batchResult.gate.checks.includes("verify no @wip tags remaining in scope"));
+  assert.ok(batchResult.gate.checkIds.includes("no_wip_in_scope"));
+  assert.deepStrictEqual(batchResult.gate.postPushChecks, ["ci_green"]);
 
   const usResult = selectGate({
     intent: "close_us",
+    scopeFiles: ["features/order/order.feature"],
     snapshot: {
       stagedFiles: ["domain/order/order.ts"],
     },
   });
   assert.strictEqual(usResult.gate.id, "D");
   assert.strictEqual(usResult.status, "ready");
+});
+
+test("selectGate: cierre de escenario de alto riesgo -> Gate D", () => {
+  const result = selectGate({
+    intent: "close_scenario",
+    featureFile: "features/provider/provider-reviews.feature",
+    snapshot: {
+      stagedFiles: [
+        "features/provider/provider-reviews.feature",
+        "infrastructure/repositories/provider-repository.ts",
+      ],
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "D");
+  assert.strictEqual(result.status, "ready");
+  assert.deepStrictEqual(result.gate.reasonCodes, ["INTENT_CLOSE_HIGH_RISK_SCENARIO"]);
 });
 
 test("selectGate: documentación o configuración solamente -> Gate NONE", () => {
@@ -135,7 +162,7 @@ test("selectGate: documentación o configuración solamente -> Gate NONE", () =>
       stagedFiles: [
         "AGENTS.md",
         "docs/architecture.md",
-        ".delivery/policy.v1.json",
+        ".delivery/README.md",
       ],
     },
   });
@@ -143,6 +170,22 @@ test("selectGate: documentación o configuración solamente -> Gate NONE", () =>
   assert.strictEqual(result.gate.id, "NONE");
   assert.strictEqual(result.status, "ready");
   assert.deepStrictEqual(result.gate.checks, []);
+});
+
+test("selectGate: cambios del delivery runner ejecutan sus tests en Gate A", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: [
+        ".delivery/policy.v1.json",
+        "tools/delivery-mcp/lib/run-gate.mjs",
+      ],
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "A");
+  assert.ok(result.gate.checkIds.includes("delivery_unit"));
+  assert.ok(result.gate.reasonCodes.includes("DELIVERY_TOOLING_CHANGED"));
 });
 
 test("selectGate: diff mixto -> gate de mayor cobertura", () => {
@@ -169,11 +212,12 @@ test("selectGate: diff mixto -> gate de mayor cobertura", () => {
     },
   });
   assert.strictEqual(mix2.gate.id, "A");
-  assert.ok(mix2.gate.checks.includes("npx tsc --project tsconfig.cucumber.json --noEmit"));
+  assert.ok(mix2.gate.checks.includes("npx --no-install tsc --project tsconfig.cucumber.json --noEmit"));
 
   // Mixed Gate C + intent close_batch -> D
   const mix3 = selectGate({
     intent: "close_batch",
+    scopeFiles: ["features/order/order.feature"],
     snapshot: {
       stagedFiles: ["components/ui/button.tsx"],
     },
@@ -221,6 +265,20 @@ test("selectGate: cambios unstaged no relacionados -> warning, no bloqueado", ()
 
   assert.strictEqual(result.status, "ready");
   assert.ok(result.diagnostics.some((d) => d.code === "UNSTAGED_CHANGES"));
+});
+
+test("selectGate: cambios unstaged del control plane bloquean evidencia ambigua", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["domain/proposal/proposal.ts"],
+      unstagedConflicts: [],
+      unrelatedUnstaged: ["tools/delivery-mcp/server.mjs"],
+    },
+  });
+
+  assert.strictEqual(result.status, "blocked");
+  assert.ok(result.diagnostics.some((diagnostic) => diagnostic.code === "DELIVERY_CONTROL_PLANE_DIRTY"));
 });
 
 test("selectGate: código productivo con señales de mantenibilidad -> review_required", () => {

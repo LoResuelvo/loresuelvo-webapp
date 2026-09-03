@@ -12,6 +12,7 @@ npm-debug.log*
 # Cucumber
 reports/
 .cucumber-dist/
+.delivery/runtime/
 
 *.tsbuildinfo
 

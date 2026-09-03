@@ -9,6 +9,19 @@ export function normalizePath(filePath) {
 export function classifyFile(filePath) {
   const normalized = normalizePath(filePath);
 
+  if (
+    normalized.startsWith("tools/delivery-mcp/") ||
+    (/^\.delivery\/.*\.json$/.test(normalized)) ||
+    normalized === "package.json"
+  ) {
+    return {
+      category: "delivery_tooling",
+      isGateCTrigger: false,
+      isGate0Trigger: false,
+      isProductSource: false,
+    };
+  }
+
   // 1. Features, steps, and cucumber support
   if (
     normalized.startsWith("features/") ||
@@ -154,6 +167,7 @@ export function classifyFiles(files = []) {
     hasGateCTrigger: false,
     hasGate0Trigger: false,
     hasIsolatedProduction: false,
+    hasDeliveryTooling: false,
     hasOnlyGate0: false,
     hasOnlyDocsOrConfig: false,
     productFiles: [],
@@ -179,6 +193,9 @@ export function classifyFiles(files = []) {
     }
     if (classification.category === "isolated_production") {
       result.hasIsolatedProduction = true;
+    }
+    if (classification.category === "delivery_tooling") {
+      result.hasDeliveryTooling = true;
     }
     if (classification.category === "non_code_docs_tests_config" || classification.category === "test") {
       countDocsConfig++;

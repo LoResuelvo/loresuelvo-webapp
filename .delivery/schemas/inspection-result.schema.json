@@ -7,6 +7,7 @@
     "status",
     "snapshotHash",
     "repository",
+    "policy",
     "gate",
     "maintainability",
     "diagnostics"
@@ -32,9 +33,17 @@
         "usId": { "type": ["string", "null"] }
       }
     },
+    "policy": {
+      "type": "object",
+      "required": ["version", "hash"],
+      "properties": {
+        "version": { "type": "integer", "minimum": 1 },
+        "hash": { "type": "string" }
+      }
+    },
     "gate": {
       "type": "object",
-      "required": ["id", "reasonCodes", "checks"],
+      "required": ["id", "reasonCodes", "checkIds", "checks", "parameters", "postPushChecks"],
       "properties": {
         "id": {
           "type": "string",
@@ -44,7 +53,18 @@
           "type": "array",
           "items": { "type": "string" }
         },
+        "checkIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
         "checks": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "parameters": {
+          "type": "object"
+        },
+        "postPushChecks": {
           "type": "array",
           "items": { "type": "string" }
         }
@@ -73,6 +93,7 @@
             "type": "object",
             "required": ["rule", "file", "line", "observed", "threshold", "message"],
             "properties": {
+              "id": { "type": "string" },
               "rule": { "type": "string" },
               "file": { "type": "string" },
               "line": { "type": "integer" },

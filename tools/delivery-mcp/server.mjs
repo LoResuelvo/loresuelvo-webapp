@@ -4,187 +4,180 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod";
-import { captureGitSnapshot } from "./lib/git-snapshot.mjs";
-import { selectGate } from "./lib/select-gate.mjs";
-import { runMaintainabilityAudit } from "./lib/run-maintainability.mjs";
-import { formatInspectionResult } from "./lib/format-result.mjs";
+import { pathToFileURL } from "node:url";
+import { inspectDelivery } from "./lib/inspect-delivery.mjs";
+import { prepareDelivery } from "./lib/prepare-delivery.mjs";
+import {
+  DeliveryInspectInputSchema,
+  DeliveryPrepareInputSchema,
+  formatInputIssues,
+} from "./lib/input-schema.mjs";
 
-const DeliveryInspectInputSchema = z.object({
-  intent: z
-    .enum(["prepare_commit", "close_scenario", "close_batch", "close_us"])
-    .default("prepare_commit"),
-  proposedCommitMessage: z.string().optional(),
-  featureFile: z.string().optional(),
-  scenarioName: z.string().optional(),
-});
+const intentProperty = {
+  type: "string",
+  enum: ["prepare_commit", "close_scenario", "close_batch", "close_us"],
+  description: "Delivery intent for this boundary",
+};
 
-const server = new Server(
-  {
-    name: "loresuelvo-delivery",
-    version: "1.0.0",
+const commonProperties = {
+  intent: intentProperty,
+  proposedCommitMessage: {
+    type: "string",
+    description: "Optional commit message proposed by the agent",
   },
-  {
-    capabilities: {
-      tools: {},
-    },
-  }
+  featureFile: {
+    type: "string",
+    description: "Feature path required for Gate B when it cannot be inferred",
+  },
+  scenarioName: {
+    type: "string",
+    description: "Optional scenario name recorded as delivery context",
+  },
+  scopeFiles: {
+    type: "array",
+    items: { type: "string" },
+    description: "Completed feature paths that define Gate D @wip scope",
+  },
+};
+
+export const server = new Server(
+  { name: "loresuelvo-delivery", version: "1.1.0" },
+  { capabilities: { tools: {} } }
 );
 
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: "delivery_inspect",
-        description:
-          "Inspects staged changes, infers US, selects applicable delivery gate, and executes maintainability audit.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            intent: {
-              type: "string",
-              enum: ["prepare_commit", "close_scenario", "close_batch", "close_us"],
-              description: "Delivery intent for this inspection step",
-            },
-            proposedCommitMessage: {
-              type: "string",
-              description: "Optional commit message proposed by agent",
-            },
-            featureFile: {
-              type: "string",
-              description: "Optional path to the relevant feature file",
-            },
-            scenarioName: {
-              type: "string",
-              description: "Optional scenario name under inspection",
-            },
-          },
-          required: ["intent"],
-        },
+server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  tools: [
+    {
+      name: "delivery_inspect",
+      description:
+        "Inspects staged changes, recent US commits, and maintainability; deterministically selects the applicable gate without running it.",
+      inputSchema: {
+        type: "object",
+        properties: commonProperties,
+        required: ["intent"],
       },
-    ],
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    {
+      name: "delivery_prepare",
+      description:
+        "Inspects the staged snapshot, executes its deterministic local gate, and returns compact cached evidence. It never commits or pushes.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          ...commonProperties,
+          acknowledgement: {
+            type: "object",
+            properties: {
+              snapshotHash: { type: "string" },
+              reason: { type: "string" },
+              decisions: {
+                type: "object",
+                description: "Map of signalId -> justification (min 12 chars each)",
+              },
+            },
+            required: ["snapshotHash"],
+          },
+        },
+        required: ["intent"],
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+  ],
+}));
+
+function inspectionError(code, message) {
+  return {
+    schemaVersion: 1,
+    status: "blocked",
+    snapshotHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    repository: { branch: "UNKNOWN", headSha: "UNKNOWN", usId: null },
+    policy: { version: 1, hash: "UNKNOWN" },
+    gate: {
+      id: "NONE",
+      reasonCodes: [code],
+      checkIds: [],
+      checks: [],
+      parameters: {},
+      postPushChecks: [],
+    },
+    maintainability: { status: "not_applicable", filesReviewed: [], signalCount: 0, signals: [] },
+    diagnostics: [{ code, message, retryable: false }],
   };
-});
+}
+
+function executionError(code, message) {
+  return {
+    schemaVersion: 1,
+    status: "blocked",
+    snapshotHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    runKey: null,
+    cached: false,
+    gate: { id: "NONE", reasonCodes: [code], postPushChecks: [] },
+    summary: { passed: 0, failed: 0, skipped: 0, durationMs: 0 },
+    checks: [],
+    diagnostics: [{ code, message, retryable: false }],
+    evidence: { recordPath: null },
+  };
+}
+
+function toolResponse(result, isError = false) {
+  return {
+    content: [{ type: "text", text: JSON.stringify(result) }],
+    isError,
+  };
+}
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  if (request.params.name !== "delivery_inspect") {
-    throw new Error(`Unknown tool requested: ${request.params.name}`);
+  const name = request.params.name;
+  const isPrepare = name === "delivery_prepare";
+  if (!isPrepare && name !== "delivery_inspect") {
+    return toolResponse(inspectionError("UNKNOWN_TOOL", `Unknown tool requested: ${name}`), true);
   }
 
-  const repoRoot = process.cwd();
+  const schema = isPrepare ? DeliveryPrepareInputSchema : DeliveryInspectInputSchema;
+  const parsed = schema.safeParse(request.params.arguments || {});
+  if (!parsed.success) {
+    const result = (isPrepare ? executionError : inspectionError)(
+      "INVALID_ARGUMENTS",
+      formatInputIssues(parsed.error)
+    );
+    return toolResponse(result, true);
+  }
 
   try {
-    const parseResult = DeliveryInspectInputSchema.safeParse(request.params.arguments || {});
-    if (!parseResult.success) {
-      const errorMsg = parseResult.error.issues
-        .map((i) => `${i.path.join(".")}: ${i.message}`)
-        .join(", ");
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              {
-                schemaVersion: 1,
-                status: "blocked",
-                snapshotHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                repository: { branch: "UNKNOWN", headSha: "UNKNOWN", usId: null },
-                gate: { id: "NONE", reasonCodes: ["INVALID_ARGUMENTS"], checks: [] },
-                maintainability: { status: "not_applicable", filesReviewed: [], signalCount: 0, signals: [] },
-                diagnostics: [
-                  {
-                    code: "INVALID_ARGUMENTS",
-                    message: errorMsg,
-                    retryable: false,
-                  },
-                ],
-              },
-              null,
-              2
-            ),
-          },
-        ],
-        isError: true,
-      };
-    }
-
-    const { intent, proposedCommitMessage, featureFile, scenarioName } = parseResult.data;
-
-    // 1. Git snapshot
-    const snapshot = await captureGitSnapshot({
-      cwd: repoRoot,
-      proposedCommitMessage: proposedCommitMessage || "",
-    });
-
-    // 2. Maintainability audit
-    const maintainability = await runMaintainabilityAudit({
-      stagedFiles: snapshot.stagedFiles,
-      repoRoot,
-    });
-
-    // 3. Gate selection
-    const gateResult = selectGate({
-      intent,
-      proposedCommitMessage: proposedCommitMessage || "",
-      featureFile: featureFile || "",
-      scenarioName: scenarioName || "",
-      snapshot,
-      maintainability,
-    });
-
-    // 4. Format canonical output
-    const inspectionResult = formatInspectionResult({
-      snapshot,
-      gateResult,
-      maintainability,
-    });
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(inspectionResult, null, 2),
-        },
-      ],
-    };
+    const result = isPrepare
+      ? await prepareDelivery(parsed.data)
+      : (await inspectDelivery(parsed.data)).result;
+    const failed = isPrepare && !["passed", "no_changes"].includes(result.status);
+    return toolResponse(result, failed);
   } catch (error) {
-    const safeMessage = String(error.message || "An unexpected error occurred").split("\n")[0];
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(
-            {
-              schemaVersion: 1,
-              status: "blocked",
-              snapshotHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-              repository: { branch: "UNKNOWN", headSha: "UNKNOWN", usId: null },
-              gate: { id: "NONE", reasonCodes: ["INTERNAL_ERROR"], checks: [] },
-              maintainability: { status: "not_applicable", filesReviewed: [], signalCount: 0, signals: [] },
-              diagnostics: [
-                {
-                  code: "INTERNAL_ERROR",
-                  message: safeMessage,
-                  retryable: false,
-                },
-              ],
-            },
-            null,
-            2
-          ),
-        },
-      ],
-      isError: true,
-    };
+    const message = String(error.message || "Unexpected delivery error").split("\n")[0];
+    return toolResponse(
+      (isPrepare ? executionError : inspectionError)("INTERNAL_ERROR", message),
+      true
+    );
   }
 });
 
 async function run() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  await server.connect(new StdioServerTransport());
 }
 
-run().catch((error) => {
-  console.error(`Fatal server error: ${error.message}`);
-  process.exit(1);
-});
+const invokedAsEntryPoint = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (invokedAsEntryPoint) {
+  run().catch((error) => {
+    console.error(`Fatal server error: ${String(error.message || "unknown").split("\n")[0]}`);
+    process.exit(1);
+  });
+}

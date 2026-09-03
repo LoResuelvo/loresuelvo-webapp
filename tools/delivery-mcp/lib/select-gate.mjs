@@ -1,187 +1,250 @@
-import { classifyFiles } from "./classify-files.mjs";
+import { classifyFiles, normalizePath } from "./classify-files.mjs";
+
+function policyGate(policy, gateId) {
+  const gate = policy?.gates?.[gateId];
+  if (!gate) throw new Error(`Delivery policy does not define gate ${gateId}`);
+  return gate;
+}
+
+function substituteDisplay(display, parameters) {
+  return display.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/g, (match, key) => {
+    const value = parameters[key];
+    if (Array.isArray(value)) return value.join(", ");
+    return value ? String(value) : match;
+  });
+}
+
+function buildGate(policy, gateId, reasonCodes, parameters = {}, extraCheckIds = []) {
+  const definition = policyGate(policy, gateId);
+  const checkIds = [...new Set([...definition.checkIds, ...extraCheckIds])];
+  const checks = checkIds.map((checkId) => {
+    const check = policy.checkCatalog[checkId];
+    if (!check) throw new Error(`Delivery policy does not define check ${checkId}`);
+    return substituteDisplay(check.display, parameters);
+  });
+
+  return {
+    id: gateId,
+    reasonCodes,
+    checkIds,
+    checks,
+    parameters,
+    postPushChecks: definition.postPushChecks || [],
+  };
+}
+
+function uniqueFeaturePaths(paths) {
+  return [
+    ...new Set(
+      paths
+        .filter(Boolean)
+        .map(normalizePath)
+        .filter((file) => file.endsWith(".feature"))
+    ),
+  ].sort();
+}
+
+function resolveFeatureScope({ featureFile, scopeFiles, snapshot }) {
+  return uniqueFeaturePaths([
+    featureFile,
+    ...(scopeFiles || []),
+    ...(snapshot?.stagedFiles || []),
+    ...(snapshot?.recentUsFiles || []),
+  ]);
+}
+
+function pushDiagnostic(diagnostics, code, message) {
+  diagnostics.push({ code, message, retryable: false });
+}
+
+function isDeliveryControlPlane(file) {
+  const normalized = normalizePath(file);
+  return (
+    normalized.startsWith("tools/delivery-mcp/") ||
+    normalized.startsWith(".delivery/") ||
+    normalized.startsWith(".githooks/") ||
+    [
+      "package.json",
+      "package-lock.json",
+      "Makefile",
+      "cucumber.json",
+      "tsconfig.cucumber.json",
+      "tsconfig.json",
+      "vitest.config.ts",
+    ].includes(normalized)
+  );
+}
+
+function initialStatus({ snapshot, diagnostics, limits }) {
+  let status = "ready";
+
+  if (snapshot?.diffTooLarge) {
+    status = "blocked";
+    pushDiagnostic(
+      diagnostics,
+      "DIFF_TOO_LARGE",
+      `Staged diff exceeds maximum allowed limit of ${limits.maxDiffSizeBytes} bytes`
+    );
+  }
+
+  if (snapshot?.tooManyFiles) {
+    status = "blocked";
+    pushDiagnostic(
+      diagnostics,
+      "TOO_MANY_FILES",
+      `Staged files count (${snapshot.stagedFiles.length}) exceeds maximum limit of ${limits.maxStagedFiles}`
+    );
+  }
+
+  if ((snapshot?.unstagedConflicts || []).length > 0) {
+    status = "blocked";
+    pushDiagnostic(
+      diagnostics,
+      "UNSTAGED_CONFLICT",
+      `Unstaged changes detected in already-staged files: ${snapshot.unstagedConflicts.join(", ")}`
+    );
+  }
+
+  if (snapshot?.isContradictoryUsId) {
+    if (status !== "blocked") status = "needs_input";
+    pushDiagnostic(
+      diagnostics,
+      "CONTRADICTORY_US_ID",
+      `Proposed US ID (${snapshot.proposedUsId}) contradicts recent commit history (${snapshot.primaryRecentUsId})`
+    );
+  }
+
+  if ((snapshot?.unrelatedUnstaged || []).length > 0) {
+    pushDiagnostic(
+      diagnostics,
+      "UNSTAGED_CHANGES",
+      `Working tree has ${snapshot.unrelatedUnstaged.length} unstaged modification(s) unrelated to staged files`
+    );
+  }
+
+  if ((snapshot?.untracked || []).length > 0) {
+    pushDiagnostic(
+      diagnostics,
+      "UNTRACKED_CHANGES",
+      `Working tree has ${snapshot.untracked.length} untracked path(s); successful evidence will not be cached`
+    );
+  }
+
+  const dirtyControlPlane = [
+    ...(snapshot?.unrelatedUnstaged || []),
+    ...(snapshot?.untracked || []),
+  ].filter(isDeliveryControlPlane);
+  if (dirtyControlPlane.length > 0) {
+    status = "blocked";
+    pushDiagnostic(
+      diagnostics,
+      "DELIVERY_CONTROL_PLANE_DIRTY",
+      `Unstaged delivery control-plane changes would make gate evidence ambiguous: ${dirtyControlPlane.join(", ")}`
+    );
+  }
+
+  return status;
+}
 
 export function selectGate({
   intent = "prepare_commit",
-  proposedCommitMessage = "",
   featureFile = "",
-  scenarioName = "",
+  scopeFiles = [],
   snapshot,
+  policy,
   maintainability = { status: "not_applicable", signalCount: 0, signals: [] },
 } = {}) {
   const diagnostics = [];
   const stagedFiles = snapshot?.stagedFiles || [];
-  const unstagedConflicts = snapshot?.unstagedConflicts || [];
-  const unrelatedUnstaged = snapshot?.unrelatedUnstaged || [];
-  const isContradictoryUsId = snapshot?.isContradictoryUsId || false;
-  const diffTooLarge = snapshot?.diffTooLarge || false;
-  const tooManyFiles = snapshot?.tooManyFiles || false;
 
-  // Rule 1: No staged changes
   if (stagedFiles.length === 0) {
     return {
-      gate: {
-        id: "NONE",
-        reasonCodes: ["NO_STAGED_CHANGES"],
-        checks: [],
-      },
+      gate: buildGate(policy, "NONE", ["NO_STAGED_CHANGES"]),
       status: "no_changes",
       diagnostics,
     };
   }
 
-  // Diagnostics & Status determination
-  let status = "ready";
-
-  if (diffTooLarge) {
-    status = "blocked";
-    diagnostics.push({
-      code: "DIFF_TOO_LARGE",
-      message: "Staged diff exceeds maximum allowed limit of 2 MB",
-      retryable: false,
-    });
-  }
-
-  if (tooManyFiles) {
-    status = "blocked";
-    diagnostics.push({
-      code: "TOO_MANY_FILES",
-      message: `Staged files count (${stagedFiles.length}) exceeds maximum limit of 500 files`,
-      retryable: false,
-    });
-  }
-
-  if (unstagedConflicts.length > 0) {
-    status = "blocked";
-    diagnostics.push({
-      code: "UNSTAGED_CONFLICT",
-      message: `Unstaged changes detected in already-staged files: ${unstagedConflicts.join(", ")}`,
-      retryable: false,
-    });
-  }
-
-  if (isContradictoryUsId) {
-    if (status !== "blocked") {
-      status = "needs_input";
-    }
-    diagnostics.push({
-      code: "CONTRADICTORY_US_ID",
-      message: `Proposed US ID (${snapshot?.proposedUsId}) contradicts recent commit history (${snapshot?.primaryRecentUsId})`,
-      retryable: false,
-    });
-  }
-
-  if (unrelatedUnstaged.length > 0) {
-    diagnostics.push({
-      code: "UNSTAGED_CHANGES",
-      message: `Working tree has ${unrelatedUnstaged.length} unstaged modification(s) unrelated to staged files`,
-      retryable: false,
-    });
-  }
-
-  // Gate selection algorithm
+  let status = initialStatus({ snapshot, diagnostics, limits: policy.limits });
   const classified = classifyFiles(stagedFiles);
-  let selectedGateId = "NONE";
-  const reasonCodes = [];
-  let checks = [];
+  let gate;
 
-  // Priority evaluation:
-  // D > C > B > A > 0 > NONE
-  if (intent === "close_batch" || intent === "close_us") {
-    selectedGateId = "D";
-    reasonCodes.push(intent === "close_batch" ? "INTENT_CLOSE_BATCH" : "INTENT_CLOSE_US");
-    checks = [
-      "npm run lint",
-      "npx tsc --noEmit",
-      "npx tsc --project tsconfig.cucumber.json --noEmit",
-      "npm run test",
-      "make test-e2e-managed",
-      "verify no @wip tags remaining in scope",
-      "verify clean working tree",
-      "verify CI status green",
-    ];
-  } else if (classified.hasGateCTrigger) {
-    selectedGateId = "C";
-    reasonCodes.push("SHARED_OR_HIGH_RISK_CHANGES");
-    checks = [
-      "npm run lint",
-      "npx tsc --noEmit",
-      "npx tsc --project tsconfig.cucumber.json --noEmit",
-      "npm run test",
-      "make test-e2e-managed",
-    ];
-  } else if (intent === "close_scenario") {
-    selectedGateId = "B";
-    reasonCodes.push("INTENT_CLOSE_SCENARIO_LOW_RISK");
-
-    let targetFeature = featureFile;
-    if (!targetFeature) {
-      const stagedFeatures = stagedFiles.filter((f) => f.endsWith(".feature"));
-      if (stagedFeatures.length === 1) {
-        targetFeature = stagedFeatures[0];
-      }
+  const closesHighRiskScenario = intent === "close_scenario" && classified.hasGateCTrigger;
+  if (intent === "close_batch" || intent === "close_us" || closesHighRiskScenario) {
+    const scopeFeatures = resolveFeatureScope({ featureFile, scopeFiles, snapshot });
+    const reasonCode = closesHighRiskScenario
+      ? "INTENT_CLOSE_HIGH_RISK_SCENARIO"
+      : intent === "close_batch"
+        ? "INTENT_CLOSE_BATCH"
+        : "INTENT_CLOSE_US";
+    gate = buildGate(
+      policy,
+      "D",
+      [reasonCode],
+      { scopeFeatures }
+    );
+    if (scopeFeatures.length === 0 && status !== "blocked") {
+      status = "needs_input";
+      pushDiagnostic(
+        diagnostics,
+        "MISSING_SCOPE_FOR_GATE_D",
+        "Gate D requires at least one feature path to verify that completed scope has no @wip tags"
+      );
     }
-
-    if (targetFeature) {
-      checks = [`make test-e2e-managed E2E_FILE=${targetFeature}`];
-    } else {
-      checks = ["make test-e2e-managed E2E_FILE=<featureFile>"];
-      if (status !== "blocked") {
-        status = "needs_input";
-      }
-      diagnostics.push({
-        code: "MISSING_FEATURE_FOR_GATE_B",
-        message: "Gate B requires featureFile or scenarioName when unable to infer a single feature from staged files",
-        retryable: false,
-      });
+  } else if (classified.hasGateCTrigger) {
+    gate = buildGate(policy, "C", ["SHARED_OR_HIGH_RISK_CHANGES"]);
+  } else if (intent === "close_scenario") {
+    const inferredFeatures = uniqueFeaturePaths(stagedFiles);
+    const targetFeature = featureFile || (inferredFeatures.length === 1 ? inferredFeatures[0] : "");
+    gate = buildGate(policy, "B", ["INTENT_CLOSE_SCENARIO_LOW_RISK"], {
+      featureFile: targetFeature,
+    });
+    if (!targetFeature && status !== "blocked") {
+      status = "needs_input";
+      pushDiagnostic(
+        diagnostics,
+        "MISSING_FEATURE_FOR_GATE_B",
+        "Gate B requires featureFile when a single staged feature cannot be inferred"
+      );
     }
   } else if (classified.hasOnlyGate0) {
-    selectedGateId = "0";
-    reasonCodes.push("E2E_STEPS_OR_FEATURES_ONLY");
-    checks = ["make test-e2e-steps-compatible"];
-  } else if (classified.hasIsolatedProduction) {
-    selectedGateId = "A";
-    reasonCodes.push("ISOLATED_PRODUCTION_CODE");
-    checks = ["npm run test -- <pattern>", "npx tsc --noEmit"];
-    if (classified.hasGate0Trigger) {
-      reasonCodes.push("INCLUDES_E2E_STEPS_OR_SUPPORT");
-      checks.push("npx tsc --project tsconfig.cucumber.json --noEmit");
+    gate = buildGate(policy, "0", ["E2E_STEPS_OR_FEATURES_ONLY"]);
+  } else if (classified.hasIsolatedProduction || classified.hasDeliveryTooling) {
+    const extraCheckIds = [];
+    const reasonCodes = [];
+    if (classified.hasIsolatedProduction) reasonCodes.push("ISOLATED_PRODUCTION_CODE");
+    if (classified.hasDeliveryTooling) {
+      reasonCodes.push("DELIVERY_TOOLING_CHANGED");
+      extraCheckIds.push("delivery_unit");
     }
+    if (classified.hasGate0Trigger) reasonCodes.push("INCLUDES_E2E_STEPS_OR_SUPPORT");
+    if (classified.hasGate0Trigger) extraCheckIds.push("typecheck_cucumber");
+    gate = buildGate(policy, "A", reasonCodes, {}, extraCheckIds);
   } else if (classified.hasOnlyDocsOrConfig) {
-    selectedGateId = "NONE";
-    reasonCodes.push("DOCS_CONFIG_TESTS_OR_STYLES_ONLY");
-    checks = [];
+    gate = buildGate(policy, "NONE", ["DOCS_CONFIG_TESTS_OR_STYLES_ONLY"]);
+  } else if (classified.hasGate0Trigger) {
+    gate = buildGate(policy, "0", ["E2E_STEPS_OR_FEATURES_INCLUDED"]);
   } else {
-    // Mixed changes fallback to highest coverage
-    if (classified.hasGate0Trigger) {
-      selectedGateId = "0";
-      reasonCodes.push("E2E_STEPS_OR_FEATURES_INCLUDED");
-      checks = ["make test-e2e-steps-compatible"];
-    } else {
-      selectedGateId = "NONE";
-      reasonCodes.push("NON_FUNCTIONAL_CHANGES");
-      checks = [];
-    }
+    gate = buildGate(policy, "NONE", ["NON_FUNCTIONAL_CHANGES"]);
   }
 
-  // Maintainability review required check
-  if (maintainability?.status === "review_required" || (maintainability?.signalCount || 0) > 0) {
-    if (status === "ready") {
-      status = "review_required";
-    }
-    diagnostics.push({
-      code: "MAINTAINABILITY_SIGNALS",
-      message: `${maintainability.signalCount} maintainability signal(s) detected in changed code; review required before commit`,
-      retryable: false,
-    });
+  if (maintainability?.operationalDiagnostic) {
+    status = "blocked";
+  } else if (
+    maintainability?.status === "review_required" ||
+    (maintainability?.signalCount || 0) > 0
+  ) {
+    if (status === "ready") status = "review_required";
+    pushDiagnostic(
+      diagnostics,
+      "MAINTAINABILITY_SIGNALS",
+      `${maintainability.signalCount} maintainability signal(s) detected in changed code; review required before commit`
+    );
   }
 
   return {
-    gate: {
-      id: selectedGateId,
-      reasonCodes,
-      checks,
-    },
+    gate,
     status,
-    diagnostics: diagnostics.slice(0, 20),
+    diagnostics: diagnostics.slice(0, policy.limits.maxDiagnostics),
   };
 }

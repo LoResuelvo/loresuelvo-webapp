@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "description": "Optional anticipatory delivery guard for Codex environments. Provides early feedback before git executes its authoritative hooks.",
+  "hooks": [
+    {
+      "event": "PreToolUse",
+      "matcher": {
+        "tool": "bash",
+        "commandPattern": "\\bgit\\s+commit\\b"
+      },
+      "handler": {
+        "type": "command",
+        "command": "node .codex/delivery-guard.mjs"
+      }
+    }
+  ]
+}

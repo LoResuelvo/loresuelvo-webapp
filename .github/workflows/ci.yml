@@ -30,6 +30,9 @@ jobs:
       - name: Ejecutar Tests Unitarios (Vitest)
         run: npm run test
 
+      - name: Ejecutar Tests de Delivery Runner
+        run: npm run delivery:test
+
   e2e-tests:
     name: E2E Acceptance Tests
     runs-on: ubuntu-latest

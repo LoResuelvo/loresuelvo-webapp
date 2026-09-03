@@ -119,3 +119,7 @@ export function validateExecutionResult(result, repoRoot) {
 export function validateDeliveryContextResult(result, repoRoot) {
   return validateAgainstSchema(result, "delivery-context.schema.json", repoRoot);
 }
+
+export function validateCiInspectionResult(result, repoRoot) {
+  return validateAgainstSchema(result, "ci-inspection-result.schema.json", repoRoot);
+}

@@ -9,6 +9,8 @@ import {
   getLastPreparedEvidence,
   hasCommitEvidence,
 } from "./delivery-ledger.mjs";
+import { inspectCi } from "./ci-provider.mjs";
+
 
 const ALLOWED_TYPES = new Set([
   "chore",
@@ -207,7 +209,7 @@ export async function runPostCommitHook({ repoRoot } = {}) {
   return { recorded: Boolean(ledgerEntry), commitSha, ledgerEntry };
 }
 
-export async function runPrePushHook({ repoRoot, stdinLines = [] } = {}) {
+export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = null } = {}) {
   const root = findRepoRoot(repoRoot);
 
   for (const line of stdinLines) {
@@ -256,6 +258,50 @@ export async function runPrePushHook({ repoRoot, stdinLines = [] } = {}) {
           reason: "MISSING_EVIDENCE_IN_LEDGER",
           message: `Commit ${sha.slice(0, 8)} does not have associated local delivery evidence in ledger. Run delivery prepare before committing.`,
         };
+      }
+    }
+
+    // Check CI of prior commits registered in the ledger
+    if (process.env.DELIVERY_SKIP_CI_CHECK !== "1") {
+      const ledgerFile = path.resolve(root, ".delivery/runtime/ledger.json");
+      let priorShas = [];
+      try {
+        const rawLedger = await fs.readFile(ledgerFile, "utf8");
+        const ledgerMap = JSON.parse(rawLedger);
+        const currentSet = new Set(commits);
+        priorShas = Object.keys(ledgerMap).filter((s) => !currentSet.has(s));
+      } catch {
+        priorShas = [];
+      }
+
+      const recentPriorShas = priorShas.slice(-5).reverse();
+      const maxPendingWindow = Number(process.env.DELIVERY_CI_MAX_PENDING || 2);
+      let pendingCount = 0;
+
+      for (const priorSha of recentPriorShas) {
+        try {
+          const ci = await inspectCi({ sha: priorSha, repoRoot: root, provider: ciProvider });
+          if (ci.status === "failed" || ci.status === "timed_out") {
+            return {
+              passed: false,
+              reason: "PRIOR_COMMIT_CI_FAILED",
+              message: `Pre-push blocked: prior commit ${priorSha.slice(0, 8)} failed CI in GitHub Actions. Fix the failure before pushing new commits.`,
+              sha: priorSha,
+            };
+          }
+          if (ci.status === "in_progress" || ci.status === "queued") {
+            pendingCount += 1;
+            if (pendingCount > maxPendingWindow) {
+              return {
+                passed: false,
+                reason: "CI_PENDING_WINDOW_EXCEEDED",
+                message: `Pre-push blocked: ${pendingCount} prior commits currently have CI in progress (exceeds window of ${maxPendingWindow}). Wait for CI to complete.`,
+              };
+            }
+          }
+        } catch {
+          // If CI inspection throws (offline / network issue), do not block falsely
+        }
       }
     }
   }

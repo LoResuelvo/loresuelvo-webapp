@@ -10,8 +10,10 @@ import { prepareDelivery } from "./lib/prepare-delivery.mjs";
 import {
   DeliveryInspectInputSchema,
   DeliveryPrepareInputSchema,
+  DeliveryCiInputSchema,
   formatInputIssues,
 } from "./lib/input-schema.mjs";
+import { inspectCi } from "./lib/ci-provider.mjs";
 
 const intentProperty = {
   type: "string",
@@ -93,6 +95,26 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         openWorldHint: false,
       },
     },
+    {
+      name: "delivery_ci_inspect",
+      description: "Inspects GitHub Actions CI status for a given commit SHA",
+      inputSchema: {
+        type: "object",
+        properties: {
+          sha: {
+            type: "string",
+            description: "Commit SHA to inspect CI status for",
+          },
+        },
+        required: ["sha"],
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
   ],
 }));
 
@@ -140,6 +162,22 @@ function toolResponse(result, isError = false) {
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const name = request.params.name;
+
+  if (name === "delivery_ci_inspect") {
+    const parsed = DeliveryCiInputSchema.safeParse(request.params.arguments || {});
+    if (!parsed.success) {
+      return toolResponse({ error: formatInputIssues(parsed.error) }, true);
+    }
+    try {
+      const result = await inspectCi({ sha: parsed.data.sha });
+      const failed = ["failed", "timed_out", "provider_error"].includes(result.status);
+      return toolResponse(result, failed);
+    } catch (error) {
+      const message = String(error.message || "CI inspection error").split("\n")[0];
+      return toolResponse({ error: message }, true);
+    }
+  }
+
   const isPrepare = name === "delivery_prepare";
   if (!isPrepare && name !== "delivery_inspect") {
     return toolResponse(inspectionError("UNKNOWN_TOOL", `Unknown tool requested: ${name}`), true);

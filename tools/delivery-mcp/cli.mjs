@@ -5,8 +5,12 @@ import {
   DeliveryInspectInputSchema,
   DeliveryPrepareInputSchema,
   DeliveryContextInputSchema,
+  DeliveryCiInputSchema,
+  DeliveryFinalizeInputSchema,
   formatInputIssues,
 } from "./lib/input-schema.mjs";
+import { inspectCi } from "./lib/ci-provider.mjs";
+import { finalizeDelivery } from "./lib/delivery-finalize.mjs";
 import {
   loadDeliveryContext,
   saveDeliveryContext,
@@ -70,7 +74,7 @@ function parseArguments(argv) {
   let subAction = "";
   let hookArgs = [];
 
-  if (["inspect", "prepare", "context", "hooks", "hook"].includes(args[0])) {
+  if (["inspect", "prepare", "context", "hooks", "hook", "ci", "finalize"].includes(args[0])) {
     command = args.shift();
   }
 
@@ -116,6 +120,7 @@ function parseArguments(argv) {
     else if (option === "--feature") input.featureFile = value;
     else if (option === "--scenario") input.scenarioName = value;
     else if (option === "--us-id") input.usId = value;
+    else if (option === "--sha") input.sha = value;
     else if (option === "--scope") input.scopeFiles.push(value);
     else if (option === "--scope-files") {
       const files = value.split(",").map((f) => f.trim()).filter(Boolean);
@@ -292,7 +297,27 @@ async function main() {
     return;
   }
 
-  // 4. Delivery inspect / prepare
+  // 4. CI inspection
+  if (options.command === "ci") {
+    const parsed = DeliveryCiInputSchema.safeParse(options.input);
+    if (!parsed.success) throw new Error(formatInputIssues(parsed.error));
+    const res = await inspectCi({ sha: parsed.data.sha, repoRoot: root });
+    writeJson(res, options.pretty);
+    process.exitCode = res.status === "passed" ? 0 : ["failed", "timed_out", "provider_error"].includes(res.status) ? 3 : 2;
+    return;
+  }
+
+  // 5. Finalize delivery
+  if (options.command === "finalize") {
+    const parsed = DeliveryFinalizeInputSchema.safeParse(options.input);
+    if (!parsed.success) throw new Error(formatInputIssues(parsed.error));
+    const res = await finalizeDelivery({ repoRoot: root, ...parsed.data });
+    writeJson(res, options.pretty);
+    process.exitCode = res.finalized ? 0 : 2;
+    return;
+  }
+
+  // 6. Delivery inspect / prepare
   const schema = options.command === "prepare" ? DeliveryPrepareInputSchema : DeliveryInspectInputSchema;
   const parsed = schema.safeParse(options.input);
   if (!parsed.success) throw new Error(formatInputIssues(parsed.error));

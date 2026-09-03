@@ -43,6 +43,16 @@ export const DeliveryContextInputSchema = z.object({
   scopeFiles: z.array(z.string().max(500)).max(100).default([]),
 });
 
+export const DeliveryCiInputSchema = z.object({
+  sha: z.string().min(7).max(40),
+});
+
+export const DeliveryFinalizeInputSchema = z.object({
+  intent: z.enum(["close_us", "close_batch"]).default("close_us"),
+  usId: z.string().max(500).optional(),
+  scopeFiles: z.array(z.string().max(500)).default([]),
+});
+
 export function formatInputIssues(error) {
   return error.issues
     .slice(0, 5)

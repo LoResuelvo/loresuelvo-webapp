@@ -12,8 +12,10 @@ async function runSmokeTest() {
     const toolsResult = await client.listTools();
     const inspectTool = toolsResult.tools.find((tool) => tool.name === "delivery_inspect");
     const prepareTool = toolsResult.tools.find((tool) => tool.name === "delivery_prepare");
+    const ciTool = toolsResult.tools.find((tool) => tool.name === "delivery_ci_inspect");
     assert.ok(inspectTool, "delivery_inspect tool is registered");
     assert.ok(prepareTool, "delivery_prepare tool is registered");
+    assert.ok(ciTool, "delivery_ci_inspect tool is registered");
 
     const callResult = await client.callTool({
       name: "delivery_inspect",
@@ -32,7 +34,7 @@ async function runSmokeTest() {
     assert.ok(parsed.maintainability && Array.isArray(parsed.maintainability.filesReviewed));
     assert.ok(Array.isArray(parsed.diagnostics));
 
-    console.log(`Smoke passed: tools=2 status=${parsed.status} gate=${parsed.gate.id}`);
+    console.log(`Smoke passed: tools=${toolsResult.tools.length} status=${parsed.status} gate=${parsed.gate.id}`);
   } finally {
     await client.close();
   }

@@ -20,7 +20,9 @@
     "delivery:prepare": "node tools/delivery-mcp/cli.mjs prepare",
     "delivery:context": "node tools/delivery-mcp/cli.mjs context",
     "delivery:hooks:install": "node tools/delivery-mcp/cli.mjs hooks install",
-    "delivery:hooks:status": "node tools/delivery-mcp/cli.mjs hooks status"
+    "delivery:hooks:status": "node tools/delivery-mcp/cli.mjs hooks status",
+    "delivery:ci": "node tools/delivery-mcp/cli.mjs ci",
+    "delivery:finalize": "node tools/delivery-mcp/cli.mjs finalize"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.20.0",

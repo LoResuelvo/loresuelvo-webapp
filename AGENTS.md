@@ -51,7 +51,7 @@ Las capas internas no dependen de las externas. `domain/` y `ports/` no importan
 5. Una delegación tiene un único batch activo. Puede abarcar un micro-paso, un escenario o un grupo aprobado de 2–3 escenarios consecutivos; dentro de un grupo, cada escenario se cierra en GREEN antes de iniciar el siguiente.
 6. La presentación inicial se implementa aislada con props o mocks y sin anticipar rutas, fetch, repositorios, Server Actions ni integración. Esas dependencias se incorporan al avanzar hacia adentro.
 7. Ownership, commits, push, reportes y escalamiento se rigen por la granularidad declarada en `frontend-ai-development-workflow`. En `SCENARIO` y `SCENARIO_GROUP`, el desarrollador persistente puede completar, commitear, pushear y monitorear únicamente el batch aprobado.
-8. Cada commit debe ser coherente, compilable y testeable. Se hace push a `main` tras pasar el gate local aplicable.
+8. Cada commit debe ser coherente, compilable y testeable. Con el cambio exacto staged, `delivery_prepare` selecciona y ejecuta el gate local; solo `status: passed` habilita commit y push a `main`.
 9. CI se monitorea por SHA en paralelo. Se permite una ventana acotada de commits pendientes; ante una falla se detienen nuevos pushes y se corrige la causa.
 10. Un escenario pierde `@wip` solo al pasar su E2E. La US se cierra con sus gates completos y CI verde.
 
@@ -108,6 +108,8 @@ Las referencias de una skill se leen únicamente cuando la tarea coincide con su
 ## Comandos habituales
 
 ```bash
+npm run delivery:inspect -- --intent prepare_commit
+npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuesto>'
 npm run test
 npm run lint
 npm run build
@@ -115,6 +117,8 @@ make test-e2e-managed
 make test-e2e-wip-file-managed FILE=features/<feature>.feature NAME='<scenario>'
 make test-e2e-file-managed FILE=features/<feature>.feature NAME='<scenario>'
 ```
+
+MCP es un adaptador opcional. Los agentes sin MCP y las personas que no usan Codex ejecutan las entradas `npm run delivery:*`, que comparten la misma política y el mismo núcleo. No calcular ni encadenar manualmente el gate pre-commit; los comandos individuales se reservan para TDD o diagnóstico focalizado.
 
 Los targets `*-managed` son el camino canónico para agentes en ejecución local: administran el puerto 3001, el build, el servidor, readiness, Cucumber y cleanup. Los targets sin `-managed` se reservan para ejecución contra un servidor ya levantado por la persona desarrolladora. CI mantiene pasos separados para distinguir fallas de build, arranque, readiness y Cucumber.
 

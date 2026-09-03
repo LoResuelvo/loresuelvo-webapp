@@ -123,10 +123,9 @@ El contrato puede expresar una estimación de commits, pero debe declarar que no
 ## CI asíncrono
 
 - Cada commit se pushea inmediatamente y se monitorea por su SHA exacto.
-- La ventana inicial recomendada sigue siendo 3 commits pendientes. Consultar cada SHA de forma compacta y, antes de superarla, revisar el más antiguo; continuar trabajo local mientras la ventana lo permita.
-- Preferir una consulta puntual estructurada, como `gh run list --commit <sha> --json headSha,status,conclusion,databaseId,url --limit 1`, antes que `gh run watch` continuo. Reservar el seguimiento en vivo para una investigación puntual.
-- Si CI falla, detener nuevos pushes, cargar solo los logs fallidos minificados y escalar con SHA, stage, firma y causa probable.
-- Si un run permanece `in_progress` más de 2 veces su duración habitual sin error causal ni progreso sostenido, registrar la evidencia. Si su SHA sucesor inmediato ya está en CI y pasa los mismos checks sin tocar el área afectada, clasificar el caso como degradación probable de GitHub; cancelar el run lento y reintentar el mismo SHA. Marcarlo `rerun_pending` y permitir una única excepción: ampliar temporalmente la ventana de tres a cuatro SHAs pendientes, incluso en alto riesgo, mientras se mantiene una alerta compacta sobre el reintento. Si el reintento falla, informar al orquestador como posible flakiness o defecto reproducible con evidencia focalizada; el orquestador decide el triage. El reintento debe estar verde antes del cierre de la US.
+- La ventana inicial recomendada permite hasta 2 o 3 commits pendientes de CI. Consultar cada SHA de forma estructurada y compacta mediante `delivery_ci_inspect` (o `npm run delivery:ci -- --sha <sha>`); continuar trabajo local mientras la ventana lo permita.
+- Si CI falla, los hooks de Git bloquean nuevos pushes. Detener nuevos commits, revisar la respuesta procesada de `delivery_ci_inspect` (que incluye el error causal normalizado y extracto acotado) y escalar con SHA, stage, firma y causa probable.
+- Si un run permanece `in_progress` más de 2 veces su duración habitual sin error causal ni progreso sostenido, registrar la evidencia compacta. Si su SHA sucesor inmediato ya está en CI y pasa los mismos checks sin tocar el área afectada, clasificar el caso como degradación probable del proveedor. El reintento debe resolverse antes del cierre de la US.
 - Un fallo remoto puede revelar diferencias de entorno; nunca asumir que los gates locales hacen imposible una falla de CI.
 
 ## Monitoreo pasivo de la delegación

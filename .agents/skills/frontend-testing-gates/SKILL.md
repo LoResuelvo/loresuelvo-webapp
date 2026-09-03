@@ -5,91 +5,59 @@ description: "Ejecutar gates explícitos de calidad en Lo Resuelvo: RED BDD, tes
 
 # Frontend Testing Gates
 
-Usar durante el desarrollo y obligatoriamente antes de cada commit y push. El ejecutor depende de la granularidad y los owners declarados; quien cambia el diff es responsable de dejar su gate en GREEN.
+Usar como referencia semántica durante el desarrollo. Antes de cada commit, el ejecutor canónico es `delivery_prepare`; quien cambia el diff es responsable de obtener `status: passed`, pero no de calcular el gate ni encadenar sus comandos.
 
-Los gates verifican comportamiento y salud técnica, no legibilidad por sí solos. Para código productivo no trivial, ejecutar y resolver primero la auditoría de `frontend-maintainability-governance`; sus umbrales son señales de revisión, no nuevos tests rígidos.
+Los gates verifican comportamiento y salud técnica, no legibilidad por sí solos. `delivery_prepare` también ejecuta la auditoría de `frontend-maintainability-governance`; sus umbrales son señales de revisión, no nuevos tests rígidos.
 
-## Gate 0 — Compatibilidad de steps
+## Ejecución canónica
 
-Comprobar que los steps nuevos o modificados no rompan, eliminen ni vuelvan ambiguos los steps existentes:
-
-```bash
-make test-e2e-steps-compatible
-```
-
-- Este target ejecuta el typecheck de `tsconfig.cucumber.json` y el perfil Cucumber `steps-compatibility`.
-- Valida que todos los steps compilen y resuelvan unívocamente a sus step definitions sin ambigüedad.
-- No inicia Next.js ni Playwright (usa `dryRun` y excluye `@wip`).
-- La suite normal debe permanecer libre de colisiones o definiciones rotas.
-
-## Gate A — Código nuevo aislado
-
-Para helper, dominio, mapper, use case o componente todavía no integrado:
+Con MCP disponible, invocar `delivery_prepare`. En cualquier otro entorno:
 
 ```bash
-npm run test -- <patrón-o-archivo>
-npx tsc --noEmit
+npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuesto>'
 ```
 
-Si cambia steps o soporte E2E, agregar:
+La política versionada en `.delivery/policy.v1.json` es la única fuente de selección y orden de checks. La CLI y MCP comparten exactamente el mismo núcleo. Los comandos de las secciones siguientes documentan qué protege cada gate y sirven para diagnóstico focalizado; no deben ejecutarse manualmente como una lista pre-commit.
 
-```bash
-npx tsc --project tsconfig.cucumber.json --noEmit
-```
+El runner ejecuta en fail-fast, reutiliza únicamente evidencia verde del mismo snapshot y devuelve un diagnóstico acotado. Conserva el log completo y el ledger local en `.delivery/runtime/`, fuera de Git. El control `ci_green` pertenece al estado posterior al push y nunca se presenta como aprobado por el gate local.
 
-## Gate B — Integración de bajo riesgo del escenario activo
+## Semántica de los gates
 
-Al cerrar un escenario de bajo riesgo listo para entrar a la suite normal,
-retirar `@wip` y ejecutar todos los escenarios normales de su feature:
+### Gate NONE — Documentación o configuración no funcional
 
-```bash
-make test-e2e-managed E2E_FILE=features/...feature
-```
+- **Selección**: Cambios exclusivos en documentación, estilos puros o configuración que no altera el runtime.
+- **Frontera semántica**: No requiere validación funcional local ni arranque de suites de test.
 
-- Esta ejecución prueba el comportamiento integrado, confirma que el escenario
-  ingresó a la suite normal y detecta regresiones en los escenarios ya cerrados
-  del mismo feature.
-- No repetirla con `@wip` si desde Gate 0 no se necesita una frontera
-  intermedia.
-- Usar `make test-e2e-wip-file-managed` durante la implementación solo cuando
-  se necesite validar una integración intermedia sin habilitar todavía el
-  escenario en la suite normal.
+### Gate 0 — Compatibilidad de steps
 
-Si el escenario modificó una frontera compartida o de alto riesgo, Gate D
-reemplaza Gate B: no ejecutar además el archivo completo porque la suite E2E
-integral ya lo cubre.
+- **Selección**: Features, step definitions o soporte Cucumber sin integración productiva.
+- **Frontera semántica**: Comprueba exclusivamente que los steps compilen y resuelvan unívocamente sin colisiones ni ambigüedad con los steps existentes.
+- **Alcance**: No levanta Next.js ni Playwright (usa análisis estático y dryRun sin `@wip`). No se exige demostrar un RED inicial.
 
-## Gate C — Cambio compartido o de riesgo alto
+### Gate A — Código nuevo aislado
 
-Para routing, navegación, layouts, componentes compartidos, API client o Server Actions compartidas:
+- **Selección**: Dominio, helpers, mappers, use cases o tooling de delivery aislado.
+- **Frontera semántica**: Verifica lógica de negocio unitaria y typechecks aplicables antes de su integración a la UI o rutas.
 
-```bash
-npm run lint
-npx tsc --noEmit
-npx tsc --project tsconfig.cucumber.json --noEmit
-npm run test
-make test-e2e-managed
-```
+### Gate B — Integración de bajo riesgo del escenario activo
 
-El target gestionado incluye build, puerto 3001, servidor, readiness, suite E2E y cleanup. CI conserva stages separados para hacer visible qué gate remoto falla.
+- **Selección**: Cierre de un escenario aislado de bajo riesgo con feature unívoca inferible o declarada (retirada de tag `@wip`).
+- **Frontera semántica**: Valida el feature completo al que pertenece el escenario cerrado, comprobando que se integre a la suite normal sin regresiones en escenarios vecinos.
 
-## Gate D — Cierre de batch, US o escenario de alto riesgo
+### Gate C — Cambio compartido o de riesgo alto
 
-Ejecutar el Gate C completo al cerrar un batch o una US. También ejecutarlo al
-cerrar un escenario si modificó routing, navegación, layouts, componentes
-compartidos, API client, Server Actions u otra frontera de riesgo alto.
+- **Selección**: Routing, layouts, navegación, componentes compartidos, API client, Server Actions o dependencias transversales.
+- **Frontera semántica**: Cobertura amplia para cambios que pueden impactar múltiples flujos: lint, typechecks (app y cucumber), tests unitarios y suite E2E integral gestionada.
 
-Para un escenario de bajo riesgo, el cierre mínimo es Gate B en verde: retirar
-`@wip` y ejecutar los escenarios normales de su feature. El Gate D del batch
-cubre la regresión integral.
+### Gate D — Cierre de batch, US o escenario de alto riesgo
 
-Además verificar:
+- **Selección**: Cierre formal de User Story (`close_us`), cierre de batch (`close_batch`) o escenario de alto riesgo cerrado.
+- **Frontera semántica**: Máxima cobertura local: ejecuta la batería de Gate C y verifica de forma estricta la ausencia total de tags `@wip` en el alcance de features declarado.
 
-- ningún `@wip` del alcance terminado;
+El runner local verifica que no queden tags `@wip` en los feature files del alcance terminado. Después del push todavía corresponde verificar:
+
 - commits coherentes, pusheados individualmente y registrados por SHA;
-- los SHAs relevantes no tienen CI roja; un `rerun_pending` autorizado puede
-  permanecer al cierre de batch o escenario, pero debe estar verde antes del
-  cierre de la US;
+- los SHAs relevantes no tienen CI roja; un `rerun_pending` autorizado puede permanecer al cierre de batch o escenario, pero debe estar verde antes del cierre de la US;
 - working tree sin artefactos accidentales.
 
 ## Fail-fast y reparación
@@ -111,7 +79,7 @@ Además verificar:
 
 ### Paquete de diagnóstico
 
-No cargar logs crudos completos por defecto. Conservar el artefacto completo y compartir solo:
+No cargar logs crudos completos por defecto. `delivery_prepare` ya devuelve `checkId`, exit code, primer error normalizado, líneas causales acotadas y `logPath`. Usar esa respuesta como paquete inicial y abrir el log local solo si una hipótesis concreta necesita más contexto:
 
 ```text
 Command:
@@ -127,45 +95,17 @@ Triage calls used: <0-1>/1
 State: ACTIVE | ESCALATE_ORCHESTRATOR | STOP_USER
 ```
 
-Usar salida minificada, rangos focalizados y `gh run view <run-id> --log-failed`. Ampliar el log únicamente si el diagnóstico lo requiere. En ejecuciones verdes, conservar solo el resumen del comando; no adjuntar logs completos de build, E2E o CI.
+Ampliar el log únicamente si el diagnóstico lo requiere. En ejecuciones verdes, conservar solo el resumen del comando; no adjuntar logs completos de build, E2E o CI.
 
 El ledger viaja con toda delegación o resumen relacionado con la falla. En `STOP_USER`, el orquestador informa firma, hipótesis, evidencia, alcance que sería necesario ampliar y alternativas; pedir ayuda no cambia por sí solo `AGENT_ORCHESTRATED` a `USER_GUIDED`.
 
 ## CI remoto
 
-- Monitorear cada push por SHA, con ventana inicial máxima recomendada de 3 commits pendientes.
-- Después de cada push, registrar el SHA y consultar una instantánea compacta, por ejemplo: `gh run list --commit <sha> --json headSha,status,conclusion,databaseId,url --limit 1`.
-- Mientras haya menos de tres SHAs pendientes, continuar el trabajo local. Antes de superar la ventana, consultar el SHA pendiente más antiguo; no usar `gh run watch` continuo salvo que una investigación puntual necesite estados en vivo.
-- Ante CI fallido, detener nuevos pushes y consultar únicamente los logs del stage fallido. En los reportes, incluir SHA, stage, primer error causal y un extracto focalizado; no logs completos.
+- Monitorear cada push por SHA, con ventana inicial máxima recomendada de 2 a 3 commits pendientes.
+- La consulta de CI se realiza de forma compacta mediante `delivery_ci_inspect` o `npm run delivery:ci -- --sha <sha>`, sin emitir comandos crudos de `gh` ni tracebacks masivos.
+- Mientras haya menos de tres SHAs pendientes, continuar el trabajo local. Ante CI fallido (`failed` o `timed_out`), los hooks de Git bloquean nuevos pushes hasta resolver la causa.
+- En `close_us`, `npm run delivery:finalize` comprueba de forma automática que los SHAs correspondientes estén en verde.
 
-### CI anormalmente lenta
-
-Un run `in_progress` no equivale a CI verde. Puede tratarse como sospecha de
-degradación del proveedor solo si supera 2 veces su duración habitual, no
-existe error causal de código y sus logs no muestran progreso sostenido de una
-prueba o build propio.
-
-Ante esa firma conocida:
-
-1. Registrar SHA, run, job y duración observada.
-2. Si el SHA sucesor inmediato ya está en CI, esperar su resultado antes de
-   clasificar el run lento. Si pasa los mismos checks requeridos y no cambió el
-   área vinculada al run lento, clasificar el caso como degradación probable del
-   proveedor. Si modificó esa área, revisar el diff mínimo antes de clasificarlo.
-3. Cancelar el run lento y reintentar el job o workflow sobre el mismo SHA; no
-   crear un commit nuevo para comprobar la hipótesis.
-4. En cambios de bajo riesgo, continuar dentro de la ventana normal de hasta
-   tres SHAs pendientes mientras el reintento se resuelve y mantener una alerta
-   compacta sobre su resultado.
-5. Si el SHA sucesor confirma degradación probable, marcar el SHA lento como
-   `rerun_pending` y permitir una única excepción: la ventana efectiva puede
-   pasar de tres a cuatro SHAs pendientes mientras se resuelve ese reintento,
-   incluso en cambios de alto riesgo. No usar esta excepción para otro run.
-6. Si el reintento pasa, registrar la degradación y continuar. Si falla,
-   marcar posible flakiness o defecto reproducible e informar inmediatamente al
-   orquestador con SHA, job, firma y extracto focalizado. El orquestador decide
-   el triage; no atribuir el fallo automáticamente al proveedor.
-7. Exigir el reintento verde antes de cerrar la US.
 
 ## Seguridad antes de commit
 

@@ -66,9 +66,16 @@ Una clase no es el patrón predeterminado para hacer legible un hook. Preferir n
 
 ## Auditoría antes del gate
 
-El flujo canónico es invocar la herramienta MCP `delivery_inspect`, que clasifica de forma automática los archivos productivos staged, ejecuta el auditor y reporta el estado y las señales detectadas.
+Para revisar antes de ejecutar tests, invocar `delivery_inspect`; clasifica de forma automática los archivos productivos staged, ejecuta el auditor y reporta las señales. Antes del commit, `delivery_prepare` repite esa inspección sobre el snapshot exacto y solo entonces ejecuta el gate seleccionado.
 
-Como fallback manual para inspecciones fuera de MCP o revisiones focalizadas sobre archivos concretos:
+Si MCP no está disponible, usar las entradas neutrales equivalentes:
+
+```bash
+npm run delivery:inspect -- --intent prepare_commit
+npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuesto>'
+```
+
+Para una revisión focalizada sobre archivos concretos:
 
 ```bash
 git diff --name-only --diff-filter=ACMR HEAD
@@ -81,15 +88,15 @@ Para revisar un commit ya creado o un archivo específico:
 node .agents/skills/frontend-maintainability-governance/scripts/audit-changed-code.mjs hooks/audio/useAudioRecorder.ts
 ```
 
-No usar sustituciones de shell opacas para construir la lista: inspeccionarla y excluir tests, archivos generados y documentación. El auditor emite señales y finaliza correctamente aunque existan; la decisión sigue siendo humana. Resolver cada señal mediante refactor o justificación antes de ejecutar `frontend-testing-gates`.
+No usar sustituciones de shell opacas para construir la lista: inspeccionarla y excluir tests, archivos generados y documentación. El auditor emite señales y finaliza correctamente aunque existan; la decisión sigue siendo humana. Resolver cada señal mediante refactor o una justificación explícita ligada al `snapshotHash`; `delivery_prepare` conserva esa decisión en la evidencia local.
 
 ## Evidencia de cierre
 
-Incluir en el handoff o reporte la evidencia generada por `delivery_inspect`:
+Incluir en el handoff o reporte la evidencia generada por `delivery_prepare`:
 
 ```text
 snapshotHash: <sha256>
-status: <ready | review_required | blocked | needs_input | no_changes>
+status: <passed | failed | review_required | blocked | needs_input | no_changes>
 gate: <NONE | 0 | A | B | C | D>
 señales pendientes: <ninguna | detalle y justificaciones>
 ```

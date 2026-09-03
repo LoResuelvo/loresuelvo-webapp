@@ -28,18 +28,37 @@ Debe:
 
 No dividir por archivo ni por cantidad de líneas. Si el diff es grande, buscar un corte vertical independiente; si no existe, conservar el cambio coherente.
 
-Antes de cada commit, invocar la herramienta MCP `delivery_inspect` con el `intent` aplicable (`prepare_commit`, `close_scenario`, `close_batch`, `close_us`) y el mensaje propuesto. El inspector selecciona el gate correspondiente y audita la mantenibilidad de los archivos productivos modificados.
+Antes de cada commit, dejar staged únicamente el cambio atómico e invocar `delivery_prepare` con el `intent` aplicable (`prepare_commit`, `close_scenario`, `close_batch`, `close_us`) y el mensaje propuesto. Esta herramienta inspecciona el snapshot, selecciona y ejecuta el gate local; el agente no calcula el gate ni reproduce sus comandos.
+
+Usar la herramienta MCP cuando esté disponible. Cualquier agente o colega sin ese adaptador usa el mismo núcleo mediante:
+
+```bash
+npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuesto>'
+```
+
+`delivery_inspect` —o `npm run delivery:inspect`— se reserva para previsualizar la decisión sin ejecutar el gate. Un resultado `review_required` exige revisar las señales. Si la solución sigue siendo cohesionada, la aceptación se ata al hash exacto y queda registrada:
+
+```bash
+npm run delivery:prepare -- --intent prepare_commit --message '<mensaje>' \
+  --acknowledge-snapshot <snapshotHash> \
+  --acknowledge-reason '<justificación concreta>'
+```
+
+Solo `status: passed` autoriza el commit. `no_changes` significa que no existe un snapshot staged para commitear; los demás estados detienen el commit. Los logs completos quedan en `.delivery/runtime/`, ignorados por Git, y la respuesta devuelve únicamente el primer diagnóstico normalizado y líneas causales acotadas.
 
 Registrar en el handoff o reporte la evidencia compacta generada por la herramienta:
 
 ```text
 snapshotHash: <sha256>
-status: <ready | review_required | blocked | needs_input | no_changes>
+runKey: <sha256 | null>
+status: <passed | failed | review_required | blocked | needs_input | no_changes>
 gate: <NONE | 0 | A | B | C | D>
-señales pendientes: <ninguna | detalle y justificaciones>
+cached: <true | false>
+checks: <pasados/fallidos/omitidos>
+evidence: <recordPath | null>
 ```
 
-Si el estado es `review_required`, resolver cada señal mediante una extracción cohesionada o una justificación explícita; un test verde no cierra esa revisión. Si se modifican hooks o adaptadores React, preservar las directrices de `references/react-hooks.md`; si se crean, mueven o dividen carpetas o archivos, respetar `references/module-boundaries.md`.
+Si se modifican hooks o adaptadores React, preservar las directrices de `references/react-hooks.md`; si se crean, mueven o dividen carpetas o archivos, respetar `references/module-boundaries.md`.
 
 ## Mensajes
 
@@ -59,6 +78,6 @@ docs: clarify local E2E setup
 
 ## Dependencias y push
 
-No pushear un commit intermedio que requiera archivos aún no presentes en `main`. Validar el gate indicado por `frontend-testing-gates`, crear el commit y pushearlo inmediatamente; no acumular varios commits locales para un único push. CI se sigue por SHA dentro de la ventana de commits en vuelo.
+No pushear un commit intermedio que requiera archivos aún no presentes en `main`. Ejecutar `delivery_prepare`, crear el commit solo con evidencia `passed` y pushearlo inmediatamente; no acumular varios commits locales para un único push. CI se sigue por SHA dentro de la ventana de commits en vuelo.
 
 En `SCENARIO` y `SCENARIO_GROUP`, el desarrollador registra cada SHA y continúa sin reportes ordinarios mientras respete la ventana de CI. Cualquier estimación de commits por reporte es orientativa, no una cuota, mínimo ni máximo. No fusionar cambios independientes ni agrandar commits para ajustarse a una cifra; si el batch requiere más o menos fronteras, continuar con el siguiente commit atómico y registrar la desviación al llegar a una frontera segura. Si CI falla, detener nuevos pushes y escalar según `frontend-ai-development-workflow`.

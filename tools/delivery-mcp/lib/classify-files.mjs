@@ -1,139 +1,7 @@
 import path from "node:path";
 
-const SHARED_COMPONENT_DIRS = ["ui", "shared", "common", "layouts", "modal"];
-
 export function normalizePath(filePath) {
   return filePath.split(path.sep).join("/").replace(/^\.\//, "");
-}
-
-export function classifyFile(filePath) {
-  const normalized = normalizePath(filePath);
-
-  if (
-    normalized.startsWith("tools/delivery-mcp/") ||
-    (/^\.delivery\/.*\.json$/.test(normalized)) ||
-    normalized === "package.json"
-  ) {
-    return {
-      category: "delivery_tooling",
-      isGateCTrigger: false,
-      isGate0Trigger: false,
-      isProductSource: false,
-    };
-  }
-
-  // 1. Features, steps, and cucumber support
-  if (
-    normalized.startsWith("features/") ||
-    normalized === "cucumber.json" ||
-    normalized === "tsconfig.cucumber.json"
-  ) {
-    return {
-      category: "features_steps_cucumber",
-      isGateCTrigger: false,
-      isGate0Trigger: true,
-      isProductSource: false,
-    };
-  }
-
-  // 2. Routing and layouts
-  if (
-    /^app\/(?:.*\/)?(?:page|layout|route|loading|error|not-found|template|default)\.[cm]?[jt]sx?$/.test(normalized) ||
-    normalized.startsWith("lib/routes/") ||
-    normalized === "lib/routes.ts"
-  ) {
-    return {
-      category: "routing_layouts",
-      isGateCTrigger: true,
-      isGate0Trigger: false,
-      isProductSource: isProductionSourceFile(normalized),
-    };
-  }
-
-  // 3. Server Actions
-  if (
-    /^app\/(?:.*\/)?actions(?:\/.*)?\.[cm]?[jt]sx?$/.test(normalized) ||
-    /^application\/(?:.*\/)?actions.*?\.[cm]?[jt]sx?$/.test(normalized)
-  ) {
-    return {
-      category: "server_actions",
-      isGateCTrigger: true,
-      isGate0Trigger: false,
-      isProductSource: isProductionSourceFile(normalized),
-    };
-  }
-
-  // 4. Auth
-  if (
-    normalized.startsWith("infrastructure/auth/") ||
-    normalized.startsWith("app/api/auth/")
-  ) {
-    return {
-      category: "auth",
-      isGateCTrigger: true,
-      isGate0Trigger: false,
-      isProductSource: isProductionSourceFile(normalized),
-    };
-  }
-
-  // 5. API client & repositories / Infrastructure
-  if (normalized.startsWith("infrastructure/")) {
-    return {
-      category: "infrastructure",
-      isGateCTrigger: true,
-      isGate0Trigger: false,
-      isProductSource: isProductionSourceFile(normalized),
-    };
-  }
-
-  // 6. Shared components
-  if (normalized.startsWith("components/")) {
-    const subPath = normalized.slice("components/".length);
-    const topFolder = subPath.split("/")[0];
-    if (SHARED_COMPONENT_DIRS.includes(topFolder)) {
-      return {
-        category: "shared_components",
-        isGateCTrigger: true,
-        isGate0Trigger: false,
-        isProductSource: isProductionSourceFile(normalized),
-      };
-    }
-  }
-
-  // 7. Unit tests
-  if (/(?:^|\/).*\.(?:test|spec)\.[cm]?[jt]sx?$/.test(normalized)) {
-    return {
-      category: "test",
-      isGateCTrigger: false,
-      isGate0Trigger: false,
-      isProductSource: false,
-    };
-  }
-
-  // 8. Isolated production code (domain, ports, application non-action, isolated components, hooks, lib)
-  if (
-    normalized.startsWith("domain/") ||
-    normalized.startsWith("ports/") ||
-    normalized.startsWith("application/") ||
-    normalized.startsWith("components/") ||
-    normalized.startsWith("hooks/") ||
-    normalized.startsWith("lib/")
-  ) {
-    return {
-      category: "isolated_production",
-      isGateCTrigger: false,
-      isGate0Trigger: false,
-      isProductSource: isProductionSourceFile(normalized),
-    };
-  }
-
-  // 9. Documentation, config, styles, assets, tooling
-  return {
-    category: "non_code_docs_tests_config",
-    isGateCTrigger: false,
-    isGate0Trigger: false,
-    isProductSource: false,
-  };
 }
 
 export function isProductionSourceFile(normalizedPath) {
@@ -161,7 +29,49 @@ export function isProductionSourceFile(normalizedPath) {
   return true;
 }
 
-export function classifyFiles(files = []) {
+function matchesRule(normalized, match = {}) {
+  if ((match.exact || []).includes(normalized)) return true;
+  if ((match.prefixes || []).some((prefix) => normalized.startsWith(prefix))) return true;
+  if (
+    (match.extensions || []).some((extension) =>
+      normalized.toLowerCase().endsWith(extension.toLowerCase())
+    )
+  ) {
+    return true;
+  }
+  return (match.patterns || []).some((pattern) => new RegExp(pattern).test(normalized));
+}
+
+function materializeClassification(definition, normalized) {
+  return {
+    category: definition.category,
+    isGateCTrigger: definition.isGateCTrigger,
+    isGate0Trigger: definition.isGate0Trigger,
+    isProductSource:
+      definition.productSource === "auto"
+        ? isProductionSourceFile(normalized)
+        : definition.productSource,
+  };
+}
+
+export function classifyFile(filePath, policy) {
+  const normalized = normalizePath(filePath);
+  const classification = policy?.classification;
+  if (!classification?.rules || !classification?.fallback) {
+    throw new Error("Delivery policy does not define file classification rules");
+  }
+
+  const rule = classification.rules.find((candidate) =>
+    matchesRule(normalized, candidate.match)
+  );
+  return materializeClassification(rule || classification.fallback, normalized);
+}
+
+export function isDeliveryControlPlanePath(filePath, policy) {
+  return classifyFile(filePath, policy).category === "delivery_tooling";
+}
+
+export function classifyFiles(files = [], policy) {
   const result = {
     all: [],
     hasGateCTrigger: false,
@@ -181,12 +91,10 @@ export function classifyFiles(files = []) {
   let countDocsConfig = 0;
 
   for (const file of files) {
-    const classification = classifyFile(file);
+    const classification = classifyFile(file, policy);
     result.all.push({ file, ...classification });
 
-    if (classification.isGateCTrigger) {
-      result.hasGateCTrigger = true;
-    }
+    if (classification.isGateCTrigger) result.hasGateCTrigger = true;
     if (classification.isGate0Trigger) {
       result.hasGate0Trigger = true;
       countGate0++;
@@ -200,17 +108,11 @@ export function classifyFiles(files = []) {
     if (classification.category === "non_code_docs_tests_config" || classification.category === "test") {
       countDocsConfig++;
     }
-    if (classification.isProductSource) {
-      result.productFiles.push(file);
-    }
+    if (classification.isProductSource) result.productFiles.push(file);
   }
 
-  if (countGate0 === files.length) {
-    result.hasOnlyGate0 = true;
-  }
-  if (countDocsConfig === files.length) {
-    result.hasOnlyDocsOrConfig = true;
-  }
+  if (countGate0 === files.length) result.hasOnlyGate0 = true;
+  if (countDocsConfig === files.length) result.hasOnlyDocsOrConfig = true;
 
   return result;
 }

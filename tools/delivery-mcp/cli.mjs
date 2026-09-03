@@ -28,6 +28,7 @@ import {
 } from "./lib/git-hooks.mjs";
 import { captureGitSnapshot } from "./lib/git-snapshot.mjs";
 import { findRepoRoot } from "./lib/repo-root.mjs";
+import { redactSecrets } from "./lib/redact-secrets.mjs";
 
 function usage() {
   return `Usage:
@@ -47,6 +48,7 @@ Options for delivery:inspect / delivery:prepare:
   --acknowledge-decision <signalId>=<reason>     Per-signal decision (repeatable)
   --acknowledge-decisions-json '<json>'          JSON map of signalId -> justification
   --acknowledge-reason <reason>                  Optional context reason for signals
+  --force                                        Re-run checks instead of reusing cached evidence
   --pretty                                       Pretty-print JSON instead of compact JSON
   --help
 
@@ -98,6 +100,10 @@ function parseArguments(argv) {
     }
     if (option === "--pretty") {
       pretty = true;
+      continue;
+    }
+    if (option === "--force") {
+      input.force = true;
       continue;
     }
     if (option === "--inspect" || option === "--show") {
@@ -231,8 +237,15 @@ async function main() {
     }
     if (hookName === "post-commit") {
       const res = await runPostCommitHook({ repoRoot: root });
-      process.stdout.write(`[delivery-hook] post-commit: recorded evidence for ${res.commitSha.slice(0, 8)}\n`);
-      process.exitCode = 0;
+      if (res.recorded) {
+        process.stdout.write(`[delivery-hook] post-commit: recorded evidence for ${res.commitSha.slice(0, 8)}\n`);
+        process.exitCode = 0;
+      } else {
+        process.stderr.write(
+          `[delivery-hook] post-commit: evidence was not recorded (${res.reason || "unknown"})\n`
+        );
+        process.exitCode = 1;
+      }
       return;
     }
     if (hookName === "pre-push") {
@@ -338,7 +351,7 @@ main().catch((error) => {
       diagnostics: [
         {
           code: "DELIVERY_CLI_ERROR",
-          message: String(error.message || "Delivery command failed").split("\n")[0],
+          message: redactSecrets(String(error.message || "Delivery command failed")).split("\n")[0],
           retryable: false,
         },
       ],

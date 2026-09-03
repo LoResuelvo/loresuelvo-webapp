@@ -72,7 +72,7 @@
     },
     "maintainability": {
       "type": "object",
-      "required": ["status", "filesReviewed", "signalCount", "signals"],
+      "required": ["status", "filesReviewed", "signalCount", "signals", "truncated"],
       "properties": {
         "status": {
           "type": "string",
@@ -85,6 +85,9 @@
         "signalCount": {
           "type": "integer",
           "minimum": 0
+        },
+        "truncated": {
+          "type": "boolean"
         },
         "signals": {
           "type": "array",

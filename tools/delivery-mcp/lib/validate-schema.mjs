@@ -5,12 +5,13 @@ import { findRepoRoot } from "./repo-root.mjs";
 const schemaCache = new Map();
 
 function loadSchema(repoRoot, schemaFileName) {
-  const cached = schemaCache.get(schemaFileName);
+  const cacheKey = `${path.resolve(repoRoot)}:${schemaFileName}`;
+  const cached = schemaCache.get(cacheKey);
   if (cached) return cached;
   const absolutePath = path.resolve(repoRoot, ".delivery", "schemas", schemaFileName);
   const content = fs.readFileSync(absolutePath, "utf8");
   const parsed = JSON.parse(content);
-  schemaCache.set(schemaFileName, parsed);
+  schemaCache.set(cacheKey, parsed);
   return parsed;
 }
 
@@ -30,6 +31,31 @@ function checkType(value, expectedType) {
 function validateNode(value, schema, pathStr = "") {
   const errors = [];
   if (!schema || typeof schema !== "object") return errors;
+
+  if (Array.isArray(schema.oneOf)) {
+    const candidates = schema.oneOf.map((candidate) => validateNode(value, candidate, pathStr));
+    const matchingCandidates = candidates.filter((candidateErrors) => candidateErrors.length === 0);
+    if (matchingCandidates.length !== 1) {
+      errors.push(
+        `${pathStr || "root"}: expected exactly one oneOf schema to match, got ${matchingCandidates.length}`
+      );
+      return errors;
+    }
+  }
+
+  if (Array.isArray(schema.anyOf)) {
+    const hasMatch = schema.anyOf.some(
+      (candidate) => validateNode(value, candidate, pathStr).length === 0
+    );
+    if (!hasMatch) {
+      errors.push(`${pathStr || "root"}: no anyOf schema matched`);
+      return errors;
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(schema, "const") && value !== schema.const) {
+    errors.push(`${pathStr || "root"}: expected constant ${JSON.stringify(schema.const)}`);
+  }
 
   if (schema.type) {
     if (!checkType(value, schema.type)) {
@@ -55,6 +81,12 @@ function validateNode(value, schema, pathStr = "") {
     if (schema.minLength !== undefined && value.length < schema.minLength) {
       errors.push(`${pathStr || "root"}: length ${value.length} is less than minLength ${schema.minLength}`);
     }
+    if (schema.maxLength !== undefined && value.length > schema.maxLength) {
+      errors.push(`${pathStr || "root"}: length ${value.length} exceeds maxLength ${schema.maxLength}`);
+    }
+    if (schema.pattern !== undefined && !new RegExp(schema.pattern).test(value)) {
+      errors.push(`${pathStr || "root"}: value does not match pattern ${schema.pattern}`);
+    }
   }
 
   if (Array.isArray(value)) {
@@ -64,6 +96,12 @@ function validateNode(value, schema, pathStr = "") {
     if (schema.minItems !== undefined && value.length < schema.minItems) {
       errors.push(`${pathStr || "root"}: array length ${value.length} is less than minItems ${schema.minItems}`);
     }
+    if (schema.uniqueItems) {
+      const serialized = value.map((item) => JSON.stringify(item));
+      if (new Set(serialized).size !== serialized.length) {
+        errors.push(`${pathStr || "root"}: array items must be unique`);
+      }
+    }
     if (schema.items) {
       for (let i = 0; i < value.length; i++) {
         errors.push(...validateNode(value[i], schema.items, `${pathStr}[${i}]`));
@@ -72,6 +110,18 @@ function validateNode(value, schema, pathStr = "") {
   }
 
   if (value && typeof value === "object" && !Array.isArray(value)) {
+    const objectKeys = Object.keys(value);
+    if (schema.minProperties !== undefined && objectKeys.length < schema.minProperties) {
+      errors.push(
+        `${pathStr || "root"}: property count ${objectKeys.length} is less than minProperties ${schema.minProperties}`
+      );
+    }
+    if (schema.maxProperties !== undefined && objectKeys.length > schema.maxProperties) {
+      errors.push(
+        `${pathStr || "root"}: property count ${objectKeys.length} exceeds maxProperties ${schema.maxProperties}`
+      );
+    }
+
     if (schema.required) {
       for (const requiredKey of schema.required) {
         if (!(requiredKey in value)) {
@@ -86,12 +136,37 @@ function validateNode(value, schema, pathStr = "") {
         }
       }
     }
-    if (schema.additionalProperties === false && schema.properties) {
-      const allowed = new Set(Object.keys(schema.properties));
-      for (const key of Object.keys(value)) {
-        if (!allowed.has(key)) {
-          errors.push(`${pathStr || "root"}: unexpected property '${key}'`);
+
+    const declaredProperties = new Set(Object.keys(schema.properties || {}));
+    const patternEntries = Object.entries(schema.patternProperties || {}).map(
+      ([pattern, childSchema]) => [new RegExp(pattern), childSchema]
+    );
+
+    for (const key of objectKeys) {
+      if (declaredProperties.has(key)) continue;
+      const matchingPatterns = patternEntries.filter(([regex]) => regex.test(key));
+      if (matchingPatterns.length > 0) {
+        for (const [, childSchema] of matchingPatterns) {
+          errors.push(
+            ...validateNode(value[key], childSchema, pathStr ? `${pathStr}.${key}` : key)
+          );
         }
+        continue;
+      }
+
+      if (schema.additionalProperties === false) {
+        errors.push(`${pathStr || "root"}: unexpected property '${key}'`);
+      } else if (
+        schema.additionalProperties &&
+        typeof schema.additionalProperties === "object"
+      ) {
+        errors.push(
+          ...validateNode(
+            value[key],
+            schema.additionalProperties,
+            pathStr ? `${pathStr}.${key}` : key
+          )
+        );
       }
     }
   }

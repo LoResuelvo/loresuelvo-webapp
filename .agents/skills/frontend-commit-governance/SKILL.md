@@ -36,15 +36,15 @@ Usar la herramienta MCP cuando esté disponible. Cualquier agente o colega sin e
 npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuesto>'
 ```
 
-`delivery_inspect` —o `npm run delivery:inspect`— se reserva para previsualizar la decisión sin ejecutar el gate. Un resultado `review_required` exige revisar las señales. Si la solución sigue siendo cohesionada, la aceptación se ata al hash exacto y queda registrada:
+`delivery_inspect` —o `npm run delivery:inspect`— se reserva para previsualizar la decisión sin ejecutar el gate. Un resultado `review_required` exige revisar las señales. Si la solución sigue siendo cohesionada, la aceptación se ata al hash exacto y se justifica por cada señal detectada (con al menos 12 caracteres por justificación):
 
 ```bash
 npm run delivery:prepare -- --intent prepare_commit --message '<mensaje>' \
   --acknowledge-snapshot <snapshotHash> \
-  --acknowledge-reason '<justificación concreta>'
+  --acknowledge-decision '<signal-id>=<justificación>'
 ```
 
-Solo `status: passed` autoriza el commit. `no_changes` significa que no existe un snapshot staged para commitear; los demás estados detienen el commit. Los logs completos quedan en `.delivery/runtime/`, ignorados por Git, y la respuesta devuelve únicamente el primer diagnóstico normalizado y líneas causales acotadas.
+La caché determinística cubre tanto ejecuciones exitosas como fallos idénticos; `--force` evita la caché cuando se solicita expresamente. Solo `status: passed` autoriza el commit. `no_changes` significa que no existe un snapshot staged para commitear; los demás estados detienen el commit. Los logs completos quedan en `.delivery/runtime/`, ignorados por Git, y la respuesta devuelve únicamente diagnósticos acotados sin tracebacks completos.
 
 Registrar en el handoff o reporte la evidencia compacta generada por la herramienta:
 

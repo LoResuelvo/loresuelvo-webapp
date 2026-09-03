@@ -2,19 +2,29 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "DeliveryExecutionResult",
   "type": "object",
-  "required": ["schemaVersion", "status", "snapshotHash", "runKey", "cached", "gate", "summary", "checks", "diagnostics", "evidence"],
+  "required": ["schemaVersion", "status", "snapshotHash", "runKey", "cached", "policy", "gate", "summary", "checks", "diagnostics", "evidence"],
   "properties": {
     "schemaVersion": { "type": "integer", "enum": [1] },
     "status": { "type": "string", "enum": ["passed", "failed", "blocked", "needs_input", "review_required", "no_changes"] },
     "snapshotHash": { "type": "string" },
     "runKey": { "type": ["string", "null"] },
     "cached": { "type": "boolean" },
+    "policy": {
+      "type": "object",
+      "required": ["version", "hash"],
+      "properties": {
+        "version": { "type": "integer", "minimum": 1 },
+        "hash": { "type": "string" }
+      }
+    },
     "gate": {
       "type": "object",
-      "required": ["id", "reasonCodes", "postPushChecks"],
+      "required": ["id", "reasonCodes", "checkIds", "parameters", "postPushChecks"],
       "properties": {
         "id": { "type": "string", "enum": ["NONE", "0", "A", "B", "C", "D"] },
         "reasonCodes": { "type": "array", "items": { "type": "string" } },
+        "checkIds": { "type": "array", "items": { "type": "string" } },
+        "parameters": { "type": "object" },
         "postPushChecks": { "type": "array", "items": { "type": "string" } }
       }
     },

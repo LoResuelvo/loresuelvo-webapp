@@ -4,7 +4,10 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { runCodexGuard } from "../../../.codex/delivery-guard.mjs";
+import {
+  parseCodexHookInput,
+  runCodexGuard,
+} from "../../../.codex/delivery-guard.mjs";
 import { prepareDelivery } from "../lib/prepare-delivery.mjs";
 
 async function createTempGitRepo(t) {
@@ -53,6 +56,19 @@ test("runCodexGuard: ignora comandos que no sean git commit", async () => {
   const res2 = await runCodexGuard({ rawCommand: "git status" });
   assert.strictEqual(res2.shouldIntercept, false);
   assert.strictEqual(res2.passed, true);
+});
+
+test("Codex hook: usa la estructura PreToolUse oficial y lee tool_input.command", async () => {
+  const config = JSON.parse(await fs.readFile(".codex/hooks.json", "utf8"));
+  assert.ok(Array.isArray(config.hooks.PreToolUse));
+  assert.strictEqual(config.hooks.PreToolUse[0].matcher, "^Bash$");
+  assert.strictEqual(config.hooks.PreToolUse[0].hooks[0].type, "command");
+
+  const parsed = parseCodexHookInput(
+    JSON.stringify({ tool_name: "Bash", tool_input: { command: "git commit -m test" } })
+  );
+  assert.strictEqual(parsed.toolName, "Bash");
+  assert.strictEqual(parsed.rawCommand, "git commit -m test");
 });
 
 test("runCodexGuard: intercepta git commit y reporta no_changes si no hay cambios staged", async (t) => {
@@ -114,29 +130,27 @@ test("delivery-guard CLI script: ejecucion de proceso devuelve exit codes correc
   const repoRoot = await createTempGitRepo(t);
 
   // 1. Comando no commit -> exit code 0
-  const outIgnore = execFileSync("node", [path.resolve(".codex/delivery-guard.mjs"), "git", "status"], {
+  const scriptPath = path.resolve(".codex/delivery-guard.mjs");
+  const outIgnore = execFileSync("node", [scriptPath], {
     cwd: repoRoot,
     encoding: "utf8",
+    input: JSON.stringify({ tool_name: "Bash", tool_input: { command: "git status" } }),
   });
   assert.strictEqual(outIgnore, "");
 
-  // 2. Comando commit sin staged changes -> exit code 1 (throws)
-  assert.throws(
-    () => {
-      execFileSync(
-        "node",
-        [path.resolve(".codex/delivery-guard.mjs"), "git", "commit", "-m", "chore: test"],
-        {
-          cwd: repoRoot,
-          encoding: "utf8",
-          stdio: ["ignore", "pipe", "pipe"],
-        }
-      );
-    },
-    (err) => {
-      assert.strictEqual(err.status, 1);
-      assert.ok(err.stderr.includes("Delivery status is 'no_changes'"));
-      return true;
-    }
+  // 2. Comando commit sin staged changes -> decisión estructurada deny
+  const deniedOutput = execFileSync("node", [scriptPath], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    input: JSON.stringify({
+      tool_name: "Bash",
+      tool_input: { command: "git commit -m 'chore: test'" },
+    }),
+  });
+  const denied = JSON.parse(deniedOutput);
+  assert.strictEqual(
+    denied.hookSpecificOutput.permissionDecision,
+    "deny"
   );
+  assert.ok(denied.hookSpecificOutput.permissionDecisionReason.includes("no_changes"));
 });

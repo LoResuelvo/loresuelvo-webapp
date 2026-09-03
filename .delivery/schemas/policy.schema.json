@@ -3,8 +3,9 @@
   "title": "DeliveryPolicy",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "policyName", "limits", "maintainabilityThresholds", "checkCatalog", "gates"],
+  "required": ["version", "policyName", "limits", "maintainabilityThresholds", "classification", "checkCatalog", "gates"],
   "properties": {
+    "$schema": { "type": "string" },
     "version": { "type": "integer", "minimum": 1 },
     "policyName": { "type": "string", "minLength": 1 },
     "limits": {
@@ -23,6 +24,51 @@
     "maintainabilityThresholds": {
       "type": "object",
       "additionalProperties": { "type": "integer", "minimum": 1 }
+    },
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rules", "fallback"],
+      "properties": {
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "category", "match", "isGateCTrigger", "isGate0Trigger", "productSource"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "category": { "type": "string", "minLength": 1 },
+              "match": {
+                "type": "object",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "exact": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+                  "prefixes": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+                  "extensions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+                  "patterns": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+                }
+              },
+              "isGateCTrigger": { "type": "boolean" },
+              "isGate0Trigger": { "type": "boolean" },
+              "productSource": { "enum": [true, false, "auto"] }
+            }
+          }
+        },
+        "fallback": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["category", "isGateCTrigger", "isGate0Trigger", "productSource"],
+          "properties": {
+            "category": { "type": "string", "minLength": 1 },
+            "isGateCTrigger": { "type": "boolean" },
+            "isGate0Trigger": { "type": "boolean" },
+            "productSource": { "enum": [true, false, "auto"] }
+          }
+        }
+      }
     },
     "checkCatalog": {
       "type": "object",

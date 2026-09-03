@@ -5,15 +5,19 @@ import { findRepoRoot } from "./repo-root.mjs";
 import { prepareDelivery } from "./prepare-delivery.mjs";
 import { loadDeliveryContext, consumeDeliveryContext } from "./delivery-context.mjs";
 import {
+  consumePreparedEvidence,
   recordCommitEvidence,
   getLastPreparedEvidence,
-  hasCommitEvidence,
+  listCommitEvidence,
+  loadEvidenceRecord,
+  verifyCommitEvidence,
 } from "./delivery-ledger.mjs";
 import { inspectCi } from "./ci-provider.mjs";
 
 
 const ALLOWED_TYPES = new Set([
   "chore",
+  "feat",
   "docs",
   "test",
   "ci",
@@ -31,8 +35,7 @@ function normalizeUsId(usId) {
 
 /**
  * Validates commit message structure according to Lo Resuelvo commit governance.
- * - Allowed types: chore, docs, test, ci, fix, refactor (and build, style, revert)
- * - Rejects 'feat'
+ * - Allowed types follow repository commit governance, including feat for product work
  * - Rejects scopes in parentheses like '(agent)' or '(scope)'
  * - Validates US ID against active context
  */
@@ -70,17 +73,7 @@ export function validateCommitMessage(rawMessage, activeContext = null) {
     };
   }
 
-  // 2. Rejects 'feat'
-  if (/^feat(?:\[[^\]]+\])?\s*:/i.test(subject)) {
-    return {
-      valid: false,
-      reason: "FEAT_TYPE_FORBIDDEN",
-      message:
-        "Commit type 'feat' is rejected on main. Use chore, docs, test, ci, fix, or refactor.",
-    };
-  }
-
-  // 3. Format: <type>[XX]: <description> or <type>: <description>
+  // 2. Format: <type>[XX]: <description> or <type>: <description>
   const match = subject.match(/^([a-zA-Z]+)(?:\[([a-zA-Z0-9_.-]+)\])?:\s+(.+)$/);
   if (!match) {
     return {
@@ -110,7 +103,7 @@ export function validateCommitMessage(rawMessage, activeContext = null) {
     };
   }
 
-  // 4. Validate US ID against active context
+  // 3. Validate US ID against active context
   if (activeContext && !activeContext.consumed) {
     if (activeContext.usId) {
       if (usId) {
@@ -187,24 +180,125 @@ export async function runPostCommitHook({ repoRoot } = {}) {
     throw new Error(`Failed to resolve HEAD commit: ${error.message}`);
   }
 
-  const prepared = await getLastPreparedEvidence({ repoRoot: root });
-  let ledgerEntry = null;
-  if (prepared && prepared.status === "passed") {
-    ledgerEntry = await recordCommitEvidence({
-      repoRoot: root,
+  const alreadyRecorded = await verifyCommitEvidence({ repoRoot: root, commitSha });
+  if (alreadyRecorded.valid) {
+    return {
+      recorded: true,
       commitSha,
-      snapshotHash: prepared.snapshotHash,
-      runKey: prepared.runKey,
-      recordPath: prepared.recordPath,
-    });
+      ledgerEntry: alreadyRecorded.entry,
+      reused: true,
+    };
   }
 
-  // Consume any active delivery context
-  try {
-    await consumeDeliveryContext({ repoRoot: root });
-  } catch {
-    // ignore
+  const prepared = await getLastPreparedEvidence({ repoRoot: root });
+  if (!prepared || prepared.status !== "passed") {
+    return {
+      recorded: false,
+      commitSha,
+      ledgerEntry: null,
+      reason: "MISSING_PREPARED_EVIDENCE",
+    };
   }
+  if (prepared.schemaVersion !== 2 || prepared.consumedByCommitSha) {
+    return {
+      recorded: false,
+      commitSha,
+      ledgerEntry: null,
+      reason: "STALE_PREPARED_EVIDENCE",
+    };
+  }
+
+  const parentsLine = execFileSync("git", ["rev-list", "--parents", "-n", "1", commitSha], {
+    cwd: root,
+    encoding: "utf8",
+  }).trim();
+  const [, ...parents] = parentsLine.split(/\s+/).filter(Boolean);
+  const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+    cwd: root,
+    encoding: "utf8",
+  }).trim();
+  const treeSha = execFileSync("git", ["rev-parse", "HEAD^{tree}"], {
+    cwd: root,
+    encoding: "utf8",
+  }).trim();
+  const stagedFiles = [...(prepared.stagedFiles || [])].sort();
+
+  const identityMatches =
+    parents.length <= 1 &&
+    (parents[0] || null) === prepared.parentHeadSha &&
+    branch === prepared.branch &&
+    treeSha === prepared.stagedTreeSha;
+  if (!identityMatches) {
+    return {
+      recorded: false,
+      commitSha,
+      ledgerEntry: null,
+      reason: "PREPARED_EVIDENCE_COMMIT_MISMATCH",
+    };
+  }
+
+  let loaded;
+  try {
+    loaded = await loadEvidenceRecord({ repoRoot: root, recordPath: prepared.recordPath });
+  } catch {
+    return {
+      recorded: false,
+      commitSha,
+      ledgerEntry: null,
+      reason: "PREPARED_EVIDENCE_RECORD_INVALID",
+    };
+  }
+  if (
+    loaded.digest !== prepared.recordDigest ||
+    loaded.record.status !== "passed" ||
+    loaded.record.snapshotHash !== prepared.snapshotHash ||
+    loaded.record.runKey !== prepared.runKey ||
+    loaded.record.gate?.id !== prepared.gateId ||
+    loaded.record.policy?.hash !== prepared.policyHash
+  ) {
+    return {
+      recorded: false,
+      commitSha,
+      ledgerEntry: null,
+      reason: "PREPARED_EVIDENCE_RECORD_MISMATCH",
+    };
+  }
+
+  const committedMessage = execFileSync("git", ["log", "-1", "--format=%B", commitSha], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  const committedMessageValidation = validateCommitMessage(committedMessage);
+  if (!committedMessageValidation.valid) {
+    return {
+      recorded: false,
+      commitSha,
+      ledgerEntry: null,
+      reason: "INVALID_COMMIT_MESSAGE",
+    };
+  }
+
+  const ledgerEntry = await recordCommitEvidence({
+    repoRoot: root,
+    commitSha,
+    snapshotHash: prepared.snapshotHash,
+    runKey: prepared.runKey,
+    recordPath: prepared.recordPath,
+    recordDigest: prepared.recordDigest,
+    branch,
+    parentSha: prepared.parentHeadSha,
+    treeSha,
+    stagedFiles,
+    gateId: prepared.gateId,
+    policyHash: prepared.policyHash,
+    intent: prepared.intent,
+    usId: prepared.usId || committedMessageValidation.usId,
+    featureFile: prepared.featureFile,
+    scenarioName: prepared.scenarioName,
+    scopeFiles: prepared.scopeFiles,
+  });
+  await consumePreparedEvidence({ repoRoot: root, commitSha });
+  await consumeDeliveryContext({ repoRoot: root });
 
   return { recorded: Boolean(ledgerEntry), commitSha, ledgerEntry };
 }
@@ -218,7 +312,7 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
     const parts = trimmed.split(/\s+/);
     if (parts.length < 4) continue;
 
-    const [localRef, localSha, , remoteSha] = parts;
+    const [, localSha, , remoteSha] = parts;
 
     // Branch deletion (localSha is zeroes)
     if (/^0+$/.test(localSha)) continue;
@@ -249,27 +343,39 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
       };
     }
 
-    // Verify each commit has local evidence in ledger
+    // Verify each commit has exact local evidence and a valid message.
     for (const sha of commits) {
-      const hasEv = await hasCommitEvidence({ repoRoot: root, commitSha: sha });
-      if (!hasEv) {
+      const verified = await verifyCommitEvidence({ repoRoot: root, commitSha: sha });
+      if (!verified.valid) {
         return {
           passed: false,
-          reason: "MISSING_EVIDENCE_IN_LEDGER",
-          message: `Commit ${sha.slice(0, 8)} does not have associated local delivery evidence in ledger. Run delivery prepare before committing.`,
+          reason: "INVALID_COMMIT_EVIDENCE",
+          evidenceReason: verified.reason,
+          message: `Commit ${sha.slice(0, 8)} does not have valid delivery evidence (${verified.reason}). Run delivery prepare and create a matching commit.`,
+        };
+      }
+
+      const commitMessage = execFileSync("git", ["log", "-1", "--format=%B", sha], {
+        cwd: root,
+        encoding: "utf8",
+      });
+      const messageValidation = validateCommitMessage(commitMessage);
+      if (!messageValidation.valid) {
+        return {
+          passed: false,
+          reason: "INVALID_PUSHED_COMMIT_MESSAGE",
+          message: `Commit ${sha.slice(0, 8)} has an invalid message: ${messageValidation.message}`,
         };
       }
     }
 
     // Check CI of prior commits registered in the ledger
     if (process.env.DELIVERY_SKIP_CI_CHECK !== "1") {
-      const ledgerFile = path.resolve(root, ".delivery/runtime/ledger.json");
       let priorShas = [];
       try {
-        const rawLedger = await fs.readFile(ledgerFile, "utf8");
-        const ledgerMap = JSON.parse(rawLedger);
         const currentSet = new Set(commits);
-        priorShas = Object.keys(ledgerMap).filter((s) => !currentSet.has(s));
+        const entries = await listCommitEvidence({ repoRoot: root });
+        priorShas = entries.map((entry) => entry.commitSha).filter((s) => !currentSet.has(s));
       } catch {
         priorShas = [];
       }

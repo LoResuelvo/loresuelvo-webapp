@@ -14,6 +14,7 @@ import {
   formatInputIssues,
 } from "./lib/input-schema.mjs";
 import { inspectCi } from "./lib/ci-provider.mjs";
+import { redactSecrets } from "./lib/redact-secrets.mjs";
 
 const intentProperty = {
   type: "string",
@@ -85,6 +86,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             },
             required: ["snapshotHash"],
           },
+          force: {
+            type: "boolean",
+            description: "Re-run checks instead of reusing cached evidence",
+          },
         },
         required: ["intent"],
       },
@@ -133,7 +138,13 @@ function inspectionError(code, message) {
       parameters: {},
       postPushChecks: [],
     },
-    maintainability: { status: "not_applicable", filesReviewed: [], signalCount: 0, signals: [] },
+    maintainability: {
+      status: "not_applicable",
+      filesReviewed: [],
+      signalCount: 0,
+      signals: [],
+      truncated: false,
+    },
     diagnostics: [{ code, message, retryable: false }],
   };
 }
@@ -145,7 +156,14 @@ function executionError(code, message) {
     snapshotHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     runKey: null,
     cached: false,
-    gate: { id: "NONE", reasonCodes: [code], postPushChecks: [] },
+    policy: { version: 1, hash: "UNKNOWN" },
+    gate: {
+      id: "NONE",
+      reasonCodes: [code],
+      checkIds: [],
+      parameters: {},
+      postPushChecks: [],
+    },
     summary: { passed: 0, failed: 0, skipped: 0, durationMs: 0 },
     checks: [],
     diagnostics: [{ code, message, retryable: false }],
@@ -173,7 +191,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const failed = ["failed", "timed_out", "provider_error"].includes(result.status);
       return toolResponse(result, failed);
     } catch (error) {
-      const message = String(error.message || "CI inspection error").split("\n")[0];
+      const message = redactSecrets(String(error.message || "CI inspection error")).split("\n")[0];
       return toolResponse({ error: message }, true);
     }
   }
@@ -200,7 +218,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const failed = isPrepare && !["passed", "no_changes"].includes(result.status);
     return toolResponse(result, failed);
   } catch (error) {
-    const message = String(error.message || "Unexpected delivery error").split("\n")[0];
+    const message = redactSecrets(String(error.message || "Unexpected delivery error")).split("\n")[0];
     return toolResponse(
       (isPrepare ? executionError : inspectionError)("INTERNAL_ERROR", message),
       true

@@ -4,6 +4,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { assertSafeRepoPath, findRepoRoot } from "./repo-root.mjs";
 import { validateCiInspectionResult } from "./validate-schema.mjs";
+import { redactSecrets } from "./redact-secrets.mjs";
+import { summarizeFailureOutput } from "./execute-check.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -45,11 +47,7 @@ export class MockCiProvider extends CiProvider {
       if (res.failure?.excerpt) {
         await saveCiExcerpt({ repoRoot: root, sha, excerpt: res.failure.excerpt });
       }
-      try {
-        validateCiInspectionResult(res, root);
-      } catch {
-        // ignore in test environments without schemas
-      }
+      validateCiInspectionResult(res, root);
       return res;
     }
 
@@ -63,11 +61,7 @@ export class MockCiProvider extends CiProvider {
       url: null,
       retryable: false,
     };
-    try {
-      validateCiInspectionResult(notFound, root);
-    } catch {
-      // ignore
-    }
+    validateCiInspectionResult(notFound, root);
     return notFound;
   }
 }
@@ -82,32 +76,16 @@ export class GitHubActionsProvider extends CiProvider {
   async inspectCommit(sha, { repoRoot } = {}) {
     const root = findRepoRoot(repoRoot);
 
-    if (process.env.DELIVERY_SKIP_CI_CHECK === "1") {
-      return {
-        schemaVersion: 1,
-        sha,
-        workflow: null,
-        status: "passed",
-        failedJobs: [],
-        failure: null,
-        url: null,
-        retryable: false,
-      };
-    }
-
     // Try gh CLI first
+    let ghResult = null;
     try {
-      const ghResult = await this.queryViaGhCli(sha, root);
-      if (ghResult) {
-        try {
-          validateCiInspectionResult(ghResult, root);
-        } catch {
-          // ignore
-        }
-        return ghResult;
-      }
+      ghResult = await this.queryViaGhCli(sha, root);
     } catch {
-      // Fallback to API or error
+      // Fall back to the API when gh is unavailable or unauthenticated.
+    }
+    if (ghResult) {
+      validateCiInspectionResult(ghResult, root);
+      return ghResult;
     }
 
     // Try GitHub API via fetch if token available
@@ -115,11 +93,7 @@ export class GitHubActionsProvider extends CiProvider {
       try {
         const apiResult = await this.queryViaApi(sha, root);
         if (apiResult) {
-          try {
-            validateCiInspectionResult(apiResult, root);
-          } catch {
-            // ignore
-          }
+          validateCiInspectionResult(apiResult, root);
           return apiResult;
         }
       } catch (err) {
@@ -168,7 +142,11 @@ export class GitHubActionsProvider extends CiProvider {
     }
 
     const run = parsed[0];
-    return this.normalizeRun(sha, run, repoRoot);
+    const result = this.normalizeRun(sha, run, repoRoot);
+    if (["failed", "timed_out"].includes(result.status)) {
+      return this.enrichFailureViaGh(result, repoRoot);
+    }
+    return result;
   }
 
   async queryViaApi(sha, repoRoot) {
@@ -200,7 +178,7 @@ export class GitHubActionsProvider extends CiProvider {
     }
 
     const run = data.workflow_runs[0];
-    return this.normalizeRun(
+    const result = this.normalizeRun(
       sha,
       {
         databaseId: run.id,
@@ -211,6 +189,133 @@ export class GitHubActionsProvider extends CiProvider {
       },
       repoRoot
     );
+    if (["failed", "timed_out"].includes(result.status)) {
+      return this.enrichFailureViaApi(result, repoRoot);
+    }
+    return result;
+  }
+
+  failureFromJobs(jobs = []) {
+    const failingConclusions = new Set([
+      "failure",
+      "timed_out",
+      "cancelled",
+      "action_required",
+      "startup_failure",
+    ]);
+    const failedJobs = jobs.filter((job) => failingConclusions.has(job.conclusion));
+    if (failedJobs.length === 0) return null;
+
+    const firstJob = failedJobs[0];
+    const firstStep = (firstJob.steps || []).find((step) =>
+      failingConclusions.has(step.conclusion)
+    );
+    const message = firstStep
+      ? `Job '${firstJob.name}' failed at step '${firstStep.name}'`
+      : `Job '${firstJob.name}' failed`;
+    const excerpt = [
+      `Job: ${firstJob.name}`,
+      ...(firstStep ? [`Step: ${firstStep.name}`] : []),
+      `Conclusion: ${firstStep?.conclusion || firstJob.conclusion || "failure"}`,
+    ].join("\n");
+
+    return {
+      failedJobs: failedJobs.map((job) => job.name || `job-${job.databaseId || job.id}`),
+      firstJobId: firstJob.databaseId || firstJob.id || null,
+      failure: { message, excerpt },
+    };
+  }
+
+  async enrichFailureViaGh(result, repoRoot) {
+    try {
+      const runId = String(result.workflow.id);
+      const { stdout } = await execFileAsync("gh", ["run", "view", runId, "--json", "jobs"], {
+        cwd: repoRoot,
+        encoding: "utf8",
+        timeout: 10000,
+        maxBuffer: 2 * 1024 * 1024,
+      });
+      const details = this.failureFromJobs(JSON.parse(stdout || "{}").jobs || []);
+      if (!details) return result;
+
+      let excerpt = details.failure.excerpt;
+      if (details.firstJobId) {
+        try {
+          const logResult = await execFileAsync(
+            "gh",
+            ["run", "view", runId, "--job", String(details.firstJobId), "--log-failed"],
+            {
+              cwd: repoRoot,
+              encoding: "utf8",
+              timeout: 15000,
+              maxBuffer: 2 * 1024 * 1024,
+            }
+          );
+          const lines = summarizeFailureOutput(logResult.stdout, 6);
+          if (lines.length > 0) excerpt = lines.join("\n");
+        } catch {
+          // Job and step metadata still provide a bounded diagnostic.
+        }
+      }
+
+      const enriched = {
+        ...result,
+        failedJobs: details.failedJobs,
+        failure: { ...details.failure, excerpt: redactSecrets(excerpt) },
+      };
+      await saveCiExcerpt({ repoRoot, sha: result.sha, excerpt: enriched.failure.excerpt });
+      return enriched;
+    } catch {
+      return result;
+    }
+  }
+
+  async enrichFailureViaApi(result, repoRoot) {
+    try {
+      const jobsUrl = `https://api.github.com/repos/${this.repo}/actions/runs/${result.workflow.id}/jobs?filter=latest&per_page=100`;
+      const jobsResponse = await fetch(jobsUrl, {
+        headers: {
+          Authorization: `token ${this.token}`,
+          Accept: "application/vnd.github.v3+json",
+          "User-Agent": "loresuelvo-delivery-ci",
+        },
+      });
+      if (!jobsResponse.ok) return result;
+      const details = this.failureFromJobs((await jobsResponse.json()).jobs || []);
+      if (!details) return result;
+
+      let excerpt = details.failure.excerpt;
+      if (details.firstJobId) {
+        const annotationsUrl = `https://api.github.com/repos/${this.repo}/check-runs/${details.firstJobId}/annotations?per_page=10`;
+        const annotationsResponse = await fetch(annotationsUrl, {
+          headers: {
+            Authorization: `token ${this.token}`,
+            Accept: "application/vnd.github.v3+json",
+            "User-Agent": "loresuelvo-delivery-ci",
+          },
+        });
+        if (annotationsResponse.ok) {
+          const annotations = await annotationsResponse.json();
+          const lines = annotations
+            .filter((annotation) => annotation.annotation_level === "failure")
+            .slice(0, 6)
+            .map((annotation) =>
+              `${annotation.path || "CI"}${annotation.start_line ? `:${annotation.start_line}` : ""}: ${annotation.message || annotation.title || "failure"}`
+            );
+          if (lines.length > 0) excerpt = lines.join("\n");
+        }
+      }
+
+      const enriched = {
+        ...result,
+        failedJobs: details.failedJobs,
+        failure: { ...details.failure, excerpt: redactSecrets(excerpt) },
+      };
+      await saveCiExcerpt({ repoRoot, sha: result.sha, excerpt: enriched.failure.excerpt });
+      return enriched;
+    } catch {
+      return result;
+    }
   }
 
   normalizeRun(sha, run, repoRoot) {
@@ -265,6 +370,7 @@ export class GitHubActionsProvider extends CiProvider {
   }
 
   providerErrorResult(sha, message, repoRoot) {
+    const safeMessage = redactSecrets(String(message || "CI provider unavailable")).split("\n")[0];
     const res = {
       schemaVersion: 1,
       sha,
@@ -272,17 +378,13 @@ export class GitHubActionsProvider extends CiProvider {
       status: "provider_error",
       failedJobs: [],
       failure: {
-        message,
-        excerpt: message,
+        message: safeMessage,
+        excerpt: safeMessage,
       },
       url: null,
       retryable: true,
     };
-    try {
-      validateCiInspectionResult(res, repoRoot);
-    } catch {
-      // ignore
-    }
+    validateCiInspectionResult(res, repoRoot);
     return res;
   }
 }
@@ -294,7 +396,8 @@ export async function saveCiExcerpt({ repoRoot, sha, excerpt } = {}) {
 
   await fs.mkdir(targetDir, { recursive: true, mode: 0o700 });
   const filePath = path.join(targetDir, `${sha}.log`);
-  await fs.writeFile(filePath, `${excerpt}\n`, { mode: 0o600 });
+  const safeExcerpt = redactSecrets(String(excerpt || "")).slice(0, 20000);
+  await fs.writeFile(filePath, `${safeExcerpt}\n`, { mode: 0o600 });
   return filePath;
 }
 

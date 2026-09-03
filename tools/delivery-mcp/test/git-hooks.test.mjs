@@ -14,8 +14,6 @@ import {
   getHooksStatus,
 } from "../lib/git-hooks.mjs";
 import {
-  recordPreparedEvidence,
-  recordCommitEvidence,
   hasCommitEvidence,
   getCommitEvidence,
 } from "../lib/delivery-ledger.mjs";
@@ -23,8 +21,10 @@ import {
   saveDeliveryContext,
   loadDeliveryContext,
 } from "../lib/delivery-context.mjs";
+import { captureGitSnapshot } from "../lib/git-snapshot.mjs";
+import { prepareDelivery } from "../lib/prepare-delivery.mjs";
 
-test("validateCommitMessage: valida formato, rechaza feat, rechaza (agent) y scopes entre parentesis", () => {
+test("validateCommitMessage: valida tipos gobernados y rechaza (agent) y scopes entre parentesis", () => {
   // 1. Mensajes validos
   assert.strictEqual(validateCommitMessage("chore: update build script").valid, true);
   assert.strictEqual(validateCommitMessage("docs: update readme").valid, true);
@@ -34,15 +34,8 @@ test("validateCommitMessage: valida formato, rechaza feat, rechaza (agent) y sco
   assert.strictEqual(validateCommitMessage("refactor: split component").valid, true);
   assert.strictEqual(validateCommitMessage("chore[30.1]: bump dependencies").valid, true);
   assert.strictEqual(validateCommitMessage("fix[US-01]: correct button style").valid, true);
-
-  // 2. Rechaza 'feat'
-  const featRes = validateCommitMessage("feat: new provider search");
-  assert.strictEqual(featRes.valid, false);
-  assert.strictEqual(featRes.reason, "FEAT_TYPE_FORBIDDEN");
-
-  const featUsRes = validateCommitMessage("feat[54]: new provider search");
-  assert.strictEqual(featUsRes.valid, false);
-  assert.strictEqual(featUsRes.reason, "FEAT_TYPE_FORBIDDEN");
+  assert.strictEqual(validateCommitMessage("feat: add provider search").valid, true);
+  assert.strictEqual(validateCommitMessage("feat[54]: add provider search").valid, true);
 
   // 3. Rechaza (agent) y scopes entre parentesis
   const agentRes = validateCommitMessage("chore(agent): do not commit this");
@@ -113,6 +106,7 @@ async function createTempGitRepo(t) {
     ".delivery/schemas/delivery-context.schema.json",
     path.join(repoRoot, ".delivery", "schemas", "delivery-context.schema.json")
   );
+  await fs.copyFile(".gitignore", path.join(repoRoot, ".gitignore"));
 
   // Initial commit
   await fs.writeFile(path.join(repoRoot, "README.md"), "# Test Repo\n", "utf8");
@@ -139,12 +133,11 @@ test("hooks install y status: configura core.hooksPath e inspecciona hooks", asy
 test("commit-msg hook: bloquea mensaje invalido y permite valido", async (t) => {
   const repoRoot = await createTempGitRepo(t);
 
-  // 1. Mensaje con feat
+  // 1. Mensaje con feat válido para trabajo productivo
   const featMsgFile = path.join(repoRoot, "msg-feat.txt");
   await fs.writeFile(featMsgFile, "feat: new component\n", "utf8");
   const featRes = await runCommitMsgHook({ repoRoot, messageFilePath: featMsgFile });
-  assert.strictEqual(featRes.passed, false);
-  assert.strictEqual(featRes.reason, "FEAT_TYPE_FORBIDDEN");
+  assert.strictEqual(featRes.passed, true);
 
   // 2. Mensaje con (agent)
   const agentMsgFile = path.join(repoRoot, "msg-agent.txt");
@@ -188,28 +181,61 @@ test("pre-commit hook: bloquea cuando delivery status no es passed", async (t) =
   assert.strictEqual(res.outcome.status, "no_changes");
 });
 
+test("pre-commit hook: conserva un close_us preparado para el mismo snapshot", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const policyPath = path.join(repoRoot, ".delivery", "policy.v1.json");
+  const policy = JSON.parse(await fs.readFile(policyPath, "utf8"));
+  policy.gates.D.checkIds = [];
+  await fs.writeFile(policyPath, `${JSON.stringify(policy, null, 2)}\n`, "utf8");
+  execFileSync("git", ["add", ".delivery/policy.v1.json"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "chore: simplify test gate"], { cwd: repoRoot });
+
+  const featurePath = "features/close.feature";
+  await fs.mkdir(path.join(repoRoot, "features"), { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, featurePath),
+    "Feature: Close\n  Scenario: Done\n    Given ready\n",
+    "utf8"
+  );
+  execFileSync("git", ["add", featurePath], { cwd: repoRoot });
+
+  const first = await prepareDelivery({
+    repoRoot,
+    intent: "close_us",
+    proposedCommitMessage: "test[55]: close delivery",
+    scopeFiles: [featurePath],
+  });
+  assert.strictEqual(first.status, "passed");
+  assert.strictEqual(first.gate.id, "D");
+
+  const context = await loadDeliveryContext({ repoRoot });
+  assert.strictEqual(context.intent, "close_us");
+  assert.strictEqual(context.usId, "55");
+
+  const second = await runPreCommitHook({ repoRoot });
+  assert.strictEqual(second.passed, true, JSON.stringify(second, null, 2));
+  assert.strictEqual(second.outcome.gate.id, "D");
+  assert.strictEqual(second.outcome.cached, true);
+});
+
 test("post-commit hook: asocia commitSha en el ledger y consume contexto activo", async (t) => {
   const repoRoot = await createTempGitRepo(t);
 
-  // 1. Simular evidencia preparada previamente
-  await recordPreparedEvidence({
-    repoRoot,
-    snapshotHash: "a".repeat(64),
-    runKey: "b".repeat(64),
-    status: "passed",
-    recordPath: ".delivery/runtime/runs/test.json",
-  });
+  // 1. Preparar exactamente el árbol que se convertirá en commit.
+  await fs.writeFile(path.join(repoRoot, "note.txt"), "hello", "utf8");
+  execFileSync("git", ["add", "note.txt"], { cwd: repoRoot });
+  const snapshot = await captureGitSnapshot({ cwd: repoRoot });
+  const prepared = await prepareDelivery({ repoRoot });
+  assert.strictEqual(prepared.status, "passed");
 
-  // 2. Simular contexto activo
+  // 2. Contexto ligado al mismo snapshot.
   await saveDeliveryContext({
     repoRoot,
-    snapshot: { branch: "main", headSha: "c".repeat(40), snapshotHash: "a".repeat(64) },
-    intent: "close_scenario",
+    snapshot,
+    intent: "prepare_commit",
   });
 
   // 3. Crear commit en git
-  await fs.writeFile(path.join(repoRoot, "note.txt"), "hello", "utf8");
-  execFileSync("git", ["add", "note.txt"], { cwd: repoRoot });
   execFileSync("git", ["commit", "-m", "docs: add note"], { cwd: repoRoot });
   const headSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
 
@@ -222,14 +248,30 @@ test("post-commit hook: asocia commitSha en el ledger y consume contexto activo"
   const hasEv = await hasCommitEvidence({ repoRoot, commitSha: headSha });
   assert.strictEqual(hasEv, true);
   const ev = await getCommitEvidence({ repoRoot, commitSha: headSha });
-  assert.strictEqual(ev.snapshotHash, "a".repeat(64));
+  assert.strictEqual(ev.snapshotHash, prepared.snapshotHash);
+  assert.strictEqual(ev.treeSha, snapshot.stagedTreeSha);
 
   // 6. Verificar que el contexto fue consumido
   const ctx = await loadDeliveryContext({ repoRoot });
   assert.strictEqual(ctx.consumed, true);
 });
 
-test("pre-push hook: bloquea multiples commits ('un commit, un push') y verifica evidencia en ledger", async (t) => {
+test("post-commit hook: no asocia evidencia si el árbol cambió después de prepare", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.writeFile(path.join(repoRoot, "note.txt"), "prepared", "utf8");
+  execFileSync("git", ["add", "note.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+
+  await fs.writeFile(path.join(repoRoot, "note.txt"), "different committed tree", "utf8");
+  execFileSync("git", ["add", "note.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "docs: add changed note"], { cwd: repoRoot });
+
+  const postRes = await runPostCommitHook({ repoRoot });
+  assert.strictEqual(postRes.recorded, false);
+  assert.strictEqual(postRes.reason, "PREPARED_EVIDENCE_COMMIT_MISMATCH");
+});
+
+test("pre-push hook: bloquea multiples commits y commits sin evidencia exacta", async (t) => {
   const repoRoot = await createTempGitRepo(t);
 
   // Crear remote bare
@@ -259,21 +301,42 @@ test("pre-push hook: bloquea multiples commits ('un commit, un push') y verifica
   assert.strictEqual(pushResMultiple.passed, false);
   assert.strictEqual(pushResMultiple.reason, "MULTIPLE_COMMITS_PUSH");
 
-  // 2. Pre-push con 1 commit nuevo pero SIN evidencia en el ledger -> bloquea por MISSING_EVIDENCE_IN_LEDGER
+  // 2. Pre-push con 1 commit nuevo pero sin evidencia exacta.
   const pushLineSingle = `refs/heads/main ${sha1} refs/heads/main ${baseSha}`;
   const pushResNoEv = await runPrePushHook({ repoRoot, stdinLines: [pushLineSingle] });
   assert.strictEqual(pushResNoEv.passed, false);
-  assert.strictEqual(pushResNoEv.reason, "MISSING_EVIDENCE_IN_LEDGER");
+  assert.strictEqual(pushResNoEv.reason, "INVALID_COMMIT_EVIDENCE");
+  assert.strictEqual(pushResNoEv.evidenceReason, "MISSING_EVIDENCE_IN_LEDGER");
+});
 
-  // 3. Registrar evidencia para sha1 -> permite push
-  await recordCommitEvidence({
-    repoRoot,
-    commitSha: sha1,
-    snapshotHash: "e".repeat(64),
-    recordPath: ".delivery/runtime/runs/test.json",
-  });
-  const pushResWithEv = await runPrePushHook({ repoRoot, stdinLines: [pushLineSingle] });
-  assert.strictEqual(pushResWithEv.passed, true);
+test("pre-push hook: acepta evidencia exacta y bloquea si su record fue alterado", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+  const baseSha = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  }).trim();
+
+  await fs.writeFile(path.join(repoRoot, "file.txt"), "verified", "utf8");
+  execFileSync("git", ["add", "file.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  execFileSync("git", ["commit", "-m", "docs: add verified file"], { cwd: repoRoot });
+  const post = await runPostCommitHook({ repoRoot });
+  assert.strictEqual(post.recorded, true);
+
+  const pushLine = `refs/heads/main ${post.commitSha} refs/heads/main ${baseSha}`;
+  const valid = await runPrePushHook({ repoRoot, stdinLines: [pushLine] });
+  assert.strictEqual(valid.passed, true);
+
+  await fs.writeFile(path.join(repoRoot, post.ledgerEntry.recordPath), "{}\n", "utf8");
+  const tampered = await runPrePushHook({ repoRoot, stdinLines: [pushLine] });
+  assert.strictEqual(tampered.passed, false);
+  assert.strictEqual(tampered.reason, "INVALID_COMMIT_EVIDENCE");
+  assert.strictEqual(tampered.evidenceReason, "EVIDENCE_RECORD_INVALID");
 });
 
 test("repositorio sin hooks sigue pudiendo usar la CLI manualmente", async (t) => {

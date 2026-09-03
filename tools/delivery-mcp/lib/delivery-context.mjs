@@ -63,11 +63,7 @@ export async function saveDeliveryContext({
     consumedAt: null,
   };
 
-  try {
-    validateDeliveryContextResult(context, root);
-  } catch {
-    // schema validation in repo
-  }
+  validateDeliveryContextResult(context, root);
 
   const tempPath = `${absolutePath}.${process.pid}.${Date.now()}.tmp`;
   await fs.mkdir(path.dirname(absolutePath), { recursive: true, mode: 0o700 });
@@ -94,11 +90,17 @@ export async function clearDeliveryContext({ repoRoot } = {}) {
 export async function consumeDeliveryContext({ repoRoot, context } = {}) {
   const root = findRepoRoot(repoRoot);
   const absolutePath = path.resolve(root, DELIVERY_CONTEXT_PATH);
+  const current = context || (await loadDeliveryContext({ repoRoot: root }));
+  if (!current) {
+    return { consumed: false, reason: "NO_CONTEXT" };
+  }
   const updated = {
-    ...(context || (await loadDeliveryContext({ repoRoot: root }))),
+    ...current,
     consumed: true,
     consumedAt: new Date().toISOString(),
   };
+
+  validateDeliveryContextResult(updated, root);
 
   const tempPath = `${absolutePath}.${process.pid}.${Date.now()}.tmp`;
   await fs.mkdir(path.dirname(absolutePath), { recursive: true, mode: 0o700 });
@@ -182,24 +184,46 @@ export function inferWipRemovalScenario(stagedDiffText, stagedFiles) {
 
   const targetFeature = featureFiles[0];
   const lines = stagedDiffText.split(/\r?\n/);
-  let removedWipCount = 0;
+  const removedWipIndexes = [];
   let addedWipCount = 0;
 
-  for (const line of lines) {
+  for (const [index, line] of lines.entries()) {
     if (line.startsWith("---") || line.startsWith("+++")) continue;
     if (line.startsWith("-") && /(?:^|\s)@wip(?:\s|$)/.test(line.slice(1))) {
-      removedWipCount += 1;
+      removedWipIndexes.push(index);
     }
     if (line.startsWith("+") && /(?:^|\s)@wip(?:\s|$)/.test(line.slice(1))) {
       addedWipCount += 1;
     }
   }
 
-  if (removedWipCount === 1 && addedWipCount === 0) {
+  if (removedWipIndexes.length !== 1 || addedWipCount !== 0) return null;
+
+  const removedIndex = removedWipIndexes[0];
+  let scenarioName = null;
+  for (let index = removedIndex + 1; index < lines.length; index += 1) {
+    const diffLine = lines[index];
+    if (diffLine.startsWith("diff --git ") || diffLine.startsWith("@@")) break;
+    if (diffLine.startsWith("---") || diffLine.startsWith("+++")) continue;
+
+    const sourceLine = /^[ +\-]/.test(diffLine) ? diffLine.slice(1).trim() : diffLine.trim();
+    if (!sourceLine || sourceLine.startsWith("#") || sourceLine.startsWith("@")) continue;
+
+    const scenarioMatch = sourceLine.match(
+      /^(?:Scenario(?: Outline)?|Example|Escenario|Esquema del escenario):\s*(.+)$/i
+    );
+    if (scenarioMatch) {
+      scenarioName = scenarioMatch[1].trim();
+    }
+    break;
+  }
+
+  if (scenarioName) {
     return {
       inferred: true,
       intent: "close_scenario",
       featureFile: targetFeature,
+      scenarioName,
     };
   }
 

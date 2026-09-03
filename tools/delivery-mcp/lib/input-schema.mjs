@@ -11,6 +11,7 @@ export const DeliveryInspectInputSchema = z.object({
 });
 
 export const DeliveryPrepareInputSchema = DeliveryInspectInputSchema.extend({
+  force: z.boolean().default(false),
   acknowledgement: z
     .object({
       snapshotHash: z.string().length(64),

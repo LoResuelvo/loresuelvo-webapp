@@ -6,7 +6,11 @@ import { isProductionSourceFile } from "./classify-files.mjs";
 
 const execFileAsync = util.promisify(execFile);
 
-export async function runMaintainabilityAudit({ stagedFiles = [], repoRoot = process.cwd() } = {}) {
+export async function runMaintainabilityAudit({
+  stagedFiles = [],
+  repoRoot = process.cwd(),
+  maxSignals = 20,
+} = {}) {
   // 1. Filter production files that exist on disk
   const productFiles = [];
 
@@ -79,7 +83,8 @@ export async function runMaintainabilityAudit({ stagedFiles = [], repoRoot = pro
       status: signalCount > 0 ? "review_required" : "clear",
       filesReviewed,
       signalCount,
-      signals: allSignals.slice(0, 20),
+      signals: allSignals.slice(0, maxSignals),
+      truncated: signalCount > maxSignals,
     };
   } catch (error) {
     return {

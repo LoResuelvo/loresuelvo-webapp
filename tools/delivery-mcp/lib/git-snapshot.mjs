@@ -71,6 +71,10 @@ export function parsePorcelainStatus(porcelainBuffer) {
         i += 1;
       }
 
+      if (file === ".delivery/runtime" || file === ".delivery/runtime/" || file.startsWith(".delivery/runtime/")) {
+        continue;
+      }
+
       if (x === "?" && y === "?") {
         untracked.push(file);
       } else {
@@ -98,6 +102,10 @@ export function parsePorcelainStatus(porcelainBuffer) {
       file = file.split(" -> ")[1].trim();
     }
     file = file.replace(/^"|"$/g, "");
+
+    if (file === ".delivery/runtime" || file === ".delivery/runtime/" || file.startsWith(".delivery/runtime/")) {
+      continue;
+    }
 
     if (x === "?" && y === "?") {
       untracked.push(file);
@@ -177,6 +185,10 @@ export async function captureGitSnapshot({
   const diffBuffer = diffRes.stdout;
   const diffSizeBytes = diffBuffer.length;
 
+  const treeRes = await runGit(["write-tree"], repoRoot);
+  assertGitSucceeded(treeRes, "write-tree");
+  const stagedTreeSha = treeRes.stdout.toString("utf8").trim();
+
   const hash = crypto.createHash("sha256");
   hash.update(diffBuffer);
   const snapshotHash = hash.digest("hex");
@@ -229,6 +241,7 @@ export async function captureGitSnapshot({
     diffSizeBytes,
     stagedDiffText: diffBuffer.toString("utf8"),
     snapshotHash,
+    stagedTreeSha,
     proposedCommitMessage,
     proposedUsId,
     recentUsIds,

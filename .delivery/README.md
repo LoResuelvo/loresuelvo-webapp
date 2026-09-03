@@ -1,29 +1,54 @@
 # Delivery runner
 
-El delivery runner convierte el snapshot staged en una decisión y una ejecución reproducibles. Su núcleo no depende de Codex ni de otro proveedor de agentes.
+El delivery runner convierte el snapshot staged en una decisión y una ejecución determinísticas y reproducibles. Su núcleo es neutral y no depende de Codex ni de un proveedor específico de agentes.
 
-## Entradas
+## Política versionada
+
+La política formal en `.delivery/policy.v1.json` es la **única fuente autoritativa** que decide:
+- Clasificación de archivos (`classification.rules` y `fallback`).
+- Composición y orden de gates (`NONE`, `0`, `A`, `B`, `C`, `D`).
+- Catálogo de checks permitidos y timeouts (`checkCatalog`).
+- Límites de tamaño de diff, número de archivos y líneas de diagnósticos (`limits`).
+
+## Entradas principales
 
 ```bash
 npm run delivery:inspect -- --intent prepare_commit --message '<mensaje>'
 npm run delivery:prepare -- --intent prepare_commit --message '<mensaje>'
+npm run delivery:ci -- --sha <commit-sha>
+npm run delivery:finalize -- --intent close_us --scope features/<feature>.feature
 ```
 
-- `delivery:inspect` calcula el gate y la revisión de mantenibilidad sin correr tests.
-- `delivery:prepare` repite la inspección y ejecuta el gate local en fail-fast.
-- El servidor de `tools/delivery-mcp/server.mjs` expone las mismas operaciones como `delivery_inspect` y `delivery_prepare`.
-- `.codex/config.toml` solo registra el adaptador MCP para quienes usan Codex; no es necesario para usar la CLI.
+- `delivery:inspect`: clasifica archivos, selecciona el gate y audita señales de mantenibilidad sin ejecutar comandos pesados.
+- `delivery:prepare`: repite la inspección sobre el snapshot staged exacto y ejecuta el gate en fail-fast.
+- `delivery_inspect`, `delivery_prepare` y `delivery_ci_inspect` están disponibles en el servidor MCP (`tools/delivery-mcp/server.mjs`).
+- Los agentes consumen únicamente respuestas estructuradas y normalizadas; **no deben calcular gates ni procesar tracebacks completos**.
 
-Los intents válidos son `prepare_commit`, `close_scenario`, `close_batch` y `close_us`. Gate B puede requerir `--feature`; Gate D acepta uno o más `--scope` con feature files terminados.
+Intents válidos: `prepare_commit`, `close_scenario`, `close_batch`, `close_us`.
+Gate B requiere o infiere exactamente un archivo de feature (`--feature`). Gate D verifica la ausencia total de `@wip` en el alcance (`--scope`).
 
-## Evidencia
+## Evidencia, caché y ledger
 
-La salida estándar es JSON compacto. Un gate exitoso devuelve `status: passed`, su `runKey`, resumen por check y la ruta del ledger. Ante una falla devuelve únicamente un diagnóstico normalizado y hasta seis líneas causales. Los logs completos, locks, caché y records se guardan en `.delivery/runtime/`, que Git ignora.
+- **Ligadura criptográfica**: Cada ejecución genera una `runKey` basada en diff staged, árbol (`stagedTreeSha`), HEAD, política, gate, parámetros y archivos staged.
+- **Caché determinística**: Cubre tanto éxitos como fallos idénticos sobre el mismo snapshot (registrando `attemptCount`).
+- **Forzado explícito**: `--force` evita la caché y ejecuta nuevamente todos los checks del gate.
+- **Ledger local**: Al commitear, `post-commit` asocia el `commitSha` con la evidencia preparada (`snapshotHash`, `treeSha`, `runKey`) en `.delivery/runtime/ledger/`.
+- Todos los logs crudos, caches y locks se guardan en `.delivery/runtime/`, ignorados por Git.
 
-La caché solo reutiliza una ejecución verde cuando coinciden el diff staged, HEAD, política, gate, parámetros y archivos staged, y no existen cambios unstaged o untracked visibles.
+## Auditoría de mantenibilidad
 
-Una señal de mantenibilidad sigue requiriendo juicio. Después de revisarla, puede aceptarse solo para el hash exacto con `--acknowledge-snapshot` y `--acknowledge-reason`; la justificación queda en el record local.
+Ante `review_required`, cada señal detectada debe ser revisada y justificada individualmente:
+```bash
+npm run delivery:prepare -- --intent prepare_commit --message '<mensaje>' \
+  --acknowledge-snapshot <snapshotHash> \
+  --acknowledge-decision '<signal-id>=<justificación de al menos 12 caracteres>'
+```
+No se admite bypass genérico. Señales truncadas por exceder los límites de política bloquean el commit hasta reducir el alcance.
 
-## Límites
+## Hooks de Git y Codex
 
-El runner local nunca crea commits, hace push ni declara CI verde. `ci_green` aparece como comprobación post-push pendiente en Gate D. La automatización remota debe consumir el SHA ya creado en una fase separada.
+- **Instalación**: Los hooks versionados (`.githooks/`) se configuran manualmente una vez por clon mediante `npm run delivery:hooks:install`. **No se instalan ni activan automáticamente al correr npm install**.
+- **Protección principal**: Los hooks de Git (`pre-commit`, `commit-msg`, `post-commit`, `pre-push`) son la barrera principal del repositorio local. El hook de Codex (`.codex/hooks.json`) es opcional y anticipatorio (advisory).
+- **Mecanismos de bypass**: Ningún hook local se describe como imposible de omitir; Git permite omisiones deliberadas (`--no-verify`). La seguridad final del repositorio depende de CI remoto y la protección de ramas en GitHub.
+- **Pre-push y CI**: El hook `pre-push` hace cumplir "un commit, un push", verifica que el commit posea evidencia válida en el ledger y comprueba que commits anteriores no tengan CI fallido. El flag de degradación offline (`DELIVERY_SKIP_CI_CHECK=1`) permite continuar sin red en commits previos, pero **no convierte un CI fallido o desconocido en exitoso**.
+- **Finalización de US**: `delivery:finalize` solamente acepta `status: passed` en CI para autorizar el cierre.

@@ -85,6 +85,20 @@ test("selectGate: cierre de escenario sin feature inferible ni especificada -> s
   assert.ok(result.diagnostics.some((d) => d.code === "MISSING_FEATURE_FOR_GATE_B"));
 });
 
+test("selectGate: Gate B rechaza multiples features aunque se declare una explicitamente", () => {
+  const result = selectGate({
+    intent: "close_scenario",
+    featureFile: "features/auth/login.feature",
+    snapshot: {
+      stagedFiles: ["features/auth/login.feature", "features/auth/logout.feature"],
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "B");
+  assert.strictEqual(result.status, "needs_input");
+  assert.ok(result.diagnostics.some((d) => d.code === "AMBIGUOUS_FEATURE_FOR_GATE_B"));
+});
+
 test("selectGate: Server Action, layout, routing, auth, API o componente compartido -> Gate C", () => {
   const cases = [
     ["app/proposals/page.tsx"],
@@ -173,19 +187,31 @@ test("selectGate: documentación o configuración solamente -> Gate NONE", () =>
 });
 
 test("selectGate: cambios del delivery runner ejecutan sus tests en Gate A", () => {
-  const result = selectGate({
-    intent: "prepare_commit",
-    snapshot: {
-      stagedFiles: [
-        ".delivery/policy.v1.json",
-        "tools/delivery-mcp/lib/run-gate.mjs",
-      ],
-    },
-  });
+  const cases = [
+    ".delivery/policy.v1.json",
+    "tools/delivery-mcp/lib/run-gate.mjs",
+    ".githooks/pre-push",
+    ".codex/delivery-guard.mjs",
+    ".github/workflows/ci.yml",
+    "Makefile",
+  ];
 
-  assert.strictEqual(result.gate.id, "A");
-  assert.ok(result.gate.checkIds.includes("delivery_unit"));
-  assert.ok(result.gate.reasonCodes.includes("DELIVERY_TOOLING_CHANGED"));
+  for (const file of cases) {
+    const result = selectGate({
+      intent: "prepare_commit",
+      snapshot: { stagedFiles: [file] },
+    });
+    assert.strictEqual(result.gate.id, "A", `${file} must receive Gate A`);
+    assert.ok(result.gate.checkIds.includes("delivery_unit"));
+    assert.ok(result.gate.reasonCodes.includes("DELIVERY_TOOLING_CHANGED"));
+  }
+});
+
+test("selectGate: rutas runtime y desconocidas fallan hacia Gate C", () => {
+  for (const file of ["middleware.ts", "next.config.mjs", "scripts/release.sh"]) {
+    const result = selectGate({ intent: "prepare_commit", snapshot: { stagedFiles: [file] } });
+    assert.strictEqual(result.gate.id, "C", `${file} must fail closed to Gate C`);
+  }
 });
 
 test("selectGate: diff mixto -> gate de mayor cobertura", () => {
@@ -253,7 +279,7 @@ test("selectGate: cambios unstaged en el mismo archivo staged -> blocked", () =>
   assert.ok(result.diagnostics.some((d) => d.code === "UNSTAGED_CONFLICT"));
 });
 
-test("selectGate: cambios unstaged no relacionados -> warning, no bloqueado", () => {
+test("selectGate: cambios unstaged no relacionados bloquean evidencia fuera del snapshot", () => {
   const result = selectGate({
     intent: "prepare_commit",
     snapshot: {
@@ -263,8 +289,8 @@ test("selectGate: cambios unstaged no relacionados -> warning, no bloqueado", ()
     },
   });
 
-  assert.strictEqual(result.status, "ready");
-  assert.ok(result.diagnostics.some((d) => d.code === "UNSTAGED_CHANGES"));
+  assert.strictEqual(result.status, "blocked");
+  assert.ok(result.diagnostics.some((d) => d.code === "DIRTY_WORKTREE_OUTSIDE_SNAPSHOT"));
 });
 
 test("selectGate: cambios unstaged del control plane bloquean evidencia ambigua", () => {

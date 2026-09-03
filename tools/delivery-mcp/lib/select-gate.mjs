@@ -1,4 +1,8 @@
-import { classifyFiles, normalizePath } from "./classify-files.mjs";
+import {
+  classifyFiles,
+  isDeliveryControlPlanePath,
+  normalizePath,
+} from "./classify-files.mjs";
 
 function policyGate(policy, gateId) {
   const gate = policy?.gates?.[gateId];
@@ -57,26 +61,9 @@ function pushDiagnostic(diagnostics, code, message) {
   diagnostics.push({ code, message, retryable: false });
 }
 
-function isDeliveryControlPlane(file) {
-  const normalized = normalizePath(file);
-  return (
-    normalized.startsWith("tools/delivery-mcp/") ||
-    normalized.startsWith(".delivery/") ||
-    normalized.startsWith(".githooks/") ||
-    [
-      "package.json",
-      "package-lock.json",
-      "Makefile",
-      "cucumber.json",
-      "tsconfig.cucumber.json",
-      "tsconfig.json",
-      "vitest.config.ts",
-    ].includes(normalized)
-  );
-}
-
-function initialStatus({ snapshot, diagnostics, limits }) {
+function initialStatus({ snapshot, diagnostics, policy }) {
   let status = "ready";
+  const { limits } = policy;
 
   if (snapshot?.diffTooLarge) {
     status = "blocked";
@@ -115,25 +102,27 @@ function initialStatus({ snapshot, diagnostics, limits }) {
   }
 
   if ((snapshot?.unrelatedUnstaged || []).length > 0) {
+    status = "blocked";
     pushDiagnostic(
       diagnostics,
-      "UNSTAGED_CHANGES",
-      `Working tree has ${snapshot.unrelatedUnstaged.length} unstaged modification(s) unrelated to staged files`
+      "DIRTY_WORKTREE_OUTSIDE_SNAPSHOT",
+      `Working tree has ${snapshot.unrelatedUnstaged.length} unstaged modification(s) outside the staged snapshot`
     );
   }
 
   if ((snapshot?.untracked || []).length > 0) {
+    status = "blocked";
     pushDiagnostic(
       diagnostics,
-      "UNTRACKED_CHANGES",
-      `Working tree has ${snapshot.untracked.length} untracked path(s); successful evidence will not be cached`
+      "DIRTY_WORKTREE_OUTSIDE_SNAPSHOT",
+      `Working tree has ${snapshot.untracked.length} untracked path(s) outside the staged snapshot`
     );
   }
 
   const dirtyControlPlane = [
     ...(snapshot?.unrelatedUnstaged || []),
     ...(snapshot?.untracked || []),
-  ].filter(isDeliveryControlPlane);
+  ].filter((file) => isDeliveryControlPlanePath(file, policy));
   if (dirtyControlPlane.length > 0) {
     status = "blocked";
     pushDiagnostic(
@@ -165,8 +154,8 @@ export function selectGate({
     };
   }
 
-  let status = initialStatus({ snapshot, diagnostics, limits: policy.limits });
-  const classified = classifyFiles(stagedFiles);
+  let status = initialStatus({ snapshot, diagnostics, policy });
+  const classified = classifyFiles(stagedFiles, policy);
   let gate;
 
   const closesHighRiskScenario = intent === "close_scenario" && classified.hasGateCTrigger;
@@ -194,8 +183,8 @@ export function selectGate({
   } else if (classified.hasGateCTrigger) {
     gate = buildGate(policy, "C", ["SHARED_OR_HIGH_RISK_CHANGES"]);
   } else if (intent === "close_scenario") {
-    const inferredFeatures = uniqueFeaturePaths(stagedFiles);
-    const targetFeature = featureFile || (inferredFeatures.length === 1 ? inferredFeatures[0] : "");
+    const featureCandidates = uniqueFeaturePaths([featureFile, ...stagedFiles]);
+    const targetFeature = featureCandidates.length === 1 ? featureCandidates[0] : "";
     gate = buildGate(policy, "B", ["INTENT_CLOSE_SCENARIO_LOW_RISK"], {
       featureFile: targetFeature,
     });
@@ -203,8 +192,12 @@ export function selectGate({
       status = "needs_input";
       pushDiagnostic(
         diagnostics,
-        "MISSING_FEATURE_FOR_GATE_B",
-        "Gate B requires featureFile when a single staged feature cannot be inferred"
+        featureCandidates.length > 1
+          ? "AMBIGUOUS_FEATURE_FOR_GATE_B"
+          : "MISSING_FEATURE_FOR_GATE_B",
+        featureCandidates.length > 1
+          ? `Gate B requires exactly one feature, but resolved ${featureCandidates.length}: ${featureCandidates.join(", ")}`
+          : "Gate B requires exactly one feature path, inferred or explicitly declared"
       );
     }
   } else if (classified.hasOnlyGate0) {

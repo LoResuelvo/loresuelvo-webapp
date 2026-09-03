@@ -73,7 +73,12 @@ Si MCP no está disponible, usar las entradas neutrales equivalentes:
 ```bash
 npm run delivery:inspect -- --intent prepare_commit
 npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuesto>'
+npm run delivery:prepare -- --intent prepare_commit --message '<mensaje>' \
+  --acknowledge-snapshot <snapshotHash> \
+  --acknowledge-decision '<signal-id>=<justificación>'
 ```
+
+Cada justificación debe tener al menos 12 caracteres y cubrir de forma determinística la señal (`<signal-id>`). Si las señales exceden el límite y son truncadas por la política, no pueden aprobarse parcialmente y bloquean el commit hasta reducir el alcance.
 
 Para una revisión focalizada sobre archivos concretos:
 

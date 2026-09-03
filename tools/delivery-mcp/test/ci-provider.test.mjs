@@ -104,16 +104,28 @@ test("GitHubActionsProvider: normaliza respuestas crudas de GitHub Actions", () 
   assert.strictEqual(normalQueue.retryable, false);
 });
 
-test("DELIVERY_SKIP_CI_CHECK: omite chequeo de red y devuelve passed", async () => {
-  const original = process.env.DELIVERY_SKIP_CI_CHECK;
-  try {
-    process.env.DELIVERY_SKIP_CI_CHECK = "1";
-    const provider = new GitHubActionsProvider();
-    const result = await provider.inspectCommit("c".repeat(40));
-    assert.strictEqual(result.status, "passed");
-  } finally {
-    process.env.DELIVERY_SKIP_CI_CHECK = original || "";
-  }
+test("GitHubActionsProvider: extrae el primer job y step causal sin logs completos", () => {
+  const provider = new GitHubActionsProvider();
+  const details = provider.failureFromJobs([
+    {
+      databaseId: 10,
+      name: "lint-and-unit-tests",
+      conclusion: "failure",
+      steps: [
+        { name: "Checkout", conclusion: "success" },
+        { name: "Run delivery contracts", conclusion: "failure" },
+      ],
+    },
+    { databaseId: 11, name: "e2e", conclusion: "cancelled", steps: [] },
+  ]);
+
+  assert.deepStrictEqual(details.failedJobs, ["lint-and-unit-tests", "e2e"]);
+  assert.strictEqual(details.firstJobId, 10);
+  assert.strictEqual(
+    details.failure.message,
+    "Job 'lint-and-unit-tests' failed at step 'Run delivery contracts'"
+  );
+  assert.ok(details.failure.excerpt.includes("Step: Run delivery contracts"));
 });
 
 test("paridad CLI y MCP para delivery_ci_inspect", async () => {

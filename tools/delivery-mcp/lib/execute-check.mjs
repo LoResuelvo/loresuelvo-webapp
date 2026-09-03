@@ -1,8 +1,6 @@
 import { spawn } from "node:child_process";
-import fs from "node:fs";
 import fsPromises from "node:fs/promises";
 import path from "node:path";
-import { once } from "node:events";
 import { redactSecrets } from "./redact-secrets.mjs";
 import { SAFE_COMMANDS } from "./policy-loader.mjs";
 import { assertSafeRepoPath } from "./repo-root.mjs";
@@ -121,21 +119,15 @@ export function summarizeFailureOutput(output, maxLines = 6) {
   return unique;
 }
 
-async function finishLog(logStream) {
-  const finished = once(logStream, "finish");
-  logStream.end();
-  await finished;
-}
-
 async function executeCommandCheck({ check, repoRoot, logPath, limits = {} }) {
   assertSafeRepoPath(repoRoot, logPath, "Log path");
   assertCommandAllowed(check.command, check.args);
 
   const absoluteLogPath = path.resolve(repoRoot, logPath);
   await fsPromises.mkdir(path.dirname(absoluteLogPath), { recursive: true });
-  const logStream = fs.createWriteStream(absoluteLogPath, { flags: "wx", mode: 0o600 });
-  let outputTail = "";
-  let loggedBytes = 0;
+  const capturedChunks = [];
+  let capturedBytes = 0;
+  let outputTail = Buffer.alloc(0);
   let outputTruncated = false;
   const startedAt = Date.now();
   const maxLogBytes = limits.maxCheckLogBytes ?? 5242880;
@@ -150,15 +142,13 @@ async function executeCommandCheck({ check, repoRoot, logPath, limits = {} }) {
   });
 
   function capture(chunk) {
-    const rawText = chunk.toString("utf8");
-    const redactedText = redactSecrets(rawText);
-    const buffer = Buffer.from(redactedText, "utf8");
-    outputTail = (outputTail + redactedText).slice(-20000);
-    const remaining = maxLogBytes - loggedBytes;
+    const buffer = Buffer.from(chunk);
+    outputTail = Buffer.concat([outputTail, buffer]).subarray(-20000);
+    const remaining = maxLogBytes - capturedBytes;
     if (remaining > 0) {
-      const writable = buffer.subarray(0, remaining);
-      logStream.write(writable);
-      loggedBytes += writable.length;
+      const captured = buffer.subarray(0, remaining);
+      capturedChunks.push(captured);
+      capturedBytes += captured.length;
     }
     if (buffer.length > remaining) outputTruncated = true;
   }
@@ -208,12 +198,12 @@ async function executeCommandCheck({ check, repoRoot, logPath, limits = {} }) {
     child.on("close", (exitCode, signal) => finish({ exitCode, signal, error: null }));
   });
   clearTimeout(timeout);
+  if (timedOut) signalProcessTree("SIGKILL");
   if (forceKillTimeout) clearTimeout(forceKillTimeout);
 
-  if (outputTruncated) {
-    logStream.write("\n[delivery runner truncated this log]\n");
-  }
-  await finishLog(logStream);
+  let safeLog = redactSecrets(Buffer.concat(capturedChunks).toString("utf8"));
+  if (outputTruncated) safeLog += "\n[delivery runner truncated this log]\n";
+  await fsPromises.writeFile(absoluteLogPath, safeLog, { flag: "wx", mode: 0o600 });
 
   const durationMs = Date.now() - startedAt;
   const passed = !timedOut && !outcome.error && outcome.exitCode === 0;
@@ -224,7 +214,8 @@ async function executeCommandCheck({ check, repoRoot, logPath, limits = {} }) {
         maxSummaryLines
       );
   const code = timedOut ? "CHECK_TIMEOUT" : outcome.error ? "CHECK_START_FAILED" : "CHECK_FAILED";
-  const locations = passed ? [] : extractLocations(outputTail || outcome.error?.message || "");
+  const safeTail = redactSecrets(outputTail.toString("utf8"));
+  const locations = passed ? [] : extractLocations(safeTail || outcome.error?.message || "");
 
   return {
     id: check.id,

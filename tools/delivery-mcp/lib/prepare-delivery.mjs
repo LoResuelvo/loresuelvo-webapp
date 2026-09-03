@@ -2,7 +2,8 @@ import { inspectDelivery } from "./inspect-delivery.mjs";
 import { runGate } from "./run-gate.mjs";
 import { findRepoRoot } from "./repo-root.mjs";
 import { validateExecutionResult } from "./validate-schema.mjs";
-import { recordPreparedEvidence } from "./delivery-ledger.mjs";
+import { recordPreparedEvidence, verifyPreparedEvidence } from "./delivery-ledger.mjs";
+import { saveDeliveryContext } from "./delivery-context.mjs";
 
 
 function stoppedResult(inspection, status, extraDiagnostic, repoRoot) {
@@ -16,9 +17,12 @@ function stoppedResult(inspection, status, extraDiagnostic, repoRoot) {
     snapshotHash: inspection.snapshotHash,
     runKey: null,
     cached: false,
+    policy: inspection.policy,
     gate: {
       id: inspection.gate.id,
       reasonCodes: inspection.gate.reasonCodes,
+      checkIds: inspection.gate.checkIds,
+      parameters: inspection.gate.parameters,
       postPushChecks: inspection.gate.postPushChecks,
     },
     summary: { passed: 0, failed: 0, skipped: inspection.gate.checkIds.length, durationMs: 0 },
@@ -26,11 +30,7 @@ function stoppedResult(inspection, status, extraDiagnostic, repoRoot) {
     diagnostics,
     evidence: { recordPath: null },
   };
-  try {
-    validateExecutionResult(res, repoRoot);
-  } catch {
-    // Ignore schema validation errors during testing when schemas may not be in place
-  }
+  validateExecutionResult(res, repoRoot);
   return res;
 }
 
@@ -69,6 +69,21 @@ export function resolveReview(inspection, acknowledgement) {
   // 3. Must cover every signal with a stable id and justification (>= 12 chars).
   // Criterion 10: "No aceptar bypass genérico de todas las señales."
   const signals = inspection.maintainability?.signals || [];
+  if (
+    inspection.maintainability?.truncated ||
+    (inspection.maintainability?.signalCount || 0) > signals.length
+  ) {
+    return {
+      accepted: false,
+      status: "blocked",
+      diagnostic: {
+        code: "MAINTAINABILITY_SIGNAL_LIMIT_EXCEEDED",
+        message:
+          "Maintainability signals exceed the policy display limit. Reduce the changed scope or resolve signals before preparing the commit",
+        retryable: false,
+      },
+    };
+  }
   const decisionsMap = new Map();
 
   if (acknowledgement.decisions) {
@@ -141,17 +156,28 @@ export function resolveReview(inspection, acknowledgement) {
 export async function prepareDelivery({
   repoRoot,
   acknowledgement,
+  force = false,
   ...inspectionInput
 } = {}) {
   const root = findRepoRoot(repoRoot);
   const context = await inspectDelivery({ repoRoot: root, ...inspectionInput });
-  const { result: inspection, snapshot, policy } = context;
+  const { result: inspection, snapshot, policy, resolvedInput } = context;
 
   if (inspection.status === "no_changes") {
     return stoppedResult(inspection, "no_changes", null, root);
   }
   if (inspection.status === "blocked" || inspection.status === "needs_input") {
     return stoppedResult(inspection, inspection.status, null, root);
+  }
+
+  if (!force) {
+    const prepared = await verifyPreparedEvidence({
+      repoRoot: root,
+      snapshot,
+      inspection,
+      intent: resolvedInput.intent,
+    });
+    if (prepared.valid) return { ...prepared.record, cached: true };
   }
 
   const review = resolveReview(inspection, acknowledgement);
@@ -165,19 +191,34 @@ export async function prepareDelivery({
     policy,
     repoRoot: root,
     review: review.review,
+    force,
   });
 
-  try {
-    await recordPreparedEvidence({
+  if (outcome.status === "passed" && resolvedInput.intent !== "prepare_commit") {
+    await saveDeliveryContext({
       repoRoot: root,
-      snapshotHash: outcome.snapshotHash,
-      runKey: outcome.runKey,
-      status: outcome.status,
-      recordPath: outcome.evidence?.recordPath,
+      snapshot,
+      intent: resolvedInput.intent,
+      usId: resolvedInput.usId,
+      featureFile: resolvedInput.featureFile,
+      scenarioName: resolvedInput.scenarioName,
+      scopeFiles: resolvedInput.scopeFiles,
     });
-  } catch {
-    // Ignore ledger write issues
   }
+
+  await recordPreparedEvidence({
+    repoRoot: root,
+    snapshot,
+    inspection,
+    intent: resolvedInput.intent,
+    usId: resolvedInput.usId,
+    featureFile: resolvedInput.featureFile,
+    scenarioName: resolvedInput.scenarioName,
+    scopeFiles: resolvedInput.scopeFiles,
+    runKey: outcome.runKey,
+    status: outcome.status,
+    recordPath: outcome.evidence?.recordPath,
+  });
 
   return outcome;
 }

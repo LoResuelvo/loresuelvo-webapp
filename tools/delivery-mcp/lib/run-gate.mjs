@@ -37,9 +37,12 @@ function baseResult({ inspection, runKey, status, diagnostics = [] }) {
     snapshotHash: inspection.snapshotHash,
     runKey,
     cached: false,
+    policy: inspection.policy,
     gate: {
       id: inspection.gate.id,
       reasonCodes: inspection.gate.reasonCodes,
+      checkIds: inspection.gate.checkIds,
+      parameters: inspection.gate.parameters,
       postPushChecks: inspection.gate.postPushChecks,
     },
     summary: { passed: 0, failed: 0, skipped: inspection.gate.checkIds.length, durationMs: 0 },
@@ -67,6 +70,7 @@ export async function runGate({
   repoRoot,
   review = { status: "not_required" },
   executeCheck = executeCheckDefault,
+  force = false,
 } = {}) {
   const runKey = computeRunKey({ inspection, snapshot });
   let checks;
@@ -87,34 +91,34 @@ export async function runGate({
         },
       ].slice(0, policy.limits.maxDiagnostics),
     });
-    try {
-      validateExecutionResult(res, repoRoot);
-    } catch {
-      // ignore in tests without schema
-    }
+    validateExecutionResult(res, repoRoot);
     return res;
   }
 
   // 1. Re-use cached green evidence on identical snapshot
-  const cachedSuccess = await loadCachedSuccess({
-    repoRoot,
-    runKey,
-    cacheable: snapshot.cacheable,
-  });
-  if (cachedSuccess) return cachedSuccess;
+  if (!force) {
+    const cachedSuccess = await loadCachedSuccess({
+      repoRoot,
+      runKey,
+      cacheable: snapshot.cacheable,
+    });
+    if (cachedSuccess) return cachedSuccess;
+  }
 
   // 2. Re-use cached identical failure on identical snapshot (Criterion 19 & 20)
-  const cachedFailure = await loadCachedFailure({
-    repoRoot,
-    runKey,
-    cacheable: snapshot.cacheable,
-  });
-  if (cachedFailure) {
-    if (cachedFailure.failure) {
-      cachedFailure.failure.attemptCount = (cachedFailure.failure.attemptCount || 1) + 1;
-      await saveRunEvidence({ repoRoot, result: cachedFailure, cacheable: snapshot.cacheable });
+  if (!force) {
+    const cachedFailure = await loadCachedFailure({
+      repoRoot,
+      runKey,
+      cacheable: snapshot.cacheable,
+    });
+    if (cachedFailure) {
+      if (cachedFailure.failure) {
+        cachedFailure.failure.attemptCount = (cachedFailure.failure.attemptCount || 1) + 1;
+        await saveRunEvidence({ repoRoot, result: cachedFailure, cacheable: snapshot.cacheable });
+      }
+      return { ...cachedFailure, cached: true };
     }
-    return { ...cachedFailure, cached: true };
   }
 
   // 3. Acquire run lock to prevent concurrent runs
@@ -135,11 +139,7 @@ export async function runGate({
         },
       ].slice(0, policy.limits.maxDiagnostics),
     });
-    try {
-      validateExecutionResult(res, repoRoot);
-    } catch {
-      // ignore
-    }
+    validateExecutionResult(res, repoRoot);
     return res;
   }
 
@@ -236,11 +236,7 @@ export async function runGate({
       result.failure = failureObj;
     }
 
-    try {
-      validateExecutionResult(result, repoRoot);
-    } catch {
-      // ignore in tests without schema
-    }
+    validateExecutionResult(result, repoRoot);
 
     await saveRunEvidence({ repoRoot, result, cacheable: snapshot.cacheable });
     return result;

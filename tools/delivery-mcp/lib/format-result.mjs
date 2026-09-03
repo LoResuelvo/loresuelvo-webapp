@@ -14,7 +14,8 @@ export function formatInspectionResult({
   }
 
   // Sanitize diagnostics: ensure no stack traces or raw errors leak
-  const sanitizedDiagnostics = diagnostics.slice(0, 20).map((d) => {
+  const maxDiagnostics = policy?.limits?.maxDiagnostics ?? 20;
+  const sanitizedDiagnostics = diagnostics.slice(0, maxDiagnostics).map((d) => {
     const item = {
       code: String(d.code || "DELIVERY_UNKNOWN"),
       message: String(d.message || "An unspecified inspection error occurred").split("\n")[0],
@@ -25,7 +26,8 @@ export function formatInspectionResult({
     return item;
   });
 
-  const sanitizedSignals = (maintainability?.signals || []).slice(0, 20).map((s) => ({
+  const maxSignals = policy?.limits?.maxSignals ?? 20;
+  const sanitizedSignals = (maintainability?.signals || []).slice(0, maxSignals).map((s) => ({
     id: String(s.id || `${s.rule || "unknown"}:${s.file || "unknown"}:${s.line || 1}`),
     rule: String(s.rule || "unknown"),
     file: String(s.file || "unknown"),
@@ -61,15 +63,15 @@ export function formatInspectionResult({
       filesReviewed: maintainability?.filesReviewed || [],
       signalCount: maintainability?.signalCount ?? sanitizedSignals.length,
       signals: sanitizedSignals,
+      truncated: Boolean(
+        maintainability?.truncated ||
+          (maintainability?.signalCount ?? sanitizedSignals.length) > sanitizedSignals.length
+      ),
     },
     diagnostics: sanitizedDiagnostics,
   };
 
-  try {
-    validateInspectionResult(result, repoRoot);
-  } catch {
-    // Graceful if schema file not loaded in isolated test
-  }
+  validateInspectionResult(result, repoRoot);
 
   return result;
 }

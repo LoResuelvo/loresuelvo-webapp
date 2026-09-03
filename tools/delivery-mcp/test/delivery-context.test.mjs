@@ -182,6 +182,7 @@ test("safe inference: retiro de @wip en diff staged de un unico escenario sugier
   assert.ok(inferred, "inferred result present");
   assert.strictEqual(inferred.intent, "close_scenario");
   assert.strictEqual(inferred.featureFile, "features/provider/reviews.feature");
+  assert.strictEqual(inferred.scenarioName, "Provider reviews list");
 
   // Multi-feature or adding @wip does not infer
   const diffAdded = diffWithWipRemoval + "\n+  @wip";
@@ -189,6 +190,16 @@ test("safe inference: retiro de @wip en diff staged de un unico escenario sugier
 
   const multiFiles = ["features/a.feature", "features/b.feature"];
   assert.strictEqual(inferWipRemovalScenario(diffWithWipRemoval, multiFiles), null);
+
+  const featureLevelTag = [
+    "diff --git a/features/provider/reviews.feature b/features/provider/reviews.feature",
+    "--- a/features/provider/reviews.feature",
+    "+++ b/features/provider/reviews.feature",
+    "@@ -1,3 +1,2 @@",
+    "-@wip",
+    " Feature: Provider reviews",
+  ].join("\n");
+  assert.strictEqual(inferWipRemovalScenario(featureLevelTag, stagedFiles), null);
 });
 
 test("paridad CLI / MCP para contexto activo en inspectDelivery", async () => {

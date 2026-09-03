@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { findRepoRoot, assertSafeRepoPath } from "./repo-root.mjs";
+import { validateAgainstSchema } from "./validate-schema.mjs";
 
 export const DELIVERY_POLICY_PATH = ".delivery/policy.v1.json";
 
@@ -45,11 +46,33 @@ function assertSafeCheck(checkId, definition) {
   throw new Error(`Unsupported delivery check kind for ${checkId}`);
 }
 
+function validateClassification(classification) {
+  if (!classification || !Array.isArray(classification.rules) || !classification.fallback) {
+    throw new Error("Invalid delivery policy: classification rules and fallback are required");
+  }
+  const ids = new Set();
+  for (const rule of classification.rules) {
+    if (ids.has(rule.id)) {
+      throw new Error(`Invalid delivery policy: duplicate classification rule '${rule.id}'`);
+    }
+    ids.add(rule.id);
+    for (const pattern of rule.match?.patterns || []) {
+      try {
+        new RegExp(pattern);
+      } catch {
+        throw new Error(`Invalid delivery policy: malformed classification pattern in '${rule.id}'`);
+      }
+    }
+  }
+}
+
 function validatePolicy(policy) {
   assertPositiveInteger(policy?.version, "version");
   if (!policy?.checkCatalog || !policy?.gates || !policy?.limits) {
     throw new Error("Invalid delivery policy: checkCatalog, gates, and limits are required");
   }
+
+  validateClassification(policy.classification);
 
   for (const limit of [
     "maxStagedFiles",
@@ -89,6 +112,7 @@ export async function loadDeliveryPolicy({ repoRoot } = {}) {
 
   const source = await fs.readFile(absolutePath, "utf8");
   const policy = JSON.parse(source);
+  validateAgainstSchema(policy, "policy.schema.json", root);
   validatePolicy(policy);
 
   return {

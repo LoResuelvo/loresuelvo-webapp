@@ -123,8 +123,9 @@ El contrato puede expresar una estimación de commits, pero debe declarar que no
 ## CI asíncrono
 
 - Cada commit se pushea inmediatamente y se monitorea por su SHA exacto.
-- La ventana inicial recomendada permite hasta 2 o 3 commits pendientes de CI. Consultar cada SHA de forma estructurada y compacta mediante `delivery_ci_inspect` (o `npm run delivery:ci -- --sha <sha>`); continuar trabajo local mientras la ventana lo permita.
+- La ventana inicial recomendada permite hasta 2 o 3 commits pendientes de CI. Consultar cada SHA de forma estructurada y compacta mediante `delivery_ci_inspect` (o `npm run delivery:ci -- --sha <sha>`); los agentes no deben administrar manualmente comandos de CI ni descargar logs masivos. Continuar trabajo local mientras la ventana lo permita.
 - Si CI falla, los hooks de Git bloquean nuevos pushes. Detener nuevos commits, revisar la respuesta procesada de `delivery_ci_inspect` (que incluye el error causal normalizado y extracto acotado) y escalar con SHA, stage, firma y causa probable.
+- En `close_us`, `delivery:finalize` únicamente acepta `status: passed` en CI para autorizar el cierre definitivo de la User Story. El bypass offline del pre-push (`DELIVERY_SKIP_CI_CHECK=1`) permite avanzar ante commits previos sin red, pero no convierte CI desconocido o fallido en éxito.
 - Si un run permanece `in_progress` más de 2 veces su duración habitual sin error causal ni progreso sostenido, registrar la evidencia compacta. Si su SHA sucesor inmediato ya está en CI y pasa los mismos checks sin tocar el área afectada, clasificar el caso como degradación probable del proveedor. El reintento debe resolverse antes del cierre de la US.
 - Un fallo remoto puede revelar diferencias de entorno; nunca asumir que los gates locales hacen imposible una falla de CI.
 

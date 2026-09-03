@@ -1,10 +1,48 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { findRepoRoot, assertSafeRepoPath } from "./repo-root.mjs";
-import { getCommitEvidence, getLastPreparedEvidence } from "./delivery-ledger.mjs";
+import { verifyCommitEvidence } from "./delivery-ledger.mjs";
 import { loadDeliveryContext } from "./delivery-context.mjs";
+import { extractUsId } from "./git-snapshot.mjs";
 import { inspectCi } from "./ci-provider.mjs";
+
+function normalizeUsId(usId) {
+  if (!usId || typeof usId !== "string") return null;
+  return usId.trim().toUpperCase().replace(/^US[-_]?/i, "");
+}
+
+function samePaths(left = [], right = []) {
+  const normalizedLeft = [...new Set(left)].sort();
+  const normalizedRight = [...new Set(right)].sort();
+  return JSON.stringify(normalizedLeft) === JSON.stringify(normalizedRight);
+}
+
+function relevantCommitShas(root, headSha, usId) {
+  const normalizedUsId = normalizeUsId(usId);
+  if (!normalizedUsId) return [headSha];
+
+  const output = execFileSync("git", ["log", "-n", "200", "--format=%H%x00%s%x00", headSha], {
+    cwd: root,
+    encoding: "buffer",
+  });
+  const fields = output.toString("utf8").split("\0").filter(Boolean);
+  const matches = [];
+  for (let index = 0; index + 1 < fields.length; index += 2) {
+    const sha = fields[index].trim();
+    const subject = fields[index + 1].trim();
+    if (normalizeUsId(extractUsId(subject)) === normalizedUsId) matches.push(sha);
+  }
+  if (!matches.includes(headSha)) matches.unshift(headSha);
+  return [...new Set(matches)];
+}
+
+function readCommittedFeature(root, headSha, featurePath) {
+  assertSafeRepoPath(root, featurePath, "Scope feature");
+  return execFileSync("git", ["show", `${headSha}:${featurePath}`], {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 5 * 1024 * 1024,
+  });
+}
 
 export async function finalizeDelivery({
   repoRoot,
@@ -14,16 +52,9 @@ export async function finalizeDelivery({
   ciProvider = null,
 } = {}) {
   const root = findRepoRoot(repoRoot);
-
-  // 1. Resolve active context if available
   const context = await loadDeliveryContext({ repoRoot: root });
-  const effectiveUsId = usId || context?.usId || null;
-  const effectiveScope = [
-    ...new Set([...(scopeFiles || []), ...(context?.scopeFiles || [])]),
-  ];
 
-  // 2. Resolve current HEAD commit
-  let headSha = "";
+  let headSha;
   try {
     headSha = execFileSync("git", ["rev-parse", "HEAD"], {
       cwd: root,
@@ -34,54 +65,65 @@ export async function finalizeDelivery({
       finalized: false,
       status: "blocked",
       reason: "GIT_ERROR",
-      message: `Failed to resolve HEAD commit: ${error.message}`,
+      message: `Failed to resolve HEAD commit: ${String(error.message || "unknown").split("\n")[0]}`,
     };
   }
 
-  // 3. Comprueba Gate D local asociado en el ledger
-  const evidence = await getCommitEvidence({ repoRoot: root, commitSha: headSha });
-  const prepared = await getLastPreparedEvidence({ repoRoot: root });
-
-  let evidenceRecord = null;
-  const targetRecordPath = evidence?.recordPath || prepared?.recordPath;
-  if (targetRecordPath) {
-    try {
-      const raw = await fs.readFile(path.resolve(root, targetRecordPath), "utf8");
-      evidenceRecord = JSON.parse(raw);
-    } catch {
-      // ignore
-    }
+  const verifiedHead = await verifyCommitEvidence({ repoRoot: root, commitSha: headSha });
+  if (!verifiedHead.valid) {
+    return {
+      finalized: false,
+      status: "blocked",
+      reason: "INVALID_HEAD_EVIDENCE",
+      message: `Finalizing requires exact local evidence for HEAD (${verifiedHead.reason})`,
+    };
   }
 
-  const gateId = evidenceRecord?.gate?.id;
-  const gateStatus = evidenceRecord?.status || prepared?.status;
-
-  if (gateId !== "D" || gateStatus !== "passed") {
+  const evidenceRecord = verifiedHead.record;
+  if (evidenceRecord.gate?.id !== "D" || evidenceRecord.status !== "passed") {
     return {
       finalized: false,
       status: "blocked",
       reason: "GATE_D_REQUIRED",
-      message: `Finalizing US closure requires prior Gate D evidence passed locally. Observed gate: '${gateId || "NONE"}', status: '${gateStatus || "none"}'`,
+      message: `Finalizing requires passed Gate D evidence on HEAD; observed '${evidenceRecord.gate?.id || "NONE"}'`,
     };
   }
 
-  // 4. Comprueba ausencia de @wip en el alcance de features
-  const featuresToCheck = effectiveScope.filter((f) => f.endsWith(".feature"));
-  const wipViolations = [];
+  const evidenceScope = evidenceRecord.gate?.parameters?.scopeFeatures || [];
+  const requestedScope = [...new Set([...(scopeFiles || []), ...(context?.scopeFiles || [])])];
+  if (evidenceScope.length === 0) {
+    return {
+      finalized: false,
+      status: "blocked",
+      reason: "MISSING_GATE_D_SCOPE",
+      message: "Gate D evidence does not contain a completed feature scope",
+    };
+  }
+  if (requestedScope.length > 0 && !samePaths(requestedScope, evidenceScope)) {
+    return {
+      finalized: false,
+      status: "blocked",
+      reason: "SCOPE_EVIDENCE_MISMATCH",
+      message: "Requested closure scope does not match the scope verified by Gate D",
+    };
+  }
 
-  for (const feature of featuresToCheck) {
-    assertSafeRepoPath(root, feature, "Scope feature");
+  const wipViolations = [];
+  for (const feature of evidenceScope) {
+    let content;
     try {
-      const content = await fs.readFile(path.resolve(root, feature), "utf8");
-      const lines = content.split(/\r?\n/);
-      lines.forEach((line, idx) => {
-        if (/(?:^|\s)@wip(?:\s|$)/.test(line)) {
-          wipViolations.push(`${feature}:${idx + 1}`);
-        }
-      });
+      content = readCommittedFeature(root, headSha, feature);
     } catch {
-      // file might have been deleted or moved
+      return {
+        finalized: false,
+        status: "blocked",
+        reason: "SCOPE_FILE_MISSING",
+        message: `Committed feature scope file is unavailable at HEAD: ${feature}`,
+      };
     }
+    content.split(/\r?\n/).forEach((line, index) => {
+      if (/(?:^|\s)@wip(?:\s|$)/.test(line)) wipViolations.push(`${feature}:${index + 1}`);
+    });
   }
 
   if (wipViolations.length > 0) {
@@ -89,74 +131,80 @@ export async function finalizeDelivery({
       finalized: false,
       status: "blocked",
       reason: "WIP_IN_SCOPE",
-      message: `Cannot finalize US: remaining @wip tags found in completed scope: ${wipViolations.join(", ")}`,
-      locations: wipViolations,
+      message: `Cannot finalize: @wip remains in committed scope at ${wipViolations.slice(0, 6).join(", ")}`,
+      locations: wipViolations.slice(0, 20),
     };
   }
 
-  // 5. Comprueba commits del alcance pusheados
   let unpushedCommits = [];
   try {
     const unpushed = execFileSync("git", ["log", "@{u}..HEAD", "--oneline"], {
       cwd: root,
       encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
     }).trim();
-    if (unpushed) {
-      unpushedCommits = unpushed.split("\n");
-    }
+    if (unpushed) unpushedCommits = unpushed.split("\n");
   } catch {
-    // If no upstream configured or offline, try checking against origin/main
     try {
-      const unpushedOrigin = execFileSync("git", ["log", "origin/main..HEAD", "--oneline"], {
+      const unpushed = execFileSync("git", ["log", "origin/main..HEAD", "--oneline"], {
         cwd: root,
         encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
       }).trim();
-      if (unpushedOrigin) {
-        unpushedCommits = unpushedOrigin.split("\n");
-      }
+      if (unpushed) unpushedCommits = unpushed.split("\n");
     } catch {
-      // No remote tracking branch found; allow in isolated test environments
+      // Isolated repositories can opt in through DELIVERY_ALLOW_UNPUSHED_FINALIZE.
     }
   }
-
   if (unpushedCommits.length > 0 && process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE !== "1") {
     return {
       finalized: false,
       status: "blocked",
       reason: "UNPUSHED_COMMITS",
-      message: `Cannot finalize US: there are unpushed commits on HEAD: ${unpushedCommits.slice(0, 3).join("; ")}`,
+      message: `Cannot finalize: unpushed commits include ${unpushedCommits.slice(0, 3).join("; ")}`,
     };
   }
 
-  // 6. Comprueba CI verde de los SHAs relevantes
-  const ciResult = await inspectCi({ sha: headSha, repoRoot: root, provider: ciProvider });
-
-  if (ciResult.status === "in_progress" || ciResult.status === "queued") {
-    return {
-      finalized: false,
-      status: "in_progress",
-      reason: "CI_IN_PROGRESS",
-      message: `CI is still in progress for commit ${headSha.slice(0, 8)} (${ciResult.status})`,
-      ci: ciResult,
-    };
+  const effectiveUsId = usId || context?.usId || verifiedHead.entry.usId || null;
+  const shas = relevantCommitShas(root, headSha, effectiveUsId);
+  for (const sha of shas) {
+    const verified = await verifyCommitEvidence({ repoRoot: root, commitSha: sha });
+    if (!verified.valid) {
+      return {
+        finalized: false,
+        status: "blocked",
+        reason: "INVALID_US_COMMIT_EVIDENCE",
+        message: `Commit ${sha.slice(0, 8)} lacks valid delivery evidence (${verified.reason})`,
+        sha,
+      };
+    }
   }
 
-  if (ciResult.status === "failed" || ciResult.status === "timed_out") {
-    return {
-      finalized: false,
-      status: "failed",
-      reason: "CI_FAILED",
-      message: `CI failed for commit ${headSha.slice(0, 8)}: ${ciResult.failure?.message || "Check GitHub Actions"}`,
-      ci: ciResult,
-    };
+  const ciResults = [];
+  for (const sha of shas) {
+    const ci = await inspectCi({ sha, repoRoot: root, provider: ciProvider });
+    ciResults.push(ci);
+    if (ci.status !== "passed") {
+      const pending = ci.status === "in_progress" || ci.status === "queued";
+      return {
+        finalized: false,
+        status: pending ? "in_progress" : "blocked",
+        reason: pending ? "CI_IN_PROGRESS" : "CI_NOT_GREEN",
+        message: `CI for commit ${sha.slice(0, 8)} is '${ci.status}'${ci.failure?.message ? `: ${ci.failure.message}` : ""}`,
+        sha,
+        ci,
+      };
+    }
   }
 
   return {
     finalized: true,
     status: "passed",
+    intent,
     usId: effectiveUsId,
     headSha,
-    message: `User Story ${effectiveUsId ? `'${effectiveUsId}' ` : ""}successfully finalized with Gate D, clean scope, and green CI`,
-    ci: ciResult,
+    shas,
+    message: `Delivery ${effectiveUsId ? `'${effectiveUsId}' ` : ""}finalized with Gate D and green CI`,
+    ci: ciResults,
   };
 }

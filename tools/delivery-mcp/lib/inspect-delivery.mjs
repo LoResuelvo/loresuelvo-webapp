@@ -30,6 +30,7 @@ export async function inspectDelivery({
   let effectiveFeatureFile = featureFile;
   let effectiveScenarioName = scenarioName;
   let effectiveScopeFiles = [...scopeFiles];
+  let effectiveUsId = snapshot.proposedUsId || null;
   const contextDiagnostics = [];
 
   const activeContext = await loadDeliveryContext({ repoRoot: root });
@@ -47,6 +48,7 @@ export async function inspectDelivery({
         retryable: false,
       });
     } else if (validation.valid) {
+      effectiveUsId = activeContext.usId || effectiveUsId;
       if (intent === "prepare_commit" && activeContext.intent) {
         effectiveIntent = activeContext.intent;
       }
@@ -64,12 +66,14 @@ export async function inspectDelivery({
     if (inferred) {
       effectiveIntent = inferred.intent;
       effectiveFeatureFile = inferred.featureFile;
+      effectiveScenarioName = inferred.scenarioName || effectiveScenarioName;
     }
   }
 
   const maintainability = await runMaintainabilityAudit({
     stagedFiles: snapshot.stagedFiles,
     repoRoot: root,
+    maxSignals: policy.limits.maxSignals,
   });
 
   const gateResult = selectGate({
@@ -97,5 +101,17 @@ export async function inspectDelivery({
     repoRoot: root,
   });
 
-  return { result, snapshot, policy, context: activeContext };
+  return {
+    result,
+    snapshot,
+    policy,
+    context: activeContext,
+    resolvedInput: {
+      intent: effectiveIntent,
+      featureFile: effectiveFeatureFile,
+      scenarioName: effectiveScenarioName,
+      scopeFiles: effectiveScopeFiles,
+      usId: effectiveUsId,
+    },
+  };
 }

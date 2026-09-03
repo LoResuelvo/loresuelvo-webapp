@@ -106,3 +106,29 @@ test("decisiones de mantenibilidad completas: todas las senales cubiertas con ju
   assert.ok(result.review.decisions["functionLines:domain/proposal/proposal.ts:1"]);
   assert.ok(result.review.decisions["useState:domain/proposal/proposal.ts:10"]);
 });
+
+test("senales truncadas no pueden aprobarse parcialmente", () => {
+  const result = resolveReview(
+    {
+      ...sampleInspection,
+      maintainability: {
+        ...sampleInspection.maintainability,
+        signalCount: 21,
+        truncated: true,
+      },
+    },
+    {
+      snapshotHash: "a".repeat(64),
+      decisions: Object.fromEntries(
+        sampleInspection.maintainability.signals.map((signal) => [
+          signal.id,
+          "This visible signal has been reviewed",
+        ])
+      ),
+    }
+  );
+
+  assert.strictEqual(result.accepted, false);
+  assert.strictEqual(result.status, "blocked");
+  assert.strictEqual(result.diagnostic.code, "MAINTAINABILITY_SIGNAL_LIMIT_EXCEEDED");
+});

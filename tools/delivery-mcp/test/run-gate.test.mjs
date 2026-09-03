@@ -8,6 +8,17 @@ import { runGate } from "../lib/run-gate.mjs";
 
 const policy = await loadDeliveryPolicy();
 
+async function createRunRepo(t) {
+  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-run-"));
+  t.after(() => fs.rm(repoRoot, { recursive: true, force: true }));
+  await fs.mkdir(path.join(repoRoot, ".delivery", "schemas"), { recursive: true });
+  await fs.copyFile(
+    ".delivery/schemas/execution-result.schema.json",
+    path.join(repoRoot, ".delivery", "schemas", "execution-result.schema.json")
+  );
+  return repoRoot;
+}
+
 function executionFixture(checkIds = ["unit"], gateId = "A") {
   return {
     inspection: {
@@ -34,8 +45,7 @@ function executionFixture(checkIds = ["unit"], gateId = "A") {
 }
 
 test("runGate: reuses successful evidence for the identical snapshot", async (t) => {
-  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-run-"));
-  t.after(() => fs.rm(repoRoot, { recursive: true, force: true }));
+  const repoRoot = await createRunRepo(t);
   const fixture = executionFixture();
   let executions = 0;
   const fakeExecute = async ({ check }) => {
@@ -61,8 +71,7 @@ test("runGate: reuses successful evidence for the identical snapshot", async (t)
 });
 
 test("runGate: fails fast and returns the normalized diagnostic with failure structure", async (t) => {
-  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-run-"));
-  t.after(() => fs.rm(repoRoot, { recursive: true, force: true }));
+  const repoRoot = await createRunRepo(t);
   const fixture = executionFixture(["unit", "typecheck_app"], "A");
   const fakeExecute = async ({ check }) => ({
     id: check.id,
@@ -101,8 +110,7 @@ test("runGate: fails fast and returns the normalized diagnostic with failure str
 });
 
 test("falla idéntica tampoco vuelve a ejecutar: reusa fallo y registra attemptCount", async (t) => {
-  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-run-"));
-  t.after(() => fs.rm(repoRoot, { recursive: true, force: true }));
+  const repoRoot = await createRunRepo(t);
   const fixture = executionFixture(["unit"]);
   let executions = 0;
   const fakeExecute = async ({ check }) => {
@@ -135,11 +143,20 @@ test("falla idéntica tampoco vuelve a ejecutar: reusa fallo y registra attemptC
   assert.strictEqual(second.cached, true);
   assert.strictEqual(second.failure.attemptCount, 2);
   assert.strictEqual(executions, 1); // No volvió a ejecutar
+
+  const forced = await runGate({
+    ...fixture,
+    policy,
+    repoRoot,
+    executeCheck: fakeExecute,
+    force: true,
+  });
+  assert.strictEqual(forced.cached, false);
+  assert.strictEqual(executions, 2);
 });
 
 test("lock concurrente evita duplicados: segunda ejecucion simultanea es bloqueada", async (t) => {
-  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-run-"));
-  t.after(() => fs.rm(repoRoot, { recursive: true, force: true }));
+  const repoRoot = await createRunRepo(t);
   const fixture = executionFixture();
 
   let slowFinished = false;

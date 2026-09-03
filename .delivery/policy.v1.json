@@ -19,6 +19,102 @@
     "useCallback": 6,
     "useEffect": 3
   },
+  "classification": {
+    "rules": [
+      {
+        "id": "delivery_tooling",
+        "category": "delivery_tooling",
+        "match": {
+          "exact": ["package.json", "package-lock.json", "Makefile", "tsconfig.json", "tsconfig.vitest.json", "vitest.config.ts"],
+          "prefixes": ["tools/delivery-mcp/", ".githooks/", ".github/workflows/"],
+          "patterns": ["^\\.delivery\\/(?!.*\\.md$)", "^\\.codex\\/(?!.*\\.md$)", "^\\.agents/skills/frontend-maintainability-governance/scripts/"]
+        },
+        "isGateCTrigger": false,
+        "isGate0Trigger": false,
+        "productSource": false
+      },
+      {
+        "id": "features_steps_cucumber",
+        "category": "features_steps_cucumber",
+        "match": { "exact": ["cucumber.json", "tsconfig.cucumber.json"], "prefixes": ["features/"] },
+        "isGateCTrigger": false,
+        "isGate0Trigger": true,
+        "productSource": false
+      },
+      {
+        "id": "routing_layouts",
+        "category": "routing_layouts",
+        "match": {
+          "exact": ["lib/routes.ts"],
+          "prefixes": ["lib/routes/"],
+          "patterns": ["^app/(?:.*/)?(?:page|layout|route|loading|error|not-found|template|default)\\.[cm]?[jt]sx?$", "^(?:middleware|instrumentation|next\\.config)\\.[cm]?[jt]s$"]
+        },
+        "isGateCTrigger": true,
+        "isGate0Trigger": false,
+        "productSource": "auto"
+      },
+      {
+        "id": "server_actions",
+        "category": "server_actions",
+        "match": {
+          "patterns": ["^app/(?:.*/)?actions(?:/.*)?\\.[cm]?[jt]sx?$", "^application/(?:.*/)?actions.*?\\.[cm]?[jt]sx?$"]
+        },
+        "isGateCTrigger": true,
+        "isGate0Trigger": false,
+        "productSource": "auto"
+      },
+      {
+        "id": "infrastructure",
+        "category": "infrastructure",
+        "match": { "prefixes": ["infrastructure/", "app/api/auth/"] },
+        "isGateCTrigger": true,
+        "isGate0Trigger": false,
+        "productSource": "auto"
+      },
+      {
+        "id": "shared_components",
+        "category": "shared_components",
+        "match": { "patterns": ["^components/(?:ui|shared|common|layouts|modal)(?:/|$)"] },
+        "isGateCTrigger": true,
+        "isGate0Trigger": false,
+        "productSource": "auto"
+      },
+      {
+        "id": "tests",
+        "category": "test",
+        "match": { "patterns": ["(?:^|/).*\\.(?:test|spec)\\.[cm]?[jt]sx?$"] },
+        "isGateCTrigger": false,
+        "isGate0Trigger": false,
+        "productSource": false
+      },
+      {
+        "id": "isolated_production",
+        "category": "isolated_production",
+        "match": { "prefixes": ["domain/", "ports/", "application/", "components/", "hooks/", "lib/"] },
+        "isGateCTrigger": false,
+        "isGate0Trigger": false,
+        "productSource": "auto"
+      },
+      {
+        "id": "known_non_functional",
+        "category": "non_code_docs_tests_config",
+        "match": {
+          "exact": [".gitignore", ".dockerignore", ".editorconfig", "AGENTS.md", "CLAUDE.md", "LICENSE"],
+          "prefixes": ["docs/", "public/", ".agents/skills/"],
+          "extensions": [".md", ".mdx", ".txt", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".css", ".scss", ".sass", ".less"]
+        },
+        "isGateCTrigger": false,
+        "isGate0Trigger": false,
+        "productSource": false
+      }
+    ],
+    "fallback": {
+      "category": "unknown_functional",
+      "isGateCTrigger": true,
+      "isGate0Trigger": false,
+      "productSource": "auto"
+    }
+  },
   "checkCatalog": {
     "steps_compatibility": {
       "kind": "command",

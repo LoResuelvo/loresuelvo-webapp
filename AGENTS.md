@@ -110,6 +110,9 @@ Las referencias de una skill se leen únicamente cuando la tarea coincide con su
 ```bash
 npm run delivery:inspect -- --intent prepare_commit
 npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuesto>'
+npm run delivery:ci -- --sha <commit-sha>
+npm run delivery:finalize -- --intent close_us --scope features/<feature>.feature
+npm run delivery:hooks:install
 npm run test
 npm run lint
 npm run build
@@ -118,7 +121,13 @@ make test-e2e-wip-file-managed FILE=features/<feature>.feature NAME='<scenario>'
 make test-e2e-file-managed FILE=features/<feature>.feature NAME='<scenario>'
 ```
 
-MCP es un adaptador opcional. Los agentes sin MCP y las personas que no usan Codex ejecutan las entradas `npm run delivery:*`, que comparten la misma política y el mismo núcleo. No calcular ni encadenar manualmente el gate pre-commit; los comandos individuales se reservan para TDD o diagnóstico focalizado.
+La política versionada en `.delivery/policy.v1.json` es la única fuente autoritativa que decide clasificación, gates, checks, límites y orden. La evidencia generada queda ligada criptográficamente a HEAD, árbol staged, política, intent y alcance. La caché cubre éxitos y fallos idénticos; `--force` fuerza una ejecución nueva.
+
+Los hooks versionados en `.githooks/` son la protección local principal y se instalan una vez por clon mediante `npm run delivery:hooks:install` (no se activan automáticamente por instalar dependencias). El hook de Codex es opcional y anticipatorio; ningún hook local se asume imposible de omitir deliberadamente en Git, por lo que la integridad final depende también de CI remoto y la protección de ramas.
+
+Los agentes consumen resultados estructurados y normalizados; no deben calcular gates, procesar tracebacks completos, administrar manualmente comandos de CI ni descargar logs masivos. `npm run delivery:finalize` (o `delivery_finalize`) únicamente acepta `status: passed` en CI para cerrar la User Story. El bypass offline de pre-push no convierte CI desconocido o fallido en éxito.
+
+MCP es un adaptador opcional. Los agentes sin MCP y las personas que no usan Codex ejecutan las entradas `npm run delivery:*`, que comparten exactamente el mismo núcleo. No calcular ni encadenar manualmente el gate pre-commit; los comandos individuales se reservan para TDD o diagnóstico focalizado.
 
 Los targets `*-managed` son el camino canónico para agentes en ejecución local: administran el puerto 3001, el build, el servidor, readiness, Cucumber y cleanup. Los targets sin `-managed` se reservan para ejecución contra un servidor ya levantado por la persona desarrolladora. CI mantiene pasos separados para distinguir fallas de build, arranque, readiness y Cucumber.
 

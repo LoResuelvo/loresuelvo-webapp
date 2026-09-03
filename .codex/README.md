@@ -15,9 +15,9 @@ Este directorio contiene la configuración y adaptadores opcionales para entorno
    Ningún archivo en `.codex/` contiene ni debe contener credenciales, claves de API, tokens de autenticación ni secretos. Toda la configuración es estrictamente declarativa y segura para control de versiones.
 
 4. **El hook anticipatorio no es autoritativo**:
-   - `.codex/hooks.json` define un hook opcional de `PreToolUse` que ejecuta `.codex/delivery-guard.mjs` cuando un agente intenta ejecutar un comando bash con `git commit`.
+   - `.codex/hooks.json` define un hook opcional de `PreToolUse` para `Bash`; el guard lee `tool_input.command` por stdin y actúa únicamente ante `git commit`.
    - Su propósito es únicamente brindar **feedback temprano** antes de invocar a Git.
-   - **No debe asumirse cobertura universal de `PreToolUse`**: los hooks de Git (`.githooks/`) son la **única barrera autoritativa e infalible** del repositorio. Si un comando elude `PreToolUse` o si se commitea desde otra interfaz, Git pre-commit y commit-msg garantizan la ejecución estricta del gate.
+   - **No debe asumirse cobertura universal de `PreToolUse`**: el proyecto debe ser confiable y el hook debe aprobarse en `/hooks`. Los hooks de Git son la barrera predeterminada compartida (instalados una vez por clon mediante `npm run delivery:hooks:install`), pero ningún hook local es imposible de omitir deliberadamente en Git; el pre-push vuelve a validar mensaje y evidencia, y la seguridad final depende de CI y protección de rama.
 
 ## Contenido del directorio
 

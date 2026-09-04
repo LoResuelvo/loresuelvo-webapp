@@ -107,33 +107,35 @@ Las referencias de una skill se leen únicamente cuando la tarea coincide con su
 
 ## Comandos habituales
 
+### Agente
 ```bash
-npm run delivery:inspect -- --intent prepare_commit
+# Inspección previa opcional
+npm run delivery:inspect -- --intent prepare_commit --message '<mensaje propuesto>'
+# Preparar evidencia y ejecutar gate local sobre staged (obligatorio antes de commit)
 npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuesto>'
+# Inspeccionar CI tras push
 npm run delivery:ci -- --sha <commit-sha>
+# Cerrar User Story (requiere Gate D completo en HEAD y CI passed en todos los commits de la US)
 npm run delivery:finalize -- --intent close_us --scope features/<feature>.feature
+```
+
+### Humano / Diagnóstico manual
+```bash
 npm run delivery:hooks:install
 npm run test
 npm run lint
 npm run build
-make test-e2e-managed
-make test-e2e-wip-file-managed FILE=features/<feature>.feature NAME='<scenario>'
-make test-e2e-file-managed FILE=features/<feature>.feature NAME='<scenario>'
+npm run delivery:inspect -- --intent prepare_commit
 ```
+
+Los comandos de `make` (`make test-e2e-managed`, etc.) son de uso interno para la ejecución de checks dentro de los gates o para diagnóstico focalizado puntual; no forman parte del flujo habitual de trabajo de los agentes.
 
 La política versionada en `.delivery/policy.v1.json` es la única fuente autoritativa que decide clasificación, gates, checks, límites y orden. La evidencia generada queda ligada criptográficamente a HEAD, árbol staged, política, intent y alcance. La caché cubre éxitos y fallos idénticos; `--force` fuerza una ejecución nueva.
 
-Los hooks versionados en `.githooks/` son la protección local principal y se instalan una vez por clon mediante `npm run delivery:hooks:install` (no se activan automáticamente por instalar dependencias). El hook de Codex es opcional y anticipatorio; ningún hook local se asume imposible de omitir deliberadamente en Git, por lo que la integridad final depende también de CI remoto y la protección de ramas.
+El flujo de entrega distingue claramente entre agente y humano:
+- **Agentes**: `delivery_prepare` (o MCP `delivery_prepare`) es la entrada canónica obligatoria sobre el snapshot staged antes de cada commit. El hook de Codex (`.codex/delivery-guard.mjs`) es estricto: intercepta `git commit` y deniega la ejecución si no existe un receipt válido y coincidente generado previamente por `delivery_prepare`.
+- **Humanos**: desarrollan, realizan stage y pueden commitear directamente ejecutando tests de forma manual o delegando la verificación a CI. En ausencia de receipt previo, el commit se registra en el ledger local como `not_run` y se permite tanto el commit como el push (salvo que se configure `DELIVERY_REQUIRE_EVIDENCE=1`).
+- **Git hooks**: los hooks de Git (`pre-commit`, `commit-msg`, `post-commit`, `pre-push`) son deliberadamente livianos. **Nunca ejecutan suites de tests**. Solo validan formato de mensaje, presencia o correspondencia de receipt ya existente (sin re-ejecutar gates), atomicidad de push (un commit a la vez), CI previo no fallido y registro en el ledger. Se instalan una vez por clon con `npm run delivery:hooks:install`.
+- **Cierre de User Story**: `delivery:finalize` (o `npm run delivery:finalize`) exige que el commit HEAD tenga evidencia válida y aprobada de Gate D, y que **todos los commits de la US** (tanto los verificados localmente como los `not_run`) tengan su respectivo run de CI en estado `passed`. Commits corruptos o faltantes en el ledger bloquean el cierre.
 
-Los agentes consumen resultados estructurados y normalizados; no deben calcular gates, procesar tracebacks completos, administrar manualmente comandos de CI ni descargar logs masivos. `npm run delivery:finalize` (o `delivery_finalize`) únicamente acepta `status: passed` en CI para cerrar la User Story. El bypass offline de pre-push no convierte CI desconocido o fallido en éxito.
-
-MCP es un adaptador opcional. Los agentes sin MCP y las personas que no usan Codex ejecutan las entradas `npm run delivery:*`, que comparten exactamente el mismo núcleo. No calcular ni encadenar manualmente el gate pre-commit; los comandos individuales se reservan para TDD o diagnóstico focalizado.
-
-Los targets `*-managed` son el camino canónico para agentes en ejecución local: administran el puerto 3001, el build, el servidor, readiness, Cucumber y cleanup. Los targets sin `-managed` se reservan para ejecución contra un servidor ya levantado por la persona desarrolladora. CI mantiene pasos separados para distinguir fallas de build, arranque, readiness y Cucumber.
-
-`make test-e2e-file-managed` requiere siempre `FILE` y `NAME`. Para ejecutar
-todos los escenarios normales de un feature con el entorno gestionado, usar:
-
-```bash
-make test-e2e-managed E2E_FILE=features/<feature>.feature
-```
+Los agentes consumen resultados estructurados y normalizados; no deben calcular gates, procesar tracebacks completos, administrar manualmente comandos de CI ni descargar logs masivos. MCP es un adaptador opcional: los agentes sin MCP ejecutan `npm run delivery:*`, que comparten exactamente el mismo núcleo. No calcular ni encadenar manualmente el gate pre-commit; los comandos individuales se reservan para TDD o diagnóstico focalizado.

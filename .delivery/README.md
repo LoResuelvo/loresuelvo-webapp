@@ -27,12 +27,31 @@ npm run delivery:finalize -- --intent close_us --scope features/<feature>.featur
 Intents válidos: `prepare_commit`, `close_scenario`, `close_batch`, `close_us`.
 Gate B requiere o infiere exactamente un archivo de feature (`--feature`). Gate D verifica la ausencia total de `@wip` en el alcance (`--scope`).
 
+## Flujo de trabajo: Agente vs Humano
+
+```text
+Agente Codex
+desarrollar → stage → MCP delivery_prepare → receipt passed
+→ git commit → push
+
+Humano
+desarrollar → stage → git commit → push → CI
+                  └─ delivery_prepare opcional
+```
+
+- **Agente**: la invocación de `delivery_prepare` sobre el snapshot staged es obligatoria antes de `git commit`. El hook de Codex deniega el commit si no existe un receipt válido.
+- **Humano**: puede commitear y pushear directamente, apoyándose en la suite manual o en CI. El commit se registra como `not_run` en el ledger local.
+
 ## Evidencia, caché y ledger
 
 - **Ligadura criptográfica**: Cada ejecución genera una `runKey` basada en diff staged, árbol (`stagedTreeSha`), HEAD, política, gate, parámetros y archivos staged.
 - **Caché determinística**: Cubre tanto éxitos como fallos idénticos sobre el mismo snapshot (registrando `attemptCount`).
 - **Forzado explícito**: `--force` evita la caché y ejecuta nuevamente todos los checks del gate.
-- **Ledger local**: Al commitear, `post-commit` asocia el `commitSha` con la evidencia preparada (`snapshotHash`, `treeSha`, `runKey`) en `.delivery/runtime/ledger/`.
+- **Ledger local**: Al commitear, `post-commit` registra el `commitSha` en `.delivery/runtime/ledger/`. Distingue cuatro estados de evidencia:
+  - `verified`: commit con evidencia de gate ejecutada localmente y validada criptográficamente contra el árbol y commit de Git.
+  - `not_run`: commit creado sin receipt local previo (commits humanos). Contiene los metadatos de Git preservando trazabilidad sin haber corrido el gate local.
+  - `corrupt`: commit cuyo registro en ledger o archivo de evidencia fue alterado, tiene discrepancia de hash o digest, o no coincide con Git. Bloquea pushes y cierres.
+  - `missing`: commit sin ninguna entrada en el ledger local. Bloquea pushes y cierres.
 - Todos los logs crudos, caches y locks se guardan en `.delivery/runtime/`, ignorados por Git.
 
 ## Auditoría de mantenibilidad
@@ -48,7 +67,10 @@ No se admite bypass genérico. Señales truncadas por exceder los límites de po
 ## Hooks de Git y Codex
 
 - **Instalación**: Los hooks versionados (`.githooks/`) se configuran manualmente una vez por clon mediante `npm run delivery:hooks:install`. **No se instalan ni activan automáticamente al correr npm install**.
-- **Protección principal**: Los hooks de Git (`pre-commit`, `commit-msg`, `post-commit`, `pre-push`) son la barrera principal del repositorio local. El hook de Codex (`.codex/hooks.json`) es opcional y anticipatorio (advisory).
-- **Mecanismos de bypass**: Ningún hook local se describe como imposible de omitir; Git permite omisiones deliberadas (`--no-verify`). La seguridad final del repositorio depende de CI remoto y la protección de ramas en GitHub.
-- **Pre-push y CI**: El hook `pre-push` hace cumplir "un commit, un push", verifica que el commit posea evidencia válida en el ledger y comprueba que commits anteriores no tengan CI fallido. El flag de degradación offline (`DELIVERY_SKIP_CI_CHECK=1`) permite continuar sin red en commits previos, pero **no convierte un CI fallido o desconocido en exitoso**.
-- **Finalización de US**: `delivery:finalize` solamente acepta `status: passed` en CI para autorizar el cierre.
+- **Hooks de Git livianos**: `pre-commit`, `commit-msg`, `post-commit` y `pre-push` **nunca ejecutan suites de tests**.
+  - `pre-commit`: lectura exclusiva. Verifica si existe un receipt válido para el árbol staged. Si existe, pasa; si no existe, avisa y permite el commit como `not_run` (bloqueando únicamente si `DELIVERY_REQUIRE_EVIDENCE=1`).
+  - `post-commit`: si hubo un receipt coincidente, lo consume y registra el commit como `passed`; si no hubo receipt, lo registra como `not_run` sin consumir contexto.
+  - `pre-push`: valida atomicidad estricta ("un commit, un push"), mensajes, evidencia en ledger (`verified` y `not_run` permitidos por defecto; `corrupt` o `missing` bloqueados siempre; `not_run` bloqueado si `DELIVERY_REQUIRE_EVIDENCE=1`), y comprueba que commits anteriores no tengan CI fallido ni superen la ventana de pendientes.
+- **Hook de Codex estricto**: `.codex/delivery-guard.mjs` es la barrera preventiva para agentes Codex. Intercepta `git commit` y deniega estrictamente la acción si no existe un receipt válido y coincidente en `.delivery/runtime/last-prepared.json`. No corre suites por sí mismo: orienta al agente a invocar `delivery_prepare`.
+- **Mecanismos de bypass**: Ningún hook local se describe como imposible de omitir; Git permite omisiones deliberadas (`--no-verify`). La seguridad final del repositorio depende de CI remoto y la protección de ramas en GitHub. El flag de degradación offline (`DELIVERY_SKIP_CI_CHECK=1`) permite continuar sin red en commits previos, pero **no convierte un CI fallido o desconocido en exitoso**.
+- **Finalización de US**: `delivery:finalize` autoriza el cierre si HEAD cuenta con evidencia de Gate D aprobada y su scope feature sin `@wip`. Verifica que todos los commits de la US tengan `status: passed` en CI (incluyendo los `not_run`, los cuales se reportan en `unverifiedCommits`). Commits corruptos o faltantes en el ledger bloquean el cierre.

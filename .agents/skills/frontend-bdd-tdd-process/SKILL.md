@@ -25,7 +25,7 @@ Usar cuando la tarea cambia comportamiento observable, criterios de aceptación,
 4. Para cada pieza interna, escribir un test unitario o de componente pequeño en RED, centrado solamente en el nuevo comportamiento.
 5. Implementar lo mínimo para GREEN y refactorizar sin perderlo. En código productivo no trivial, resolver la revisión de `frontend-maintainability-governance` antes de cerrar el ciclo.
 6. Agregar infraestructura/aplicación y luego el wiring de integración cuando el escenario activo lo requiera.
-7. Mantener `@wip` mientras el escenario no esté listo para entrar en la suite normal. Al completar su implementación, retirar `@wip` y ejecutar el gate de integración o cierre que corresponda según `frontend-testing-gates`. Usar `make test-e2e-wip-file-managed` solo para un RED inicial o una integración intermedia que deba permanecer aislada.
+7. Mantener `@wip` mientras el escenario no esté listo para entrar en la suite normal. Al completar su implementación, retirar `@wip` y ejecutar `delivery_prepare` con el intent de cierre correspondiente (`close_scenario`, `close_batch`, `close_us`) según `frontend-testing-gates`. Los comandos de `make` son herramientas internas de los checks del gate o para diagnóstico puntual de desarrolladores humanos; el agente no los ejecuta como flujo habitual sino a través de `delivery_prepare`.
 
 ## Selección de pruebas
 

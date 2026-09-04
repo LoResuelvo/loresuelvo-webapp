@@ -28,7 +28,11 @@ Debe:
 
 No dividir por archivo ni por cantidad de líneas. Si el diff es grande, buscar un corte vertical independiente; si no existe, conservar el cambio coherente.
 
-Antes de cada commit, dejar staged únicamente el cambio atómico e invocar `delivery_prepare` con el `intent` aplicable (`prepare_commit`, `close_scenario`, `close_batch`, `close_us`) y el mensaje propuesto. Esta herramienta inspecciona el snapshot, selecciona y ejecuta el gate local; el agente no calcula el gate ni reproduce sus comandos.
+Antes de cada commit del agente, dejar staged únicamente el cambio atómico e invocar `delivery_prepare` con el `intent` aplicable (`prepare_commit`, `close_scenario`, `close_batch`, `close_us`) y el mensaje propuesto. Esta herramienta inspecciona el snapshot, selecciona y ejecuta el gate local; el agente no calcula el gate ni reproduce sus comandos.
+
+El repositorio distingue claramente el flujo humano del flujo de agente:
+- **Agentes**: deben ejecutar `delivery_prepare` antes de commitear para obtener un receipt con `status: passed`. El hook de Codex intercepta `git commit` y deniega cualquier commit que no cuente con un receipt previo coincidente. Los hooks de Git son livianos y **nunca ejecutan suites de tests**.
+- **Humanos**: pueden desarrollar, hacer stage y commitear directamente de forma manual o apoyándose en CI; en ausencia de receipt, sus commits se registran en el ledger como `not_run`.
 
 Usar la herramienta MCP cuando esté disponible. Cualquier agente o colega sin ese adaptador usa el mismo núcleo mediante:
 

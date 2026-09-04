@@ -271,3 +271,163 @@ test("pre-push: respeta la ventana máxima de commits con CI pendiente", async (
   assert.strictEqual(result.passed, false);
   assert.strictEqual(result.reason, "CI_PENDING_WINDOW_EXCEEDED");
 });
+
+async function attachNotRunEvidence({ repoRoot, sha, usId = null, reason = "human_commit_no_receipt" }) {
+  const parentsLine = execFileSync("git", ["rev-list", "--parents", "-n", "1", sha], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  }).trim();
+  const [, ...parents] = parentsLine.split(/\s+/).filter(Boolean);
+  const treeSha = execFileSync("git", ["rev-parse", `${sha}^{tree}`], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  }).trim();
+  const changedRaw = execFileSync(
+    "git",
+    ["diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "-z", sha],
+    { cwd: repoRoot, encoding: "buffer" }
+  );
+  const stagedFiles = changedRaw.toString("utf8").split("\0").filter(Boolean).sort();
+
+  return recordCommitEvidence({
+    repoRoot,
+    commitSha: sha,
+    verificationStatus: "not_run",
+    notRunReason: reason,
+    branch: "main",
+    parentSha: parents[0] || null,
+    treeSha,
+    stagedFiles,
+    usId,
+  });
+}
+
+test("finalizeDelivery: aprueba cierre con commit previo not_run si CI está passed y reporta unverifiedCommits", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const sha1 = await commitFile(repoRoot, "src/feature.txt", "code", "feat[10]: human commit without local gate");
+  await attachNotRunEvidence({ repoRoot, sha: sha1, usId: "10" });
+
+  const featurePath = "features/us10.feature";
+  const sha2 = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US10\n  Scenario: Done\n    Given ok\n",
+    "test[10]: finalize us10"
+  );
+  await attachEvidence({ repoRoot, sha: sha2, gateId: "D", scopeFeatures: [featurePath], usId: "10" });
+
+  const mockCi = new MockCiProvider({
+    [sha1]: { status: "passed" },
+    [sha2]: { status: "passed" },
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    usId: "10",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(res.finalized, true);
+  assert.strictEqual(res.status, "passed");
+  assert.deepStrictEqual(res.shas, [sha2, sha1]);
+  assert.deepStrictEqual(res.unverifiedCommits, [sha1]);
+});
+
+test("finalizeDelivery: deniega cierre con commit previo not_run si su CI no está passed", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const sha1 = await commitFile(repoRoot, "src/feature.txt", "code", "feat[11]: human commit without local gate");
+  await attachNotRunEvidence({ repoRoot, sha: sha1, usId: "11" });
+
+  const featurePath = "features/us11.feature";
+  const sha2 = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US11\n  Scenario: Done\n    Given ok\n",
+    "test[11]: finalize us11"
+  );
+  await attachEvidence({ repoRoot, sha: sha2, gateId: "D", scopeFeatures: [featurePath], usId: "11" });
+
+  const mockCi = new MockCiProvider({
+    [sha1]: { status: "failed", failure: { message: "CI failed for human commit" } },
+    [sha2]: { status: "passed" },
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    usId: "11",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.reason, "CI_NOT_GREEN");
+  assert.strictEqual(res.sha, sha1);
+});
+
+test("finalizeDelivery: deniega cierre si un commit de la US no tiene registro en el ledger (missing)", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const sha1 = await commitFile(repoRoot, "src/feature.txt", "code", "feat[12]: unrecorded commit");
+
+  const featurePath = "features/us12.feature";
+  const sha2 = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US12\n  Scenario: Done\n    Given ok\n",
+    "test[12]: finalize us12"
+  );
+  await attachEvidence({ repoRoot, sha: sha2, gateId: "D", scopeFeatures: [featurePath], usId: "12" });
+
+  const mockCi = new MockCiProvider({
+    [sha1]: { status: "passed" },
+    [sha2]: { status: "passed" },
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    usId: "12",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.reason, "MISSING_COMMIT_EVIDENCE");
+  assert.strictEqual(res.sha, sha1);
+});
+
+test("finalizeDelivery: deniega cierre si un commit de la US tiene evidencia corrupta", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const sha1 = await commitFile(repoRoot, "src/feature.txt", "code", "feat[13]: corrupt commit");
+  await attachEvidence({ repoRoot, sha: sha1, gateId: "A", usId: "13" });
+
+  const recordPath = path.join(repoRoot, `.delivery/runtime/records/${sha1}-A.json`);
+  const original = JSON.parse(await fs.readFile(recordPath, "utf8"));
+  original.summary.durationMs = 8888;
+  await fs.writeFile(recordPath, `${JSON.stringify(original, null, 2)}\n`, "utf8");
+
+  const featurePath = "features/us13.feature";
+  const sha2 = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US13\n  Scenario: Done\n    Given ok\n",
+    "test[13]: finalize us13"
+  );
+  await attachEvidence({ repoRoot, sha: sha2, gateId: "D", scopeFeatures: [featurePath], usId: "13" });
+
+  const mockCi = new MockCiProvider({
+    [sha1]: { status: "passed" },
+    [sha2]: { status: "passed" },
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    usId: "13",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.reason, "CORRUPT_COMMIT_EVIDENCE");
+  assert.strictEqual(res.sha, sha1);
+});
+

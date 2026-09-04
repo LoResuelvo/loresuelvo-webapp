@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { findRepoRoot, assertSafeRepoPath } from "./repo-root.mjs";
-import { verifyCommitEvidence } from "./delivery-ledger.mjs";
+import { queryCommitEvidence, verifyCommitEvidence } from "./delivery-ledger.mjs";
 import { loadDeliveryContext } from "./delivery-context.mjs";
 import { extractUsId } from "./git-snapshot.mjs";
 import { inspectCi } from "./ci-provider.mjs";
@@ -167,16 +167,29 @@ export async function finalizeDelivery({
 
   const effectiveUsId = usId || context?.usId || verifiedHead.entry.usId || null;
   const shas = relevantCommitShas(root, headSha, effectiveUsId);
+  const unverifiedCommits = [];
   for (const sha of shas) {
-    const verified = await verifyCommitEvidence({ repoRoot: root, commitSha: sha });
-    if (!verified.valid) {
+    const evidence = await queryCommitEvidence({ repoRoot: root, commitSha: sha });
+    if (evidence.state === "missing") {
       return {
         finalized: false,
         status: "blocked",
-        reason: "INVALID_US_COMMIT_EVIDENCE",
-        message: `Commit ${sha.slice(0, 8)} lacks valid delivery evidence (${verified.reason})`,
+        reason: "MISSING_COMMIT_EVIDENCE",
+        message: `Commit ${sha.slice(0, 8)} lacks delivery ledger entry`,
         sha,
       };
+    }
+    if (evidence.state === "corrupt") {
+      return {
+        finalized: false,
+        status: "blocked",
+        reason: "CORRUPT_COMMIT_EVIDENCE",
+        message: `Commit ${sha.slice(0, 8)} has corrupt delivery evidence (${evidence.reason})`,
+        sha,
+      };
+    }
+    if (evidence.state === "not_run") {
+      unverifiedCommits.push(sha);
     }
   }
 
@@ -204,6 +217,7 @@ export async function finalizeDelivery({
     usId: effectiveUsId,
     headSha,
     shas,
+    unverifiedCommits,
     message: `Delivery ${effectiveUsId ? `'${effectiveUsId}' ` : ""}finalized with Gate D and green CI`,
     ci: ciResults,
   };

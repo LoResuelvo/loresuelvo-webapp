@@ -19,7 +19,7 @@ npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuest
 
 La política versionada en `.delivery/policy.v1.json` es la única fuente de clasificación, selección y orden de checks. La CLI y MCP comparten exactamente el mismo núcleo. Los comandos de las secciones siguientes documentan qué protege cada gate y sirven para diagnóstico focalizado; no deben ejecutarse manualmente como una lista pre-commit.
 
-El runner ejecuta en fail-fast, reutiliza evidencia determinística del mismo snapshot (tanto éxitos como fallos idénticos, con `--force` para forzar una ejecución nueva) y devuelve diagnósticos acotados sin tracebacks completos. Conserva el log completo y el ledger local en `.delivery/runtime/`, fuera de Git. La evidencia queda ligada a HEAD, árbol staged, política, intent y alcance. El control `ci_green` pertenece al estado posterior al push y nunca se presenta como aprobado por el gate local. Los hooks de Git (`.githooks/`, instalados mediante `npm run delivery:hooks:install`) protegen el repositorio local sin impedir bypasses deliberados de Git; la seguridad final depende de CI y protección de rama.
+El runner ejecuta en fail-fast, reutiliza evidencia determinística del mismo snapshot (tanto éxitos como fallos idénticos, con `--force` para forzar una ejecución nueva) y devuelve diagnósticos acotados sin tracebacks completos. Conserva el log completo y el ledger local en `.delivery/runtime/`, fuera de Git. La evidencia queda ligada a HEAD, árbol staged, política, intent y alcance. El control `ci_green` pertenece al estado posterior al push y nunca se presenta como aprobado por el gate local. Los hooks de Git (`.githooks/`, instalados mediante `npm run delivery:hooks:install`) son deliberadamente livianos y nunca ejecutan suites de tests; solo verifican formato, receipts existentes y estado previo de CI. Para los agentes, `delivery_prepare` es la entrada canónica obligatoria previa a cada commit, respaldada por la denegación estricta del hook de Codex ante cualquier intento de commit sin receipt válido. La seguridad final del repositorio depende de CI remoto y protección de rama.
 
 ## Semántica de los gates
 
@@ -104,7 +104,7 @@ El ledger viaja con toda delegación o resumen relacionado con la falla. En `STO
 - Monitorear cada push por SHA, con ventana inicial máxima recomendada de 2 a 3 commits pendientes.
 - La consulta de CI se realiza de forma compacta mediante `delivery_ci_inspect` o `npm run delivery:ci -- --sha <sha>`, sin emitir comandos crudos de `gh` ni tracebacks masivos.
 - Mientras haya menos de tres SHAs pendientes, continuar el trabajo local. Ante CI fallido (`failed` o `timed_out`), los hooks de Git bloquean nuevos pushes hasta resolver la causa.
-- En `close_us`, `npm run delivery:finalize` comprueba de forma automática que los SHAs correspondientes estén en verde con `status: passed`. Estados `not_found`, `cancelled`, `timed_out` o `provider_error` no equivalen a éxito y bloquean el cierre. El bypass offline de pre-push no convierte CI desconocido o fallido en éxito.
+- En `close_us`, `npm run delivery:finalize` comprueba de forma automática que todos los commits de la US (incluyendo commits previos registrados como `not_run`) estén en verde con `status: passed` en CI, y que HEAD cuente con Gate D aprobado sin `@wip`. Estados `not_found`, `cancelled`, `timed_out` o `provider_error`, así como evidencia corrupta o faltante, bloquean el cierre. El bypass offline de pre-push no convierte CI desconocido o fallido en éxito.
 
 ## Seguridad antes de commit
 

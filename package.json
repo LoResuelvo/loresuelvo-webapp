@@ -13,7 +13,7 @@
     "test:e2e": "TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js",
     "test:e2e:wip": "TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js --tags @wip",
     "test:e2e:report": "TS_NODE_PROJECT=tsconfig.cucumber.json cucumber-js --format html:reports/cucumber-report.html",
-    "delivery:test": "node --test tools/delivery-mcp/test/*.test.mjs",
+    "delivery:test": "node --test --test-concurrency=1 tools/delivery-mcp/test/*.test.mjs",
     "delivery:mcp": "node tools/delivery-mcp/server.mjs",
     "delivery:smoke": "node tools/delivery-mcp/smoke.mjs",
     "delivery:inspect": "node tools/delivery-mcp/cli.mjs inspect",

@@ -177,7 +177,10 @@ export async function consumePreparedEvidence({ repoRoot, commitSha } = {}) {
 export async function recordCommitEvidence({
   repoRoot,
   commitSha,
-  snapshotHash,
+  status = "passed",
+  verificationStatus = null,
+  notRunReason = null,
+  snapshotHash = null,
   runKey = null,
   recordPath = null,
   recordDigest = null,
@@ -196,25 +199,56 @@ export async function recordCommitEvidence({
   const root = findRepoRoot(repoRoot);
   const cleanSha = assertCommitSha(commitSha);
 
+  const effectiveStatus = verificationStatus || status || "passed";
+  if (effectiveStatus !== "passed" && effectiveStatus !== "not_run") {
+    throw new Error(`Invalid commit verification status: ${effectiveStatus}`);
+  }
+
+  const isNotRun = effectiveStatus === "not_run";
   const entry = {
     schemaVersion: 2,
     commitSha: cleanSha,
-    snapshotHash: snapshotHash || null,
-    runKey: runKey || null,
-    recordPath: recordPath || null,
-    recordDigest: recordDigest || null,
-    branch,
-    parentSha,
-    treeSha,
-    stagedFiles: [...new Set(stagedFiles || [])].sort(),
-    gateId,
-    policyHash,
-    intent,
-    usId,
-    featureFile,
-    scenarioName,
-    scopeFiles: [...new Set(scopeFiles || [])].sort(),
-    recordedAt: new Date().toISOString(),
+    status: effectiveStatus,
+    verificationStatus: effectiveStatus,
+    ...(isNotRun
+      ? {
+          notRunReason: notRunReason || "UNVERIFIED_COMMIT",
+          branch,
+          parentSha,
+          treeSha,
+          stagedFiles: [...new Set(stagedFiles || [])].sort(),
+          usId: usId || null,
+          recordedAt: new Date().toISOString(),
+          snapshotHash: null,
+          runKey: null,
+          recordPath: null,
+          recordDigest: null,
+          gateId: null,
+          policyHash: null,
+          intent: null,
+          featureFile: null,
+          scenarioName: null,
+          scopeFiles: [],
+        }
+      : {
+          notRunReason: null,
+          snapshotHash: snapshotHash || null,
+          runKey: runKey || null,
+          recordPath: recordPath || null,
+          recordDigest: recordDigest || null,
+          branch,
+          parentSha,
+          treeSha,
+          stagedFiles: [...new Set(stagedFiles || [])].sort(),
+          gateId,
+          policyHash,
+          intent,
+          usId,
+          featureFile,
+          scenarioName,
+          scopeFiles: [...new Set(scopeFiles || [])].sort(),
+          recordedAt: new Date().toISOString(),
+        }),
   };
 
   await writeJsonAtomic(root, path.join(LEDGER_DIR, `${cleanSha}.json`), entry);
@@ -282,40 +316,74 @@ function resolveCommitIdentity(root, commitSha) {
   return { parents, treeSha };
 }
 
-export async function verifyCommitEvidence({ repoRoot, commitSha } = {}) {
+export async function queryCommitEvidence({ repoRoot, commitSha } = {}) {
   const root = findRepoRoot(repoRoot);
-  const cleanSha = assertCommitSha(commitSha);
+  let cleanSha;
+  try {
+    cleanSha = assertCommitSha(commitSha);
+  } catch {
+    return { valid: false, state: "missing", reason: "INVALID_COMMIT_SHA", entry: null, record: null };
+  }
+
   const entry = await getCommitEvidence({ repoRoot: root, commitSha: cleanSha });
-  if (!entry) return { valid: false, reason: "MISSING_EVIDENCE_IN_LEDGER", entry: null };
+  if (!entry) {
+    return { valid: false, state: "missing", reason: "MISSING_EVIDENCE_IN_LEDGER", entry: null, record: null };
+  }
   if (entry.schemaVersion !== 2) {
-    return { valid: false, reason: "STALE_EVIDENCE_FORMAT", entry };
+    return { valid: false, state: "corrupt", reason: "STALE_EVIDENCE_FORMAT", entry, record: null };
   }
 
   let identity;
   try {
     identity = resolveCommitIdentity(root, cleanSha);
   } catch {
-    return { valid: false, reason: "COMMIT_IDENTITY_UNAVAILABLE", entry };
+    return { valid: false, state: "corrupt", reason: "COMMIT_IDENTITY_UNAVAILABLE", entry, record: null };
   }
 
+  const isNotRun = entry.status === "not_run" || entry.verificationStatus === "not_run";
+  if (isNotRun) {
+    if (identity.parents.length > 1) {
+      return { valid: false, state: "corrupt", reason: "MERGE_COMMIT_NOT_PREPARED", entry, record: null };
+    }
+    if ((identity.parents[0] || null) !== (entry.parentSha || null)) {
+      return { valid: false, state: "corrupt", reason: "EVIDENCE_PARENT_MISMATCH", entry, record: null };
+    }
+    if (entry.treeSha && identity.treeSha !== entry.treeSha) {
+      return { valid: false, state: "corrupt", reason: "EVIDENCE_TREE_MISMATCH", entry, record: null };
+    }
+    return {
+      valid: false,
+      state: "not_run",
+      reason: entry.notRunReason || "UNVERIFIED_COMMIT",
+      entry,
+      record: null,
+    };
+  }
+
+  // Declared as passed or legacy entry with receipt
   if (identity.parents.length > 1) {
-    return { valid: false, reason: "MERGE_COMMIT_NOT_PREPARED", entry };
+    return { valid: false, state: "corrupt", reason: "MERGE_COMMIT_NOT_PREPARED", entry, record: null };
   }
   if ((identity.parents[0] || null) !== (entry.parentSha || null)) {
-    return { valid: false, reason: "EVIDENCE_PARENT_MISMATCH", entry };
+    return { valid: false, state: "corrupt", reason: "EVIDENCE_PARENT_MISMATCH", entry, record: null };
   }
   if (identity.treeSha !== entry.treeSha) {
-    return { valid: false, reason: "EVIDENCE_TREE_MISMATCH", entry };
+    return { valid: false, state: "corrupt", reason: "EVIDENCE_TREE_MISMATCH", entry, record: null };
   }
+  if (!entry.recordPath) {
+    return { valid: false, state: "corrupt", reason: "EVIDENCE_RECORD_MISSING", entry, record: null };
+  }
+
   let loaded;
   try {
     loaded = await loadEvidenceRecord({ repoRoot: root, recordPath: entry.recordPath });
   } catch {
-    return { valid: false, reason: "EVIDENCE_RECORD_INVALID", entry };
+    return { valid: false, state: "corrupt", reason: "EVIDENCE_RECORD_INVALID", entry, record: null };
   }
+
   const { record, digest } = loaded;
   if (digest !== entry.recordDigest) {
-    return { valid: false, reason: "EVIDENCE_RECORD_CHANGED", entry, record };
+    return { valid: false, state: "corrupt", reason: "EVIDENCE_RECORD_CHANGED", entry, record };
   }
   if (
     record.status !== "passed" ||
@@ -324,10 +392,14 @@ export async function verifyCommitEvidence({ repoRoot, commitSha } = {}) {
     record.gate?.id !== entry.gateId ||
     record.policy?.hash !== entry.policyHash
   ) {
-    return { valid: false, reason: "EVIDENCE_RECORD_MISMATCH", entry, record };
+    return { valid: false, state: "corrupt", reason: "EVIDENCE_RECORD_MISMATCH", entry, record };
   }
 
-  return { valid: true, reason: null, entry, record };
+  return { valid: true, state: "verified", reason: null, entry, record };
+}
+
+export async function verifyCommitEvidence({ repoRoot, commitSha } = {}) {
+  return queryCommitEvidence({ repoRoot, commitSha });
 }
 
 export async function hasCommitEvidence({ repoRoot, commitSha } = {}) {

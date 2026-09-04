@@ -35,6 +35,8 @@ function usage() {
   npm run delivery:inspect -- [options]
   npm run delivery:prepare -- [options]
   npm run delivery:context -- [options]
+  npm run delivery:ci -- --sha <commit-sha>
+  npm run delivery:finalize -- --intent <close_us|close_batch> [options]
   npm run delivery:hooks:install
   npm run delivery:hooks:status
 
@@ -61,7 +63,12 @@ Options for delivery:context:
   --us-id <US-XX>
   --inspect, --show                              Display active delivery context
   --clear                                        Clear active delivery context
-  --consume                                      Mark active delivery context as consumed`;
+  --consume                                      Mark active delivery context as consumed
+
+Options for delivery:finalize:
+  --intent <close_us|close_batch>
+  --us-id <US-XX>
+  --scope <features/...feature>                  Repeat for the completed scope`;
 }
 
 function takeValue(args, index, option) {

@@ -16,6 +16,7 @@ import {
 import {
   hasCommitEvidence,
   getCommitEvidence,
+  recordCommitEvidence,
 } from "../lib/delivery-ledger.mjs";
 import {
   saveDeliveryContext,
@@ -153,10 +154,13 @@ test("commit-msg hook: bloquea mensaje invalido y permite valido", async (t) => 
   assert.strictEqual(parenRes.passed, false);
   assert.strictEqual(parenRes.reason, "PAREN_SCOPE_FORBIDDEN");
 
-  // 4. Mensaje con US contradictoria a contexto activo
+  // 4. Mensaje con US contradictoria a contexto actual
+  await fs.writeFile(path.join(repoRoot, "context.txt"), "context", "utf8");
+  execFileSync("git", ["add", "context.txt"], { cwd: repoRoot });
+  const snapshot = await captureGitSnapshot({ cwd: repoRoot });
   await saveDeliveryContext({
     repoRoot,
-    snapshot: { branch: "main", headSha: "1".repeat(40), snapshotHash: "2".repeat(64) },
+    snapshot,
     usId: "30.1",
   });
   const conflictMsgFile = path.join(repoRoot, "msg-conflict.txt");
@@ -170,6 +174,30 @@ test("commit-msg hook: bloquea mensaje invalido y permite valido", async (t) => 
   await fs.writeFile(validMsgFile, "chore[30.1]: clean up code\n", "utf8");
   const validRes = await runCommitMsgHook({ repoRoot, messageFilePath: validMsgFile });
   assert.strictEqual(validRes.passed, true);
+});
+
+test("commit-msg hook: ignora contexto close_us vencido y conserva uno vigente", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const messageFilePath = path.join(repoRoot, "message.txt");
+  await fs.writeFile(messageFilePath, "chore[30.2]: continue another story\n", "utf8");
+
+  await saveDeliveryContext({
+    repoRoot,
+    snapshot: { branch: "main", headSha: "0".repeat(40), snapshotHash: "1".repeat(64) },
+    intent: "close_us",
+    usId: "30.1",
+  });
+  const stale = await runCommitMsgHook({ repoRoot, messageFilePath });
+  assert.strictEqual(stale.passed, true);
+  assert.strictEqual(stale.contextValidation.reason, "CONTEXT_HEAD_MISMATCH");
+
+  await fs.writeFile(path.join(repoRoot, "context.txt"), "context", "utf8");
+  execFileSync("git", ["add", "context.txt"], { cwd: repoRoot });
+  const snapshot = await captureGitSnapshot({ cwd: repoRoot });
+  await saveDeliveryContext({ repoRoot, snapshot, intent: "close_us", usId: "30.1" });
+  const current = await runCommitMsgHook({ repoRoot, messageFilePath });
+  assert.strictEqual(current.passed, false);
+  assert.strictEqual(current.reason, "CONTEXT_US_CONFLICT");
 });
 
 test("pre-commit hook: en modo normal permite commit sin receipt con aviso, y en modo estricto bloquea", async (t) => {
@@ -294,6 +322,32 @@ test("post-commit hook: registra como not_run y no consume receipt si el árbol 
   const ev = await getCommitEvidence({ repoRoot, commitSha: headSha });
   assert.strictEqual(ev.verificationStatus, "not_run");
   assert.strictEqual(ev.notRunReason, "PREPARED_EVIDENCE_MISMATCH");
+});
+
+test("post-commit hook: preserva una evidencia corrupta y no la reemplaza por not_run", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.writeFile(path.join(repoRoot, "corrupt.txt"), "corrupt", "utf8");
+  execFileSync("git", ["add", "corrupt.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "docs: add corrupt evidence"], { cwd: repoRoot });
+  const commitSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  const parentSha = execFileSync("git", ["rev-parse", "HEAD^"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  const treeSha = execFileSync("git", ["rev-parse", "HEAD^{tree}"], { cwd: repoRoot, encoding: "utf8" }).trim();
+
+  await recordCommitEvidence({
+    repoRoot,
+    commitSha,
+    verificationStatus: "passed",
+    parentSha,
+    treeSha,
+    recordPath: ".delivery/runtime/records/missing.json",
+  });
+
+  const outcome = await runPostCommitHook({ repoRoot });
+  assert.strictEqual(outcome.recorded, false);
+  assert.strictEqual(outcome.blocked, true);
+  assert.strictEqual(outcome.reason, "CORRUPT_COMMIT_EVIDENCE");
+  assert.strictEqual(outcome.evidenceReason, "EVIDENCE_RECORD_INVALID");
+  assert.strictEqual((await getCommitEvidence({ repoRoot, commitSha })).verificationStatus, "passed");
 });
 
 test("flujo humano: commit manual sin receipt se registra como not_run, push normal lo permite y strict lo bloquea", async (t) => {

@@ -140,6 +140,70 @@ test("queryCommitEvidence: registra y consulta commit con state not_run preserva
   assert.strictEqual(query.entry.verificationStatus, "not_run");
 });
 
+test("queryCommitEvidence: solo acepta not_run con ambos estados y shape canónico", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.writeFile(path.join(repoRoot, "unverified.txt"), "hello", "utf8");
+  execFileSync("git", ["add", "unverified.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "docs: add unverified file"], { cwd: repoRoot });
+  const sha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  const identity = getCommitIdentity(repoRoot, sha);
+
+  const entry = await recordCommitEvidence({
+    repoRoot,
+    commitSha: sha,
+    verificationStatus: "not_run",
+    parentSha: identity.parents[0] || null,
+    treeSha: identity.treeSha,
+    stagedFiles: ["unverified.txt"],
+  });
+  const entryPath = path.join(repoRoot, LEDGER_DIR, `${sha}.json`);
+
+  await fs.writeFile(
+    entryPath,
+    `${JSON.stringify({ ...entry, verificationStatus: "passed" }, null, 2)}\n`,
+    "utf8"
+  );
+  const inconsistent = await queryCommitEvidence({ repoRoot, commitSha: sha });
+  assert.strictEqual(inconsistent.state, "corrupt");
+  assert.strictEqual(inconsistent.reason, "INCONSISTENT_NOT_RUN_STATUS");
+
+  await fs.writeFile(
+    entryPath,
+    `${JSON.stringify({ ...entry, treeSha: null }, null, 2)}\n`,
+    "utf8"
+  );
+  const malformed = await queryCommitEvidence({ repoRoot, commitSha: sha });
+  assert.strictEqual(malformed.state, "corrupt");
+  assert.strictEqual(malformed.reason, "INVALID_NOT_RUN_SHAPE");
+});
+
+test("queryCommitEvidence: un archivo de evidencia ilegible es corrupt y no usa el ledger como fallback", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.writeFile(path.join(repoRoot, "unverified.txt"), "hello", "utf8");
+  execFileSync("git", ["add", "unverified.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "docs: add unverified file"], { cwd: repoRoot });
+  const sha = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  }).trim();
+  const identity = getCommitIdentity(repoRoot, sha);
+
+  await recordCommitEvidence({
+    repoRoot,
+    commitSha: sha,
+    verificationStatus: "not_run",
+    parentSha: identity.parents[0] || null,
+    treeSha: identity.treeSha,
+    stagedFiles: ["unverified.txt"],
+  });
+  await fs.writeFile(path.join(repoRoot, LEDGER_DIR, `${sha}.json`), "{broken-json", "utf8");
+
+  const result = await queryCommitEvidence({ repoRoot, commitSha: sha });
+  assert.strictEqual(result.valid, false);
+  assert.strictEqual(result.state, "corrupt");
+  assert.strictEqual(result.reason, "INVALID_COMMIT_EVIDENCE_FILE");
+});
+
 test("queryCommitEvidence: devuelve state verified cuando existe receipt válido y coincide con Git", async (t) => {
   const repoRoot = await createTempGitRepo(t);
 

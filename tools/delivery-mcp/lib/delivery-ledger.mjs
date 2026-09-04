@@ -16,6 +16,16 @@ function assertCommitSha(commitSha) {
   return commitSha.trim().toLowerCase();
 }
 
+function evidenceReadError(code) {
+  const error = new Error(code);
+  error.code = code;
+  return error;
+}
+
+function isJsonObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 async function writeJsonAtomic(root, relativePath, value) {
   assertSafeRepoPath(root, relativePath, "Delivery ledger path");
   const targetPath = path.resolve(root, relativePath);
@@ -110,14 +120,33 @@ export async function getLastPreparedEvidence({ repoRoot } = {}) {
   }
 }
 
+function sortedUnique(values) {
+  return [...new Set(Array.isArray(values) ? values : [])].sort();
+}
+
+function hasCanonicalFiles(values) {
+  return Array.isArray(values) && JSON.stringify(values) === JSON.stringify(sortedUnique(values));
+}
+
+function hasMatchingFiles(left, right) {
+  return hasCanonicalFiles(left) && JSON.stringify(left) === JSON.stringify(sortedUnique(right));
+}
+
+/**
+ * Read-only validation for a prepared receipt. Every consumer of a receipt uses
+ * this boundary so the guard and Git hooks cannot drift from one another.
+ */
 export async function verifyPreparedEvidence({
   repoRoot,
+  prepared: suppliedPrepared = null,
   snapshot,
-  inspection,
-  intent = "prepare_commit",
+  inspection = null,
+  intent,
+  gateId,
+  policyHash,
 } = {}) {
   const root = findRepoRoot(repoRoot);
-  const prepared = await getLastPreparedEvidence({ repoRoot: root });
+  const prepared = suppliedPrepared || (await getLastPreparedEvidence({ repoRoot: root }));
   if (!prepared) return { valid: false, reason: "MISSING_PREPARED_EVIDENCE" };
   if (
     prepared.schemaVersion !== 2 ||
@@ -127,16 +156,17 @@ export async function verifyPreparedEvidence({
     return { valid: false, reason: "STALE_PREPARED_EVIDENCE", prepared };
   }
 
+  const expectedGateId = gateId ?? inspection?.gate?.id;
+  const expectedPolicyHash = policyHash ?? inspection?.policy?.hash;
   const identityMatches =
     prepared.snapshotHash === snapshot?.snapshotHash &&
     prepared.parentHeadSha === snapshot?.headSha &&
     prepared.stagedTreeSha === snapshot?.stagedTreeSha &&
     prepared.branch === snapshot?.branch &&
-    prepared.gateId === inspection?.gate?.id &&
-    prepared.policyHash === inspection?.policy?.hash &&
-    prepared.intent === intent &&
-    JSON.stringify(prepared.stagedFiles || []) ===
-      JSON.stringify([...new Set(snapshot?.stagedFiles || [])].sort());
+    hasMatchingFiles(prepared.stagedFiles, snapshot?.stagedFiles) &&
+    (intent === undefined || prepared.intent === intent) &&
+    (expectedGateId === undefined || prepared.gateId === expectedGateId) &&
+    (expectedPolicyHash === undefined || prepared.policyHash === expectedPolicyHash);
   if (!identityMatches) {
     return { valid: false, reason: "PREPARED_EVIDENCE_SNAPSHOT_MISMATCH", prepared };
   }
@@ -216,7 +246,7 @@ export async function recordCommitEvidence({
           branch,
           parentSha,
           treeSha,
-          stagedFiles: [...new Set(stagedFiles || [])].sort(),
+          stagedFiles: sortedUnique(stagedFiles),
           usId: usId || null,
           recordedAt: new Date().toISOString(),
           snapshotHash: null,
@@ -239,14 +269,14 @@ export async function recordCommitEvidence({
           branch,
           parentSha,
           treeSha,
-          stagedFiles: [...new Set(stagedFiles || [])].sort(),
+          stagedFiles: sortedUnique(stagedFiles),
           gateId,
           policyHash,
           intent,
           usId,
           featureFile,
           scenarioName,
-          scopeFiles: [...new Set(scopeFiles || [])].sort(),
+          scopeFiles: sortedUnique(scopeFiles),
           recordedAt: new Date().toISOString(),
         }),
   };
@@ -277,18 +307,41 @@ export async function getCommitEvidence({ repoRoot, commitSha } = {}) {
   }
 
   const commitFilePath = path.resolve(root, LEDGER_DIR, `${cleanSha}.json`);
+  let rawCommitEntry;
   try {
-    return JSON.parse(await fs.readFile(commitFilePath, "utf8"));
-  } catch {
-    // Fall back to the consolidated ledger.
+    rawCommitEntry = await fs.readFile(commitFilePath, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw evidenceReadError("COMMIT_EVIDENCE_FILE_UNREADABLE");
+  }
+  if (rawCommitEntry !== undefined) {
+    try {
+      const parsed = JSON.parse(rawCommitEntry);
+      if (!isJsonObject(parsed)) throw evidenceReadError("INVALID_COMMIT_EVIDENCE_FILE");
+      return parsed;
+    } catch {
+      throw evidenceReadError("INVALID_COMMIT_EVIDENCE_FILE");
+    }
   }
 
+  let rawLedger;
   try {
-    const parsed = JSON.parse(await fs.readFile(path.resolve(root, LEDGER_FILE), "utf8"));
-    return parsed[cleanSha] || null;
-  } catch {
-    return null;
+    rawLedger = await fs.readFile(path.resolve(root, LEDGER_FILE), "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw evidenceReadError("CONSOLIDATED_LEDGER_UNREADABLE");
   }
+  let parsedLedger;
+  try {
+    parsedLedger = JSON.parse(rawLedger);
+  } catch {
+    throw evidenceReadError("INVALID_CONSOLIDATED_LEDGER");
+  }
+  if (!isJsonObject(parsedLedger)) throw evidenceReadError("INVALID_CONSOLIDATED_LEDGER");
+  if (!Object.hasOwn(parsedLedger, cleanSha)) return null;
+  if (!isJsonObject(parsedLedger[cleanSha])) {
+    throw evidenceReadError("INVALID_COMMIT_EVIDENCE_ENTRY");
+  }
+  return parsedLedger[cleanSha];
 }
 
 export async function listCommitEvidence({ repoRoot } = {}) {
@@ -325,7 +378,18 @@ export async function queryCommitEvidence({ repoRoot, commitSha } = {}) {
     return { valid: false, state: "missing", reason: "INVALID_COMMIT_SHA", entry: null, record: null };
   }
 
-  const entry = await getCommitEvidence({ repoRoot: root, commitSha: cleanSha });
+  let entry;
+  try {
+    entry = await getCommitEvidence({ repoRoot: root, commitSha: cleanSha });
+  } catch (error) {
+    return {
+      valid: false,
+      state: "corrupt",
+      reason: error.code || "EVIDENCE_LEDGER_UNREADABLE",
+      entry: null,
+      record: null,
+    };
+  }
   if (!entry) {
     return { valid: false, state: "missing", reason: "MISSING_EVIDENCE_IN_LEDGER", entry: null, record: null };
   }
@@ -340,15 +404,45 @@ export async function queryCommitEvidence({ repoRoot, commitSha } = {}) {
     return { valid: false, state: "corrupt", reason: "COMMIT_IDENTITY_UNAVAILABLE", entry, record: null };
   }
 
-  const isNotRun = entry.status === "not_run" || entry.verificationStatus === "not_run";
+  const isNotRun = entry.status === "not_run" && entry.verificationStatus === "not_run";
+  const declaresNotRun = entry.status === "not_run" || entry.verificationStatus === "not_run";
+  if (declaresNotRun && !isNotRun) {
+    return {
+      valid: false,
+      state: "corrupt",
+      reason: "INCONSISTENT_NOT_RUN_STATUS",
+      entry,
+      record: null,
+    };
+  }
+
   if (isNotRun) {
+    const hasNoReceiptFields =
+      entry.snapshotHash === null &&
+      entry.runKey === null &&
+      entry.recordPath === null &&
+      entry.recordDigest === null &&
+      entry.gateId === null &&
+      entry.policyHash === null &&
+      entry.intent === null;
+    if (
+      entry.commitSha !== cleanSha ||
+      !hasNoReceiptFields ||
+      !hasCanonicalFiles(entry.stagedFiles) ||
+      typeof entry.treeSha !== "string" ||
+      !/^[a-f0-9]{40}$/i.test(entry.treeSha) ||
+      (entry.parentSha !== null &&
+        (typeof entry.parentSha !== "string" || !/^[a-f0-9]{40}$/i.test(entry.parentSha)))
+    ) {
+      return { valid: false, state: "corrupt", reason: "INVALID_NOT_RUN_SHAPE", entry, record: null };
+    }
     if (identity.parents.length > 1) {
       return { valid: false, state: "corrupt", reason: "MERGE_COMMIT_NOT_PREPARED", entry, record: null };
     }
     if ((identity.parents[0] || null) !== (entry.parentSha || null)) {
       return { valid: false, state: "corrupt", reason: "EVIDENCE_PARENT_MISMATCH", entry, record: null };
     }
-    if (entry.treeSha && identity.treeSha !== entry.treeSha) {
+    if (identity.treeSha !== entry.treeSha) {
       return { valid: false, state: "corrupt", reason: "EVIDENCE_TREE_MISMATCH", entry, record: null };
     }
     return {

@@ -2,16 +2,18 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { findRepoRoot } from "./repo-root.mjs";
-import { prepareDelivery } from "./prepare-delivery.mjs";
-import { loadDeliveryContext, consumeDeliveryContext } from "./delivery-context.mjs";
+import {
+  loadDeliveryContext,
+  consumeDeliveryContext,
+  validateDeliveryContext,
+} from "./delivery-context.mjs";
 import { captureGitSnapshot, extractUsId } from "./git-snapshot.mjs";
 import {
   consumePreparedEvidence,
   recordCommitEvidence,
   getLastPreparedEvidence,
   listCommitEvidence,
-  loadEvidenceRecord,
-  verifyCommitEvidence,
+  verifyPreparedEvidence,
   queryCommitEvidence,
 } from "./delivery-ledger.mjs";
 import { inspectCi } from "./ci-provider.mjs";
@@ -146,55 +148,15 @@ export async function runPreCommitHook({ repoRoot } = {}) {
     };
   }
 
-  const prepared = await getLastPreparedEvidence({ repoRoot: root });
-  let hasValidEvidence = false;
-  let verifiedReason = null;
+  const receipt = await verifyPreparedEvidence({ repoRoot: root, snapshot });
+  const verifiedReason = receipt.reason;
 
-  if (
-    prepared &&
-    prepared.schemaVersion === 2 &&
-    prepared.status === "passed" &&
-    !prepared.consumedByCommitSha
-  ) {
-    const identityMatches =
-      prepared.snapshotHash === snapshot?.snapshotHash &&
-      prepared.parentHeadSha === snapshot?.headSha &&
-      prepared.stagedTreeSha === snapshot?.stagedTreeSha &&
-      prepared.branch === snapshot?.branch &&
-      JSON.stringify(prepared.stagedFiles || []) ===
-        JSON.stringify([...new Set(snapshot?.stagedFiles || [])].sort());
-
-    if (identityMatches) {
-      try {
-        const loaded = await loadEvidenceRecord({ repoRoot: root, recordPath: prepared.recordPath });
-        if (
-          loaded.digest === prepared.recordDigest &&
-          loaded.record.status === "passed" &&
-          loaded.record.snapshotHash === prepared.snapshotHash &&
-          loaded.record.runKey === prepared.runKey
-        ) {
-          hasValidEvidence = true;
-        } else {
-          verifiedReason = "PREPARED_EVIDENCE_RECORD_MISMATCH";
-        }
-      } catch {
-        verifiedReason = "PREPARED_EVIDENCE_RECORD_INVALID";
-      }
-    } else {
-      verifiedReason = "PREPARED_EVIDENCE_SNAPSHOT_MISMATCH";
-    }
-  } else {
-    verifiedReason = prepared?.consumedByCommitSha
-      ? "STALE_PREPARED_EVIDENCE"
-      : "MISSING_PREPARED_EVIDENCE";
-  }
-
-  if (hasValidEvidence) {
+  if (receipt.valid) {
     return {
       passed: true,
       verified: true,
-      gateId: prepared.gateId || "NONE",
-      prepared,
+      gateId: receipt.prepared.gateId || "NONE",
+      prepared: receipt.prepared,
     };
   }
 
@@ -225,7 +187,25 @@ export async function runCommitMsgHook({ repoRoot, messageFilePath } = {}) {
     ? messageFilePath
     : path.resolve(root, messageFilePath);
   const content = await fs.readFile(absPath, "utf8");
-  const activeContext = await loadDeliveryContext({ repoRoot: root });
+  const storedContext = await loadDeliveryContext({ repoRoot: root });
+  let activeContext = null;
+  let contextValidation = null;
+
+  if (storedContext) {
+    try {
+      const snapshot = await captureGitSnapshot({ cwd: root, proposedCommitMessage: content });
+      contextValidation = validateDeliveryContext({
+        context: storedContext,
+        snapshot,
+        proposedCommitMessage: content,
+      });
+      if (contextValidation.valid || contextValidation.conflict) {
+        activeContext = storedContext;
+      }
+    } catch {
+      contextValidation = { valid: false, expired: true, reason: "CONTEXT_SNAPSHOT_UNAVAILABLE" };
+    }
+  }
 
   const validation = validateCommitMessage(content, activeContext);
   if (!validation.valid) {
@@ -236,7 +216,7 @@ export async function runCommitMsgHook({ repoRoot, messageFilePath } = {}) {
     };
   }
 
-  return { passed: true, validation };
+  return { passed: true, validation, contextValidation };
 }
 
 export async function runPostCommitHook({ repoRoot } = {}) {
@@ -259,6 +239,25 @@ export async function runPostCommitHook({ repoRoot } = {}) {
       ledgerEntry: alreadyRecorded.entry,
       reused: true,
       verificationStatus: "passed",
+    };
+  }
+  if (alreadyRecorded.state === "corrupt") {
+    return {
+      recorded: false,
+      blocked: true,
+      commitSha,
+      reason: "CORRUPT_COMMIT_EVIDENCE",
+      evidenceReason: alreadyRecorded.reason,
+    };
+  }
+  if (alreadyRecorded.state === "not_run") {
+    return {
+      recorded: true,
+      commitSha,
+      ledgerEntry: alreadyRecorded.entry,
+      reused: true,
+      verificationStatus: "not_run",
+      reason: alreadyRecorded.reason,
     };
   }
 
@@ -300,35 +299,19 @@ export async function runPostCommitHook({ repoRoot } = {}) {
   const prepared = await getLastPreparedEvidence({ repoRoot: root });
   let matchingReceipt = null;
 
-  if (
-    prepared &&
-    prepared.schemaVersion === 2 &&
-    prepared.status === "passed" &&
-    !prepared.consumedByCommitSha
-  ) {
-    const identityMatches =
-      parents.length <= 1 &&
-      (parents[0] || null) === prepared.parentHeadSha &&
-      branch === prepared.branch &&
-      treeSha === prepared.stagedTreeSha;
-
-    if (identityMatches) {
-      try {
-        const loaded = await loadEvidenceRecord({ repoRoot: root, recordPath: prepared.recordPath });
-        if (
-          loaded.digest === prepared.recordDigest &&
-          loaded.record.status === "passed" &&
-          loaded.record.snapshotHash === prepared.snapshotHash &&
-          loaded.record.runKey === prepared.runKey &&
-          loaded.record.gate?.id === prepared.gateId &&
-          loaded.record.policy?.hash === prepared.policyHash
-        ) {
-          matchingReceipt = prepared;
-        }
-      } catch {
-        // Record is invalid, don't match
-      }
-    }
+  if (prepared && parents.length <= 1) {
+    const receipt = await verifyPreparedEvidence({
+      repoRoot: root,
+      prepared,
+      snapshot: {
+        snapshotHash: prepared.snapshotHash,
+        headSha: parents[0] || null,
+        stagedTreeSha: treeSha,
+        branch,
+        stagedFiles: commitFiles,
+      },
+    });
+    if (receipt.valid) matchingReceipt = receipt.prepared;
   }
 
   if (matchingReceipt) {

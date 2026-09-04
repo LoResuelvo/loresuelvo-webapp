@@ -11,9 +11,11 @@ import {
   DeliveryInspectInputSchema,
   DeliveryPrepareInputSchema,
   DeliveryCiInputSchema,
+  DeliveryFinalizeInputSchema,
   formatInputIssues,
 } from "./lib/input-schema.mjs";
 import { inspectCi } from "./lib/ci-provider.mjs";
+import { finalizeDelivery } from "./lib/delivery-finalize.mjs";
 import { redactSecrets } from "./lib/redact-secrets.mjs";
 
 const intentProperty = {
@@ -44,7 +46,7 @@ const commonProperties = {
 };
 
 export const server = new Server(
-  { name: "loresuelvo-delivery", version: "1.1.0" },
+  { name: "loresuelvo-delivery", version: "1.2.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -120,6 +122,36 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         openWorldHint: true,
       },
     },
+    {
+      name: "delivery_finalize",
+      description:
+        "Finalizes a batch or User Story by requiring exact Gate D evidence on HEAD, no @wip in scope, pushed commits, valid ledger entries, and green CI for every relevant commit.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          intent: {
+            type: "string",
+            enum: ["close_us", "close_batch"],
+            description: "Delivery boundary to finalize; defaults to close_us",
+          },
+          usId: {
+            type: "string",
+            description: "Optional User Story identifier used to find its commits",
+          },
+          scopeFiles: {
+            type: "array",
+            items: { type: "string" },
+            description: "Feature files whose completed scope must match Gate D evidence",
+          },
+        },
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
   ],
 }));
 
@@ -171,6 +203,15 @@ function executionError(code, message) {
   };
 }
 
+function finalizationError(reason, message) {
+  return {
+    finalized: false,
+    status: "blocked",
+    reason,
+    message,
+  };
+}
+
 function toolResponse(result, isError = false) {
   return {
     content: [{ type: "text", text: JSON.stringify(result) }],
@@ -180,6 +221,25 @@ function toolResponse(result, isError = false) {
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const name = request.params.name;
+
+  if (name === "delivery_finalize") {
+    const parsed = DeliveryFinalizeInputSchema.safeParse(request.params.arguments || {});
+    if (!parsed.success) {
+      return toolResponse(
+        finalizationError("INVALID_ARGUMENTS", formatInputIssues(parsed.error)),
+        true
+      );
+    }
+    try {
+      const result = await finalizeDelivery(parsed.data);
+      return toolResponse(result, !result.finalized);
+    } catch (error) {
+      const message = redactSecrets(String(error.message || "Delivery finalization error")).split(
+        "\n"
+      )[0];
+      return toolResponse(finalizationError("INTERNAL_ERROR", message), true);
+    }
+  }
 
   if (name === "delivery_ci_inspect") {
     const parsed = DeliveryCiInputSchema.safeParse(request.params.arguments || {});

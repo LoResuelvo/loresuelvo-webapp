@@ -9,6 +9,7 @@ import { finalizeDelivery } from "../lib/delivery-finalize.mjs";
 import { MockCiProvider } from "../lib/ci-provider.mjs";
 import { recordCommitEvidence } from "../lib/delivery-ledger.mjs";
 import { runPrePushHook } from "../lib/git-hooks.mjs";
+import { saveDeliveryContext } from "../lib/delivery-context.mjs";
 
 async function createTempGitRepo(t) {
   const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-finalize-test-"));
@@ -21,7 +22,11 @@ async function createTempGitRepo(t) {
 
   await fs.mkdir(path.join(repoRoot, ".delivery", "runtime", "records"), { recursive: true });
   await fs.mkdir(path.join(repoRoot, ".delivery", "schemas"), { recursive: true });
-  for (const schema of ["ci-inspection-result.schema.json", "execution-result.schema.json"]) {
+  for (const schema of [
+    "ci-inspection-result.schema.json",
+    "delivery-context.schema.json",
+    "execution-result.schema.json",
+  ]) {
     await fs.copyFile(
       path.join(".delivery", "schemas", schema),
       path.join(repoRoot, ".delivery", "schemas", schema)
@@ -50,7 +55,14 @@ async function commitFile(repoRoot, relativePath, content, message) {
   return headSha(repoRoot);
 }
 
-async function attachEvidence({ repoRoot, sha, gateId = "A", scopeFeatures = [], usId = null }) {
+async function attachEvidence({
+  repoRoot,
+  sha,
+  gateId = "A",
+  scopeFeatures = [],
+  usId = null,
+  intent = gateId === "D" ? "close_us" : "prepare_commit",
+}) {
   const parentsLine = execFileSync("git", ["rev-list", "--parents", "-n", "1", sha], {
     cwd: repoRoot,
     encoding: "utf8",
@@ -105,7 +117,7 @@ async function attachEvidence({ repoRoot, sha, gateId = "A", scopeFeatures = [],
     stagedFiles,
     gateId,
     policyHash,
-    intent: gateId === "D" ? "close_us" : "prepare_commit",
+    intent,
     usId,
     scopeFiles: scopeFeatures,
   });
@@ -225,6 +237,82 @@ test("finalizeDelivery: bloquea un scope distinto del verificado por Gate D", as
   });
   assert.strictEqual(res.finalized, false);
   assert.strictEqual(res.reason, "SCOPE_EVIDENCE_MISMATCH");
+});
+
+test("finalizeDelivery: usa la evidencia de HEAD y no un contexto local vencido", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us04.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US04\n  Scenario: Done\n    Given ok\n",
+    "test[04]: close story"
+  );
+  await attachEvidence({ repoRoot, sha, gateId: "D", scopeFeatures: [featurePath], usId: "04" });
+  await saveDeliveryContext({
+    repoRoot,
+    snapshot: {
+      branch: "main",
+      headSha: "0".repeat(40),
+      snapshotHash: "1".repeat(64),
+    },
+    intent: "close_us",
+    usId: "99",
+    scopeFiles: ["features/stale.feature"],
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    ciProvider: new MockCiProvider({ [sha]: { status: "passed" } }),
+  });
+
+  assert.strictEqual(res.finalized, true);
+  assert.strictEqual(res.usId, "04");
+});
+
+test("finalizeDelivery: exige que intent y US coincidan con la evidencia de HEAD", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us05.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US05\n  Scenario: Done\n    Given ok\n",
+    "test[05]: close story"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "05",
+    intent: "close_scenario",
+  });
+
+  const intentMismatch = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_us",
+    usId: "05",
+    scopeFiles: [featurePath],
+  });
+  assert.strictEqual(intentMismatch.finalized, false);
+  assert.strictEqual(intentMismatch.reason, "INTENT_EVIDENCE_MISMATCH");
+
+  await attachEvidence({
+    repoRoot,
+    sha,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "05",
+    intent: "close_us",
+  });
+  const usMismatch = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_us",
+    usId: "06",
+    scopeFiles: [featurePath],
+  });
+  assert.strictEqual(usMismatch.finalized, false);
+  assert.strictEqual(usMismatch.reason, "US_EVIDENCE_MISMATCH");
 });
 
 test("pre-push: bloquea nuevos pushes si un commit previo falló en CI", async (t) => {
@@ -430,4 +518,3 @@ test("finalizeDelivery: deniega cierre si un commit de la US tiene evidencia cor
   assert.strictEqual(res.reason, "CORRUPT_COMMIT_EVIDENCE");
   assert.strictEqual(res.sha, sha1);
 });
-

@@ -5,7 +5,7 @@ description: "Ejecutar gates explícitos de calidad en Lo Resuelvo: RED BDD, tes
 
 # Frontend Testing Gates
 
-Usar como referencia semántica durante el desarrollo. Antes de cada commit, el ejecutor canónico es `delivery_prepare`; quien cambia el diff es responsable de obtener `status: passed`, pero no de calcular el gate ni encadenar sus comandos.
+Usar como referencia semántica durante el desarrollo. Antes de cada commit de agente, el ejecutor canónico es `delivery_prepare`; quien cambia el diff es responsable de obtener `status: passed`, pero no de calcular el gate ni encadenar sus comandos. Un humano puede commitear sin receipt y dejar la verificación local como `not_run`, según `AGENTS.md`.
 
 Los gates verifican comportamiento y salud técnica, no legibilidad por sí solos. `delivery_prepare` también ejecuta la auditoría de `frontend-maintainability-governance`; sus umbrales son señales de revisión, no nuevos tests rígidos.
 
@@ -104,7 +104,7 @@ El ledger viaja con toda delegación o resumen relacionado con la falla. En `STO
 - Monitorear cada push por SHA, con ventana inicial máxima recomendada de 2 a 3 commits pendientes.
 - La consulta de CI se realiza de forma compacta mediante `delivery_ci_inspect` o `npm run delivery:ci -- --sha <sha>`, sin emitir comandos crudos de `gh` ni tracebacks masivos.
 - Mientras haya menos de tres SHAs pendientes, continuar el trabajo local. Ante CI fallido (`failed` o `timed_out`), los hooks de Git bloquean nuevos pushes hasta resolver la causa.
-- En `close_us`, `npm run delivery:finalize` comprueba de forma automática que todos los commits de la US (incluyendo commits previos registrados como `not_run`) estén en verde con `status: passed` en CI, y que HEAD cuente con Gate D aprobado sin `@wip`. Estados `not_found`, `cancelled`, `timed_out` o `provider_error`, así como evidencia corrupta o faltante, bloquean el cierre. El bypass offline de pre-push no convierte CI desconocido o fallido en éxito.
+- En `close_us`, MCP `delivery_finalize` —o `npm run delivery:finalize` sin MCP— comprueba de forma automática que todos los commits de la US (incluyendo commits previos registrados como `not_run`) estén en verde con `status: passed` en CI, y que HEAD cuente con Gate D aprobado sin `@wip`. Estados `not_found`, `cancelled`, `timed_out` o `provider_error`, así como evidencia corrupta o faltante, bloquean el cierre. El bypass offline de pre-push no convierte CI desconocido o fallido en éxito.
 
 ## Seguridad antes de commit
 

@@ -1,7 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { findRepoRoot, assertSafeRepoPath } from "./repo-root.mjs";
 import { queryCommitEvidence, verifyCommitEvidence } from "./delivery-ledger.mjs";
-import { loadDeliveryContext } from "./delivery-context.mjs";
 import { extractUsId } from "./git-snapshot.mjs";
 import { inspectCi } from "./ci-provider.mjs";
 
@@ -52,7 +51,6 @@ export async function finalizeDelivery({
   ciProvider = null,
 } = {}) {
   const root = findRepoRoot(repoRoot);
-  const context = await loadDeliveryContext({ repoRoot: root });
 
   let headSha;
   try {
@@ -88,9 +86,17 @@ export async function finalizeDelivery({
       message: `Finalizing requires passed Gate D evidence on HEAD; observed '${evidenceRecord.gate?.id || "NONE"}'`,
     };
   }
+  if (verifiedHead.entry.intent !== intent) {
+    return {
+      finalized: false,
+      status: "blocked",
+      reason: "INTENT_EVIDENCE_MISMATCH",
+      message: `Finalizing '${intent}' requires matching HEAD evidence; observed '${verifiedHead.entry.intent || "none"}'`,
+    };
+  }
 
   const evidenceScope = evidenceRecord.gate?.parameters?.scopeFeatures || [];
-  const requestedScope = [...new Set([...(scopeFiles || []), ...(context?.scopeFiles || [])])];
+  const requestedScope = [...new Set(scopeFiles || [])];
   if (evidenceScope.length === 0) {
     return {
       finalized: false,
@@ -165,7 +171,18 @@ export async function finalizeDelivery({
     };
   }
 
-  const effectiveUsId = usId || context?.usId || verifiedHead.entry.usId || null;
+  const requestedUsId = normalizeUsId(usId);
+  const evidenceUsId = normalizeUsId(verifiedHead.entry.usId);
+  if (requestedUsId && evidenceUsId && requestedUsId !== evidenceUsId) {
+    return {
+      finalized: false,
+      status: "blocked",
+      reason: "US_EVIDENCE_MISMATCH",
+      message: `Requested User Story '${requestedUsId}' does not match HEAD evidence '${evidenceUsId}'`,
+    };
+  }
+
+  const effectiveUsId = requestedUsId || evidenceUsId || null;
   const shas = relevantCommitShas(root, headSha, effectiveUsId);
   const unverifiedCommits = [];
   for (const sha of shas) {

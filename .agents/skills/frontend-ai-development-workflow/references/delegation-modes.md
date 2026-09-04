@@ -29,7 +29,7 @@ La granularidad no determina el número de commits: un escenario puede requerir 
 
 El orquestador elige conducción, granularidad, alcance, prohibiciones, gates y la próxima frontera atómica prevista. No prescribe normalmente archivos o líneas exactas; hacerlo solo se justifica por seguridad, un diagnóstico preciso, cobertura parcial conocida o una frontera prohibida.
 
-El developer decide los archivos y líneas dentro del alcance, y trabaja una frontera atómica por vez: gate verde, commit y push antes de iniciar otra frontera lógica. Un escenario no es una unidad de working tree y puede requerir varios commits atómicos.
+El developer decide los archivos y líneas dentro del alcance, y trabaja una frontera atómica por vez: stage exacto, MCP `delivery_prepare` con `status: passed`, commit y push antes de iniciar otra frontera lógica. El runner selecciona el gate; el developer no calcula ni encadena sus comandos. Un escenario no es una unidad de working tree y puede requerir varios commits atómicos.
 
 ## Template de contrato completo
 
@@ -48,7 +48,7 @@ Skills obligatorias:
 Handoff técnico:
 Mapa de responsabilidades / señales de mantenibilidad esperadas:
 Próxima frontera atómica: comportamiento / archivos mínimos esperados / gate / commit tentativo
-Gates y condiciones de continuación:
+Intents de delivery y condiciones de continuación (el gate lo selecciona `delivery_prepare`):
 CI y ventana de SHAs:
 Estimación de commits: señal de coordinación, no cuota, mínimo ni máximo
 Escalamiento:
@@ -86,7 +86,7 @@ Escenarios activos:
 Objetivo, alcance y prohibiciones nuevas:
 Skills nuevas obligatorias:
 Delta de responsabilidades / señales de mantenibilidad esperadas:
-Próxima frontera atómica y gates:
+Próxima frontera atómica e intent de delivery:
 Condiciones de continuación y escalamiento:
 Formato de escalación:
 SHA / escenario / frontera:
@@ -140,7 +140,7 @@ Owners: desarrollador implementa y valida; orquestador commitea, pushea y monito
 
 Implementá únicamente este micro-paso. No elijas el siguiente,
 no hagas commit ni push y no modifiques el plan.
-Ejecutá el gate focalizado y reportá el resultado.
+Invocá MCP `delivery_prepare` para el staged exacto y reportá su evidencia compacta.
 ```
 
 ## Anexo de granularidad: `AGENT_ORCHESTRATED` + `SCENARIO`
@@ -164,8 +164,8 @@ Secuencia prevista:
 4. Revisión de mantenibilidad del código productivo y resolución de señales.
 5. Página, route builder, link e integración E2E GREEN.
 
-Gates: Gate 0 en steps; Gate A en piezas aisladas; Gate B al integrar;
-Gate C/D al cerrar según `frontend-testing-gates`.
+Gates esperables como referencia: 0 en steps, A en piezas aisladas, B al
+integrar y C/D al cerrar. MCP `delivery_prepare` toma la decisión efectiva.
 Owners: desarrollador valida, commitea, pushea y monitorea CI.
 
 Podés validar, crear los commits atómicos que exijan las fronteras y pushear
@@ -195,9 +195,11 @@ Prohibido: escenarios posteriores, preparación futura, refactors ajenos,
 links a rutas inexistentes o wiring antes de su frontera Outside-In.
 
 Completá exclusivamente estos escenarios en el orden indicado.
-Para cada escenario recorré sus micro-pasos Outside-In, ejecutá sus gates,
+Para cada escenario recorré sus micro-pasos Outside-In, invocá `delivery_prepare`
+en cada frontera staged sin calcular ni encadenar sus checks,
 dejalo E2E GREEN y recién entonces continuá con el siguiente.
-Aplicá Gate 0/A/B/C/D según `frontend-testing-gates` y el riesgo de cada frontera.
+Usá el intent correspondiente; la política selecciona Gate 0/A/B/C/D según
+`frontend-testing-gates` y el riesgo de cada frontera.
 Antes del gate de cada frontera productiva no trivial, aplicá
 `frontend-maintainability-governance` y resolvé o justificá sus señales.
 

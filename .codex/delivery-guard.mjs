@@ -3,10 +3,160 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findRepoRoot } from "../tools/delivery-mcp/lib/repo-root.mjs";
 import { captureGitSnapshot } from "../tools/delivery-mcp/lib/git-snapshot.mjs";
-import {
-  getLastPreparedEvidence,
-  loadEvidenceRecord,
-} from "../tools/delivery-mcp/lib/delivery-ledger.mjs";
+import { verifyPreparedEvidence } from "../tools/delivery-mcp/lib/delivery-ledger.mjs";
+
+const COMMAND_SEPARATORS = new Set([";", "&&", "||", "|", "&"]);
+const PREFIX_COMMANDS = new Set([
+  "bash",
+  "command",
+  "env",
+  "nohup",
+  "rtk",
+  "sh",
+  "sudo",
+  "time",
+]);
+const GIT_OPTIONS_WITH_VALUE = new Set([
+  "-C",
+  "-c",
+  "--config-env",
+  "--exec-path",
+  "--git-dir",
+  "--namespace",
+  "--super-prefix",
+  "--work-tree",
+]);
+
+function tokenizeShellCommand(rawCommand) {
+  const tokens = [];
+  let token = "";
+  let quote = null;
+  let escaped = false;
+
+  for (let index = 0; index < rawCommand.length; index += 1) {
+    const char = rawCommand[index];
+    if (escaped) {
+      token += char;
+      escaped = false;
+      continue;
+    }
+    if (char === "\\" && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (char === quote) quote = null;
+      else token += char;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      continue;
+    }
+    if (char === "\n" || char === "\r") {
+      if (token) tokens.push(token);
+      token = "";
+      tokens.push(";");
+      if (char === "\r" && rawCommand[index + 1] === "\n") index += 1;
+      continue;
+    }
+    if (/\s/.test(char)) {
+      if (token) tokens.push(token);
+      token = "";
+      continue;
+    }
+    if (";|&".includes(char)) {
+      if (token) tokens.push(token);
+      token = "";
+      const next = rawCommand[index + 1];
+      if ((char === "&" || char === "|") && next === char) {
+        tokens.push(`${char}${next}`);
+        index += 1;
+      } else {
+        tokens.push(char);
+      }
+      continue;
+    }
+    token += char;
+  }
+  if (token) tokens.push(token);
+  return tokens;
+}
+
+function isEnvironmentAssignment(token) {
+  return /^[A-Za-z_][A-Za-z0-9_]*=.*/.test(token);
+}
+
+function shellScriptArgument(tokens, index) {
+  for (let current = index + 1; current < tokens.length; current += 1) {
+    const option = tokens[current];
+    if (!option.startsWith("-")) return null;
+    if (option === "-c" || /^-[a-zA-Z]*c[a-zA-Z]*$/.test(option)) {
+      return tokens[current + 1] || null;
+    }
+  }
+  return null;
+}
+
+function isGitCommitInvocation(tokens) {
+  let index = 0;
+  while (isEnvironmentAssignment(tokens[index])) index += 1;
+
+  while (PREFIX_COMMANDS.has(tokens[index])) {
+    const prefix = tokens[index];
+    if (prefix === "bash" || prefix === "sh") {
+      const script = shellScriptArgument(tokens, index);
+      return Boolean(script && isGitCommitCommand(script));
+    }
+    index += 1;
+    if (prefix === "env") {
+      while (tokens[index]?.startsWith("-") || isEnvironmentAssignment(tokens[index])) index += 1;
+    } else if (prefix === "sudo") {
+      while (tokens[index]?.startsWith("-")) {
+        const option = tokens[index];
+        index += 1;
+        if (option === "-u" || option === "-g" || option === "-h" || option === "-p" || option === "-r" || option === "-t" || option === "-C") {
+          index += 1;
+        }
+      }
+    }
+  }
+
+  if (tokens[index] !== "git") return false;
+  index += 1;
+  while (index < tokens.length) {
+    const argument = tokens[index];
+    if (GIT_OPTIONS_WITH_VALUE.has(argument)) {
+      index += 2;
+      continue;
+    }
+    if (argument.startsWith("-C") || argument.startsWith("-c")) {
+      index += 1;
+      continue;
+    }
+    if (argument.startsWith("--")) {
+      index += 1;
+      continue;
+    }
+    return argument === "commit";
+  }
+  return false;
+}
+
+export function isGitCommitCommand(rawCommand) {
+  if (!rawCommand || typeof rawCommand !== "string") return false;
+  const tokens = tokenizeShellCommand(rawCommand);
+  let segment = [];
+  for (const token of [...tokens, ";"]) {
+    if (COMMAND_SEPARATORS.has(token)) {
+      if (isGitCommitInvocation(segment)) return true;
+      segment = [];
+    } else {
+      segment.push(token);
+    }
+  }
+  return false;
+}
 
 /**
  * Anticipatory delivery guard for Codex environments.
@@ -15,8 +165,7 @@ import {
  * Requires a valid prepared receipt for the current staged snapshot.
  */
 export async function runCodexGuard({ repoRoot = findRepoRoot(), rawCommand = "" } = {}) {
-  // If a command pattern is provided, verify it targets git commit
-  if (rawCommand && !/\bgit\s+commit\b/.test(rawCommand)) {
+  if (rawCommand && !isGitCommitCommand(rawCommand)) {
     return { shouldIntercept: false, passed: true, status: "ignored" };
   }
 
@@ -30,53 +179,13 @@ export async function runCodexGuard({ repoRoot = findRepoRoot(), rawCommand = ""
     };
   }
 
-  const prepared = await getLastPreparedEvidence({ repoRoot });
-  let hasValidEvidence = false;
-  let reason = "MISSING_PREPARED_EVIDENCE";
-
-  if (
-    prepared &&
-    prepared.schemaVersion === 2 &&
-    prepared.status === "passed" &&
-    !prepared.consumedByCommitSha
-  ) {
-    const identityMatches =
-      prepared.snapshotHash === snapshot.snapshotHash &&
-      prepared.parentHeadSha === snapshot.headSha &&
-      prepared.stagedTreeSha === snapshot.stagedTreeSha &&
-      prepared.branch === snapshot.branch &&
-      JSON.stringify(prepared.stagedFiles || []) ===
-        JSON.stringify([...new Set(snapshot.stagedFiles || [])].sort());
-
-    if (identityMatches) {
-      try {
-        const loaded = await loadEvidenceRecord({ repoRoot, recordPath: prepared.recordPath });
-        if (
-          loaded.digest === prepared.recordDigest &&
-          loaded.record.status === "passed" &&
-          loaded.record.snapshotHash === prepared.snapshotHash &&
-          loaded.record.runKey === prepared.runKey
-        ) {
-          hasValidEvidence = true;
-        } else {
-          reason = "PREPARED_EVIDENCE_RECORD_MISMATCH";
-        }
-      } catch {
-        reason = "PREPARED_EVIDENCE_RECORD_INVALID";
-      }
-    } else {
-      reason = "PREPARED_EVIDENCE_SNAPSHOT_MISMATCH";
-    }
-  } else if (prepared?.consumedByCommitSha) {
-    reason = "STALE_PREPARED_EVIDENCE";
-  }
-
-  if (hasValidEvidence) {
+  const verification = await verifyPreparedEvidence({ repoRoot, snapshot });
+  if (verification.valid) {
     return {
       shouldIntercept: true,
       passed: true,
       status: "passed",
-      gateId: prepared.gateId || "NONE",
+      gateId: verification.prepared.gateId || "NONE",
       cached: true,
     };
   }
@@ -84,7 +193,7 @@ export async function runCodexGuard({ repoRoot = findRepoRoot(), rawCommand = ""
   return {
     shouldIntercept: true,
     passed: false,
-    status: reason,
+    status: verification.reason,
     message: "Invoke MCP delivery_prepare for the current staged snapshot",
   };
 }

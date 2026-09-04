@@ -51,7 +51,7 @@ Las capas internas no dependen de las externas. `domain/` y `ports/` no importan
 5. Una delegación tiene un único batch activo. Puede abarcar un micro-paso, un escenario o un grupo aprobado de 2–3 escenarios consecutivos; dentro de un grupo, cada escenario se cierra en GREEN antes de iniciar el siguiente.
 6. La presentación inicial se implementa aislada con props o mocks y sin anticipar rutas, fetch, repositorios, Server Actions ni integración. Esas dependencias se incorporan al avanzar hacia adentro.
 7. Ownership, commits, push, reportes y escalamiento se rigen por la granularidad declarada en `frontend-ai-development-workflow`. En `SCENARIO` y `SCENARIO_GROUP`, el desarrollador persistente puede completar, commitear, pushear y monitorear únicamente el batch aprobado.
-8. Cada commit debe ser coherente, compilable y testeable. Con el cambio exacto staged, `delivery_prepare` selecciona y ejecuta el gate local; solo `status: passed` habilita commit y push a `main`.
+8. Cada commit debe ser coherente, compilable y testeable. Antes de cada commit de agente, con el cambio exacto staged, `delivery_prepare` selecciona y ejecuta el gate local; solo `status: passed` habilita al agente a commitear y pushear a `main`. El flujo humano se define más abajo.
 9. CI se monitorea por SHA en paralelo. Se permite una ventana acotada de commits pendientes; ante una falla se detienen nuevos pushes y se corrige la causa.
 10. Un escenario pierde `@wip` solo al pasar su E2E. La US se cierra con sus gates completos y CI verde.
 
@@ -107,21 +107,24 @@ Las referencias de una skill se leen únicamente cuando la tarea coincide con su
 
 ## Comandos habituales
 
-### Agente
-```bash
-# Inspección previa opcional
-npm run delivery:inspect -- --intent prepare_commit --message '<mensaje propuesto>'
-# Preparar evidencia y ejecutar gate local sobre staged (obligatorio antes de commit)
-npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuesto>'
-# Inspeccionar CI tras push
-npm run delivery:ci -- --sha <commit-sha>
-# Cerrar User Story (requiere Gate D completo en HEAD y CI passed en todos los commits de la US)
-npm run delivery:finalize -- --intent close_us --scope features/<feature>.feature
+### Agente con MCP
+
+```text
+delivery_inspect({ intent, proposedCommitMessage, ... })     # previsualización opcional
+delivery_prepare({ intent, proposedCommitMessage, ... })     # gate obligatorio sobre staged
+delivery_ci_inspect({ sha })                                 # CI compacto tras push
+delivery_finalize({ intent: "close_us", usId, scopeFiles }) # cierre con Gate D + CI verde
 ```
 
-### Humano / Diagnóstico manual
+El agente edita y usa Git normalmente, pero no ejecuta manualmente `make`, lint, typecheck, suites ni comandos crudos de CI como flujo habitual. El servidor MCP elige y ejecuta los checks mediante el core compartido y devuelve resultados procesados.
+
+### Humano, agente sin MCP o diagnóstico manual
+
 ```bash
 npm run delivery:hooks:install
+npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuesto>'
+npm run delivery:ci -- --sha <commit-sha>
+npm run delivery:finalize -- --intent close_us --scope features/<feature>.feature
 npm run test
 npm run lint
 npm run build
@@ -136,6 +139,6 @@ El flujo de entrega distingue claramente entre agente y humano:
 - **Agentes**: `delivery_prepare` (o MCP `delivery_prepare`) es la entrada canónica obligatoria sobre el snapshot staged antes de cada commit. El hook de Codex (`.codex/delivery-guard.mjs`) es estricto: intercepta `git commit` y deniega la ejecución si no existe un receipt válido y coincidente generado previamente por `delivery_prepare`.
 - **Humanos**: desarrollan, realizan stage y pueden commitear directamente ejecutando tests de forma manual o delegando la verificación a CI. En ausencia de receipt previo, el commit se registra en el ledger local como `not_run` y se permite tanto el commit como el push (salvo que se configure `DELIVERY_REQUIRE_EVIDENCE=1`).
 - **Git hooks**: los hooks de Git (`pre-commit`, `commit-msg`, `post-commit`, `pre-push`) son deliberadamente livianos. **Nunca ejecutan suites de tests**. Solo validan formato de mensaje, presencia o correspondencia de receipt ya existente (sin re-ejecutar gates), atomicidad de push (un commit a la vez), CI previo no fallido y registro en el ledger. Se instalan una vez por clon con `npm run delivery:hooks:install`.
-- **Cierre de User Story**: `delivery:finalize` (o `npm run delivery:finalize`) exige que el commit HEAD tenga evidencia válida y aprobada de Gate D, y que **todos los commits de la US** (tanto los verificados localmente como los `not_run`) tengan su respectivo run de CI en estado `passed`. Commits corruptos o faltantes en el ledger bloquean el cierre.
+- **Cierre de User Story**: MCP `delivery_finalize` (o la CLI `npm run delivery:finalize`) exige que el commit HEAD tenga evidencia válida y aprobada de Gate D, y que **todos los commits de la US** (tanto los verificados localmente como los `not_run`) tengan su respectivo run de CI en estado `passed`. Commits corruptos o faltantes en el ledger bloquean el cierre.
 
 Los agentes consumen resultados estructurados y normalizados; no deben calcular gates, procesar tracebacks completos, administrar manualmente comandos de CI ni descargar logs masivos. MCP es un adaptador opcional: los agentes sin MCP ejecutan `npm run delivery:*`, que comparten exactamente el mismo núcleo. No calcular ni encadenar manualmente el gate pre-commit; los comandos individuales se reservan para TDD o diagnóstico focalizado.

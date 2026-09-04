@@ -5,12 +5,14 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { server } from "../server.mjs";
 import { inspectDelivery } from "../lib/inspect-delivery.mjs";
 import { prepareDelivery } from "../lib/prepare-delivery.mjs";
+import { finalizeDelivery } from "../lib/delivery-finalize.mjs";
 import {
   DeliveryInspectInputSchema,
   DeliveryPrepareInputSchema,
+  DeliveryFinalizeInputSchema,
 } from "../lib/input-schema.mjs";
 
-test("paridad CLI / MCP: inspect y prepare producen el mismo resultado semantico", async () => {
+test("paridad CLI / MCP: inspect, prepare y finalize producen el mismo resultado semantico", async () => {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "parity-test", version: "1.0.0" });
 
@@ -58,6 +60,24 @@ test("paridad CLI / MCP: inspect y prepare producen el mismo resultado semantico
     assert.strictEqual(mcpPrepareResult.gate.id, cliPrepareResult.gate.id);
     assert.deepStrictEqual(mcpPrepareResult.gate.checkIds, cliPrepareResult.gate.checkIds);
     assert.deepStrictEqual(mcpPrepareResult.summary, cliPrepareResult.summary);
+
+    // 3. Finalize parity test. The current checkout normally blocks before CI
+    // unless HEAD already carries exact Gate D evidence; either outcome must be
+    // identical because both adapters delegate to the same core.
+    const finalizeInput = {
+      intent: "close_us",
+    };
+    const parsedFinalize = DeliveryFinalizeInputSchema.parse(finalizeInput);
+    const cliFinalizeResult = await finalizeDelivery(parsedFinalize);
+    const mcpFinalizeCall = await client.callTool({
+      name: "delivery_finalize",
+      arguments: finalizeInput,
+    });
+    const mcpFinalizeResult = JSON.parse(mcpFinalizeCall.content[0].text);
+
+    assert.strictEqual(mcpFinalizeResult.finalized, cliFinalizeResult.finalized);
+    assert.strictEqual(mcpFinalizeResult.status, cliFinalizeResult.status);
+    assert.strictEqual(mcpFinalizeResult.reason, cliFinalizeResult.reason);
   } finally {
     await client.close();
   }

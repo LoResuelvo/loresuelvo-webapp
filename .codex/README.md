@@ -10,6 +10,7 @@ Este directorio contiene la configuración y adaptadores opcionales para entorno
 2. **Herramientas canónicas y neutrales**:
    - Los hooks versionados en `.githooks/` (`pre-commit`, `commit-msg`, `post-commit`, `pre-push`) y la CLI pública son la interfaz canónica compartida por todo el proyecto.
    - Cualquier persona o agente sin Codex ejecuta `npm run delivery:prepare` y `npm run delivery:inspect` con exactamente las mismas garantías y políticas que el servidor MCP o las integraciones de Codex.
+   - Un agente con MCP usa `delivery_inspect`, `delivery_prepare`, `delivery_ci_inspect` y `delivery_finalize`; los comandos `npm run delivery:*` son el fallback neutral, no un segundo flujo que deba repetir.
 
 3. **Sin secretos ni tokens**:
    Ningún archivo en `.codex/` contiene ni debe contener credenciales, claves de API, tokens de autenticación ni secretos. Toda la configuración es estrictamente declarativa y segura para control de versiones.
@@ -23,4 +24,11 @@ Este directorio contiene la configuración y adaptadores opcionales para entorno
 
 - `config.toml`: Registro del servidor MCP local `loresuelvo-delivery` (`tools/delivery-mcp/server.mjs`).
 - `hooks.json`: Declaración del hook `PreToolUse` para intercepción temprana de `git commit`.
-- `delivery-guard.mjs`: Script de verificación anticipada que reutiliza la caché de `prepareDelivery` sin re-ejecutar tests si el snapshot ya cuenta con evidencia verde.
+- `delivery-guard.mjs`: Script read-only de verificación anticipada que consulta el mismo validador de receipts que los hooks de Git; nunca ejecuta gates ni tests.
+
+## Activación en un clon nuevo
+
+1. Instalar una sola vez los hooks de Git con `npm run delivery:hooks:install`.
+2. Abrir una tarea nueva de Codex con la raíz en este repositorio para que cargue `.codex/config.toml` y exponga las cuatro herramientas MCP.
+3. Aprobar el hook local del proyecto en `/hooks`. Si cambia su definición, Codex puede requerir una nueva aprobación.
+4. Configurar autenticación de GitHub (`gh auth` o `GITHUB_TOKEN`) para que `delivery_ci_inspect` y `delivery_finalize` puedan consultar CI.

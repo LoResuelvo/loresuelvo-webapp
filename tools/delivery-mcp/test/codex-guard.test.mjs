@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import {
+  isGitCommitCommand,
   parseCodexHookInput,
   runCodexGuard,
 } from "../../../.codex/delivery-guard.mjs";
@@ -56,6 +57,34 @@ test("runCodexGuard: ignora comandos que no sean git commit", async () => {
   const res2 = await runCodexGuard({ rawCommand: "git status" });
   assert.strictEqual(res2.shouldIntercept, false);
   assert.strictEqual(res2.passed, true);
+});
+
+test("isGitCommitCommand: reconoce opciones globales y prefijos sin confundir argumentos", () => {
+  for (const command of [
+    "git -C packages/web commit -m 'docs: update'",
+    "git -c user.name=bot --no-pager commit -m 'docs: update'",
+    "CI=1 rtk git --git-dir .git --work-tree . commit -m 'docs: update'",
+    "cd packages/web && command git commit -m 'docs: update'",
+    "sudo -u codex git commit -m 'docs: update'",
+    "bash -lc 'git commit -m \\\"docs: update\\\"'",
+    "sh -c 'git -C packages/web commit -m \\\"docs: update\\\"'",
+    "rtk git add README.md\nrtk git commit -m 'docs: update'",
+    "rtk git add README.md\r\nrtk git commit -m 'docs: update'",
+  ]) {
+    assert.strictEqual(isGitCommitCommand(command), true, command);
+  }
+
+  for (const command of [
+    "echo 'git commit -m docs'",
+    "printf '%s' 'git commit'",
+    "git status commit",
+    "node -e \"console.log('git commit')\"",
+    "bash -lc 'echo git commit'",
+    "sh -c 'printf %s git-commit'",
+    "rtk git add README.md\r\nrtk git status",
+  ]) {
+    assert.strictEqual(isGitCommitCommand(command), false, command);
+  }
 });
 
 test("Codex hook: usa la estructura PreToolUse oficial y lee tool_input.command", async () => {

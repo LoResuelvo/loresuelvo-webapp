@@ -13,9 +13,11 @@ async function runSmokeTest() {
     const inspectTool = toolsResult.tools.find((tool) => tool.name === "delivery_inspect");
     const prepareTool = toolsResult.tools.find((tool) => tool.name === "delivery_prepare");
     const ciTool = toolsResult.tools.find((tool) => tool.name === "delivery_ci_inspect");
+    const finalizeTool = toolsResult.tools.find((tool) => tool.name === "delivery_finalize");
     assert.ok(inspectTool, "delivery_inspect tool is registered");
     assert.ok(prepareTool, "delivery_prepare tool is registered");
     assert.ok(ciTool, "delivery_ci_inspect tool is registered");
+    assert.ok(finalizeTool, "delivery_finalize tool is registered");
 
     const callResult = await client.callTool({
       name: "delivery_inspect",

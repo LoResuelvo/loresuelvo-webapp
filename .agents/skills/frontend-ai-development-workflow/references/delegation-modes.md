@@ -27,7 +27,7 @@ La granularidad no determina el número de commits: un escenario puede requerir 
 
 ## Fronteras y ownership
 
-El orquestador elige conducción, granularidad, alcance, prohibiciones, gates y la próxima frontera atómica prevista. No prescribe normalmente archivos o líneas exactas; hacerlo solo se justifica por seguridad, un diagnóstico preciso, cobertura parcial conocida o una frontera prohibida.
+El orquestador elige conducción, granularidad, alcance, prohibiciones, el intent de delivery y la próxima frontera atómica prevista; no calcula el gate, ya que `delivery_prepare` lo selecciona automáticamente según la política. No prescribe normalmente archivos o líneas exactas; hacerlo solo se justifica por seguridad, un diagnóstico preciso, cobertura parcial conocida o una frontera prohibida.
 
 El developer decide los archivos y líneas dentro del alcance, y trabaja una frontera atómica por vez: stage exacto, MCP `delivery_prepare` con `status: passed`, commit y push antes de iniciar otra frontera lógica. El runner selecciona el gate; el developer no calcula ni encadena sus comandos. Un escenario no es una unidad de working tree y puede requerir varios commits atómicos.
 
@@ -47,8 +47,8 @@ Prohibido:
 Skills obligatorias:
 Handoff técnico:
 Mapa de responsabilidades / señales de mantenibilidad esperadas:
-Próxima frontera atómica: comportamiento / archivos mínimos esperados / gate / commit tentativo
-Intents de delivery y condiciones de continuación (el gate lo selecciona `delivery_prepare`):
+Próxima frontera atómica: comportamiento / archivos mínimos esperados / intent / commit tentativo
+Gates aplicables: Automático: delivery_prepare selecciona el gate según intent, staged snapshot y política.
 CI y ventana de SHAs:
 Estimación de commits: señal de coordinación, no cuota, mínimo ni máximo
 Escalamiento:
@@ -63,7 +63,7 @@ Estado: ACTIVE | ESCALATE_ORCHESTRATOR | STOP_USER
 Formato de cierre:
 Escenarios GREEN:
 Commits / SHAs:
-Gates:
+Gates: <resultados devueltos por delivery_prepare>
 CI:
 Árbol:
 Escalaciones / riesgos:
@@ -99,7 +99,7 @@ Estado: ACTIVE | ESCALATE_ORCHESTRATOR | STOP_USER
 Formato de cierre:
 Escenarios GREEN:
 Commits / SHAs:
-Gates:
+Gates: <resultados devueltos por delivery_prepare>
 CI:
 Árbol:
 Escalaciones / riesgos:
@@ -214,7 +214,7 @@ Tenés autorización para validar, commitear, pushear y monitorear CI dentro
 del batch. No reportes checkpoints ni commits individuales. Hacé un único
 reporte ordinario cuando los tres escenarios y sus SHAs estén GREEN.
 
-Detenete y escalá inmediatamente si un gate o CI falla más allá del presupuesto
+Detenete y escalá inmediatamente si `delivery_prepare` o CI falla más allá del presupuesto
 de reparación, aparece una contradicción, necesitás archivos fuera del alcance,
 el siguiente cambio no sería desplegable o necesitás cambiar el plan.
 No avances a 14.4. Si la evidencia exige más o menos fronteras que la
@@ -229,14 +229,14 @@ Implementá todo 14.1: steps, vista, DTO, mapper, puerto, caso de uso,
 repositorio, página, ruta, link y E2E. No crees todavía la página destino.
 ```
 
-Es inválido porque agrupa trabajo sin fronteras ni gates y exige un link mientras prohíbe su dependencia desplegable.
+Es inválido porque agrupa trabajo sin fronteras ni preparación de delivery y exige un link mientras prohíbe su dependencia desplegable.
 
 ## Reporte compacto de batch
 
 ```text
 Batch: 14.1–14.3 GREEN
 Commits/SHAs: <lista breve de commits atómicos>
-Gates: <comandos y resultado final por escenario>
+Gates: <resultados devueltos por delivery_prepare>
 CI: <estado por SHA>
 Escalaciones/hipótesis: <ninguna o resumen compacto>
 Mantenibilidad: <señales, decisiones y justificaciones>

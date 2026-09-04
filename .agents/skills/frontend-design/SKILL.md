@@ -21,6 +21,6 @@ Usar cuando la tarea principal sea diseñar o mejorar una interfaz. No cargar pa
 1. Identificar usuario, objetivo y CTA de la pantalla.
 2. Revisar el patrón existente y definir una dirección visual concreta.
 3. Implementar la mínima UI coherente con el escenario activo.
-4. Validar visualmente y ejecutar el gate aplicable.
+4. Validar visualmente y cerrar la frontera mediante `delivery_prepare` según `frontend-testing-gates`; no seleccionar ni ejecutar manualmente sus checks.
 
 Leer [sistema de diseño](references/design-system.md) cuando se necesiten primitivas, tipografía o patrones de mensajería y pagos.

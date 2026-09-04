@@ -80,20 +80,20 @@ npm run delivery:prepare -- --intent prepare_commit --message '<mensaje>' \
 
 Cada justificación debe tener al menos 12 caracteres y cubrir de forma determinística la señal (`<signal-id>`). Si las señales exceden el límite y son truncadas por la política, no pueden aprobarse parcialmente y bloquean el commit hasta reducir el alcance.
 
-Para una revisión focalizada sobre archivos concretos:
+Para una revisión focalizada sobre archivos concretos (uso humano o diagnóstico focalizado excepcional):
 
 ```bash
 git diff --name-only --diff-filter=ACMR HEAD
 node .agents/skills/frontend-maintainability-governance/scripts/audit-changed-code.mjs <rutas-productivas>
 ```
 
-Para revisar un commit ya creado o un archivo específico:
+Para revisar un commit ya creado o un archivo específico (uso humano o diagnóstico):
 
 ```bash
 node .agents/skills/frontend-maintainability-governance/scripts/audit-changed-code.mjs hooks/audio/useAudioRecorder.ts
 ```
 
-No usar sustituciones de shell opacas para construir la lista: inspeccionarla y excluir tests, archivos generados y documentación. El auditor emite señales y finaliza correctamente aunque existan; la decisión sigue siendo humana. Resolver cada señal mediante refactor o una justificación explícita ligada al `snapshotHash`; `delivery_prepare` conserva esa decisión en la evidencia local.
+Los comandos directos de `audit-changed-code.mjs` son exclusivamente para uso humano o diagnóstico focalizado; los agentes interactúan a través de `delivery_inspect` y `delivery_prepare`. No usar sustituciones de shell opacas para construir la lista: inspeccionarla y excluir tests, archivos generados y documentación. El auditor emite señales y finaliza correctamente aunque existan; la decisión sigue siendo humana. Resolver cada señal mediante refactor o una justificación explícita ligada al `snapshotHash`; `delivery_prepare` conserva esa decisión en la evidencia local.
 
 ## Evidencia de cierre
 

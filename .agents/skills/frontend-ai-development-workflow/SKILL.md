@@ -32,7 +32,7 @@ Al inicio, el orquestador:
 
 1. entiende contrato, escenarios, dependencias y riesgos;
 2. declara la conducción de la US;
-3. propone una partición provisional en batches, cada uno con granularidad, escenarios ordenados, fronteras Outside-In, gates, owners y condiciones de continuación;
+3. propone una partición provisional en batches, cada uno con granularidad, escenarios ordenados, fronteras Outside-In, intents de delivery, owners y condiciones de continuación;
 4. declara, si aporta valor de coordinación, una estimación de commits atómicos para el batch en `SCENARIO` o `SCENARIO_GROUP`.
 
 La estimación de commits es una señal para coordinar reportes y CI, no una cuota, mínimo ni máximo. No fusionar cambios independientes, omitir gates ni demorar escalaciones para ajustarse a ella. La atomicidad, los gates y el push inmediato prevalecen. Si la evidencia exige más o menos fronteras, continuar con el siguiente commit atómico y registrar la desviación al llegar a una frontera segura.
@@ -43,7 +43,7 @@ Se puede promover `SCENARIO` a `SCENARIO_GROUP` cuando la evidencia muestra que 
 
 - El orquestador mantiene alcance, escenarios aprobados, plan de batches y conversación con el usuario.
 - Antes de delegar trabajo estructural, el orquestador consulta Codebase Memory, verifica cobertura y entrega un handoff compacto; no delega una exploración que ya realizó.
-- El orquestador declara la próxima frontera atómica prevista, sus gates y condiciones de continuación, pero no prescribe normalmente archivos o líneas exactas. Solo los especifica ante una restricción de seguridad, un bug ya diagnosticado, cobertura parcial conocida o una frontera que no debe tocarse.
+- El orquestador declara la próxima frontera atómica prevista, su intent de delivery y condiciones de continuación, pero no prescribe normalmente archivos o líneas exactas ni calcula gates (`delivery_prepare` selecciona y ejecuta el gate automáticamente). Solo especifica archivos ante una restricción de seguridad, un bug ya diagnosticado, cobertura parcial conocida o una frontera que no debe tocarse.
 - El desarrollador persistente trabaja únicamente sobre el batch activo y no crea subagentes descartables.
 - El desarrollador usa la evidencia de grafo recibida y solo abre una consulta estructural nueva si el batch descubre una pregunta no resuelta. Si no dispone de las herramientas MCP, usa la evidencia entregada y lectura focalizada sin afirmar acceso al grafo.
 - Dentro del alcance permitido, el desarrollador decide los archivos y líneas necesarios para una implementación cohesionada, valida, commitea, pushea y monitorea CI. Escala antes de cruzar una prohibición o cambiar el contrato.
@@ -81,7 +81,7 @@ Alcance y archivos permitidos:
 Archivos y comportamiento prohibidos:
 Secuencia Outside-In y fronteras de commit previstas:
 Presupuesto de commits / reporte:
-Gates aplicables:
+Gates aplicables: Automático: delivery_prepare selecciona el gate según intent, staged snapshot y política.
 Commit owner / push owner / CI owner:
 Condiciones de continuación entre escenarios:
 Condiciones de escalamiento:
@@ -109,7 +109,7 @@ debe listarlas como `Skills nuevas obligatorias` y el developer debe leerlas
 completas antes de editar. Reenviar un contrato completo cuando se reemplaza al
 developer, se perdió contexto o surge una dependencia arquitectónica nueva.
 
-El contrato puede expresar una estimación de commits, pero debe declarar que no es una cuota, mínimo ni máximo. Debe describir la próxima frontera atómica prevista —comportamiento, archivos mínimos esperados, gate y mensaje de commit tentativo— y exigir `gate verde → commit → push` antes de iniciar otra frontera lógica. No usar el contrato para imponer líneas exactas salvo las excepciones de seguridad, diagnóstico o cobertura ya declaradas.
+El contrato puede expresar una estimación de commits, pero debe declarar que no es una cuota, mínimo ni máximo. Debe describir la próxima frontera atómica prevista —comportamiento, archivos mínimos esperados, intent de delivery y mensaje de commit tentativo— y exigir `delivery_prepare status: passed → commit → push` antes de iniciar otra frontera lógica. No usar el contrato para imponer líneas exactas salvo las excepciones de seguridad, diagnóstico o cobertura ya declaradas.
 
 ## Gates y reparación autónoma
 
@@ -161,7 +161,7 @@ activo, esperar otra ventana corta antes de una nueva consulta pasiva.
 
 ## Protocolo de respuestas
 
-El developer no reporta cada commit ni cada gate verde; registra esos datos y
+El developer no reporta cada commit ni cada resultado verde de `delivery_prepare`; registra esos datos y
 los incluye en el cierre que corresponda. Al recibir un contrato, responde solo
 si detecta un bloqueo o contradicción:
 
@@ -177,7 +177,7 @@ cierre de `MICROSTEP`, `SCENARIO` o `SCENARIO_GROUP` informa:
 ```text
 Escenarios GREEN:
 Commits / SHAs:
-Gates:
+Gates: <resultados devueltos por delivery_prepare>
 CI:
 Árbol:
 Escalaciones / riesgos:

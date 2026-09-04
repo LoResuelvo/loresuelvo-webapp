@@ -29,5 +29,4 @@ Leer primero `.agents/skills/frontend-design/SKILL.md`. Si hay formularios/overl
 
 - Desktop y mobile sin jank.
 - Teclado y foco correctos si hay overlays.
-- Pruebas afectadas en verde.
-- `npm run lint`; `npm run build` si toca SSR/routing o cierre de feature.
+- Cerrar la frontera mediante `delivery_prepare` según `frontend-testing-gates`; no seleccionar ni ejecutar manualmente sus checks.

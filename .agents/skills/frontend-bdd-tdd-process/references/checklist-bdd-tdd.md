@@ -8,8 +8,9 @@
 
 ## Durante RED/GREEN
 
-- RED confirmado cuando sea viable.
+- RED inicial confirmado cuando sea viable y aporte valor (Gate 0 no exige demostrar RED). Un RED esperado no habilita commit.
 - GREEN logrado con el cambio mínimo razonable.
+- En fronteras de verificación, stage exacto y `delivery_prepare` según `frontend-testing-gates`; comandos focalizados crudos solo como fallback de diagnóstico excepcional.
 - Refactor sin cambiar expectativas.
 
 ## Calidad de pruebas
@@ -26,6 +27,6 @@
 
 ## Cierre
 
-- Prueba focalizada ejecutada.
-- E2E ejecutado si cambió un flujo en `features/`.
-- Validación robusta pendiente o ejecutada según el alcance del handoff/PR.
+- Cierre de frontera o escenario mediante `delivery_prepare` con `status: passed`.
+- Sin `@wip` residual en el escenario cerrado.
+- Validación de CI y evidencia registrada en el ledger.

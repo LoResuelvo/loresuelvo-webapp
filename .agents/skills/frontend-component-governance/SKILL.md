@@ -27,6 +27,6 @@ Antes de extraer, verificar que la nueva pieza tenga un nombre, una responsabili
 
 - Usar primitivas existentes y preservar contratos de accesibilidad y testing.
 - Mantener los componentes organizados por subdominio cuando eso facilite el descubrimiento.
-- Ejecutar el gate indicado por `frontend-testing-gates`.
+- Cerrar la frontera mediante `delivery_prepare` según `frontend-testing-gates`; no seleccionar ni ejecutar manualmente sus checks.
 
 Leer [patrones de composición](references/composition-patterns.md) si el componente tiene prop drilling, slots o coordinación de layout compleja.

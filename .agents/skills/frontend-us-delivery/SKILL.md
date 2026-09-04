@@ -21,15 +21,15 @@ Usar para implementar una User Story o feature completa. Esta skill define el ci
 3. Cada micro-paso agrega un único comportamiento observable. No conectar la presentación a rutas, fetch, repositorios o Server Actions antes del paso de integración correspondiente.
 4. Agregar solamente el código requerido por el escenario actual dentro del batch. No preparar capas completas para escenarios futuros ni saltar al siguiente antes de cerrar el actual en GREEN.
 5. Revisar el código productivo no trivial con `frontend-maintainability-governance` y resolver sus señales sin introducir alcance ajeno.
-6. Ejecutar el gate correspondiente antes del commit; quién commitea y pushea depende de la granularidad de delegación declarada.
+6. Realizar stage exacto de la frontera atómica y ejecutar `delivery_prepare` (el runner selecciona y ejecuta el gate automáticamente); con `status: passed`, commitear y pushear según la granularidad de delegación declarada.
 7. Retirar `@wip` solo cuando el E2E del escenario esté en GREEN.
 8. Continuar con el siguiente escenario solo si pertenece al batch aprobado y se cumplen sus condiciones de continuación; de lo contrario, cerrar el batch y reportar.
 
 ## Cierre
 
-- Ejecutar los gates integrales definidos en `frontend-testing-gates`.
+- Cerrar la User Story mediante MCP `delivery_finalize` (o `npm run delivery:finalize`), que verifica Gate D aprobado en HEAD y CI passed en todos los commits de la US según `frontend-testing-gates`.
 - Informar señales de mantenibilidad, extracciones o justificaciones y cualquier riesgo residual.
-- Confirmar que CI está verde para los commits de la US.
+- Confirmar que CI está verde para todos los commits de la US.
 - Informar alcance entregado, validaciones ejecutadas y cualquier riesgo residual.
 
 ## Routing

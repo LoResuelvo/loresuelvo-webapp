@@ -25,7 +25,7 @@ Mantener cache predecible e invalidaciones trazables con `@tanstack/react-query`
 2. Revisar clientes existentes en `lib/` antes de crear hooks nuevos.
 3. Definir key + función fetch + estados UI.
 4. Agregar tests de no-request con parametros invalidos e invalidacion esperada cuando el comportamiento sea critico.
-5. Ejecutar prueba focalizada, `npm run lint` y build si toca SSR/routing.
+5. Cerrar la frontera mediante `delivery_prepare` según `frontend-testing-gates`; no seleccionar ni ejecutar manualmente sus checks.
 
 ## Checklist de cierre
 

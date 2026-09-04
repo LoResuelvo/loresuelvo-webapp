@@ -35,7 +35,7 @@ API DTO snake_case
 ## Validación
 
 - Testear mappers y casos de uso de manera aislada.
-- Ejecutar el gate que corresponda según `frontend-testing-gates`.
+- Cerrar la frontera mediante `delivery_prepare` según `frontend-testing-gates`; no seleccionar ni ejecutar manualmente sus checks.
 - Cargar `frontend-domain-governance` solo si el cambio introduce invariantes de negocio.
 
 Leer [patrones de integración](references/integration-patterns.md) cuando se diseñen DTOs, mappers o resultados de Server Actions.

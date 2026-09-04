@@ -44,5 +44,4 @@ Corregir problemas responsive con cambios locales, mobile-first y testeables, co
 
 1. Revisar visualmente al menos mobile angosto, tablet y desktop.
 2. Agregar/ajustar tests si el responsive depende de clases o render condicional.
-3. Ejecutar prueba focalizada y `npm run lint`.
-4. Ejecutar `npm run build` al cierre de pantalla completa o si hay cambios SSR/routing.
+3. Cerrar la frontera mediante `delivery_prepare` según `frontend-testing-gates`; no seleccionar ni ejecutar manualmente sus checks.

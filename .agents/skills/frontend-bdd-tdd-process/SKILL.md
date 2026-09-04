@@ -19,13 +19,13 @@ Usar cuando la tarea cambia comportamiento observable, criterios de aceptación,
 
 ## Double-Loop TDD
 
-1. Crear o ajustar el escenario Gherkin y ejecutarlo en RED por la razón observable correcta.
+1. Crear o ajustar el escenario Gherkin. El RED inicial se confirma cuando sea viable y aporte valor; Gate 0 comprueba que los steps compilen y no rompan los existentes, sin exigir demostrar un RED inicial. Un RED esperado no habilita commit.
 2. Si faltan frases, agregar step definitions mínimos antes de la implementación.
 3. Crear la presentación mínima aislada con props o mocks; no agregar ruta, fetch, repositorio, Server Action ni wiring todavía.
 4. Para cada pieza interna, escribir un test unitario o de componente pequeño en RED, centrado solamente en el nuevo comportamiento.
 5. Implementar lo mínimo para GREEN y refactorizar sin perderlo. En código productivo no trivial, resolver la revisión de `frontend-maintainability-governance` antes de cerrar el ciclo.
 6. Agregar infraestructura/aplicación y luego el wiring de integración cuando el escenario activo lo requiera.
-7. Mantener `@wip` mientras el escenario no esté listo para entrar en la suite normal. Al completar su implementación, retirar `@wip` y ejecutar `delivery_prepare` con el intent de cierre correspondiente (`close_scenario`, `close_batch`, `close_us`) según `frontend-testing-gates`. Los comandos de `make` son herramientas internas de los checks del gate o para diagnóstico puntual de desarrolladores humanos; el agente no los ejecuta como flujo habitual sino a través de `delivery_prepare`.
+7. En cada frontera atómica, el agente realiza stage exacto y ejecuta `delivery_prepare` con el intent correspondiente (`prepare_commit`, `close_scenario`, `close_batch`, `close_us`) según `frontend-testing-gates`. Mantener `@wip` mientras el escenario no esté listo para entrar en la suite normal; al completar su implementación, retirar `@wip` y cerrar la frontera mediante `delivery_prepare`. Los comandos focalizados crudos (o targets de test) son únicamente fallback humano o diagnóstico excepcional cuando la respuesta procesada de `delivery_prepare` no alcance para diagnosticar.
 
 ## Selección de pruebas
 

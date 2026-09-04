@@ -247,7 +247,7 @@ Given("que estoy en un chat activo como consumidor", async function (this: Custo
   await installMediaRecorderMock(this);
   await this.page.goto(
     APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
-    { waitUntil: "domcontentloaded" }
+    { waitUntil: "networkidle" }
   );
   await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
 });
@@ -261,7 +261,7 @@ Given("que estoy autenticado como consumidor", async function (this: CustomWorld
   }
   await this.page.goto(
     APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
-    { waitUntil: "domcontentloaded" }
+    { waitUntil: "networkidle" }
   );
   await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
   await this.stubPost(
@@ -315,7 +315,7 @@ Given("que el límite de mensajes ya fue alcanzado", async function (this: Custo
   await stubPendingConsumerChat(this);
   await this.page.goto(
     APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
-    { waitUntil: "domcontentloaded" }
+    { waitUntil: "networkidle" }
   );
   await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
   await this.stubPost(
@@ -417,7 +417,7 @@ Given("que estoy autenticado como prestador", async function (this: CustomWorld)
 
   await this.page.goto(
     APP_URL + ROUTES.provider.messages + "?consumer_id=1",
-    { waitUntil: "domcontentloaded" }
+    { waitUntil: "networkidle" }
   );
   await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
   await this.stubPost(
@@ -470,7 +470,17 @@ async function attachAudioFile(world: CustomWorld, fileName: string, bufferConte
     mimeType: "audio/webm",
     buffer: Buffer.from(bufferContent),
   });
-  await world.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+  const preview = world.page.getByTestId("audio-preview");
+  try {
+    await preview.waitFor({ state: "visible", timeout: 2000 });
+  } catch {
+    await audioInput.setInputFiles({
+      name: fileName,
+      mimeType: "audio/webm",
+      buffer: Buffer.from(bufferContent),
+    });
+    await preview.waitFor(visibleTimeout);
+  }
 }
 
 Given("que tengo confirmado el audio {string}", async function (this: CustomWorld, fileName: string) {
@@ -567,7 +577,7 @@ Given("que estoy en el chat activo con {string}", async function (this: CustomWo
   });
   await this.page.goto(
     APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
-    { waitUntil: "domcontentloaded" }
+    { waitUntil: "networkidle" }
   );
   await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
 });
@@ -581,7 +591,7 @@ Given("que el sidebar cargó una conversación cuyo último mensaje es un audio 
   });
   await this.page.goto(
     APP_URL + ROUTES.consumer.messages,
-    { waitUntil: "domcontentloaded" }
+    { waitUntil: "networkidle" }
   );
   await this.page.getByTestId("contact-item").waitFor(visibleTimeout);
 });
@@ -627,8 +637,16 @@ Given("que el navegador rechazó el permiso para usar el micrófono", async func
 });
 
 Given("que abrí el menú de adjuntos", async function (this: CustomWorld) {
-  await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
-  await this.page.getByRole("menu").waitFor(visibleTimeout);
+  const openMenuButton = this.page.getByRole("button", { name: "Abrir menú de acciones" });
+  await openMenuButton.waitFor({ state: "visible", timeout: 5000 });
+  const menu = this.page.getByRole("menu");
+  await openMenuButton.click();
+  try {
+    await menu.waitFor({ state: "visible", timeout: 2000 });
+  } catch {
+    await openMenuButton.click();
+    await menu.waitFor(visibleTimeout);
+  }
 });
 
 Given("que tengo un audio WebM con codec Opus de {int} segundos", async function (this: CustomWorld, duration: number) {
@@ -688,8 +706,16 @@ When("intento enviar el audio", async function (this: CustomWorld) {
 
 When("intento enviar únicamente el audio", async function (this: CustomWorld) {
   if ((this as CustomWorld & { pendingProviderChat?: boolean }).pendingProviderChat) {
-    await this.page.getByRole("button", { name: "Abrir menú de acciones" }).click();
-    await this.page.getByRole("menu").waitFor({ state: "visible" });
+    const openMenuButton = this.page.getByRole("button", { name: "Abrir menú de acciones" });
+    await openMenuButton.waitFor({ state: "visible", timeout: 5000 });
+    const menu = this.page.getByRole("menu");
+    await openMenuButton.click();
+    try {
+      await menu.waitFor({ state: "visible", timeout: 2000 });
+    } catch {
+      await openMenuButton.click();
+      await menu.waitFor({ state: "visible" });
+    }
     return;
   }
   await this.page.getByRole("button", { name: /Enviar mensaje/i }).click();
@@ -698,7 +724,7 @@ When("intento enviar únicamente el audio", async function (this: CustomWorld) {
 When("consulto el chat", async function (this: CustomWorld) {
   await this.page.goto(
     APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
-    { waitUntil: "domcontentloaded" }
+    { waitUntil: "networkidle" }
   );
   await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
 });

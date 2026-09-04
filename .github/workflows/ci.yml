@@ -82,7 +82,7 @@ jobs:
         run: npx wait-on http://localhost:3001 --timeout 60000
 
       - name: Ejecutar Tests E2E (Cucumber)
-        run: npm run test:e2e
+        run: npm run test:e2e -- --parallel 2
 
   docker-build:
     name: Validar Imagen Docker

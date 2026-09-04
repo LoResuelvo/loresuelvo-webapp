@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { prepareDelivery } from "../tools/delivery-mcp/lib/prepare-delivery.mjs";
 import { findRepoRoot } from "../tools/delivery-mcp/lib/repo-root.mjs";
+import { captureGitSnapshot } from "../tools/delivery-mcp/lib/git-snapshot.mjs";
+import {
+  getLastPreparedEvidence,
+  loadEvidenceRecord,
+} from "../tools/delivery-mcp/lib/delivery-ledger.mjs";
 
 /**
  * Anticipatory delivery guard for Codex environments.
  * Checks staged delivery status before git commit is invoked.
- *
- * NOTE: This is an advisory, early-feedback layer. The authoritative
- * enforcement remains the versioned Git hooks in .githooks/.
+ * Strictly read-only: never initiates gate tests or executions.
+ * Requires a valid prepared receipt for the current staged snapshot.
  */
 export async function runCodexGuard({ repoRoot = findRepoRoot(), rawCommand = "" } = {}) {
   // If a command pattern is provided, verify it targets git commit
@@ -17,16 +20,72 @@ export async function runCodexGuard({ repoRoot = findRepoRoot(), rawCommand = ""
     return { shouldIntercept: false, passed: true, status: "ignored" };
   }
 
-  const result = await prepareDelivery({ repoRoot, intent: "prepare_commit" });
-  const passed = result.status === "passed";
+  const snapshot = await captureGitSnapshot({ cwd: repoRoot });
+  if (snapshot.stagedFiles.length === 0) {
+    return {
+      shouldIntercept: true,
+      passed: false,
+      status: "no_changes",
+      message: "No staged changes to commit. Stage files and invoke MCP delivery_prepare first.",
+    };
+  }
+
+  const prepared = await getLastPreparedEvidence({ repoRoot });
+  let hasValidEvidence = false;
+  let reason = "MISSING_PREPARED_EVIDENCE";
+
+  if (
+    prepared &&
+    prepared.schemaVersion === 2 &&
+    prepared.status === "passed" &&
+    !prepared.consumedByCommitSha
+  ) {
+    const identityMatches =
+      prepared.snapshotHash === snapshot.snapshotHash &&
+      prepared.parentHeadSha === snapshot.headSha &&
+      prepared.stagedTreeSha === snapshot.stagedTreeSha &&
+      prepared.branch === snapshot.branch &&
+      JSON.stringify(prepared.stagedFiles || []) ===
+        JSON.stringify([...new Set(snapshot.stagedFiles || [])].sort());
+
+    if (identityMatches) {
+      try {
+        const loaded = await loadEvidenceRecord({ repoRoot, recordPath: prepared.recordPath });
+        if (
+          loaded.digest === prepared.recordDigest &&
+          loaded.record.status === "passed" &&
+          loaded.record.snapshotHash === prepared.snapshotHash &&
+          loaded.record.runKey === prepared.runKey
+        ) {
+          hasValidEvidence = true;
+        } else {
+          reason = "PREPARED_EVIDENCE_RECORD_MISMATCH";
+        }
+      } catch {
+        reason = "PREPARED_EVIDENCE_RECORD_INVALID";
+      }
+    } else {
+      reason = "PREPARED_EVIDENCE_SNAPSHOT_MISMATCH";
+    }
+  } else if (prepared?.consumedByCommitSha) {
+    reason = "STALE_PREPARED_EVIDENCE";
+  }
+
+  if (hasValidEvidence) {
+    return {
+      shouldIntercept: true,
+      passed: true,
+      status: "passed",
+      gateId: prepared.gateId || "NONE",
+      cached: true,
+    };
+  }
 
   return {
     shouldIntercept: true,
-    passed,
-    status: result.status,
-    gateId: result.gate?.id || "NONE",
-    cached: Boolean(result.cached),
-    diagnostics: result.diagnostics || [],
+    passed: false,
+    status: reason,
+    message: "Invoke MCP delivery_prepare for the current staged snapshot",
   };
 }
 
@@ -61,10 +120,7 @@ async function main() {
   if (outcome.passed) {
     process.exit(0);
   } else {
-    const diagnostic = outcome.diagnostics?.[0]?.message;
-    const reason = diagnostic
-      ? `Delivery status '${outcome.status}': ${diagnostic}`
-      : `Delivery status is '${outcome.status}'. Run npm run delivery:prepare before committing.`;
+    const reason = outcome.message || "Invoke MCP delivery_prepare for the current staged snapshot";
     process.stdout.write(
       `${JSON.stringify({
         hookSpecificOutput: {

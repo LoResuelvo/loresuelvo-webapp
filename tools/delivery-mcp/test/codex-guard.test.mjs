@@ -84,18 +84,34 @@ test("runCodexGuard: intercepta git commit y reporta no_changes si no hay cambio
   assert.strictEqual(outcome.status, "no_changes");
 });
 
-test("runCodexGuard: aprovecha evidencia en cache sin re-ejecutar cuando snapshot esta verde", async (t) => {
+test("runCodexGuard: deniega git commit si no se ha ejecutado delivery_prepare", async (t) => {
   const repoRoot = await createTempGitRepo(t);
 
-  // Staged documentation change (Gate NONE, passes without checks)
+  await fs.writeFile(path.join(repoRoot, "newfile.txt"), "hello", "utf8");
+  execFileSync("git", ["add", "newfile.txt"], { cwd: repoRoot });
+
+  const guardOutcome = await runCodexGuard({
+    repoRoot,
+    rawCommand: "git commit -m 'docs: add newfile'",
+  });
+
+  assert.strictEqual(guardOutcome.shouldIntercept, true);
+  assert.strictEqual(guardOutcome.passed, false);
+  assert.strictEqual(guardOutcome.status, "MISSING_PREPARED_EVIDENCE");
+  assert.strictEqual(guardOutcome.message, "Invoke MCP delivery_prepare for the current staged snapshot");
+});
+
+test("runCodexGuard: aprovecha receipt válido sin re-ejecutar checks y deniega si el diff cambia", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+
   await fs.writeFile(path.join(repoRoot, "README.md"), "# Updated Docs\n", "utf8");
   execFileSync("git", ["add", "README.md"], { cwd: repoRoot });
 
-  // 1. First run via prepareDelivery
+  // 1. Preparar previamente mediante prepareDelivery
   const firstPrep = await prepareDelivery({ repoRoot, intent: "prepare_commit" });
   assert.strictEqual(firstPrep.status, "passed");
 
-  // 2. Codex guard intercepts git commit and reuses cached evidence
+  // 2. Codex guard intercepta git commit y reutiliza receipt sin tests
   const guardOutcome = await runCodexGuard({
     repoRoot,
     rawCommand: "git commit -m 'docs: update docs'",
@@ -106,27 +122,23 @@ test("runCodexGuard: aprovecha evidencia en cache sin re-ejecutar cuando snapsho
   assert.strictEqual(guardOutcome.status, "passed");
   assert.strictEqual(guardOutcome.gateId, "NONE");
   assert.strictEqual(guardOutcome.cached, true);
-});
 
-test("runCodexGuard: devuelve passed false cuando snapshot esta bloqueado", async (t) => {
-  const repoRoot = await createTempGitRepo(t);
+  // 3. Si se modifica el staged diff después de preparar, el guard deniega
+  await fs.writeFile(path.join(repoRoot, "extra.txt"), "extra staged file", "utf8");
+  execFileSync("git", ["add", "extra.txt"], { cwd: repoRoot });
 
-  // Staged file with unstaged changes in the same file -> status blocked
-  await fs.writeFile(path.join(repoRoot, "README.md"), "# Staged Change\n", "utf8");
-  execFileSync("git", ["add", "README.md"], { cwd: repoRoot });
-  await fs.writeFile(path.join(repoRoot, "README.md"), "# Unstaged Change Conflict\n", "utf8");
-
-  const guardOutcome = await runCodexGuard({
+  const guardAfterChange = await runCodexGuard({
     repoRoot,
-    rawCommand: "git commit -m 'docs: conflict'",
+    rawCommand: "git commit -m 'docs: update docs with extra'",
   });
 
-  assert.strictEqual(guardOutcome.shouldIntercept, true);
-  assert.strictEqual(guardOutcome.passed, false);
-  assert.strictEqual(guardOutcome.status, "blocked");
+  assert.strictEqual(guardAfterChange.shouldIntercept, true);
+  assert.strictEqual(guardAfterChange.passed, false);
+  assert.strictEqual(guardAfterChange.status, "PREPARED_EVIDENCE_SNAPSHOT_MISMATCH");
+  assert.strictEqual(guardAfterChange.message, "Invoke MCP delivery_prepare for the current staged snapshot");
 });
 
-test("delivery-guard CLI script: ejecucion de proceso devuelve exit codes correctos", async (t) => {
+test("delivery-guard CLI script: ejecucion de proceso devuelve exit codes y denegación estructurada", async (t) => {
   const repoRoot = await createTempGitRepo(t);
 
   // 1. Comando no commit -> exit code 0
@@ -139,7 +151,7 @@ test("delivery-guard CLI script: ejecucion de proceso devuelve exit codes correc
   assert.strictEqual(outIgnore, "");
 
   // 2. Comando commit sin staged changes -> decisión estructurada deny
-  const deniedOutput = execFileSync("node", [scriptPath], {
+  const deniedNoChangesOutput = execFileSync("node", [scriptPath], {
     cwd: repoRoot,
     encoding: "utf8",
     input: JSON.stringify({
@@ -147,10 +159,32 @@ test("delivery-guard CLI script: ejecucion de proceso devuelve exit codes correc
       tool_input: { command: "git commit -m 'chore: test'" },
     }),
   });
-  const denied = JSON.parse(deniedOutput);
+  const deniedNoChanges = JSON.parse(deniedNoChangesOutput);
   assert.strictEqual(
-    denied.hookSpecificOutput.permissionDecision,
+    deniedNoChanges.hookSpecificOutput.permissionDecision,
     "deny"
   );
-  assert.ok(denied.hookSpecificOutput.permissionDecisionReason.includes("no_changes"));
+  assert.ok(deniedNoChanges.hookSpecificOutput.permissionDecisionReason.includes("No staged changes"));
+
+  // 3. Comando commit con staged changes pero sin delivery_prepare -> decisión deny
+  await fs.writeFile(path.join(repoRoot, "staged.txt"), "staged content", "utf8");
+  execFileSync("git", ["add", "staged.txt"], { cwd: repoRoot });
+
+  const deniedNoReceiptOutput = execFileSync("node", [scriptPath], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    input: JSON.stringify({
+      tool_name: "Bash",
+      tool_input: { command: "git commit -m 'chore: test staged'" },
+    }),
+  });
+  const deniedNoReceipt = JSON.parse(deniedNoReceiptOutput);
+  assert.strictEqual(
+    deniedNoReceipt.hookSpecificOutput.permissionDecision,
+    "deny"
+  );
+  assert.strictEqual(
+    deniedNoReceipt.hookSpecificOutput.permissionDecisionReason,
+    "Invoke MCP delivery_prepare for the current staged snapshot"
+  );
 });

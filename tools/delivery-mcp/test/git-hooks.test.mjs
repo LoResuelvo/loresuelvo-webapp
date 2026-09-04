@@ -172,16 +172,30 @@ test("commit-msg hook: bloquea mensaje invalido y permite valido", async (t) => 
   assert.strictEqual(validRes.passed, true);
 });
 
-test("pre-commit hook: bloquea cuando delivery status no es passed", async (t) => {
+test("pre-commit hook: en modo normal permite commit sin receipt con aviso, y en modo estricto bloquea", async (t) => {
   const repoRoot = await createTempGitRepo(t);
 
-  // Sin cambios staged -> status: no_changes (no passed)
-  const res = await runPreCommitHook({ repoRoot });
-  assert.strictEqual(res.passed, false);
-  assert.strictEqual(res.outcome.status, "no_changes");
+  // 1. Modo normal sin receipt -> pasa con warning y verified: false
+  const resNormal = await runPreCommitHook({ repoRoot });
+  assert.strictEqual(resNormal.passed, true);
+  assert.strictEqual(resNormal.verified, false);
+  assert.ok(resNormal.warning.includes("not_run"));
+
+  // 2. Modo estricto (DELIVERY_REQUIRE_EVIDENCE=1) sin receipt -> bloquea
+  const prevEnv = process.env.DELIVERY_REQUIRE_EVIDENCE;
+  process.env.DELIVERY_REQUIRE_EVIDENCE = "1";
+  try {
+    const resStrict = await runPreCommitHook({ repoRoot });
+    assert.strictEqual(resStrict.passed, false);
+    assert.strictEqual(resStrict.verified, false);
+    assert.strictEqual(resStrict.reason, "MISSING_PREPARED_EVIDENCE");
+  } finally {
+    if (prevEnv === undefined) delete process.env.DELIVERY_REQUIRE_EVIDENCE;
+    else process.env.DELIVERY_REQUIRE_EVIDENCE = prevEnv;
+  }
 });
 
-test("pre-commit hook: conserva un close_us preparado para el mismo snapshot", async (t) => {
+test("pre-commit hook: reutiliza receipt válido existente sin ejecutar checks", async (t) => {
   const repoRoot = await createTempGitRepo(t);
   const policyPath = path.join(repoRoot, ".delivery", "policy.v1.json");
   const policy = JSON.parse(await fs.readFile(policyPath, "utf8"));
@@ -212,10 +226,13 @@ test("pre-commit hook: conserva un close_us preparado para el mismo snapshot", a
   assert.strictEqual(context.intent, "close_us");
   assert.strictEqual(context.usId, "55");
 
+  const start = Date.now();
   const second = await runPreCommitHook({ repoRoot });
-  assert.strictEqual(second.passed, true, JSON.stringify(second, null, 2));
-  assert.strictEqual(second.outcome.gate.id, "D");
-  assert.strictEqual(second.outcome.cached, true);
+  const duration = Date.now() - start;
+  assert.strictEqual(second.passed, true);
+  assert.strictEqual(second.verified, true);
+  assert.strictEqual(second.gateId, "D");
+  assert.ok(duration < 500, `pre-commit should be fast and read-only, took ${duration}ms`);
 });
 
 test("post-commit hook: asocia commitSha en el ledger y consume contexto activo", async (t) => {
@@ -243,6 +260,7 @@ test("post-commit hook: asocia commitSha en el ledger y consume contexto activo"
   const postRes = await runPostCommitHook({ repoRoot });
   assert.strictEqual(postRes.recorded, true);
   assert.strictEqual(postRes.commitSha, headSha);
+  assert.strictEqual(postRes.verificationStatus, "passed");
 
   // 5. Verificar que el commit está en el ledger
   const hasEv = await hasCommitEvidence({ repoRoot, commitSha: headSha });
@@ -256,7 +274,7 @@ test("post-commit hook: asocia commitSha en el ledger y consume contexto activo"
   assert.strictEqual(ctx.consumed, true);
 });
 
-test("post-commit hook: no asocia evidencia si el árbol cambió después de prepare", async (t) => {
+test("post-commit hook: registra como not_run y no consume receipt si el árbol cambió después de prepare", async (t) => {
   const repoRoot = await createTempGitRepo(t);
   await fs.writeFile(path.join(repoRoot, "note.txt"), "prepared", "utf8");
   execFileSync("git", ["add", "note.txt"], { cwd: repoRoot });
@@ -265,13 +283,67 @@ test("post-commit hook: no asocia evidencia si el árbol cambió después de pre
   await fs.writeFile(path.join(repoRoot, "note.txt"), "different committed tree", "utf8");
   execFileSync("git", ["add", "note.txt"], { cwd: repoRoot });
   execFileSync("git", ["commit", "-m", "docs: add changed note"], { cwd: repoRoot });
+  const headSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
 
   const postRes = await runPostCommitHook({ repoRoot });
-  assert.strictEqual(postRes.recorded, false);
-  assert.strictEqual(postRes.reason, "PREPARED_EVIDENCE_COMMIT_MISMATCH");
+  assert.strictEqual(postRes.recorded, true);
+  assert.strictEqual(postRes.verificationStatus, "not_run");
+  assert.strictEqual(postRes.reason, "PREPARED_EVIDENCE_MISMATCH");
+
+  // El ledger registra el commit como not_run
+  const ev = await getCommitEvidence({ repoRoot, commitSha: headSha });
+  assert.strictEqual(ev.verificationStatus, "not_run");
+  assert.strictEqual(ev.notRunReason, "PREPARED_EVIDENCE_MISMATCH");
 });
 
-test("pre-push hook: bloquea multiples commits y commits sin evidencia exacta", async (t) => {
+test("flujo humano: commit manual sin receipt se registra como not_run, push normal lo permite y strict lo bloquea", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+  const baseSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+
+  // Commit manual humano (sin delivery:prepare)
+  const start = Date.now();
+  const preRes = await runPreCommitHook({ repoRoot });
+  const preDuration = Date.now() - start;
+  assert.strictEqual(preRes.passed, true);
+  assert.strictEqual(preRes.verified, false);
+  assert.ok(preDuration < 500, `Manual pre-commit took ${preDuration}ms (should be fast)`);
+
+  await fs.writeFile(path.join(repoRoot, "manual.txt"), "manual edit", "utf8");
+  execFileSync("git", ["add", "manual.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "docs[99]: human manual commit"], { cwd: repoRoot });
+  const manualSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+
+  const postRes = await runPostCommitHook({ repoRoot });
+  assert.strictEqual(postRes.recorded, true);
+  assert.strictEqual(postRes.verificationStatus, "not_run");
+  assert.strictEqual(postRes.commitSha, manualSha);
+
+  const pushLine = `refs/heads/main ${manualSha} refs/heads/main ${baseSha}`;
+
+  // Push normal lo permite
+  const pushNormal = await runPrePushHook({ repoRoot, stdinLines: [pushLine] });
+  assert.strictEqual(pushNormal.passed, true);
+
+  // Push con DELIVERY_REQUIRE_EVIDENCE=1 lo bloquea
+  const prevEnv = process.env.DELIVERY_REQUIRE_EVIDENCE;
+  process.env.DELIVERY_REQUIRE_EVIDENCE = "1";
+  try {
+    const pushStrict = await runPrePushHook({ repoRoot, stdinLines: [pushLine] });
+    assert.strictEqual(pushStrict.passed, false);
+    assert.strictEqual(pushStrict.reason, "UNVERIFIED_COMMIT_PUSH_BLOCKED");
+  } finally {
+    if (prevEnv === undefined) delete process.env.DELIVERY_REQUIRE_EVIDENCE;
+    else process.env.DELIVERY_REQUIRE_EVIDENCE = prevEnv;
+  }
+});
+
+test("pre-push hook: bloquea multiples commits y commits ausentes del ledger", async (t) => {
   const repoRoot = await createTempGitRepo(t);
 
   // Crear remote bare
@@ -301,7 +373,7 @@ test("pre-push hook: bloquea multiples commits y commits sin evidencia exacta", 
   assert.strictEqual(pushResMultiple.passed, false);
   assert.strictEqual(pushResMultiple.reason, "MULTIPLE_COMMITS_PUSH");
 
-  // 2. Pre-push con 1 commit nuevo pero sin evidencia exacta.
+  // 2. Pre-push con 1 commit nuevo no registrado en el ledger -> bloquea
   const pushLineSingle = `refs/heads/main ${sha1} refs/heads/main ${baseSha}`;
   const pushResNoEv = await runPrePushHook({ repoRoot, stdinLines: [pushLineSingle] });
   assert.strictEqual(pushResNoEv.passed, false);

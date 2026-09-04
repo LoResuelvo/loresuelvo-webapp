@@ -215,7 +215,11 @@ async function main() {
     if (hookName === "pre-commit") {
       const res = await runPreCommitHook({ repoRoot: root });
       if (res.passed) {
-        process.stdout.write(`[delivery-hook] pre-commit passed (gate: ${res.outcome.gate.id})\n`);
+        if (res.verified) {
+          process.stdout.write(`[delivery-hook] pre-commit passed (gate: ${res.gateId || "NONE"})\n`);
+        } else {
+          process.stdout.write(`[delivery-hook] pre-commit: ${res.warning || "unverified commit (not_run)"}\n`);
+        }
         process.exitCode = 0;
       } else {
         process.stderr.write(`[delivery-hook] pre-commit failed: ${res.message}\n`);
@@ -238,7 +242,8 @@ async function main() {
     if (hookName === "post-commit") {
       const res = await runPostCommitHook({ repoRoot: root });
       if (res.recorded) {
-        process.stdout.write(`[delivery-hook] post-commit: recorded evidence for ${res.commitSha.slice(0, 8)}\n`);
+        const label = res.verificationStatus === "not_run" ? "unverified (not_run)" : "verified";
+        process.stdout.write(`[delivery-hook] post-commit: recorded ${label} evidence for ${res.commitSha.slice(0, 8)}\n`);
         process.exitCode = 0;
       } else {
         process.stderr.write(

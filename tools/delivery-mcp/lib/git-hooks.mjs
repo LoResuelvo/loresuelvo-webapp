@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { findRepoRoot } from "./repo-root.mjs";
 import { prepareDelivery } from "./prepare-delivery.mjs";
 import { loadDeliveryContext, consumeDeliveryContext } from "./delivery-context.mjs";
+import { captureGitSnapshot, extractUsId } from "./git-snapshot.mjs";
 import {
   consumePreparedEvidence,
   recordCommitEvidence,
@@ -11,6 +12,7 @@ import {
   listCommitEvidence,
   loadEvidenceRecord,
   verifyCommitEvidence,
+  queryCommitEvidence,
 } from "./delivery-ledger.mjs";
 import { inspectCi } from "./ci-provider.mjs";
 
@@ -131,17 +133,86 @@ export function validateCommitMessage(rawMessage, activeContext = null) {
 
 export async function runPreCommitHook({ repoRoot } = {}) {
   const root = findRepoRoot(repoRoot);
-  const outcome = await prepareDelivery({ repoRoot: root });
+  const requireEvidence = process.env.DELIVERY_REQUIRE_EVIDENCE === "1";
 
-  if (outcome.status !== "passed") {
+  let snapshot;
+  try {
+    snapshot = await captureGitSnapshot({ cwd: root });
+  } catch (error) {
     return {
       passed: false,
-      outcome,
-      message: `Pre-commit check failed with status '${outcome.status}' (expected 'passed'). Check diagnostics for details.`,
+      reason: "GIT_ERROR",
+      message: `Failed to capture staged snapshot: ${error.message}`,
     };
   }
 
-  return { passed: true, outcome };
+  const prepared = await getLastPreparedEvidence({ repoRoot: root });
+  let hasValidEvidence = false;
+  let verifiedReason = null;
+
+  if (
+    prepared &&
+    prepared.schemaVersion === 2 &&
+    prepared.status === "passed" &&
+    !prepared.consumedByCommitSha
+  ) {
+    const identityMatches =
+      prepared.snapshotHash === snapshot?.snapshotHash &&
+      prepared.parentHeadSha === snapshot?.headSha &&
+      prepared.stagedTreeSha === snapshot?.stagedTreeSha &&
+      prepared.branch === snapshot?.branch &&
+      JSON.stringify(prepared.stagedFiles || []) ===
+        JSON.stringify([...new Set(snapshot?.stagedFiles || [])].sort());
+
+    if (identityMatches) {
+      try {
+        const loaded = await loadEvidenceRecord({ repoRoot: root, recordPath: prepared.recordPath });
+        if (
+          loaded.digest === prepared.recordDigest &&
+          loaded.record.status === "passed" &&
+          loaded.record.snapshotHash === prepared.snapshotHash &&
+          loaded.record.runKey === prepared.runKey
+        ) {
+          hasValidEvidence = true;
+        } else {
+          verifiedReason = "PREPARED_EVIDENCE_RECORD_MISMATCH";
+        }
+      } catch {
+        verifiedReason = "PREPARED_EVIDENCE_RECORD_INVALID";
+      }
+    } else {
+      verifiedReason = "PREPARED_EVIDENCE_SNAPSHOT_MISMATCH";
+    }
+  } else {
+    verifiedReason = prepared?.consumedByCommitSha
+      ? "STALE_PREPARED_EVIDENCE"
+      : "MISSING_PREPARED_EVIDENCE";
+  }
+
+  if (hasValidEvidence) {
+    return {
+      passed: true,
+      verified: true,
+      gateId: prepared.gateId || "NONE",
+      prepared,
+    };
+  }
+
+  if (requireEvidence) {
+    return {
+      passed: false,
+      verified: false,
+      reason: verifiedReason,
+      message: `Delivery evidence required (DELIVERY_REQUIRE_EVIDENCE=1). Invoke delivery_prepare for the staged snapshot before committing.`,
+    };
+  }
+
+  return {
+    passed: true,
+    verified: false,
+    reason: verifiedReason,
+    warning: `Proceeding without verified delivery evidence (not_run). Use delivery_prepare to verify gates locally.`,
+  };
 }
 
 export async function runCommitMsgHook({ repoRoot, messageFilePath } = {}) {
@@ -180,33 +251,25 @@ export async function runPostCommitHook({ repoRoot } = {}) {
     throw new Error(`Failed to resolve HEAD commit: ${error.message}`);
   }
 
-  const alreadyRecorded = await verifyCommitEvidence({ repoRoot: root, commitSha });
+  const alreadyRecorded = await queryCommitEvidence({ repoRoot: root, commitSha });
   if (alreadyRecorded.valid) {
     return {
       recorded: true,
       commitSha,
       ledgerEntry: alreadyRecorded.entry,
       reused: true,
+      verificationStatus: "passed",
     };
   }
 
-  const prepared = await getLastPreparedEvidence({ repoRoot: root });
-  if (!prepared || prepared.status !== "passed") {
-    return {
-      recorded: false,
-      commitSha,
-      ledgerEntry: null,
-      reason: "MISSING_PREPARED_EVIDENCE",
-    };
-  }
-  if (prepared.schemaVersion !== 2 || prepared.consumedByCommitSha) {
-    return {
-      recorded: false,
-      commitSha,
-      ledgerEntry: null,
-      reason: "STALE_PREPARED_EVIDENCE",
-    };
-  }
+  const committedMessage = execFileSync("git", ["log", "-1", "--format=%B", commitSha], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  const committedMessageValidation = validateCommitMessage(committedMessage);
+  const inferredUsId = committedMessageValidation.valid
+    ? committedMessageValidation.usId
+    : extractUsId(committedMessage);
 
   const parentsLine = execFileSync("git", ["rev-list", "--parents", "-n", "1", commitSha], {
     cwd: root,
@@ -221,90 +284,116 @@ export async function runPostCommitHook({ repoRoot } = {}) {
     cwd: root,
     encoding: "utf8",
   }).trim();
-  const stagedFiles = [...(prepared.stagedFiles || [])].sort();
 
-  const identityMatches =
-    parents.length <= 1 &&
-    (parents[0] || null) === prepared.parentHeadSha &&
-    branch === prepared.branch &&
-    treeSha === prepared.stagedTreeSha;
-  if (!identityMatches) {
-    return {
-      recorded: false,
-      commitSha,
-      ledgerEntry: null,
-      reason: "PREPARED_EVIDENCE_COMMIT_MISMATCH",
-    };
-  }
-
-  let loaded;
+  let commitFiles = [];
   try {
-    loaded = await loadEvidenceRecord({ repoRoot: root, recordPath: prepared.recordPath });
+    const rawFiles = execFileSync(
+      "git",
+      ["diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "-z", commitSha],
+      { cwd: root, encoding: "buffer" }
+    );
+    commitFiles = rawFiles.toString("utf8").split("\0").filter(Boolean).sort();
   } catch {
-    return {
-      recorded: false,
-      commitSha,
-      ledgerEntry: null,
-      reason: "PREPARED_EVIDENCE_RECORD_INVALID",
-    };
+    commitFiles = [];
   }
+
+  const prepared = await getLastPreparedEvidence({ repoRoot: root });
+  let matchingReceipt = null;
+
   if (
-    loaded.digest !== prepared.recordDigest ||
-    loaded.record.status !== "passed" ||
-    loaded.record.snapshotHash !== prepared.snapshotHash ||
-    loaded.record.runKey !== prepared.runKey ||
-    loaded.record.gate?.id !== prepared.gateId ||
-    loaded.record.policy?.hash !== prepared.policyHash
+    prepared &&
+    prepared.schemaVersion === 2 &&
+    prepared.status === "passed" &&
+    !prepared.consumedByCommitSha
   ) {
-    return {
-      recorded: false,
+    const identityMatches =
+      parents.length <= 1 &&
+      (parents[0] || null) === prepared.parentHeadSha &&
+      branch === prepared.branch &&
+      treeSha === prepared.stagedTreeSha;
+
+    if (identityMatches) {
+      try {
+        const loaded = await loadEvidenceRecord({ repoRoot: root, recordPath: prepared.recordPath });
+        if (
+          loaded.digest === prepared.recordDigest &&
+          loaded.record.status === "passed" &&
+          loaded.record.snapshotHash === prepared.snapshotHash &&
+          loaded.record.runKey === prepared.runKey &&
+          loaded.record.gate?.id === prepared.gateId &&
+          loaded.record.policy?.hash === prepared.policyHash
+        ) {
+          matchingReceipt = prepared;
+        }
+      } catch {
+        // Record is invalid, don't match
+      }
+    }
+  }
+
+  if (matchingReceipt) {
+    const ledgerEntry = await recordCommitEvidence({
+      repoRoot: root,
       commitSha,
-      ledgerEntry: null,
-      reason: "PREPARED_EVIDENCE_RECORD_MISMATCH",
+      verificationStatus: "passed",
+      snapshotHash: matchingReceipt.snapshotHash,
+      runKey: matchingReceipt.runKey,
+      recordPath: matchingReceipt.recordPath,
+      recordDigest: matchingReceipt.recordDigest,
+      branch,
+      parentSha: matchingReceipt.parentHeadSha,
+      treeSha,
+      stagedFiles: matchingReceipt.stagedFiles || commitFiles,
+      gateId: matchingReceipt.gateId,
+      policyHash: matchingReceipt.policyHash,
+      intent: matchingReceipt.intent,
+      usId: matchingReceipt.usId || inferredUsId,
+      featureFile: matchingReceipt.featureFile,
+      scenarioName: matchingReceipt.scenarioName,
+      scopeFiles: matchingReceipt.scopeFiles,
+    });
+    await consumePreparedEvidence({ repoRoot: root, commitSha });
+    await consumeDeliveryContext({ repoRoot: root });
+
+    return {
+      recorded: true,
+      commitSha,
+      ledgerEntry,
+      verificationStatus: "passed",
     };
   }
 
-  const committedMessage = execFileSync("git", ["log", "-1", "--format=%B", commitSha], {
-    cwd: root,
-    encoding: "utf8",
-  });
-  const committedMessageValidation = validateCommitMessage(committedMessage);
-  if (!committedMessageValidation.valid) {
-    return {
-      recorded: false,
-      commitSha,
-      ledgerEntry: null,
-      reason: "INVALID_COMMIT_MESSAGE",
-    };
-  }
+  // Record as not_run without consuming receipt or delivery context
+  const notRunReason = !prepared
+    ? "NO_PREPARED_RECEIPT"
+    : prepared.consumedByCommitSha
+    ? "STALE_PREPARED_RECEIPT"
+    : "PREPARED_EVIDENCE_MISMATCH";
 
   const ledgerEntry = await recordCommitEvidence({
     repoRoot: root,
     commitSha,
-    snapshotHash: prepared.snapshotHash,
-    runKey: prepared.runKey,
-    recordPath: prepared.recordPath,
-    recordDigest: prepared.recordDigest,
+    verificationStatus: "not_run",
+    notRunReason,
     branch,
-    parentSha: prepared.parentHeadSha,
+    parentSha: parents[0] || null,
     treeSha,
-    stagedFiles,
-    gateId: prepared.gateId,
-    policyHash: prepared.policyHash,
-    intent: prepared.intent,
-    usId: prepared.usId || committedMessageValidation.usId,
-    featureFile: prepared.featureFile,
-    scenarioName: prepared.scenarioName,
-    scopeFiles: prepared.scopeFiles,
+    stagedFiles: commitFiles,
+    usId: inferredUsId,
   });
-  await consumePreparedEvidence({ repoRoot: root, commitSha });
-  await consumeDeliveryContext({ repoRoot: root });
 
-  return { recorded: Boolean(ledgerEntry), commitSha, ledgerEntry };
+  return {
+    recorded: true,
+    commitSha,
+    ledgerEntry,
+    verificationStatus: "not_run",
+    reason: notRunReason,
+  };
 }
 
 export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = null } = {}) {
   const root = findRepoRoot(repoRoot);
+  const requireEvidence = process.env.DELIVERY_REQUIRE_EVIDENCE === "1";
 
   for (const line of stdinLines) {
     const trimmed = line.trim();
@@ -343,16 +432,37 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
       };
     }
 
-    // Verify each commit has exact local evidence and a valid message.
     for (const sha of commits) {
-      const verified = await verifyCommitEvidence({ repoRoot: root, commitSha: sha });
-      if (!verified.valid) {
+      const evidence = await queryCommitEvidence({ repoRoot: root, commitSha: sha });
+
+      if (evidence.state === "corrupt") {
         return {
           passed: false,
           reason: "INVALID_COMMIT_EVIDENCE",
-          evidenceReason: verified.reason,
-          message: `Commit ${sha.slice(0, 8)} does not have valid delivery evidence (${verified.reason}). Run delivery prepare and create a matching commit.`,
+          evidenceReason: evidence.reason,
+          message: `Commit ${sha.slice(0, 8)} has corrupted or altered delivery evidence (${evidence.reason}).`,
         };
+      }
+
+      if (evidence.state === "missing") {
+        return {
+          passed: false,
+          reason: "INVALID_COMMIT_EVIDENCE",
+          evidenceReason: evidence.reason,
+          message: `Commit ${sha.slice(0, 8)} does not have valid delivery evidence (${evidence.reason}). Run delivery prepare and create a matching commit.`,
+        };
+      }
+
+      if (evidence.state === "not_run") {
+        if (requireEvidence) {
+          return {
+            passed: false,
+            reason: "UNVERIFIED_COMMIT_PUSH_BLOCKED",
+            evidenceReason: evidence.reason,
+            message: `Push blocked: commit ${sha.slice(0, 8)} was not verified locally and DELIVERY_REQUIRE_EVIDENCE=1.`,
+          };
+        }
+        // In normal mode, not_run commits are permitted.
       }
 
       const commitMessage = execFileSync("git", ["log", "-1", "--format=%B", sha], {

@@ -67,6 +67,15 @@ export interface MockWorkOrderStub {
   review?: MockReview;
 }
 
+export interface MockCoverageZone {
+  id: number;
+  name: string;
+  boundary?: {
+    type: string;
+    place_id: string;
+  };
+}
+
 // ----------------------------------------------------------------------------
 // FACTORIES
 // ----------------------------------------------------------------------------
@@ -556,4 +565,16 @@ export function anApiError(error: string = "Internal Server Error") {
 
 export function aWsTicket(ticket: string = "mock-ws-ticket-abc123") {
   return { ticket };
+}
+
+export function aCoverageZone(overrides: Partial<MockCoverageZone> = {}): MockCoverageZone {
+  return {
+    id: 6,
+    name: "Comuna 6",
+    boundary: {
+      type: "admin_area_level_2",
+      place_id: "ChIJRd-test-comuna-6",
+    },
+    ...overrides,
+  };
 }

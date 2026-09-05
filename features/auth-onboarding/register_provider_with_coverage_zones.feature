@@ -57,7 +57,6 @@ Feature: US-35.5 Registrar prestador con zonas de cobertura
     Then veo un mensaje que informa que no hay zonas de cobertura disponibles
     And no puedo finalizar el registro como prestador
 
-  @wip
   Scenario: 08-RPZ Reintentar la consulta después de un error del catálogo
     Given la consulta de zonas falló y veo su estado de error
     And la API vuelve a estar disponible

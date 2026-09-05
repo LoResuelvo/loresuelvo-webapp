@@ -1,7 +1,7 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import { CustomWorld, APP_URL } from "../support/world";
 import { setSelectedRole } from "./register_consumer_account_steps";
-import { aCoverageZone, aCategory } from "../support/factories";
+import { aCoverageZone, aCategory, anApiError } from "../support/factories";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 
@@ -96,4 +96,61 @@ Then("no puedo finalizar el registro como prestador", async function (this: Cust
     "El botón de finalizar registro debería estar deshabilitado cuando no hay zonas de cobertura"
   );
 });
+
+Given("la consulta de zonas falló y veo su estado de error", async function (this: CustomWorld) {
+  setSelectedRole("provider");
+  await this.stubGet("/coverage-zones", anApiError("Internal Server Error"), 500);
+
+  if (!(await this.hasApiStub("GET", "/categories"))) {
+    await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
+  }
+
+  await this.page.goto(APP_URL + ROUTES.onboarding);
+  const providerButton = this.page
+    .locator("#role-provider-btn")
+    .or(this.page.getByText("Soy Prestador"))
+    .first();
+  await providerButton.click();
+  const continueButton = this.page.getByRole("button", { name: /continuar/i }).first();
+  await continueButton.click();
+  await this.page.waitForSelector('input[name="firstName"]');
+
+  const errorBox = this.page
+    .locator('[data-testid="coverage-zones-error"]')
+    .or(this.page.getByText("No pudimos cargar las zonas de cobertura. Intentá nuevamente."))
+    .first();
+  await errorBox.waitFor({ state: "visible", timeout: 10000 });
+  assert.ok(await errorBox.isVisible(), "No se visualizó el estado de error de zonas de cobertura");
+});
+
+Given("la API vuelve a estar disponible", async function (this: CustomWorld) {
+  const zones = [
+    aCoverageZone({ id: 6, name: "Comuna 6" }),
+    aCoverageZone({ id: 14, name: "Comuna 14" }),
+  ];
+  await this.stubGet("/coverage-zones", zones);
+});
+
+When("reintento cargar las zonas de cobertura", async function (this: CustomWorld) {
+  const retryButton = this.page
+    .getByRole("button", { name: /reintentar/i })
+    .or(this.page.getByText("Reintentar"))
+    .first();
+  await retryButton.waitFor({ state: "visible", timeout: 5000 });
+  await retryButton.click();
+});
+
+Then("veo la lista de comunas habilitadas", async function (this: CustomWorld) {
+  const list = this.page.locator('[data-testid="coverage-zones-list"]').first();
+  await list.waitFor({ state: "visible", timeout: 10000 });
+  assert.ok(await list.isVisible(), "No se mostró la lista de comunas tras el reintento");
+});
+
+Then("puedo seleccionar una zona para continuar", async function (this: CustomWorld) {
+  const checkbox = this.page.locator('input[name="coverageZones"][value="6"]').first();
+  await checkbox.waitFor({ state: "attached", timeout: 5000 });
+  await checkbox.check();
+  assert.ok(await checkbox.isChecked(), "La comuna seleccionada debería figurar marcada");
+});
+
 

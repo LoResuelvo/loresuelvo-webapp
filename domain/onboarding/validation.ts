@@ -6,6 +6,7 @@ export interface ValidationErrors {
   lastName?: string;
   categoryId?: string;
   profilePhoto?: string;
+  coverageZones?: string;
 }
 
 export interface ProfileFormMessages {
@@ -14,6 +15,7 @@ export interface ProfileFormMessages {
   photoRequired: string;
   photoInvalidFormat: string;
   photoTooLarge: string;
+  requiredCoverageZones?: string;
 }
 
 const defaultMessages: ProfileFormMessages = {
@@ -22,6 +24,7 @@ const defaultMessages: ProfileFormMessages = {
   photoRequired: "La foto de perfil es obligatoria",
   photoInvalidFormat: "Formato de imagen no permitido. Los formatos permitidos son: PNG, JPG, JPEG y WEBP",
   photoTooLarge: "La imagen no debe superar los 5MB",
+  requiredCoverageZones: "Debes seleccionar al menos una zona de cobertura",
 };
 
 export function validateProfileForm(
@@ -32,7 +35,8 @@ export function validateProfileForm(
   profilePhotoSize?: number,
   profilePhotoName?: string,
   profilePhotoType?: string,
-  messages?: Partial<ProfileFormMessages>
+  messages?: Partial<ProfileFormMessages>,
+  coverageZoneIds?: number[]
 ): { isValid: boolean; errors: ValidationErrors } {
   const msg = { ...defaultMessages, ...messages };
   const errors: ValidationErrors = {};
@@ -62,6 +66,11 @@ export function validateProfileForm(
       isValid = false;
     } else if (profilePhotoSize && profilePhotoSize > MAX_PROFILE_PHOTO_SIZE) {
       errors.profilePhoto = msg.photoTooLarge;
+      isValid = false;
+    }
+
+    if (coverageZoneIds !== undefined && coverageZoneIds.length === 0) {
+      errors.coverageZones = msg.requiredCoverageZones || defaultMessages.requiredCoverageZones;
       isValid = false;
     }
   }

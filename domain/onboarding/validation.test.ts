@@ -81,6 +81,38 @@ describe("validateProfileForm", () => {
     expect(isValid).toBe(false);
     expect(errors.profilePhoto).toBeDefined();
   });
+
+  it("fails if a provider does not select any coverage zone", () => {
+    const { isValid, errors } = validateProfileForm(
+      "Juan",
+      "Pérez",
+      "provider",
+      "1",
+      1000,
+      "avatar.png",
+      "image/png",
+      undefined,
+      []
+    );
+    expect(isValid).toBe(false);
+    expect(errors.coverageZones).toBe("Debes seleccionar al menos una zona de cobertura");
+  });
+
+  it("passes if a provider selects at least one coverage zone", () => {
+    const { isValid, errors } = validateProfileForm(
+      "Juan",
+      "Pérez",
+      "provider",
+      "1",
+      1000,
+      "avatar.png",
+      "image/png",
+      undefined,
+      [6]
+    );
+    expect(isValid).toBe(true);
+    expect(errors.coverageZones).toBeUndefined();
+  });
 });
 
 describe("validateProfilePhoto", () => {

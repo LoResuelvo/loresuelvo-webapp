@@ -68,4 +68,26 @@ describe("CoverageZoneSelector", () => {
     expect(alert).toBeInTheDocument();
     expect(alert).toHaveTextContent("Debes seleccionar al menos una zona de cobertura");
   });
+
+  it("calls onToggleZone when a map zone button is clicked", () => {
+    const onToggleZone = vi.fn();
+    render(<CoverageZoneSelector zones={mockZones} selectedZoneIds={[]} onToggleZone={onToggleZone} />);
+
+    const mapZone = screen.getByTestId("map-zone-14");
+    fireEvent.click(mapZone);
+
+    expect(onToggleZone).toHaveBeenCalledWith(14);
+  });
+
+  it("reflects selected state on map zone button when selectedZoneIds includes zone id", () => {
+    render(<CoverageZoneSelector zones={mockZones} selectedZoneIds={[14]} />);
+
+    const mapZone14 = screen.getByTestId("map-zone-14");
+    expect(mapZone14).toHaveAttribute("data-selected", "true");
+    expect(mapZone14).toHaveAttribute("aria-pressed", "true");
+
+    const mapZone6 = screen.getByTestId("map-zone-6");
+    expect(mapZone6).toHaveAttribute("data-selected", "false");
+    expect(mapZone6).toHaveAttribute("aria-pressed", "false");
+  });
 });

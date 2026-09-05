@@ -120,5 +120,33 @@ describe("ProfileFormStep", () => {
 
     expect(screen.getByTestId("coverage-zones-loading")).toBeInTheDocument();
   });
+
+  it("does not submit provider form without selecting coverage zones", () => {
+    render(
+      <ProfileFormStep
+        onBack={mockOnBack}
+        onSubmit={mockOnSubmit}
+        isLoading={false}
+        error={null}
+        role="provider"
+        categories={mockCategories}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(t.onboarding.profileForm.name), {
+      target: { value: "Carlos" },
+    });
+    fireEvent.change(screen.getByLabelText(t.onboarding.profileForm.surname), {
+      target: { value: "López" },
+    });
+    fireEvent.change(screen.getByLabelText("Rubro"), {
+      target: { value: "1" },
+    });
+
+    const submitBtn = screen.getByRole("button", { name: t.onboarding.profileForm.finishRegister });
+    fireEvent.click(submitBtn);
+
+    expect(mockOnSubmit).not.toHaveBeenCalled();
+  });
 });
 

@@ -11,7 +11,7 @@ import { CoverageZoneSelector } from "./CoverageZoneSelector";
 import { AvatarUploader } from "./AvatarUploader";
 import { useCoverageZones } from "./useCoverageZones";
 import { t } from "@/infrastructure/i18n/translations";
-import { validateProfileForm, validateProfilePhoto } from "@/domain/onboarding/validation";
+import { validateProfileForm, validateProfilePhoto, ValidationErrors } from "@/domain/onboarding/validation";
 import { cn } from "@/lib/utils";
 
 interface ProfileFormStepProps {
@@ -27,22 +27,12 @@ interface ProfileFormStepProps {
 function ProfileFormHeader({ onBack }: { onBack: () => void }) {
   return (
     <>
-      <Button
-        variant="ghost"
-        type="button"
-        onClick={onBack}
-        className="mb-6 h-auto p-0 flex items-center text-sm font-semibold text-muted-foreground hover:text-brand-primary hover:bg-transparent transition-colors"
-      >
+      <Button variant="ghost" type="button" onClick={onBack} className="mb-6 h-auto p-0 flex items-center text-sm font-semibold text-muted-foreground hover:text-brand-primary hover:bg-transparent transition-colors">
         <ArrowLeft className="mr-2 h-4 w-4" /> {t.onboarding.profileForm.back}
       </Button>
-
       <div className="mb-8 text-center">
-        <h1 className="mb-2 text-title font-bold leading-tight tracking-tight text-brand-primary">
-          {t.onboarding.profileForm.title}
-        </h1>
-        <p className="text-body-lg text-muted-foreground">
-          {t.onboarding.profileForm.subtitle}
-        </p>
+        <h1 className="mb-2 text-title font-bold leading-tight tracking-tight text-brand-primary">{t.onboarding.profileForm.title}</h1>
+        <p className="text-body-lg text-muted-foreground">{t.onboarding.profileForm.subtitle}</p>
       </div>
     </>
   );
@@ -62,46 +52,30 @@ function ProfileNameFields({
   return (
     <>
       <div className="space-y-2">
-        <Label htmlFor="firstName" className="text-body font-semibold text-brand-primary">
-          {t.onboarding.profileForm.name}
-        </Label>
+        <Label htmlFor="firstName" className="text-body font-semibold text-brand-primary">{t.onboarding.profileForm.name}</Label>
         <Input
           id="firstName"
           name="firstName"
           placeholder="Ej. Juan"
           required
           autoFocus
-          className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${
-            firstNameError ? "border-destructive focus-visible:ring-destructive" : ""
-          }`}
+          className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${firstNameError ? "border-destructive focus-visible:ring-destructive" : ""}`}
           onChange={onClearFirstName}
         />
-        {firstNameError && (
-          <p className="text-sm text-destructive" role="alert">
-            {firstNameError}
-          </p>
-        )}
+        {firstNameError && <p className="text-sm text-destructive" role="alert">{firstNameError}</p>}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="lastName" className="text-body font-semibold text-brand-primary">
-          {t.onboarding.profileForm.surname}
-        </Label>
+        <Label htmlFor="lastName" className="text-body font-semibold text-brand-primary">{t.onboarding.profileForm.surname}</Label>
         <Input
           id="lastName"
           name="lastName"
           placeholder="Ej. Pérez"
           required
-          className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${
-            lastNameError ? "border-destructive focus-visible:ring-destructive" : ""
-          }`}
+          className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${lastNameError ? "border-destructive focus-visible:ring-destructive" : ""}`}
           onChange={onClearLastName}
         />
-        {lastNameError && (
-          <p className="text-sm text-destructive" role="alert">
-            {lastNameError}
-          </p>
-        )}
+        {lastNameError && <p className="text-sm text-destructive" role="alert">{lastNameError}</p>}
       </div>
     </>
   );
@@ -119,23 +93,17 @@ function ProfileFormSubmit({ isLoading, disabled }: { isLoading: boolean; disabl
 }
 
 function useProfileFormValidation() {
-  const [firstNameError, setFirstNameError] = useState<string | null>(null);
-  const [lastNameError, setLastNameError] = useState<string | null>(null);
-  const [categoryError, setCategoryError] = useState<string | null>(null);
-  const [profilePhotoError, setProfilePhotoError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<ValidationErrors>({});
 
-  const validate = (formData: FormData, role: "consumer" | "provider" | null) => {
-    setFirstNameError(null);
-    setLastNameError(null);
-    setCategoryError(null);
-    setProfilePhotoError(null);
+  const validate = (formData: FormData, role: "consumer" | "provider" | null, zoneIds?: number[]) => {
+    setErrors({});
 
     const firstName = formData.get("firstName") as string;
     const lastName = formData.get("lastName") as string;
     const categoryId = formData.get("categoryId") as string;
     const photo = (formData.get("profilePhoto") as File) || null;
 
-    const { isValid, errors } = validateProfileForm(
+    const { isValid, errors: validationErrors } = validateProfileForm(
       firstName,
       lastName,
       role,
@@ -143,26 +111,27 @@ function useProfileFormValidation() {
       photo?.size || 0,
       photo?.name || "",
       photo?.type || "",
-      t.onboarding.profileForm
+      t.onboarding.profileForm,
+      role === "provider" ? zoneIds : undefined
     );
 
-    if (errors.firstName) setFirstNameError(errors.firstName);
-    if (errors.lastName) setLastNameError(errors.lastName);
-    if (errors.categoryId) setCategoryError(errors.categoryId);
-    if (errors.profilePhoto) setProfilePhotoError(errors.profilePhoto);
-
+    setErrors(validationErrors);
     return isValid;
   };
 
+  const clearFieldError = (field: keyof ValidationErrors) => {
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
+
   return {
-    firstNameError,
-    lastNameError,
-    categoryError,
-    profilePhotoError,
-    setProfilePhotoError,
-    setCategoryError,
-    setFirstNameError,
-    setLastNameError,
+    firstNameError: errors.firstName || null,
+    lastNameError: errors.lastName || null,
+    categoryError: errors.categoryId || null,
+    profilePhotoError: errors.profilePhoto || null,
+    coverageZonesError: errors.coverageZones || null,
+    setProfilePhotoError: (err: string | null) =>
+      setErrors((prev) => ({ ...prev, profilePhoto: err || undefined })),
+    clearFieldError,
     validate,
   };
 }
@@ -174,6 +143,37 @@ function extractFormData(e: ChangeEvent<HTMLFormElement>, role: string | null, z
     zoneIds.forEach((id) => formData.append("coverageZoneIds", id.toString()));
   }
   return formData;
+}
+
+function ProfileProviderFields({
+  categories,
+  categoryError,
+  onClearCategoryError,
+  coverage,
+  coverageError,
+  onToggleZone,
+}: {
+  categories: Category[];
+  categoryError: string | null;
+  onClearCategoryError: () => void;
+  coverage: ReturnType<typeof useCoverageZones>;
+  coverageError: string | null;
+  onToggleZone: (zoneId: number) => void;
+}) {
+  return (
+    <>
+      <CategorySelector categories={categories} error={categoryError} onChange={onClearCategoryError} />
+      <CoverageZoneSelector
+        zones={coverage.zones}
+        selectedZoneIds={coverage.selectedZoneIds}
+        isLoading={coverage.isLoading}
+        error={coverage.error}
+        validationError={coverageError}
+        onRetry={coverage.loadZones}
+        onToggleZone={onToggleZone}
+      />
+    </>
+  );
 }
 
 export function ProfileFormStep({
@@ -192,7 +192,7 @@ export function ProfileFormStep({
     e.preventDefault();
     if (role === "provider" && coverage.status === "empty") return;
     const formData = extractFormData(e, role, coverage.selectedZoneIds);
-    if (validation.validate(formData, role)) await onSubmit(formData);
+    if (validation.validate(formData, role, coverage.selectedZoneIds)) await onSubmit(formData);
   };
 
   const isSubmitDisabled = isLoading || (role === "provider" && coverage.status === "empty");
@@ -212,20 +212,20 @@ export function ProfileFormStep({
         <ProfileNameFields
           firstNameError={validation.firstNameError}
           lastNameError={validation.lastNameError}
-          onClearFirstName={() => validation.setFirstNameError(null)}
-          onClearLastName={() => validation.setLastNameError(null)}
+          onClearFirstName={() => validation.clearFieldError("firstName")}
+          onClearLastName={() => validation.clearFieldError("lastName")}
         />
         {role === "provider" && (
-          <CategorySelector categories={categories} error={validation.categoryError} onChange={() => validation.setCategoryError(null)} />
-        )}
-        {role === "provider" && (
-          <CoverageZoneSelector
-            zones={coverage.zones}
-            selectedZoneIds={coverage.selectedZoneIds}
-            isLoading={coverage.isLoading}
-            error={coverage.error}
-            onRetry={coverage.loadZones}
-            onToggleZone={coverage.toggleZone}
+          <ProfileProviderFields
+            categories={categories}
+            categoryError={validation.categoryError}
+            onClearCategoryError={() => validation.clearFieldError("categoryId")}
+            coverage={coverage}
+            coverageError={validation.coverageZonesError}
+            onToggleZone={(zoneId) => {
+              validation.clearFieldError("coverageZones");
+              coverage.toggleZone(zoneId);
+            }}
           />
         )}
         <ProfileFormSubmit isLoading={isLoading} disabled={isSubmitDisabled} />

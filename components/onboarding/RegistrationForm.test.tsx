@@ -140,6 +140,9 @@ describe("RegistrationForm", () => {
         return originalGet.call(this, key);
       });
 
+      const zoneCheckbox = await screen.findByRole("checkbox", { name: "Comuna 6" });
+      fireEvent.click(zoneCheckbox);
+
       const submitButton = screen.getByRole("button", { name: /Finalizar Registro/i });
       fireEvent.click(submitButton);
 

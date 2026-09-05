@@ -62,7 +62,6 @@ Feature: US-35.5 Registrar prestador con zonas de cobertura
     Then veo la lista de comunas habilitadas
     And puedo seleccionar una zona para continuar
 
-  @wip
   Scenario: 09-RPZ Rechazar el registro sin zonas seleccionadas
     Given completé los datos, el rubro y la foto obligatorios del prestador
     And no seleccioné ninguna zona de cobertura

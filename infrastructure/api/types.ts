@@ -403,3 +403,14 @@ export interface ApiWorkOrderDetail {
   completion_report?: ApiCompletionReportDetail;
   review?: ApiWorkOrderReview;
 }
+
+export interface ApiCoverageZoneBoundary {
+  type: string;
+  place_id: string;
+}
+
+export interface ApiCoverageZone {
+  id: number;
+  name: string;
+  boundary?: ApiCoverageZoneBoundary;
+}

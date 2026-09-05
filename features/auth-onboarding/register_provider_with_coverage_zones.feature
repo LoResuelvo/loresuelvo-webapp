@@ -14,7 +14,6 @@ Feature: US-35.5 Registrar prestador con zonas de cobertura
     And veo los nombres de las comunas disponibles en la lista accesible
     And veo sus límites identificados en el mapa de CABA
 
-  @wip
   Scenario: 02-RPZ Seleccionar comunas no contiguas desde la lista
     Given estoy en los datos de perfil con "Comuna 6" y "Comuna 14" disponibles
     When selecciono "Comuna 6" y "Comuna 14" desde la lista de zonas

@@ -17,3 +17,5 @@ reports/
 *.tsbuildinfo
 
 pnpm-lock.yaml
+
+.agents/local/

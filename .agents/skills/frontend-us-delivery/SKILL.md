@@ -9,6 +9,8 @@ Usar para implementar una User Story o feature completa. Esta skill define el ci
 
 ## Preparación
 
+Al crear o retomar un plan de implementación, aplicar la convención local si está configurada. El orquestador conserva el plan completo y entrega al developer únicamente el contrato completo o delta del batch activo.
+
 1. Confirmar `git status --short --branch`, alcance funcional, rol y rutas afectadas.
 2. Escribir todos los escenarios Gherkin de aceptación antes de cambiar código. Cada escenario tiene exactamente un `When`.
 3. Mostrar los escenarios al usuario y esperar su aprobación funcional.

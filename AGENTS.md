@@ -44,6 +44,8 @@ Las capas internas no dependen de las externas. `domain/` y `ports/` no importan
 
 ## Flujo de una User Story
 
+Antes de planificar u orquestar una US, leer `.agents/local/README.md` si existe. Sus preferencias complementan la gobernanza compartida, pero no pueden contradecir las instrucciones del usuario, este archivo ni las skills aplicables.
+
 1. Revisar estado del repositorio y entender alcance, rol y rutas afectadas.
 2. Escribir todos los escenarios de aceptación antes de implementar. Cada escenario tiene exactamente un `When`.
 3. Esperar la aprobación funcional del usuario y crear `docs[XX]: ...`.

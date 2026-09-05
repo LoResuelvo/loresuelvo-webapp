@@ -2,6 +2,14 @@ import { renderHook, act } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { useGoogleCoverageMap } from "./useGoogleCoverageMap";
 
+interface TestWindow {
+  google?: {
+    maps?: {
+      Map: unknown;
+    };
+  };
+}
+
 describe("useGoogleCoverageMap", () => {
   const mockZones = [
     { id: 6, name: "Comuna 6", boundary: { type: "admin_area_level_2", placeId: "place-comuna-6" } },
@@ -13,7 +21,7 @@ describe("useGoogleCoverageMap", () => {
   });
 
   afterEach(() => {
-    delete (window as any).google;
+    delete (window as unknown as TestWindow).google;
   });
 
   it("returns unavailable status when apiKey or mapId is missing", () => {
@@ -72,13 +80,13 @@ describe("useGoogleCoverageMap", () => {
     const mockAddListener = vi.fn().mockReturnValue({ remove: mockRemoveListener });
     const mockFeatureLayer = {
       addListener: mockAddListener,
-      style: null as any,
+      style: undefined,
     };
     const mockMapInstance = {
       getFeatureLayer: vi.fn().mockReturnValue(mockFeatureLayer),
     };
 
-    (window as any).google = {
+    (window as unknown as TestWindow).google = {
       maps: {
         Map: vi.fn(function () {
           return mockMapInstance;

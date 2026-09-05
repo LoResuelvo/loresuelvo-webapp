@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CoverageZoneSelector } from "./CoverageZoneSelector";
+import { MAP_UNAVAILABLE_MESSAGE } from "./CoverageZoneMap";
 import { t } from "@/infrastructure/i18n/translations";
 
 const mockZones = [
@@ -89,5 +90,14 @@ describe("CoverageZoneSelector", () => {
     const mapZone6 = screen.getByTestId("map-zone-6");
     expect(mapZone6).toHaveAttribute("data-selected", "false");
     expect(mapZone6).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("renders non-blocking map unavailable notice when map configuration is missing or unavailable", () => {
+    render(<CoverageZoneSelector zones={mockZones} selectedZoneIds={[]} />);
+
+    expect(screen.getByTestId("coverage-map-unavailable")).toBeInTheDocument();
+    expect(
+      screen.getByText(MAP_UNAVAILABLE_MESSAGE)
+    ).toBeInTheDocument();
   });
 });

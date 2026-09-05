@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { t } from "@/infrastructure/i18n/translations";
 import { cn } from "@/lib/utils";
 import { CoverageZone } from "@/domain/provider/coverage-zone";
-import { useGoogleCoverageMap } from "./useGoogleCoverageMap";
+import { CoverageZoneMap } from "./CoverageZoneMap";
 
 export type CoverageZoneItem = CoverageZone;
 
@@ -128,58 +128,6 @@ function CoverageZoneList({
           </label>
         );
       })}
-    </div>
-  );
-}
-
-function CoverageZoneMap({
-  zones,
-  selectedZoneIds,
-  onToggleZone,
-}: {
-  zones: CoverageZoneItem[];
-  selectedZoneIds: number[];
-  onToggleZone?: (zoneId: number) => void;
-}) {
-  const { containerRef } = useGoogleCoverageMap({
-    zones,
-    selectedZoneIds,
-    onToggleZone,
-  });
-
-  return (
-    <div
-      ref={containerRef}
-      data-testid="coverage-map"
-      aria-label={t.onboarding.coverageZones.mapTitle}
-      className="relative rounded-lg border border-dashed border-border bg-brand-neutral/20 p-4 text-center"
-    >
-      <p className="text-xs font-semibold text-muted-foreground">
-        {t.onboarding.coverageZones.mapTitle}
-      </p>
-      <div className="mt-2 flex flex-wrap justify-center gap-1.5">
-        {zones.map((zone) => {
-          const isSelected = selectedZoneIds.includes(zone.id);
-          return (
-            <button
-              key={zone.id}
-              type="button"
-              data-testid={`map-zone-${zone.id}`}
-              data-selected={isSelected ? "true" : "false"}
-              aria-pressed={isSelected}
-              onClick={() => onToggleZone?.(zone.id)}
-              className={cn(
-                "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
-                isSelected
-                  ? "border-brand-primary bg-brand-primary text-white"
-                  : "border-border bg-white text-muted-foreground hover:bg-brand-neutral/30"
-              )}
-            >
-              {zone.name}
-            </button>
-          );
-        })}
-      </div>
     </div>
   );
 }

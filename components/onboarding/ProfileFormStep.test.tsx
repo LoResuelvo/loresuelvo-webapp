@@ -7,6 +7,16 @@ if (typeof window !== "undefined") {
   window.URL.createObjectURL = vi.fn(() => "blob:mock-avatar-url");
 }
 
+vi.mock("@/app/actions/coverage-zones", () => ({
+  getCoverageZonesAction: vi.fn().mockResolvedValue({
+    success: true,
+    data: [
+      { id: 6, name: "Comuna 6" },
+      { id: 14, name: "Comuna 14" },
+    ],
+  }),
+}));
+
 describe("ProfileFormStep", () => {
   const mockOnBack = vi.fn();
   const mockOnSubmit = vi.fn();
@@ -79,4 +89,36 @@ describe("ProfileFormStep", () => {
 
     expect(screen.getByText("Hubo un error al guardar")).toBeInTheDocument();
   });
+
+  it("does not render coverage zone selector for consumer role", () => {
+    render(
+      <ProfileFormStep
+        onBack={mockOnBack}
+        onSubmit={mockOnSubmit}
+        isLoading={false}
+        error={null}
+        role="consumer"
+        categories={[]}
+      />
+    );
+
+    expect(screen.queryByTestId("coverage-zones-loading")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("coverage-zones-list")).not.toBeInTheDocument();
+  });
+
+  it("renders coverage zone selector for provider role", () => {
+    render(
+      <ProfileFormStep
+        onBack={mockOnBack}
+        onSubmit={mockOnSubmit}
+        isLoading={false}
+        error={null}
+        role="provider"
+        categories={mockCategories}
+      />
+    );
+
+    expect(screen.getByTestId("coverage-zones-loading")).toBeInTheDocument();
+  });
 });
+

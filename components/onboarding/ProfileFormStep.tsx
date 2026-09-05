@@ -7,7 +7,9 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { ChangeEvent, useState } from "react";
 import { Category } from "@/domain/shared/types";
 import { CategorySelector } from "./CategorySelector";
+import { CoverageZoneSelector } from "./CoverageZoneSelector";
 import { AvatarUploader } from "./AvatarUploader";
+import { useCoverageZones } from "./useCoverageZones";
 import { t } from "@/infrastructure/i18n/translations";
 import { validateProfileForm, validateProfilePhoto } from "@/domain/onboarding/validation";
 import { cn } from "@/lib/utils";
@@ -22,60 +24,9 @@ interface ProfileFormStepProps {
   className?: string;
 }
 
-export function ProfileFormStep({
-  onBack,
-  onSubmit,
-  isLoading,
-  error,
-  role,
-  categories,
-  className,
-}: ProfileFormStepProps) {
-  const [firstNameError, setFirstNameError] = useState<string | null>(null);
-  const [lastNameError, setLastNameError] = useState<string | null>(null);
-  const [categoryError, setCategoryError] = useState<string | null>(null);
-  const [profilePhotoError, setProfilePhotoError] = useState<string | null>(null);
-
-  async function handleFormSubmit(e: ChangeEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setFirstNameError(null);
-    setLastNameError(null);
-    setCategoryError(null);
-    setProfilePhotoError(null);
-
-    const formData = new FormData(e.currentTarget);
-    const firstName = formData.get("firstName") as string;
-    const lastName = formData.get("lastName") as string;
-    const categoryId = formData.get("categoryId") as string;
-
-    const profilePhoto = (formData.get("profilePhoto") as File) || null;
-    const photoSize = profilePhoto?.size || 0;
-    const photoName = profilePhoto?.name || "";
-    const photoType = profilePhoto?.type || "";
-
-    const { isValid, errors } = validateProfileForm(
-      firstName,
-      lastName,
-      role,
-      categoryId,
-      photoSize,
-      photoName,
-      photoType,
-      t.onboarding.profileForm
-    );
-
-    if (errors.firstName) setFirstNameError(errors.firstName);
-    if (errors.lastName) setLastNameError(errors.lastName);
-    if (errors.categoryId) setCategoryError(errors.categoryId);
-    if (errors.profilePhoto) setProfilePhotoError(errors.profilePhoto);
-
-    if (!isValid) return;
-
-    await onSubmit(formData);
-  }
-
+function ProfileFormHeader({ onBack }: { onBack: () => void }) {
   return (
-    <div className={cn("w-full", className)}>
+    <>
       <Button
         variant="ghost"
         type="button"
@@ -93,85 +44,191 @@ export function ProfileFormStep({
           {t.onboarding.profileForm.subtitle}
         </p>
       </div>
+    </>
+  );
+}
 
-      {error && (
-        <div className="mb-6 rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-          {error}
-        </div>
-      )}
+function ProfileNameFields({
+  firstNameError,
+  lastNameError,
+  onClearFirstName,
+  onClearLastName,
+}: {
+  firstNameError: string | null;
+  lastNameError: string | null;
+  onClearFirstName: () => void;
+  onClearLastName: () => void;
+}) {
+  return (
+    <>
+      <div className="space-y-2">
+        <Label htmlFor="firstName" className="text-body font-semibold text-brand-primary">
+          {t.onboarding.profileForm.name}
+        </Label>
+        <Input
+          id="firstName"
+          name="firstName"
+          placeholder="Ej. Juan"
+          required
+          autoFocus
+          className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${
+            firstNameError ? "border-destructive focus-visible:ring-destructive" : ""
+          }`}
+          onChange={onClearFirstName}
+        />
+        {firstNameError && (
+          <p className="text-sm text-destructive" role="alert">
+            {firstNameError}
+          </p>
+        )}
+      </div>
 
-      <form onSubmit={handleFormSubmit} className="space-y-5" noValidate>
+      <div className="space-y-2">
+        <Label htmlFor="lastName" className="text-body font-semibold text-brand-primary">
+          {t.onboarding.profileForm.surname}
+        </Label>
+        <Input
+          id="lastName"
+          name="lastName"
+          placeholder="Ej. Pérez"
+          required
+          className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${
+            lastNameError ? "border-destructive focus-visible:ring-destructive" : ""
+          }`}
+          onChange={onClearLastName}
+        />
+        {lastNameError && (
+          <p className="text-sm text-destructive" role="alert">
+            {lastNameError}
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
+
+function ProfileFormSubmit({ isLoading, disabled }: { isLoading: boolean; disabled: boolean }) {
+  return (
+    <div className="pt-2">
+      <Button variant="brand" size="full" type="submit" disabled={disabled}>
+        {isLoading ? t.onboarding.profileForm.saving : t.onboarding.profileForm.finishRegister}
+        {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
+      </Button>
+    </div>
+  );
+}
+
+function useProfileFormValidation() {
+  const [firstNameError, setFirstNameError] = useState<string | null>(null);
+  const [lastNameError, setLastNameError] = useState<string | null>(null);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [profilePhotoError, setProfilePhotoError] = useState<string | null>(null);
+
+  const validate = (formData: FormData, role: "consumer" | "provider" | null) => {
+    setFirstNameError(null);
+    setLastNameError(null);
+    setCategoryError(null);
+    setProfilePhotoError(null);
+
+    const firstName = formData.get("firstName") as string;
+    const lastName = formData.get("lastName") as string;
+    const categoryId = formData.get("categoryId") as string;
+    const photo = (formData.get("profilePhoto") as File) || null;
+
+    const { isValid, errors } = validateProfileForm(
+      firstName,
+      lastName,
+      role,
+      categoryId,
+      photo?.size || 0,
+      photo?.name || "",
+      photo?.type || "",
+      t.onboarding.profileForm
+    );
+
+    if (errors.firstName) setFirstNameError(errors.firstName);
+    if (errors.lastName) setLastNameError(errors.lastName);
+    if (errors.categoryId) setCategoryError(errors.categoryId);
+    if (errors.profilePhoto) setProfilePhotoError(errors.profilePhoto);
+
+    return isValid;
+  };
+
+  return {
+    firstNameError,
+    lastNameError,
+    categoryError,
+    profilePhotoError,
+    setProfilePhotoError,
+    setCategoryError,
+    setFirstNameError,
+    setLastNameError,
+    validate,
+  };
+}
+
+function extractFormData(e: ChangeEvent<HTMLFormElement>, role: string | null, zoneIds: number[]) {
+  const formData = new FormData(e.currentTarget);
+  if (role === "provider") {
+    formData.delete("coverageZoneIds");
+    zoneIds.forEach((id) => formData.append("coverageZoneIds", id.toString()));
+  }
+  return formData;
+}
+
+export function ProfileFormStep({
+  onBack,
+  onSubmit,
+  isLoading,
+  error,
+  role,
+  categories,
+  className,
+}: ProfileFormStepProps) {
+  const validation = useProfileFormValidation();
+  const coverage = useCoverageZones(role);
+
+  const handleSubmit = async (e: ChangeEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (role === "provider" && coverage.status === "empty") return;
+    const formData = extractFormData(e, role, coverage.selectedZoneIds);
+    if (validation.validate(formData, role)) await onSubmit(formData);
+  };
+
+  const isSubmitDisabled = isLoading || (role === "provider" && coverage.status === "empty");
+
+  return (
+    <div className={cn("w-full", className)}>
+      <ProfileFormHeader onBack={onBack} />
+      {error && <div className="mb-6 rounded-md bg-destructive/15 p-3 text-sm text-destructive">{error}</div>}
+
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
         {(role === "provider" || role === "consumer") && (
           <AvatarUploader
-            onPhotoSelected={(file) => {
-              setProfilePhotoError(file ? validateProfilePhoto(file, t.onboarding.profileForm) : null);
-            }}
-            error={profilePhotoError}
+            onPhotoSelected={(file) => validation.setProfilePhotoError(file ? validateProfilePhoto(file, t.onboarding.profileForm) : null)}
+            error={validation.profilePhotoError}
           />
         )}
-
-        <div className="space-y-2">
-          <Label htmlFor="firstName" className="text-body font-semibold text-brand-primary">
-            {t.onboarding.profileForm.name}
-          </Label>
-          <Input
-            id="firstName"
-            name="firstName"
-            placeholder="Ej. Juan"
-            required
-            autoFocus
-            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${
-              firstNameError ? "border-destructive focus-visible:ring-destructive" : ""
-            }`}
-            onChange={() => setFirstNameError(null)}
-          />
-          {firstNameError && (
-            <p className="text-sm text-destructive" role="alert">
-              {firstNameError}
-            </p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="lastName" className="text-body font-semibold text-brand-primary">
-            {t.onboarding.profileForm.surname}
-          </Label>
-          <Input
-            id="lastName"
-            name="lastName"
-            placeholder="Ej. Pérez"
-            required
-            className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${
-              lastNameError ? "border-destructive focus-visible:ring-destructive" : ""
-            }`}
-            onChange={() => setLastNameError(null)}
-          />
-          {lastNameError && (
-            <p className="text-sm text-destructive" role="alert">
-              {lastNameError}
-            </p>
-          )}
-        </div>
-
+        <ProfileNameFields
+          firstNameError={validation.firstNameError}
+          lastNameError={validation.lastNameError}
+          onClearFirstName={() => validation.setFirstNameError(null)}
+          onClearLastName={() => validation.setLastNameError(null)}
+        />
         {role === "provider" && (
-          <CategorySelector
-            categories={categories}
-            error={categoryError}
-            onChange={() => setCategoryError(null)}
+          <CategorySelector categories={categories} error={validation.categoryError} onChange={() => validation.setCategoryError(null)} />
+        )}
+        {role === "provider" && (
+          <CoverageZoneSelector
+            zones={coverage.zones}
+            selectedZoneIds={coverage.selectedZoneIds}
+            isLoading={coverage.isLoading}
+            error={coverage.error}
+            onRetry={coverage.loadZones}
+            onToggleZone={coverage.toggleZone}
           />
         )}
-
-        <div className="pt-2">
-          <Button
-            variant="brand"
-            size="full"
-            type="submit"
-            disabled={isLoading}
-          >
-            {isLoading ? t.onboarding.profileForm.saving : t.onboarding.profileForm.finishRegister}
-            {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
-          </Button>
-        </div>
+        <ProfileFormSubmit isLoading={isLoading} disabled={isSubmitDisabled} />
       </form>
     </div>
   );

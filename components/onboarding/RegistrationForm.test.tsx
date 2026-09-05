@@ -25,6 +25,16 @@ vi.mock("@/app/onboarding/mercado-pago-actions", () => ({
   startMercadoPagoConnectionAction: vi.fn(),
 }));
 
+vi.mock("@/app/actions/coverage-zones", () => ({
+  getCoverageZonesAction: vi.fn().mockResolvedValue({
+    success: true,
+    data: [
+      { id: 6, name: "Comuna 6" },
+      { id: 14, name: "Comuna 14" },
+    ],
+  }),
+}));
+
 describe("RegistrationForm", () => {
   beforeEach(() => {
     vi.restoreAllMocks();

@@ -482,6 +482,16 @@ export const t = {
       retryButton: "Reintentar",
       errorGeneric: "Hubo un problema al iniciar la conexión. Inténtalo nuevamente.",
     },
+    coverageZones: {
+      title: "Zonas de cobertura",
+      subtitle: "Selecciona las comunas en las que ofreces tus servicios",
+      loading: "Cargando zonas de cobertura...",
+      emptyMessage: "No hay zonas de cobertura disponibles en este momento.",
+      errorMessage: "Hubo un error al cargar las zonas de cobertura.",
+      retryButton: "Reintentar",
+      mapTitle: "Mapa de zonas de cobertura de CABA",
+      mapPlaceholder: "Mapa interactivo de cobertura",
+    },
   },
   fileUpload: {
     singleError: "Hubo un error al subir el archivo. Inténtalo nuevamente.",

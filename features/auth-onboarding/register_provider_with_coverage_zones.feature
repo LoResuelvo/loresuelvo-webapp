@@ -27,7 +27,6 @@ Feature: US-35.5 Registrar prestador con zonas de cobertura
     Then el polígono de "Comuna 14" figura seleccionado
     And "Comuna 14" figura seleccionada en la lista accesible
 
-  @wip
   Scenario: 04-RPZ Deseleccionar una comuna antes de registrar
     Given seleccioné "Comuna 6" en la lista y en el mapa
     When vuelvo a seleccionar "Comuna 6" desde la lista de zonas

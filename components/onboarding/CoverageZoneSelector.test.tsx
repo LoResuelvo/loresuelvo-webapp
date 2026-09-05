@@ -54,4 +54,18 @@ describe("CoverageZoneSelector", () => {
 
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
+
+  it("renders validation error with alert role when provided", () => {
+    render(
+      <CoverageZoneSelector
+        zones={mockZones}
+        selectedZoneIds={[]}
+        validationError="Debes seleccionar al menos una zona de cobertura"
+      />
+    );
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toBeInTheDocument();
+    expect(alert).toHaveTextContent("Debes seleccionar al menos una zona de cobertura");
+  });
 });

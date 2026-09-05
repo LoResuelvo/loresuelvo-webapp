@@ -15,6 +15,7 @@ export interface CoverageZoneSelectorProps {
   selectedZoneIds?: number[];
   isLoading?: boolean;
   error?: string | null;
+  validationError?: string | null;
   onRetry?: () => void;
   onToggleZone?: (zoneId: number) => void;
   className?: string;
@@ -173,6 +174,7 @@ export function CoverageZoneSelector({
   selectedZoneIds = [],
   isLoading = false,
   error = null,
+  validationError = null,
   onRetry,
   onToggleZone,
   className,
@@ -205,6 +207,12 @@ export function CoverageZoneSelector({
         selectedZoneIds={selectedZoneIds}
         onToggleZone={onToggleZone}
       />
+
+      {validationError && (
+        <p className="text-sm text-destructive" role="alert" data-testid="coverage-zones-validation-error">
+          {validationError}
+        </p>
+      )}
 
       <CoverageZoneMap zones={zones} selectedZoneIds={selectedZoneIds} />
     </div>

@@ -68,3 +68,32 @@ Then("veo sus límites identificados en el mapa de CABA", async function (this: 
   await map.waitFor({ state: "visible", timeout: 10000 });
   assert.ok(await map.isVisible(), "No se visualiza el mapa de zonas de cobertura");
 });
+
+Given("la API responde que no hay comunas habilitadas", async function (this: CustomWorld) {
+  await this.stubGet("/coverage-zones", []);
+});
+
+Then(
+  "veo un mensaje que informa que no hay zonas de cobertura disponibles",
+  async function (this: CustomWorld) {
+    const emptyMessage = this.page
+      .locator('[data-testid="coverage-zones-empty"]')
+      .or(this.page.getByText("No hay zonas de cobertura disponibles en este momento."))
+      .first();
+    await emptyMessage.waitFor({ state: "visible", timeout: 10000 });
+    assert.ok(
+      await emptyMessage.isVisible(),
+      "No se encontró el mensaje que informa que no hay zonas disponibles"
+    );
+  }
+);
+
+Then("no puedo finalizar el registro como prestador", async function (this: CustomWorld) {
+  const submitButton = this.page.getByRole("button", { name: /finalizar registro/i });
+  await submitButton.waitFor({ state: "visible", timeout: 5000 });
+  assert.ok(
+    await submitButton.isDisabled(),
+    "El botón de finalizar registro debería estar deshabilitado cuando no hay zonas de cobertura"
+  );
+});
+

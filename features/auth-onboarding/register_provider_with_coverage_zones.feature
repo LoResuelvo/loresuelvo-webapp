@@ -51,7 +51,6 @@ Feature: US-35.5 Registrar prestador con zonas de cobertura
     And el formulario informa que el mapa no está disponible
     And puedo continuar el registro mediante la lista
 
-  @wip
   Scenario: 07-RPZ Informar que no hay zonas de cobertura disponibles
     Given la API responde que no hay comunas habilitadas
     When elijo la opción de prestador y avanzo al paso de datos de perfil

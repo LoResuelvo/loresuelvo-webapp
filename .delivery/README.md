@@ -9,6 +9,7 @@ La política formal en `.delivery/policy.v1.json` es la **única fuente autorita
 - Composición y orden de gates (`NONE`, `0`, `A`, `B`, `C`, `D`).
 - Catálogo de checks permitidos y timeouts (`checkCatalog`).
 - Límites de tamaño de diff, número de archivos y líneas de diagnósticos (`limits`).
+- Ventana máxima de commits totales en vuelo (`ci.maxInFlightCommits`).
 
 ## Entradas principales
 
@@ -16,12 +17,13 @@ La política formal en `.delivery/policy.v1.json` es la **única fuente autorita
 npm run delivery:inspect -- --intent prepare_commit --message '<mensaje>'
 npm run delivery:prepare -- --intent prepare_commit --message '<mensaje>'
 npm run delivery:ci -- --sha <commit-sha>
+npm run delivery:finalize -- --intent close_batch --scope features/<feature>.feature
 npm run delivery:finalize -- --intent close_us --scope features/<feature>.feature
 ```
 
 - `delivery:inspect`: clasifica archivos, selecciona el gate y audita señales de mantenibilidad sin ejecutar comandos pesados.
 - `delivery:prepare`: repite la inspección sobre el snapshot staged exacto y ejecuta el gate en fail-fast.
-- `delivery_inspect`, `delivery_prepare` y `delivery_ci_inspect` están disponibles en el servidor MCP (`tools/delivery-mcp/server.mjs`).
+- `delivery_inspect`, `delivery_prepare`, `delivery_ci_inspect` y `delivery_finalize` están disponibles en el servidor MCP (`tools/delivery-mcp/server.mjs`).
 - Los agentes consumen únicamente respuestas estructuradas y normalizadas; **no deben calcular gates ni procesar tracebacks completos**.
 
 Intents válidos: `prepare_commit`, `close_scenario`, `close_batch`, `close_us`.
@@ -73,4 +75,6 @@ No se admite bypass genérico. Señales truncadas por exceder los límites de po
   - `pre-push`: valida atomicidad estricta ("un commit, un push"), mensajes, evidencia en ledger (`verified` y `not_run` permitidos por defecto; `corrupt` o `missing` bloqueados siempre; `not_run` bloqueado si `DELIVERY_REQUIRE_EVIDENCE=1`), y comprueba que commits anteriores no tengan CI fallido ni superen la ventana de pendientes.
 - **Hook de Codex estricto**: `.codex/delivery-guard.mjs` es la barrera preventiva para agentes Codex. Intercepta `git commit` y deniega estrictamente la acción si no existe un receipt válido y coincidente en `.delivery/runtime/last-prepared.json`. No corre suites por sí mismo: orienta al agente a invocar `delivery_prepare`.
 - **Mecanismos de bypass**: Ningún hook local se describe como imposible de omitir; Git permite omisiones deliberadas (`--no-verify`). La seguridad final del repositorio depende de CI remoto y la protección de ramas en GitHub. El flag de degradación offline (`DELIVERY_SKIP_CI_CHECK=1`) permite continuar sin red en commits previos, pero **no convierte un CI fallido o desconocido en exitoso**.
-- **Finalización de US**: `delivery:finalize` autoriza el cierre si HEAD cuenta con evidencia de Gate D aprobada y su scope feature sin `@wip`. Verifica que todos los commits de la US tengan `status: passed` en CI (incluyendo los `not_run`, los cuales se reportan en `unverifiedCommits`). Commits corruptos o faltantes en el ledger bloquean el cierre.
+- **Ventana continua de CI**: `pre-push` cuenta el commit actual junto con los anteriores en `queued`, `in_progress` o todavía `not_found`. Permite hasta `ci.maxInFlightCommits` —cuatro por defecto— y bloquea el siguiente push si lo excedería o si detecta una falla previa.
+- **Cierre de batch**: `delivery:finalize -- --intent close_batch` autoriza el cierre local si HEAD cuenta con Gate D aprobado, el scope no contiene `@wip`, los commits fueron pusheados y el ledger es válido. Puede devolver `passed_pending_ci` para continuar con el siguiente batch sin esperar el último run.
+- **Finalización de US**: `delivery:finalize -- --intent close_us` verifica además que todos los commits de la US tengan `status: passed` en CI (incluyendo los `not_run`, reportados en `unverifiedCommits`). Commits corruptos, faltantes o con CI pendiente bloquean el cierre.

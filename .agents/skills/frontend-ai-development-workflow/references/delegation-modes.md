@@ -207,7 +207,7 @@ Condiciones de continuación:
 - el escenario actual está GREEN y sin @wip;
 - las señales de mantenibilidad del código productivo están resueltas o justificadas;
 - su commit es desplegable, fue pusheado y su SHA está registrado;
-- CI respeta la ventana máxima de 3 commits pendientes;
+- CI respeta la ventana máxima de cuatro commits totales en vuelo; el batch puede cerrar como `passed_pending_ci` y continuar sin esperar su último run;
 - el siguiente escenario no exige cambiar alcance, arquitectura ni gates.
 
 Tenés autorización para validar, commitear, pushear y monitorear CI dentro

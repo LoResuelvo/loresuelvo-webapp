@@ -46,7 +46,7 @@ const commonProperties = {
 };
 
 export const server = new Server(
-  { name: "loresuelvo-delivery", version: "1.2.0" },
+  { name: "loresuelvo-delivery", version: "1.3.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -125,7 +125,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "delivery_finalize",
       description:
-        "Finalizes a batch or User Story by requiring exact Gate D evidence on HEAD, no @wip in scope, pushed commits, valid ledger entries, and green CI for every relevant commit.",
+        "Closes a batch or User Story with exact Gate D evidence on HEAD, no @wip in scope, pushed commits, and valid ledger entries. A batch may close with CI pending; a User Story requires green CI for every relevant commit.",
       inputSchema: {
         type: "object",
         properties: {

@@ -10,6 +10,9 @@
     "maxCheckLogBytes": 5242880,
     "maxFailureSummaryLines": 6
   },
+  "ci": {
+    "maxInFlightCommits": 4
+  },
   "maintainabilityThresholds": {
     "fileLines": 250,
     "functionLines": 60,

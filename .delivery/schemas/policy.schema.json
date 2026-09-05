@@ -3,7 +3,7 @@
   "title": "DeliveryPolicy",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "policyName", "limits", "maintainabilityThresholds", "classification", "checkCatalog", "gates"],
+  "required": ["version", "policyName", "limits", "ci", "maintainabilityThresholds", "classification", "checkCatalog", "gates"],
   "properties": {
     "$schema": { "type": "string" },
     "version": { "type": "integer", "minimum": 1 },
@@ -19,6 +19,14 @@
         "maxDiagnostics": { "type": "integer", "minimum": 1 },
         "maxCheckLogBytes": { "type": "integer", "minimum": 1024 },
         "maxFailureSummaryLines": { "type": "integer", "minimum": 1, "maximum": 20 }
+      }
+    },
+    "ci": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxInFlightCommits"],
+      "properties": {
+        "maxInFlightCommits": { "type": "integer", "minimum": 1, "maximum": 20 }
       }
     },
     "maintainabilityThresholds": {

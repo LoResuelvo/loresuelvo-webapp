@@ -17,6 +17,7 @@ import {
   queryCommitEvidence,
 } from "./delivery-ledger.mjs";
 import { inspectCi } from "./ci-provider.mjs";
+import { loadDeliveryPolicy } from "./policy-loader.mjs";
 
 
 const ALLOWED_TYPES = new Set([
@@ -377,6 +378,20 @@ export async function runPostCommitHook({ repoRoot } = {}) {
 export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = null } = {}) {
   const root = findRepoRoot(repoRoot);
   const requireEvidence = process.env.DELIVERY_REQUIRE_EVIDENCE === "1";
+  let maxInFlightCommits = null;
+
+  if (process.env.DELIVERY_SKIP_CI_CHECK !== "1") {
+    try {
+      const policy = await loadDeliveryPolicy({ repoRoot: root });
+      maxInFlightCommits = policy.ci.maxInFlightCommits;
+    } catch (error) {
+      return {
+        passed: false,
+        reason: "INVALID_DELIVERY_POLICY",
+        message: `Pre-push blocked: cannot load CI policy (${error.message}).`,
+      };
+    }
+  }
 
   for (const line of stdinLines) {
     const trimmed = line.trim();
@@ -473,14 +488,15 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
         priorShas = [];
       }
 
-      const recentPriorShas = priorShas.slice(-5).reverse();
-      const maxPendingWindow = Number(process.env.DELIVERY_CI_MAX_PENDING || 2);
+      // Inspect one commit beyond the allowed window so an already-overflowed
+      // ledger cannot hide the oldest pending or failed run.
+      const recentPriorShas = priorShas.slice(-(maxInFlightCommits + 1)).reverse();
       let pendingCount = 0;
 
       for (const priorSha of recentPriorShas) {
         try {
           const ci = await inspectCi({ sha: priorSha, repoRoot: root, provider: ciProvider });
-          if (ci.status === "failed" || ci.status === "timed_out") {
+          if (["failed", "timed_out", "cancelled"].includes(ci.status)) {
             return {
               passed: false,
               reason: "PRIOR_COMMIT_CI_FAILED",
@@ -488,19 +504,24 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
               sha: priorSha,
             };
           }
-          if (ci.status === "in_progress" || ci.status === "queued") {
+          if (["in_progress", "queued", "not_found"].includes(ci.status)) {
             pendingCount += 1;
-            if (pendingCount > maxPendingWindow) {
-              return {
-                passed: false,
-                reason: "CI_PENDING_WINDOW_EXCEEDED",
-                message: `Pre-push blocked: ${pendingCount} prior commits currently have CI in progress (exceeds window of ${maxPendingWindow}). Wait for CI to complete.`,
-              };
-            }
           }
         } catch {
           // If CI inspection throws (offline / network issue), do not block falsely
         }
+      }
+
+      const inFlightCount = pendingCount + commits.length;
+      if (inFlightCount > maxInFlightCommits) {
+        return {
+          passed: false,
+          reason: "CI_PENDING_WINDOW_EXCEEDED",
+          message: `Pre-push blocked: this push would create ${inFlightCount} commits in flight (maximum ${maxInFlightCommits}). Wait for CI to complete.`,
+          pendingCount,
+          inFlightCount,
+          maxInFlightCommits,
+        };
       }
     }
   }

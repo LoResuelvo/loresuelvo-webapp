@@ -52,7 +52,7 @@ Las capas internas no dependen de las externas. `domain/` y `ports/` no importan
 6. La presentación inicial se implementa aislada con props o mocks y sin anticipar rutas, fetch, repositorios, Server Actions ni integración. Esas dependencias se incorporan al avanzar hacia adentro.
 7. Ownership, commits, push, reportes y escalamiento se rigen por la granularidad declarada en `frontend-ai-development-workflow`. En `SCENARIO` y `SCENARIO_GROUP`, el desarrollador persistente puede completar, commitear, pushear y monitorear únicamente el batch aprobado.
 8. Cada commit debe ser coherente, compilable y testeable. Antes de cada commit de agente, con el cambio exacto staged, `delivery_prepare` selecciona y ejecuta el gate local; solo `status: passed` habilita al agente a commitear y pushear a `main`. El flujo humano se define más abajo.
-9. CI se monitorea por SHA en paralelo. Se permite una ventana acotada de commits pendientes; ante una falla se detienen nuevos pushes y se corrige la causa.
+9. CI se monitorea por SHA en paralelo. La política permite hasta cuatro commits totales en vuelo; ante una falla se detienen nuevos pushes y se corrige la causa. Un batch puede cerrarse localmente y dar paso al siguiente con CI pendiente dentro de esa ventana.
 10. Un escenario pierde `@wip` solo al pasar su E2E. La US se cierra con sus gates completos y CI verde.
 
 Los escenarios aprobados son inmutables: no resumir, reescribir ni eliminar `Given`, `When` o `Then` sin una nueva aprobación funcional explícita.
@@ -113,6 +113,7 @@ Las referencias de una skill se leen únicamente cuando la tarea coincide con su
 delivery_inspect({ intent, proposedCommitMessage, ... })     # previsualización opcional
 delivery_prepare({ intent, proposedCommitMessage, ... })     # gate obligatorio sobre staged
 delivery_ci_inspect({ sha })                                 # CI compacto tras push
+delivery_finalize({ intent: "close_batch", usId, scopeFiles }) # cierre local; CI pendiente permitido
 delivery_finalize({ intent: "close_us", usId, scopeFiles }) # cierre con Gate D + CI verde
 ```
 
@@ -138,7 +139,8 @@ La política versionada en `.delivery/policy.v1.json` es la única fuente autori
 El flujo de entrega distingue claramente entre agente y humano:
 - **Agentes**: `delivery_prepare` (o MCP `delivery_prepare`) es la entrada canónica obligatoria sobre el snapshot staged antes de cada commit. El hook de Codex (`.codex/delivery-guard.mjs`) es estricto: intercepta `git commit` y deniega la ejecución si no existe un receipt válido y coincidente generado previamente por `delivery_prepare`.
 - **Humanos**: desarrollan, realizan stage y pueden commitear directamente ejecutando tests de forma manual o delegando la verificación a CI. En ausencia de receipt previo, el commit se registra en el ledger local como `not_run` y se permite tanto el commit como el push (salvo que se configure `DELIVERY_REQUIRE_EVIDENCE=1`).
-- **Git hooks**: los hooks de Git (`pre-commit`, `commit-msg`, `post-commit`, `pre-push`) son deliberadamente livianos. **Nunca ejecutan suites de tests**. Solo validan formato de mensaje, presencia o correspondencia de receipt ya existente (sin re-ejecutar gates), atomicidad de push (un commit a la vez), CI previo no fallido y registro en el ledger. Se instalan una vez por clon con `npm run delivery:hooks:install`.
-- **Cierre de User Story**: MCP `delivery_finalize` (o la CLI `npm run delivery:finalize`) exige que el commit HEAD tenga evidencia válida y aprobada de Gate D, y que **todos los commits de la US** (tanto los verificados localmente como los `not_run`) tengan su respectivo run de CI en estado `passed`. Commits corruptos o faltantes en el ledger bloquean el cierre.
+- **Git hooks**: los hooks de Git (`pre-commit`, `commit-msg`, `post-commit`, `pre-push`) son deliberadamente livianos. **Nunca ejecutan suites de tests**. Solo validan formato de mensaje, presencia o correspondencia de receipt ya existente (sin re-ejecutar gates), atomicidad de push (un commit a la vez), una ventana máxima de cuatro commits totales en vuelo, CI previo no fallido y registro en el ledger. Se instalan una vez por clon con `npm run delivery:hooks:install`.
+- **Cierre de batch**: MCP `delivery_finalize` con `close_batch` exige Gate D, scope sin `@wip`, commits pusheados y ledger válido, pero permite `queued`, `in_progress` o un run todavía `not_found`. Devuelve `passed_pending_ci` y habilita el siguiente batch; un CI conocido como fallido sigue bloqueando.
+- **Cierre de User Story**: MCP `delivery_finalize` con `close_us` exige que el commit HEAD tenga evidencia válida y aprobada de Gate D, y que **todos los commits de la US** (tanto los verificados localmente como los `not_run`) tengan su respectivo run de CI en estado `passed`. Commits corruptos o faltantes en el ledger bloquean el cierre.
 
 Los agentes consumen resultados estructurados y normalizados; no deben calcular gates, procesar tracebacks completos, administrar manualmente comandos de CI ni descargar logs masivos. MCP es un adaptador opcional: los agentes sin MCP ejecutan `npm run delivery:*`, que comparten exactamente el mismo núcleo. No calcular ni encadenar manualmente el gate pre-commit; los comandos individuales se reservan para TDD o diagnóstico focalizado.

@@ -68,8 +68,8 @@ function validateClassification(classification) {
 
 function validatePolicy(policy) {
   assertPositiveInteger(policy?.version, "version");
-  if (!policy?.checkCatalog || !policy?.gates || !policy?.limits) {
-    throw new Error("Invalid delivery policy: checkCatalog, gates, and limits are required");
+  if (!policy?.checkCatalog || !policy?.gates || !policy?.limits || !policy?.ci) {
+    throw new Error("Invalid delivery policy: checkCatalog, gates, limits, and ci are required");
   }
 
   validateClassification(policy.classification);
@@ -84,6 +84,8 @@ function validatePolicy(policy) {
   ]) {
     assertPositiveInteger(policy.limits[limit], `limits.${limit}`);
   }
+
+  assertPositiveInteger(policy.ci.maxInFlightCommits, "ci.maxInFlightCommits");
 
   for (const [checkId, definition] of Object.entries(policy.checkCatalog)) {
     if (!/^[a-z][a-z0-9_]*$/.test(checkId)) {

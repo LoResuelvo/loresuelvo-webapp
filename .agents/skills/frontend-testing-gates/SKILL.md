@@ -57,7 +57,7 @@ El runner ejecuta en fail-fast, reutiliza evidencia determinística del mismo sn
 El runner local verifica que no queden tags `@wip` en los feature files del alcance terminado. Después del push todavía corresponde verificar:
 
 - commits coherentes, pusheados individualmente y registrados por SHA;
-- los SHAs relevantes no tienen CI roja; un `rerun_pending` autorizado puede permanecer al cierre de batch o escenario, pero debe estar verde antes del cierre de la US;
+- los SHAs relevantes no tienen CI roja; `queued`, `in_progress` o un run todavía `not_found` pueden permanecer al cierre de batch, pero deben estar verdes antes del cierre de la US;
 - working tree sin artefactos accidentales.
 
 ## Fail-fast y reparación
@@ -101,9 +101,10 @@ El ledger viaja con toda delegación o resumen relacionado con la falla. En `STO
 
 ## CI remoto
 
-- Monitorear cada push por SHA, con ventana inicial máxima recomendada de 2 a 3 commits pendientes.
+- Monitorear cada push por SHA, con una ventana máxima de cuatro commits totales en vuelo, incluido el commit que se está pusheando. La cifra vive en `ci.maxInFlightCommits` dentro de la política versionada.
 - La consulta de CI se realiza de forma compacta mediante `delivery_ci_inspect` o `npm run delivery:ci -- --sha <sha>`, sin emitir comandos crudos de `gh` ni tracebacks masivos.
-- Mientras haya menos de tres SHAs pendientes, continuar el trabajo local. Ante CI fallido (`failed` o `timed_out`), los hooks de Git bloquean nuevos pushes hasta resolver la causa.
+- Mientras el siguiente push no exceda cuatro SHAs en vuelo, continuar el trabajo local. Ante CI fallido, `timed_out` o `cancelled`, los hooks de Git bloquean nuevos pushes hasta resolver la causa.
+- `delivery_finalize` con `close_batch` permite `queued`, `in_progress` o `not_found`, devuelve `passed_pending_ci` y habilita el siguiente batch. No representa CI verde y no relaja el cierre final.
 - En `close_us`, MCP `delivery_finalize` —o `npm run delivery:finalize` sin MCP— comprueba de forma automática que todos los commits de la US (incluyendo commits previos registrados como `not_run`) estén en verde con `status: passed` en CI, y que HEAD cuente con Gate D aprobado sin `@wip`. Estados `not_found`, `cancelled`, `timed_out` o `provider_error`, así como evidencia corrupta o faltante, bloquean el cierre. El bypass offline de pre-push no convierte CI desconocido o fallido en éxito.
 
 ## Seguridad antes de commit

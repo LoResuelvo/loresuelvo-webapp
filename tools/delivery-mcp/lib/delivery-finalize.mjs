@@ -3,6 +3,9 @@ import { findRepoRoot, assertSafeRepoPath } from "./repo-root.mjs";
 import { queryCommitEvidence, verifyCommitEvidence } from "./delivery-ledger.mjs";
 import { extractUsId } from "./git-snapshot.mjs";
 import { inspectCi } from "./ci-provider.mjs";
+import { loadDeliveryPolicy } from "./policy-loader.mjs";
+
+const BATCH_PENDING_CI_STATUSES = new Set(["queued", "in_progress", "not_found"]);
 
 function normalizeUsId(usId) {
   if (!usId || typeof usId !== "string") return null;
@@ -51,6 +54,7 @@ export async function finalizeDelivery({
   ciProvider = null,
 } = {}) {
   const root = findRepoRoot(repoRoot);
+  const policy = await loadDeliveryPolicy({ repoRoot: root });
 
   let headSha;
   try {
@@ -211,11 +215,16 @@ export async function finalizeDelivery({
   }
 
   const ciResults = [];
+  const pendingCi = [];
   for (const sha of shas) {
     const ci = await inspectCi({ sha, repoRoot: root, provider: ciProvider });
     ciResults.push(ci);
     if (ci.status !== "passed") {
       const pending = ci.status === "in_progress" || ci.status === "queued";
+      if (intent === "close_batch" && BATCH_PENDING_CI_STATUSES.has(ci.status)) {
+        pendingCi.push(ci);
+        continue;
+      }
       return {
         finalized: false,
         status: pending ? "in_progress" : "blocked",
@@ -227,15 +236,34 @@ export async function finalizeDelivery({
     }
   }
 
+  if (intent === "close_batch" && pendingCi.length > policy.ci.maxInFlightCommits) {
+    return {
+      finalized: false,
+      status: "blocked",
+      reason: "CI_PENDING_WINDOW_EXCEEDED",
+      message: `Cannot close batch: ${pendingCi.length} commits remain in flight (maximum ${policy.ci.maxInFlightCommits})`,
+      pendingCi,
+      maxInFlightCommits: policy.ci.maxInFlightCommits,
+    };
+  }
+
+  const hasPendingCi = pendingCi.length > 0;
+  const deliveryLabel = intent === "close_batch" ? "Batch" : "User Story";
+
   return {
     finalized: true,
-    status: "passed",
+    status: hasPendingCi ? "passed_pending_ci" : "passed",
     intent,
     usId: effectiveUsId,
     headSha,
     shas,
     unverifiedCommits,
-    message: `Delivery ${effectiveUsId ? `'${effectiveUsId}' ` : ""}finalized with Gate D and green CI`,
+    remoteVerification: hasPendingCi ? "pending" : "passed",
+    pendingCi,
+    maxInFlightCommits: policy.ci.maxInFlightCommits,
+    message: hasPendingCi
+      ? `${deliveryLabel} ${effectiveUsId ? `'${effectiveUsId}' ` : ""}closed locally with Gate D; ${pendingCi.length} CI run(s) remain pending`
+      : `${deliveryLabel} ${effectiveUsId ? `'${effectiveUsId}' ` : ""}finalized with Gate D and green CI`,
     ci: ciResults,
   };
 }

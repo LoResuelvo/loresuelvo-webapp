@@ -26,12 +26,17 @@ async function createTempGitRepo(t) {
     "ci-inspection-result.schema.json",
     "delivery-context.schema.json",
     "execution-result.schema.json",
+    "policy.schema.json",
   ]) {
     await fs.copyFile(
       path.join(".delivery", "schemas", schema),
       path.join(repoRoot, ".delivery", "schemas", schema)
     );
   }
+  await fs.copyFile(
+    path.join(".delivery", "policy.v1.json"),
+    path.join(repoRoot, ".delivery", "policy.v1.json")
+  );
   await fs.copyFile(".gitignore", path.join(repoRoot, ".gitignore"));
 
   await fs.writeFile(path.join(repoRoot, "README.md"), "# Initial\n", "utf8");
@@ -193,6 +198,144 @@ test("finalizeDelivery: aprueba Gate D, scope exacto, evidencia y CI verde", asy
   assert.deepStrictEqual(res.ci.map((ci) => ci.status), ["passed"]);
 });
 
+test("finalizeDelivery: close_batch permite continuar con CI pendiente", async (t) => {
+  for (const status of ["queued", "in_progress", "not_found"]) {
+    await t.test(status, async (subtest) => {
+      const repoRoot = await createTempGitRepo(subtest);
+      const featurePath = `features/batch-${status}.feature`;
+      const sha = await commitFile(
+        repoRoot,
+        featurePath,
+        "Feature: Batch\n  Scenario: Done\n    Given ok\n",
+        "test[01]: close batch"
+      );
+      await attachEvidence({
+        repoRoot,
+        sha,
+        gateId: "D",
+        scopeFeatures: [featurePath],
+        usId: "01",
+        intent: "close_batch",
+      });
+
+      const res = await finalizeInIsolatedRepo({
+        repoRoot,
+        intent: "close_batch",
+        usId: "01",
+        scopeFiles: [featurePath],
+        ciProvider: new MockCiProvider({ [sha]: { status } }),
+      });
+
+      assert.strictEqual(res.finalized, true);
+      assert.strictEqual(res.status, "passed_pending_ci");
+      assert.strictEqual(res.remoteVerification, "pending");
+      assert.deepStrictEqual(res.pendingCi.map((ci) => ci.sha), [sha]);
+      assert.deepStrictEqual(res.pendingCi.map((ci) => ci.status), [status]);
+    });
+  }
+});
+
+test("finalizeDelivery: close_batch bloquea un CI conocido como fallido", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/failed-batch.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: Batch\n  Scenario: Done\n    Given ok\n",
+    "test[01]: close failed batch"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "01",
+    intent: "close_batch",
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_batch",
+    usId: "01",
+    scopeFiles: [featurePath],
+    ciProvider: new MockCiProvider({ [sha]: { status: "failed" } }),
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.reason, "CI_NOT_GREEN");
+});
+
+test("finalizeDelivery: close_batch respeta la ventana de cuatro commits en vuelo", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const shas = [];
+
+  for (let index = 1; index <= 4; index += 1) {
+    const sha = await commitFile(
+      repoRoot,
+      `src/batch-${index}.txt`,
+      String(index),
+      `chore[20]: add batch part ${index}`
+    );
+    await attachEvidence({ repoRoot, sha, gateId: "A", usId: "20" });
+    shas.push(sha);
+  }
+
+  const featurePath = "features/batch-window.feature";
+  const head = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: Batch window\n  Scenario: Done\n    Given ok\n",
+    "test[20]: close batch window"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha: head,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "20",
+    intent: "close_batch",
+  });
+  shas.push(head);
+
+  const fixtures = Object.fromEntries(shas.map((sha) => [sha, { status: "in_progress" }]));
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_batch",
+    usId: "20",
+    scopeFiles: [featurePath],
+    ciProvider: new MockCiProvider(fixtures),
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.reason, "CI_PENDING_WINDOW_EXCEEDED");
+  assert.strictEqual(res.pendingCi.length, 5);
+  assert.strictEqual(res.maxInFlightCommits, 4);
+});
+
+test("finalizeDelivery: close_us sigue esperando un CI en progreso", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/pending-us.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US\n  Scenario: Done\n    Given ok\n",
+    "test[01]: close pending us"
+  );
+  await attachEvidence({ repoRoot, sha, gateId: "D", scopeFeatures: [featurePath], usId: "01" });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_us",
+    usId: "01",
+    scopeFiles: [featurePath],
+    ciProvider: new MockCiProvider({ [sha]: { status: "in_progress" } }),
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.status, "in_progress");
+  assert.strictEqual(res.reason, "CI_IN_PROGRESS");
+});
+
 test("finalizeDelivery: solo CI passed puede cerrar", async (t) => {
   for (const status of ["not_found", "cancelled", "timed_out", "provider_error"]) {
     await t.test(status, async (subtest) => {
@@ -335,7 +478,7 @@ test("pre-push: bloquea nuevos pushes si un commit previo falló en CI", async (
   assert.strictEqual(result.reason, "PRIOR_COMMIT_CI_FAILED");
 });
 
-test("pre-push: respeta la ventana máxima de commits con CI pendiente", async (t) => {
+test("pre-push: permite exactamente cuatro commits totales con CI pendiente", async (t) => {
   const repoRoot = await createTempGitRepo(t);
   const sha1 = headSha(repoRoot);
   await attachEvidence({ repoRoot, sha: sha1 });
@@ -356,8 +499,39 @@ test("pre-push: respeta la ventana máxima de commits con CI pendiente", async (
     stdinLines: [`refs/heads/main ${sha4} refs/heads/main ${sha3}`],
     ciProvider: mockCi,
   });
+  assert.strictEqual(result.passed, true);
+});
+
+test("pre-push: bloquea un quinto commit total con CI pendiente", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const sha1 = headSha(repoRoot);
+  await attachEvidence({ repoRoot, sha: sha1 });
+  const sha2 = await commitFile(repoRoot, "f2.txt", "2", "chore: c2");
+  await attachEvidence({ repoRoot, sha: sha2 });
+  const sha3 = await commitFile(repoRoot, "f3.txt", "3", "chore: c3");
+  await attachEvidence({ repoRoot, sha: sha3 });
+  const sha4 = await commitFile(repoRoot, "f4.txt", "4", "chore: c4");
+  await attachEvidence({ repoRoot, sha: sha4 });
+  const sha5 = await commitFile(repoRoot, "f5.txt", "5", "chore: c5");
+  await attachEvidence({ repoRoot, sha: sha5 });
+
+  const mockCi = new MockCiProvider({
+    [sha1]: { status: "in_progress" },
+    [sha2]: { status: "in_progress" },
+    [sha3]: { status: "in_progress" },
+    [sha4]: { status: "in_progress" },
+  });
+  const result = await runPrePushHook({
+    repoRoot,
+    stdinLines: [`refs/heads/main ${sha5} refs/heads/main ${sha4}`],
+    ciProvider: mockCi,
+  });
+
   assert.strictEqual(result.passed, false);
   assert.strictEqual(result.reason, "CI_PENDING_WINDOW_EXCEEDED");
+  assert.strictEqual(result.pendingCount, 4);
+  assert.strictEqual(result.inFlightCount, 5);
+  assert.strictEqual(result.maxInFlightCommits, 4);
 });
 
 async function attachNotRunEvidence({ repoRoot, sha, usId = null, reason = "human_commit_no_receipt" }) {

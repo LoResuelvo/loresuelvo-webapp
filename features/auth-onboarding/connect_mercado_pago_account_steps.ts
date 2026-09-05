@@ -26,6 +26,12 @@ When("finalizo el registro como prestador", async function (this: CustomWorld) {
 
   await this.stubGet("/providers/me/payment-accounts", aPaymentAccount());
 
+  const zoneCheckbox = this.page.locator('input[type="checkbox"][name="coverageZones"]').first();
+  await zoneCheckbox.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
+  if (await zoneCheckbox.isVisible().catch(() => false)) {
+    await zoneCheckbox.check();
+  }
+
   const button = this.page.getByRole("button", { name: "Finalizar Registro" }).first();
   await button.waitFor();
   await button.click();
@@ -70,6 +76,12 @@ Given(
     );
 
     await this.stubGet("/providers/me/payment-accounts", aPaymentAccount());
+
+    const zoneCheckbox = this.page.locator('input[type="checkbox"][name="coverageZones"]').first();
+    await zoneCheckbox.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
+    if (await zoneCheckbox.isVisible().catch(() => false)) {
+      await zoneCheckbox.check();
+    }
 
     const button = this.page.getByRole("button", { name: "Finalizar Registro" }).first();
     await button.waitFor();

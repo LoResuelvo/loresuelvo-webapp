@@ -31,10 +31,10 @@ No dividir por archivo ni por cantidad de líneas. Si el diff es grande, buscar 
 Antes de cada commit del agente, dejar staged únicamente el cambio atómico e invocar `delivery_prepare` con el `intent` aplicable (`prepare_commit`, `close_scenario`, `close_batch`, `close_us`) y el mensaje propuesto. Esta herramienta inspecciona el snapshot, selecciona y ejecuta el gate local; el agente no calcula el gate ni reproduce sus comandos.
 
 El repositorio distingue claramente el flujo humano del flujo de agente:
-- **Agentes**: deben ejecutar `delivery_prepare` antes de commitear para obtener un receipt con `status: passed`. El hook de Codex intercepta `git commit` y deniega cualquier commit que no cuente con un receipt previo coincidente. Los hooks de Git son livianos y **nunca ejecutan suites de tests**.
+- **Agentes autónomos**: deben usar MCP `delivery_prepare` antes de commitear para obtener un receipt con `status: passed`. El guard anticipatorio disponible en el entorno intercepta `git commit` y deniega cualquier commit que no cuente con un receipt previo coincidente. Si el MCP requerido no está disponible, detenerse salvo aprobación explícita de otro entorno.
 - **Humanos**: pueden desarrollar, hacer stage y commitear directamente de forma manual o apoyándose en CI; en ausencia de receipt, sus commits se registran en el ledger como `not_run`.
 
-Usar la herramienta MCP cuando esté disponible. Cualquier agente o colega sin ese adaptador usa el mismo núcleo mediante:
+La CLI neutral usa el mismo núcleo y queda disponible para humanos, diagnóstico o un entorno sin MCP aprobado:
 
 ```bash
 npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuesto>'
@@ -50,19 +50,19 @@ npm run delivery:prepare -- --intent prepare_commit --message '<mensaje>' \
 
 La caché determinística cubre tanto ejecuciones exitosas como fallos idénticos; `--force` evita la caché cuando se solicita expresamente. Solo `status: passed` autoriza el commit. `no_changes` significa que no existe un snapshot staged para commitear; los demás estados detienen el commit. Los logs completos quedan en `.delivery/runtime/`, ignorados por Git, y la respuesta devuelve únicamente diagnósticos acotados sin tracebacks completos.
 
-Registrar en el handoff o reporte la evidencia compacta generada por la herramienta:
+Registrar en el handoff o reporte solamente la evidencia compacta necesaria: `snapshotHash`, `runKey`, estado, gate, checks, caché y receipt. El runner define el schema; no reconstruirlo manualmente ni adjuntar logs verdes.
 
-```text
-snapshotHash: <sha256>
-runKey: <sha256 | null>
-status: <passed | failed | review_required | blocked | needs_input | no_changes>
-gate: <NONE | 0 | A | B | C | D>
-cached: <true | false>
-checks: <pasados/fallidos/omitidos>
-evidence: <recordPath | null>
-```
+Si se modifican hooks o adaptadores React, o se crean, mueven o dividen módulos, aplicar `frontend-maintainability-governance` y leer allí la referencia condicional correspondiente.
 
-Si se modifican hooks o adaptadores React, preservar las directrices de `references/react-hooks.md`; si se crean, mueven o dividen carpetas o archivos, respetar `references/module-boundaries.md`.
+## Concurrencia del worktree
+
+El índice de Git y `HEAD` son compartidos por todas las personas y agentes que operan sobre el mismo worktree. Debe existir un único owner del staging y commit a la vez.
+
+- Antes de stagear o commitear, comprobar que los cambios presentes pertenecen a la frontera activa y preservar cualquier edición ajena.
+- Si aparece un commit externo, un staging inesperado o cambia `HEAD`, detener el commit y volver a inspeccionar el árbol.
+- Todo receipt preparado antes de ese cambio se considera inválido; ejecutar nuevamente `delivery_prepare` sobre el snapshot actual.
+- Un commit observado no demuestra autoría. Correlacionar mensaje, SHA, archivos y owner antes de incorporarlo al reporte.
+- Si un commit externo queda sin push y luego se crea otro, el pre-push puede bloquear por la regla de un commit por push. Coordinar y pushear cada commit en su propia frontera.
 
 ## Mensajes
 

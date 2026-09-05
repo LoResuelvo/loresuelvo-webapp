@@ -25,7 +25,7 @@ Usar cuando la tarea cambia comportamiento observable, criterios de aceptación,
 4. Para cada pieza interna, escribir un test unitario o de componente pequeño en RED, centrado solamente en el nuevo comportamiento.
 5. Implementar lo mínimo para GREEN y refactorizar sin perderlo. En código productivo no trivial, resolver la revisión de `frontend-maintainability-governance` antes de cerrar el ciclo.
 6. Agregar infraestructura/aplicación y luego el wiring de integración cuando el escenario activo lo requiera.
-7. En cada frontera atómica, el agente realiza stage exacto y ejecuta `delivery_prepare` con el intent correspondiente (`prepare_commit`, `close_scenario`, `close_batch`, `close_us`) según `frontend-testing-gates`. Mantener `@wip` mientras el escenario no esté listo para entrar en la suite normal; al completar su implementación, retirar `@wip` y cerrar la frontera mediante `delivery_prepare`. Los comandos focalizados crudos (o targets de test) son únicamente fallback humano o diagnóstico excepcional cuando la respuesta procesada de `delivery_prepare` no alcance para diagnosticar.
+7. En cada frontera atómica, el agente realiza stage exacto y ejecuta `delivery_prepare` con el intent correspondiente según `frontend-testing-gates`; los intents de batch o US solo aplican cuando su scope de features está completo. Mantener `@wip` mientras el escenario no esté listo para entrar en la suite normal; al completar su implementación, retirar `@wip` y cerrar la frontera mediante `delivery_prepare`. Los comandos focalizados crudos son únicamente fallback humano o diagnóstico excepcional cuando la respuesta procesada no alcance.
 
 ## Selección de pruebas
 

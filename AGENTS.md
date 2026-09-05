@@ -59,7 +59,7 @@ Los escenarios aprobados son inmutables: no resumir, reescribir ni eliminar `Giv
 
 La estimación de commits por reporte es orientativa, no una cuota, mínimo ni máximo. No agrupar cambios no relacionados, dividir dependencias relacionadas ni omitir escalaciones para ajustarse a una cifra; atomicidad, gates y push inmediato prevalecen.
 
-El presupuesto de reparación pertenece a la firma de falla y se comparte entre todos los agentes: los handoffs, subagentes y compactaciones no lo reinician. Al alcanzar `STOP_USER`, quedan prohibidos nuevos intentos, cambios, commits y pushes hasta recibir instrucciones del usuario.
+El diagnóstico pertenece a la firma causal y se comparte entre todos los agentes: los handoffs, subagentes y compactaciones no lo reinician. No repetir una falla idéntica sin cambios relevantes. El developer escala cuando deja de existir progreso razonable; el orquestador decide si una hipótesis adicional está sustentada o si corresponde `STOP_USER`. Una vez declarado `STOP_USER`, quedan prohibidos nuevos intentos, cambios, commits y pushes hasta recibir instrucciones del usuario.
 
 ## Commits
 
@@ -119,7 +119,7 @@ delivery_finalize({ intent: "close_us", usId, scopeFiles }) # cierre con Gate D 
 
 El agente edita y usa Git normalmente, pero no ejecuta manualmente `make`, lint, typecheck, suites ni comandos crudos de CI como flujo habitual. El servidor MCP elige y ejecuta los checks mediante el core compartido y devuelve resultados procesados.
 
-### Humano, agente sin MCP o diagnóstico manual
+### Humano, entorno sin MCP aprobado o diagnóstico manual
 
 ```bash
 npm run delivery:hooks:install
@@ -137,10 +137,11 @@ Los comandos de `make` (`make test-e2e-managed`, etc.) son de uso interno para l
 La política versionada en `.delivery/policy.v1.json` es la única fuente autoritativa que decide clasificación, gates, checks, límites y orden. La evidencia generada queda ligada criptográficamente a HEAD, árbol staged, política, intent y alcance. La caché cubre éxitos y fallos idénticos; `--force` fuerza una ejecución nueva.
 
 El flujo de entrega distingue claramente entre agente y humano:
-- **Agentes**: `delivery_prepare` (o MCP `delivery_prepare`) es la entrada canónica obligatoria sobre el snapshot staged antes de cada commit. El hook de Codex (`.codex/delivery-guard.mjs`) es estricto: intercepta `git commit` y deniega la ejecución si no existe un receipt válido y coincidente generado previamente por `delivery_prepare`.
+- **Agentes autónomos**: MCP `delivery_prepare` es la entrada canónica obligatoria sobre el snapshot staged antes de cada commit. El guard anticipatorio disponible en el cliente deniega `git commit` si no existe un receipt válido y coincidente. Si el MCP requerido no está disponible, detenerse; la CLI neutral solo sustituye al MCP en un entorno aprobado explícitamente.
 - **Humanos**: desarrollan, realizan stage y pueden commitear directamente ejecutando tests de forma manual o delegando la verificación a CI. En ausencia de receipt previo, el commit se registra en el ledger local como `not_run` y se permite tanto el commit como el push (salvo que se configure `DELIVERY_REQUIRE_EVIDENCE=1`).
 - **Git hooks**: los hooks de Git (`pre-commit`, `commit-msg`, `post-commit`, `pre-push`) son deliberadamente livianos. **Nunca ejecutan suites de tests**. Solo validan formato de mensaje, presencia o correspondencia de receipt ya existente (sin re-ejecutar gates), atomicidad de push (un commit a la vez), una ventana máxima de cuatro commits totales en vuelo, CI previo no fallido y registro en el ledger. Se instalan una vez por clon con `npm run delivery:hooks:install`.
-- **Cierre de batch**: MCP `delivery_finalize` con `close_batch` exige Gate D, scope sin `@wip`, commits pusheados y ledger válido, pero permite `queued`, `in_progress` o un run todavía `not_found`. Devuelve `passed_pending_ci` y habilita el siguiente batch; un CI conocido como fallido sigue bloqueando.
-- **Cierre de User Story**: MCP `delivery_finalize` con `close_us` exige que el commit HEAD tenga evidencia válida y aprobada de Gate D, y que **todos los commits de la US** (tanto los verificados localmente como los `not_run`) tengan su respectivo run de CI en estado `passed`. Commits corruptos o faltantes en el ledger bloquean el cierre.
+- **Concurrencia local**: en un worktree compartido existe un solo owner del staging y commit a la vez. Un commit externo invalida contexto y receipts ligados al `HEAD`; el agente vuelve a inspeccionar y ejecutar `delivery_prepare` antes de commitear.
+- **Cierre de batch**: MCP `delivery_finalize` con `close_batch` exige Gate D, commits pusheados, ledger válido y que todos los feature files declarados estén completos y sin `@wip`. Permite `queued`, `in_progress` o `not_found` y puede devolver `passed_pending_ci`. Si una feature conserva escenarios futuros con `@wip`, reportar el batch tras cerrar sus escenarios sin invocar `close_batch` sobre esa feature incompleta.
+- **Cierre de User Story**: la US termina únicamente cuando MCP `delivery_finalize` con `close_us` devuelve `finalized: true` y `status: passed`. Exige Gate D válido en `HEAD`, scope sin `@wip`, commits pusheados, ledger íntegro y CI `passed` para todos los commits relevantes, incluidos los registrados como `not_run`.
 
-Los agentes consumen resultados estructurados y normalizados; no deben calcular gates, procesar tracebacks completos, administrar manualmente comandos de CI ni descargar logs masivos. MCP es un adaptador opcional: los agentes sin MCP ejecutan `npm run delivery:*`, que comparten exactamente el mismo núcleo. No calcular ni encadenar manualmente el gate pre-commit; los comandos individuales se reservan para TDD o diagnóstico focalizado.
+Los agentes consumen resultados estructurados y normalizados; no deben calcular gates, procesar tracebacks completos, administrar manualmente comandos de CI ni descargar logs masivos. Los comandos `npm run delivery:*` comparten el mismo núcleo y quedan como interfaz humana, diagnóstico o fallback expresamente aprobado. Los comandos individuales se reservan para TDD o diagnóstico focalizado.

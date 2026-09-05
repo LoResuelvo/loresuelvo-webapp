@@ -19,7 +19,7 @@ npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuest
 
 La política versionada en `.delivery/policy.v1.json` es la única fuente de clasificación, selección y orden de checks. La CLI y MCP comparten exactamente el mismo núcleo. Los comandos de las secciones siguientes documentan qué protege cada gate y sirven para diagnóstico focalizado; no deben ejecutarse manualmente como una lista pre-commit.
 
-El runner ejecuta en fail-fast, reutiliza evidencia determinística del mismo snapshot (tanto éxitos como fallos idénticos, con `--force` para forzar una ejecución nueva) y devuelve diagnósticos acotados sin tracebacks completos. Conserva el log completo y el ledger local en `.delivery/runtime/`, fuera de Git. La evidencia queda ligada a HEAD, árbol staged, política, intent y alcance. El control `ci_green` pertenece al estado posterior al push y nunca se presenta como aprobado por el gate local. Los hooks de Git (`.githooks/`, instalados mediante `npm run delivery:hooks:install`) son deliberadamente livianos y nunca ejecutan suites de tests; solo verifican formato, receipts existentes y estado previo de CI. Para los agentes, `delivery_prepare` es la entrada canónica obligatoria previa a cada commit, respaldada por la denegación estricta del hook de Codex ante cualquier intento de commit sin receipt válido. La seguridad final del repositorio depende de CI remoto y protección de rama.
+El runner ejecuta en fail-fast, reutiliza evidencia determinística del mismo snapshot (tanto éxitos como fallos idénticos, con `--force` para forzar una ejecución nueva) y devuelve diagnósticos acotados sin tracebacks completos. Conserva el log completo y el ledger local en `.delivery/runtime/`, fuera de Git. La evidencia queda ligada a HEAD, árbol staged, política, intent y alcance. El control `ci_green` pertenece al estado posterior al push y nunca se presenta como aprobado por el gate local. Los hooks de Git (`.githooks/`, instalados mediante `npm run delivery:hooks:install`) son deliberadamente livianos y nunca ejecutan suites de tests; solo verifican formato, receipts existentes y estado previo de CI. Para los agentes, `delivery_prepare` es la entrada canónica obligatoria previa a cada commit; el guard anticipatorio disponible en el entorno deniega intentos de commit sin receipt válido. La seguridad final del repositorio depende de CI remoto y protección de rama.
 
 ## Semántica de los gates
 
@@ -67,44 +67,14 @@ El runner local verifica que no queden tags `@wip` en los feature files del alca
 - No reportar RED esperado ni intentos locales que terminen en GREEN.
 - Escalar si la falla persiste, parece ajena, exige archivos fuera del alcance o cambia el plan.
 
-### Presupuesto de iteración
-
-- Definir la firma de falla como comando, exit code, primer error normalizado y archivo/línea cuando exista.
-- El presupuesto es global para esa firma y se conserva entre developer, orquestador, subagentes, handoffs y compactaciones.
-- El developer puede formular como máximo 2 hipótesis, cada una con hasta 2 intentos de corrección. Si ambas fallan, pasa a `ESCALATE_ORCHESTRATOR` con el paquete compacto.
-- El orquestador dispone de una única intervención: revisar evidencia focalizada, realizar como máximo una consulta de triage y formular como máximo una tercera hipótesis global, con hasta 2 intentos de corrección ejecutados por el developer.
-- Si la misma firma aparece dos veces consecutivas dentro de una hipótesis, esa hipótesis se considera agotada. No repetir una tool call fallida sin cambios de código, configuración o evidencia.
-- Agotada la tercera hipótesis, pasar obligatoriamente a `STOP_USER`. Quedan prohibidas una cuarta hipótesis, las cadenas de subagentes y cualquier nuevo comando de reparación, cambio, commit o push hasta recibir instrucciones del usuario.
-- Una firma causal materialmente distinta abre un diagnóstico nuevo. Cambios cosméticos del log, líneas desplazadas o ejecutar desde otro agente no crean una firma nueva. El RED esperado del ciclo TDD no consume presupuesto.
-
-### Paquete de diagnóstico
-
-No cargar logs crudos completos por defecto. `delivery_prepare` ya devuelve `checkId`, exit code, primer error normalizado, líneas causales acotadas y `logPath`. Usar esa respuesta como paquete inicial y abrir el log local solo si una hipótesis concreta necesita más contexto:
-
-```text
-Command:
-Exit code:
-Failure signature:
-Hypotheses attempted:
-Files changed:
-20 lines around first error:
-Last 40 lines:
-Developer hypotheses used: <0-2>/2
-Orchestrator hypotheses used: <0-1>/1
-Triage calls used: <0-1>/1
-State: ACTIVE | ESCALATE_ORCHESTRATOR | STOP_USER
-```
-
-Ampliar el log únicamente si el diagnóstico lo requiere. En ejecuciones verdes, conservar solo el resumen del comando; no adjuntar logs completos de build, E2E o CI.
-
-El ledger viaja con toda delegación o resumen relacionado con la falla. En `STOP_USER`, el orquestador informa firma, hipótesis, evidencia, alcance que sería necesario ampliar y alternativas; pedir ayuda no cambia por sí solo `AGENT_ORCHESTRATED` a `USER_GUIDED`.
+Cuando una falla no se resuelve con su causa directa, leer [diagnóstico y escalamiento](references/failure-diagnostics.md). Esa referencia define firma causal, evidencia compacta, señales de falta de progreso y `STOP_USER`; no cargarla durante ejecuciones verdes.
 
 ## CI remoto
 
 - Monitorear cada push por SHA, con una ventana máxima de cuatro commits totales en vuelo, incluido el commit que se está pusheando. La cifra vive en `ci.maxInFlightCommits` dentro de la política versionada.
 - La consulta de CI se realiza de forma compacta mediante `delivery_ci_inspect` o `npm run delivery:ci -- --sha <sha>`, sin emitir comandos crudos de `gh` ni tracebacks masivos.
 - Mientras el siguiente push no exceda cuatro SHAs en vuelo, continuar el trabajo local. Ante CI fallido, `timed_out` o `cancelled`, los hooks de Git bloquean nuevos pushes hasta resolver la causa.
-- `delivery_finalize` con `close_batch` permite `queued`, `in_progress` o `not_found`, devuelve `passed_pending_ci` y habilita el siguiente batch. No representa CI verde y no relaja el cierre final.
+- `delivery_finalize` con `close_batch` se usa solamente cuando todos los feature files declarados como scope del batch están completos y sin `@wip`. Puede aceptar `queued`, `in_progress` o `not_found`, devolver `passed_pending_ci` y habilitar el siguiente batch. Si una feature conserva escenarios futuros con `@wip`, reportar el batch sin formalizar `close_batch` sobre ese archivo.
 - En `close_us`, MCP `delivery_finalize` —o `npm run delivery:finalize` sin MCP— comprueba de forma automática que todos los commits de la US (incluyendo commits previos registrados como `not_run`) estén en verde con `status: passed` en CI, y que HEAD cuente con Gate D aprobado sin `@wip`. Estados `not_found`, `cancelled`, `timed_out` o `provider_error`, así como evidencia corrupta o faltante, bloquean el cierre. El bypass offline de pre-push no convierte CI desconocido o fallido en éxito.
 
 ## Seguridad antes de commit

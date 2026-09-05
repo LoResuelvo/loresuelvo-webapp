@@ -27,10 +27,9 @@ Usar para implementar una User Story o feature completa. Esta skill define el ci
 
 ## Cierre
 
-- Cerrar la User Story mediante MCP `delivery_finalize` (o `npm run delivery:finalize`), que verifica Gate D aprobado en HEAD y CI passed en todos los commits de la US según `frontend-testing-gates`.
-- Informar señales de mantenibilidad, extracciones o justificaciones y cualquier riesgo residual.
-- Confirmar que CI está verde para todos los commits de la US.
-- Informar alcance entregado, validaciones ejecutadas y cualquier riesgo residual.
+- Formalizar `close_batch` solo cuando todos los feature files declarados para ese batch estén completos y sin `@wip`. Si una feature conserva escenarios futuros, reportar el batch tras cerrar sus escenarios y reservar Gate D para una frontera cuyo scope esté completo.
+- Cerrar la User Story mediante MCP `delivery_finalize(close_us)`. Solo `finalized: true` con `status: passed` demuestra cierre: Gate D aprobado en `HEAD`, scope sin `@wip`, commits pusheados, ledger íntegro y CI passed en todos los commits relevantes.
+- Informar alcance entregado, validaciones, señales de mantenibilidad, decisiones y riesgos residuales.
 
 ## Routing
 

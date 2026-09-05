@@ -1,204 +1,96 @@
 ---
 name: frontend-ai-development-workflow
-description: "Coordinar una User Story de Lo Resuelvo con conducción y granularidad independientes, un desarrollador persistente, commits en main y CI asíncrono."
+description: "Coordinar una User Story de Lo Resuelvo entre orquestador y developer, con batches acotados, handoffs suficientes, delivery MCP y CI asíncrono."
 ---
 
 # Frontend AI Development Workflow
 
-Usar para coordinar agentes durante una User Story. Las reglas de BDD, tests y commits viven en sus skills específicas.
+Usar al delegar una User Story o un batch a otro agente. Esta skill gobierna coordinación y handoff; BDD, gates, commits y criterios técnicos viven en sus skills específicas.
 
-## Dos ejes independientes
+## Conducción y granularidad
 
-### Conducción de la US
+Declarar dos decisiones independientes:
 
-- `USER_GUIDED`: la persona usuaria aprueba decisiones y fronteras relevantes; el orquestador propone y coordina.
-- `AGENT_ORCHESTRATED`: el orquestador conduce el plan aprobado como un senior disponible, sin solicitar intervención ordinaria.
+- `USER_GUIDED`: el usuario aprueba decisiones y fronteras relevantes.
+- `AGENT_ORCHESTRATED`: el orquestador conduce un plan ya aprobado y consulta al usuario solo ante una escalación real.
 
-La conducción se declara al planificar la US y puede cambiar solamente con aprobación del usuario. Una escalación puntual, el routing de modelos o una recalibración de granularidad no cambian la conducción.
+La conducción se declara al planificar y solo cambia con aprobación del usuario; una escalación puntual o un cambio de granularidad no la modifica.
 
-### Granularidad de la delegación
+Y una granularidad por batch:
 
-- `MICROSTEP`: un comportamiento observable; el desarrollador se detiene al validarlo y no commitea ni pushea.
-- `SCENARIO`: todos los micro-pasos Outside-In de un escenario aprobado.
-- `SCENARIO_GROUP`: 2–3 escenarios consecutivos, aprobados, similares y de bajo acoplamiento; cada uno debe quedar GREEN antes de avanzar al siguiente.
+- `MICROSTEP`: un comportamiento observable; el developer valida y se detiene sin commit ni push.
+- `SCENARIO`: completa un escenario aprobado y sus fronteras atómicas.
+- `SCENARIO_GROUP`: completa 2–3 escenarios consecutivos, similares y de bajo acoplamiento; cierra cada escenario en GREEN antes del siguiente.
 
-Elegir `MICROSTEP` ante ambigüedad, riesgo alto o una única validación; `SCENARIO` para un escenario con dependencias conocidas; y `SCENARIO_GROUP` solo para escenarios consecutivos, de bajo acoplamiento y gates previsibles. Un escenario puede requerir varios commits atómicos y un grupo puede requerir pocos: la granularidad no determina el número de commits.
+Usar `MICROSTEP` ante ambigüedad o riesgo alto, `SCENARIO` como opción ordinaria y `SCENARIO_GROUP` solo cuando dependencias, alcance y condiciones de continuación sean previsibles. Recalibrar únicamente en una frontera segura: commit desplegable, escenario GREEN o detención previa a alcance nuevo.
 
-La granularidad se elige por batch y puede recalibrarse durante la US únicamente en una frontera segura: commit desplegable, escenario GREEN o detención explícita antes de introducir alcance nuevo.
+## Responsabilidades
 
-## Planificación y presupuesto de coordinación
+- El orquestador conserva el contrato funcional, el plan de batches, las decisiones de alcance y la comunicación con el usuario.
+- Antes de delegar trabajo estructural, consulta Codebase Memory, verifica cobertura y entrega la evidencia relevante sin pedir al developer que repita la exploración.
+- El developer persistente trabaja únicamente sobre el batch activo, no vuelve a delegar la implementación salvo autorización expresa, decide la solución cohesionada dentro del alcance y escala antes de cambiar comportamiento aprobado o cruzar una prohibición.
+- En `SCENARIO` y `SCENARIO_GROUP`, el developer valida, commitea, pushea y consulta CI. En `MICROSTEP`, esos owners pertenecen al orquestador salvo contrato explícito distinto.
+- La granularidad no determina el número de commits. Cada commit representa una frontera lógica completa según `frontend-commit-governance`.
+- Después del reporte, el orquestador revisa trazabilidad, diff y riesgos en proporción al cambio sin volver a ejecutar gates verdes ni reconstruir logs.
 
-Al inicio, el orquestador:
+Antes de delegar, comprobar que el developer tenga acceso a `delivery_prepare`. Los adaptadores y la propagación de herramientas son responsabilidad del cliente local, no del contrato compartido. Un agente autónomo sin el MCP requerido debe detenerse; la CLI neutral queda para humanos o para un entorno sin MCP aprobado explícitamente.
 
-1. entiende contrato, escenarios, dependencias y riesgos;
-2. declara la conducción de la US;
-3. propone una partición provisional en batches, cada uno con granularidad, escenarios ordenados, fronteras Outside-In, intents de delivery, owners y condiciones de continuación;
-4. declara, si aporta valor de coordinación, una estimación de commits atómicos para el batch en `SCENARIO` o `SCENARIO_GROUP`.
+## Handoff suficiente
 
-La estimación de commits es una señal para coordinar reportes y CI, no una cuota, mínimo ni máximo. No fusionar cambios independientes, omitir gates ni demorar escalaciones para ajustarse a ella. La atomicidad, los gates y el push inmediato prevalecen. Si la evidencia exige más o menos fronteras, continuar con el siguiente commit atómico y registrar la desviación al llegar a una frontera segura.
+El contrato transmite hechos específicos del batch, no vuelve a copiar reglas estables. Debe permitir que el developer conozca:
 
-Se puede promover `SCENARIO` a `SCENARIO_GROUP` cuando la evidencia muestra que los escenarios siguientes comparten riesgo y gates previsibles. Se debe degradar a `SCENARIO` o `MICROSTEP` si aparece ambigüedad, riesgo, una contradicción o una integración que necesita control más estrecho.
+- estado inicial, escenarios activos y objetivo observable;
+- contratos, tipos, invariantes y decisiones ya confirmadas;
+- alcance permitido, prohibiciones y condiciones de ampliación;
+- evidencia estructural disponible y preguntas abiertas;
+- próxima frontera atómica, intent de delivery y owners;
+- condiciones de continuación, escalamiento y cierre.
 
-## Responsabilidades estables
+Usar el contrato completo para el primer batch, un developer nuevo, contexto perdido o una dependencia arquitectónica nueva. Con el mismo developer persistente, usar un contrato delta que incluya solo cambios materiales. Los templates y anexos condicionales viven en [contratos de delegación](references/delegation-modes.md); leer esa referencia solamente al preparar o revisar un handoff.
 
-- El orquestador mantiene alcance, escenarios aprobados, plan de batches y conversación con el usuario.
-- Antes de delegar trabajo estructural, el orquestador consulta Codebase Memory, verifica cobertura y entrega un handoff compacto; no delega una exploración que ya realizó.
-- El orquestador declara la próxima frontera atómica prevista, su intent de delivery y condiciones de continuación, pero no prescribe normalmente archivos o líneas exactas ni calcula gates (`delivery_prepare` selecciona y ejecuta el gate automáticamente). Solo especifica archivos ante una restricción de seguridad, un bug ya diagnosticado, cobertura parcial conocida o una frontera que no debe tocarse.
-- El desarrollador persistente trabaja únicamente sobre el batch activo y no crea subagentes descartables.
-- El desarrollador usa la evidencia de grafo recibida y solo abre una consulta estructural nueva si el batch descubre una pregunta no resuelta. Si no dispone de las herramientas MCP, usa la evidencia entregada y lectura focalizada sin afirmar acceso al grafo.
-- Dentro del alcance permitido, el desarrollador decide los archivos y líneas necesarios para una implementación cohesionada, valida, commitea, pushea y monitorea CI. Escala antes de cruzar una prohibición o cambiar el contrato.
-- Cada micro-paso introduce un único comportamiento observable; una delegación puede contener varios sin convertirlos en un solo commit.
-- Ninguna combinación de conducción y granularidad autoriza funcionalidad futura, refactors no requeridos o escenarios fuera del batch.
+## Ejecución del batch
 
-## Rol del orquestador
+En `SCENARIO` y `SCENARIO_GROUP`, el developer recorre cada escenario Outside-In y trabaja una frontera atómica por vez:
 
-Antes del batch, actúa como senior: define el contrato, evalúa afinidad y riesgo, selecciona granularidad y modelo, y deja explícitas las condiciones de continuación y escalamiento.
+1. implementar el comportamiento mínimo del escenario activo;
+2. aplicar las skills técnicas que correspondan;
+3. realizar stage exacto;
+4. invocar MCP `delivery_prepare` con el intent y mensaje propuesto;
+5. con `status: passed`, commitear y pushear antes de iniciar otra frontera lógica.
 
-Antes de delegar, realiza un preflight compacto: escenarios aprobados y sus
-criterios, contrato público y tipos que deben fluir, capas y pruebas de valor
-esperadas, atajos prohibidos (casts inseguros, DTOs en UI y escenarios
-reescritos), mapa de responsabilidades y señales de mantenibilidad esperables,
-y archivos materiales que revisará al cierre.
+En `MICROSTEP`, se detiene después de validar el comportamiento y entrega el estado al owner de commit; no stagea ni prepara evidencia salvo que el contrato le asigne expresamente esa responsabilidad.
 
-Durante un batch autónomo permanece disponible, pero no duplica tests, inspecciones de logs ni monitoreo de SHAs que pertenecen al desarrollador. Interviene ante una escalación o una decisión fuera del contrato.
+El agente no calcula gates ni ejecuta manualmente `make`, lint, typecheck o suites como flujo ordinario. Los comandos directos son diagnóstico focalizado excepcional cuando el resultado procesado no alcanza.
 
-Ante una firma de falla escalada, dispone de una única intervención senior: revisar evidencia focalizada, opcionalmente realizar una consulta de triage y formular como máximo la tercera hipótesis global. No puede reiniciar el presupuesto, encadenar subagentes ni continuar reparando después de `STOP_USER`.
+En un worktree compartido existe un solo owner del staging y commit a la vez. Un commit externo modifica `HEAD` e invalida contexto y receipts preparados; el developer debe detener el commit, volver a inspeccionar el árbol y ejecutar `delivery_prepare` sobre el nuevo snapshot. Nunca asumir autoría por observar un commit nuevo.
 
-Después del batch consume un reporte compacto, verifica de forma agregada commits, CI y diff en proporción al riesgo, y decide el siguiente batch. Confirma trazabilidad escenario → comportamiento → prueba y revisa los archivos materiales por atajos peligrosos (`as any`, `as never`, `@ts-ignore`, `TODO`, DTOs en UI), con mayor profundidad en tipos públicos, privacidad, auth, API, rutas y componentes compartidos. No reproduce rutinariamente gates ni carga logs verdes sin nueva evidencia.
+## Reparación y escalamiento
 
-En código productivo no trivial también comprueba la evidencia de `frontend-maintainability-governance`: responsabilidades, señales resueltas o justificadas, API mínima y dueño de lifecycle, concurrencia, cleanup y errores visibles.
+Aplicar el protocolo de `frontend-testing-gates` por firma causal. No repetir una falla idéntica sin un cambio relevante ni reiniciar el diagnóstico mediante handoffs o subagentes.
 
-## Contrato de delegación
+El developer prueba solo hipótesis distintas y sustentadas por evidencia; cuando deja de haber progreso razonable, escala con la respuesta compacta del runner. El orquestador puede realizar un único triage senior y decide si existe una hipótesis nueva justificada, si hace falta ampliar alcance o si corresponde declarar `STOP_USER`. No existe una cuota universal que obligue a abandonar una corrección que muestra progreso real.
 
-Antes de editar, declarar:
+Una vez declarado `STOP_USER`, se detienen reparaciones, cambios, commits y pushes hasta recibir instrucciones. La transición no cambia por sí sola `AGENT_ORCHESTRATED` a `USER_GUIDED`.
 
-```text
-Conducción de la US:
-Granularidad del batch:
-US y escenarios ordenados del batch:
-Objetivo observable:
-Alcance y archivos permitidos:
-Archivos y comportamiento prohibidos:
-Secuencia Outside-In y fronteras de commit previstas:
-Presupuesto de commits / reporte:
-Gates aplicables: Automático: delivery_prepare selecciona el gate según intent, staged snapshot y política.
-Commit owner / push owner / CI owner:
-Condiciones de continuación entre escenarios:
-Condiciones de escalamiento:
-Graph project / generation:
-Evidence tier / bounded scope:
-Graph queries, pagination and qualified symbols:
-Relevant paths, traces and coverage:
-Source fallback already performed / unresolved questions:
-Responsibility map / expected maintainability signals:
-```
+## CI y cierres
 
-El desarrollador debe leer `AGENTS.md` y las skills obligatorias antes de actuar. Si el contrato contiene requisitos contradictorios o una frontera necesita dependencias prohibidas, debe escalar antes de editar.
+- Pushear cada commit inmediatamente y consultar su SHA mediante `delivery_ci_inspect`; continuar mientras la ventana configurada permita otro push.
+- Ante CI fallido, detener nuevos pushes y usar el diagnóstico estructurado. No descargar logs completos sin una hipótesis concreta.
+- `delivery_finalize(close_batch)` solo corresponde cuando todos los feature files declarados como scope del batch están completos y sin `@wip`. Si el batch cierra algunos escenarios de una feature que aún conserva otros `@wip`, reportar el batch y continuar mediante cierres de escenario; no invocar `close_batch` sobre esa feature incompleta.
+- Un cierre de batch puede devolver `passed_pending_ci`; habilita el siguiente batch dentro de la ventana, pero no representa CI verde.
+- Una US termina únicamente cuando `delivery_finalize(close_us)` devuelve `finalized: true` y `status: passed`. Esto exige Gate D válido en `HEAD`, scope sin `@wip`, commits pusheados, ledger íntegro y CI verde para todos los commits relevantes.
 
-## Contratos sucesivos y skills nuevas
+## Reportes y monitoreo
 
-El primer batch de una US requiere el contrato completo. Para el mismo developer
-persistente, los batches siguientes usan un contrato delta: HEAD y estado de
-CI heredados, escenarios ya cerrados, granularidad, escenarios activos,
-objetivo, alcance, prohibiciones o riesgos nuevos, próxima frontera y
-condiciones de continuación. No repetir las reglas generales ni el handoff que
-siga vigente.
+- `MICROSTEP`: reportar al detenerse o escalar.
+- `SCENARIO`: reportar al cerrar el escenario.
+- `SCENARIO_GROUP`: reportar al cerrar el grupo, sin checkpoints ordinarios entre escenarios.
+- Una escalación siempre se reporta inmediatamente.
 
-Si el nuevo batch activa skills que no eran aplicables antes, el contrato delta
-debe listarlas como `Skills nuevas obligatorias` y el developer debe leerlas
-completas antes de editar. Reenviar un contrato completo cuando se reemplaza al
-developer, se perdió contexto o surge una dependencia arquitectónica nueva.
+El cierre resume escenarios, commits/SHAs, gates devueltos por MCP, CI, cambios de contratos, archivos productivos materiales, mantenibilidad y riesgos. No reproducir logs verdes ni reconstruir información ya registrada por el runner.
 
-El contrato puede expresar una estimación de commits, pero debe declarar que no es una cuota, mínimo ni máximo. Debe describir la próxima frontera atómica prevista —comportamiento, archivos mínimos esperados, intent de delivery y mensaje de commit tentativo— y exigir `delivery_prepare status: passed → commit → push` antes de iniciar otra frontera lógica. No usar el contrato para imponer líneas exactas salvo las excepciones de seguridad, diagnóstico o cobertura ya declaradas.
+El orquestador espera sin polling narrado. Si necesita comprobar avance, realiza una consulta read-only del estado, `HEAD` y árbol; un developer `running` puede estar implementando o validando. Una estimación de commits o duración sirve para coordinar, nunca como cuota ni autorización para interrumpir un gate.
 
-## Gates y reparación autónoma
+## Routing de capacidad
 
-- El desarrollador persistente ejecuta explícitamente `delivery_prepare` sobre el snapshot staged antes de cada commit; los hooks de Git son deliberadamente livianos y **nunca ejecutan suites de tests**. El hook de Codex deniega cualquier commit de agente sin receipt previo coincidente.
-- Un RED esperado de TDD es evidencia del ciclo, no un gate roto.
-- Si un gate falla por el cambio actual y la corrección permanece dentro del alcance, diagnosticar, corregir y repetirlo sin reportar cada intento.
-- Aplicar el presupuesto de iteración y el paquete compacto de `frontend-testing-gates`; no repetir la misma llamada sin nueva evidencia.
-- No crear ni pushear un commit con su gate requerido en rojo.
-- Escalar si la falla parece ajena o preexistente, persiste al agotar el presupuesto, exige ampliar alcance, cambia el comportamiento aprobado o altera una frontera de commit.
-- `STOP_USER` obliga a detener cambios, comandos de reparación, commits y pushes, y a pedir instrucciones al usuario con el ledger y la evidencia compacta.
-
-## CI asíncrono
-
-- Cada commit se pushea inmediatamente y se monitorea por su SHA exacto.
-- La política permite hasta cuatro commits totales en vuelo, incluido el commit que se está pusheando. Consultar cada SHA de forma estructurada y compacta mediante `delivery_ci_inspect` (o `npm run delivery:ci -- --sha <sha>`); los agentes no deben administrar manualmente comandos de CI ni descargar logs masivos. Continuar trabajo local mientras la ventana lo permita.
-- Si CI falla, los hooks de Git bloquean nuevos pushes. Detener nuevos commits, revisar la respuesta procesada de `delivery_ci_inspect` (que incluye el error causal normalizado y extracto acotado) y escalar con SHA, stage, firma y causa probable.
-- En `close_batch`, `delivery_finalize` acepta CI `queued`, `in_progress` o todavía `not_found`, devuelve `passed_pending_ci` y permite iniciar el siguiente batch. El estado describe cierre local con verificación remota pendiente, no CI verde.
-- En `close_us`, MCP `delivery_finalize` —o `npm run delivery:finalize` sin MCP— comprueba de forma automática que todos los commits de la US (incluyendo commits previos registrados como `not_run`) tengan `status: passed` en CI y que HEAD cuente con Gate D aprobado sin `@wip`. El bypass offline del pre-push (`DELIVERY_SKIP_CI_CHECK=1`) permite avanzar ante commits previos sin red, pero no convierte CI desconocido o fallido en éxito.
-- Si un run permanece `in_progress` más de 2 veces su duración habitual sin error causal ni progreso sostenido, registrar la evidencia compacta. Si su SHA sucesor inmediato ya está en CI y pasa los mismos checks sin tocar el área afectada, clasificar el caso como degradación probable del proveedor. El reintento debe resolverse antes del cierre de la US.
-- Un fallo remoto puede revelar diferencias de entorno; nunca asumir que los gates locales hacen imposible una falla de CI.
-
-## Monitoreo pasivo de la delegación
-
-Durante una delegación activa, el orquestador no hace polling narrado ni
-interrumpe gates por falta de mensajes. Como heurística de atención, puede
-esperar inicialmente la duración esperada del micro-paso en `MICROSTEP`, o
-`4 minutos × commits estimados` en `SCENARIO` y `SCENARIO_GROUP`. La estimación
-no es una cuota ni una duración máxima.
-
-Al vencer esa ventana, realizar solo una consulta read-only: estado del
-developer, HEAD y, cuando la granularidad permita commits, commits nuevos desde
-el SHA inicial de la delegación, mensajes de commit vinculados a la US y estado
-del árbol. No enviar un mensaje al developer si figura `running`: puede estar
-implementando, validando o reparando dentro del contrato. Si está `idle` sin
-reporte de cierre, pedir un estado compacto.
-
-Los commits nuevos son una señal de avance, no prueba suficiente de autoría en
-un workspace compartido; correlacionarlos con la US, los SHAs esperados y el
-estado del developer. El vencimiento de la ventana nunca autoriza a cancelar
-un comando, interrumpir una gate ni asumir un bloqueo. Si el developer sigue
-activo, esperar otra ventana corta antes de una nueva consulta pasiva.
-
-## Reportes
-
-- `MICROSTEP`: reportar al terminar el micro-paso o al escalar.
-- `SCENARIO`: un reporte ordinario al cerrar el escenario.
-- `SCENARIO_GROUP`: un reporte ordinario al cerrar el grupo; no reportar entre escenarios si se cumplen las condiciones de continuación.
-- Toda escalación se reporta inmediatamente y no cuenta contra la estimación de commits.
-- El reporte final incluye escenarios, commits/SHAs, gates, CI, hipótesis agotadas si existieron y riesgos residuales.
-
-## Protocolo de respuestas
-
-El developer no reporta cada commit ni cada resultado verde de `delivery_prepare`; registra esos datos y
-los incluye en el cierre que corresponda. Al recibir un contrato, responde solo
-si detecta un bloqueo o contradicción:
-
-```text
-Bloqueo/contradicción:
-Regla o alcance afectado:
-Decisión requerida:
-```
-
-Una escalación usa el paquete de diagnóstico de `frontend-testing-gates`. Un
-cierre de `MICROSTEP`, `SCENARIO` o `SCENARIO_GROUP` informa:
-
-```text
-Escenarios GREEN:
-Commits / SHAs:
-Gates: <resultados devueltos por delivery_prepare>
-CI:
-Árbol:
-Escalaciones / riesgos:
-Cambios de contrato/tipos:
-Archivos productivos materiales:
-Pruebas de valor ejecutadas:
-Señales de mantenibilidad / decisiones / justificaciones:
-Siguiente acción permitida:
-```
-
-El orquestador responde al cierre con el siguiente contrato delta, un contrato
-completo si corresponde, o una decisión de escalamiento.
-
-## Loops, contexto y routing de modelos
-
-- Mantener un desarrollador persistente para conservar contexto y evitar handoffs repetidos.
-- No cargar logs crudos completos: usar `rtk`, salidas focalizadas y el paquete de diagnóstico de `frontend-testing-gates`.
-- El desarrollador consume como máximo las dos primeras hipótesis. El orquestador puede usar una sola consulta de triage para sustentar la tercera y última hipótesis global.
-- `gpt-5.6-luna` puede implementar batches acotados cuando el contrato, las prohibiciones y la evidencia de cierre son explícitos; no limitarlo a triage si el usuario o el orquestador lo seleccionan para desarrollo.
-- Usar un modelo rápido como `gpt-5.6-luna` para triage estrecho y repetible; `gpt-5.6-terra` para lectura o análisis auxiliar; reservar el modelo más capaz y razonamiento alto para ambigüedad arquitectónica o cambios transversales cuando no exista una elección explícita.
-- No usar razonamiento extra alto por defecto para ahorrar tokens, salvo selección explícita del usuario o riesgo que lo justifique. La consulta de triage no ejecuta reparaciones, no crea más agentes y no reinicia ningún contador.
-
-Antes de delegar una US con agentes, leer [orquestación, granularidad y ejemplos](references/delegation-modes.md).
+Respetar una selección explícita del usuario. En ausencia de ella, elegir la capacidad de menor costo y latencia que pueda cumplir el contrato: rápida para tareas acotadas y repetibles, intermedia para implementación ordinaria y la mayor disponible para ambigüedad arquitectónica o cambios transversales. Las equivalencias concretas de cada cliente pertenecen a configuración local.

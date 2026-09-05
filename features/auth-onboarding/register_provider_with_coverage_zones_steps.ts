@@ -358,6 +358,82 @@ Then("no se envía el registro del prestador", async function (this: CustomWorld
   );
 });
 
+Given(
+  "estoy en los datos de perfil con el mapa de comunas disponible",
+  async function (this: CustomWorld) {
+    const zones = [
+      aCoverageZone({ id: 6, name: "Comuna 6" }),
+      aCoverageZone({ id: 14, name: "Comuna 14" }),
+    ];
+    await this.stubGet("/coverage-zones", zones);
+
+    if (!(await this.hasApiStub("GET", "/categories"))) {
+      await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
+    }
+
+    setSelectedRole("provider");
+    await this.page.goto(APP_URL + ROUTES.onboarding);
+    const providerButton = this.page
+      .locator("#role-provider-btn")
+      .or(this.page.getByText("Soy Prestador"))
+      .first();
+    await providerButton.click();
+    const continueButton = this.page.getByRole("button", { name: /continuar/i }).first();
+    await continueButton.click();
+    await this.page.waitForSelector('input[name="firstName"]');
+
+    const map = this.page.locator('[data-testid="coverage-map"]').first();
+    await map.waitFor({ state: "visible", timeout: 10000 });
+  }
+);
+
+When(
+  "selecciono el polígono de {string} en el mapa",
+  async function (this: CustomWorld, zoneName: string) {
+    const parseId = (name: string, fallback: number) => {
+      const match = name.match(/\d+/);
+      return match ? parseInt(match[0], 10) : fallback;
+    };
+    const zoneId = parseId(zoneName, 14);
+    const polygon = this.page.locator(`[data-testid="map-zone-${zoneId}"]`).first();
+    await polygon.waitFor({ state: "visible", timeout: 5000 });
+    await polygon.click();
+  }
+);
+
+Then(
+  "el polígono de {string} figura seleccionado",
+  async function (this: CustomWorld, zoneName: string) {
+    const parseId = (name: string, fallback: number) => {
+      const match = name.match(/\d+/);
+      return match ? parseInt(match[0], 10) : fallback;
+    };
+    const zoneId = parseId(zoneName, 14);
+    const polygon = this.page.locator(`[data-testid="map-zone-${zoneId}"]`).first();
+    await polygon.waitFor({ state: "visible", timeout: 5000 });
+    const classAttr = (await polygon.getAttribute("class")) || "";
+    const isSelected =
+      classAttr.includes("bg-brand-primary") ||
+      (await polygon.getAttribute("data-selected")) === "true";
+    assert.ok(isSelected, `El polígono de ${zoneName} debería figurar seleccionado en el mapa`);
+  }
+);
+
+Then(
+  "{string} figura seleccionada en la lista accesible",
+  async function (this: CustomWorld, zoneName: string) {
+    const parseId = (name: string, fallback: number) => {
+      const match = name.match(/\d+/);
+      return match ? parseInt(match[0], 10) : fallback;
+    };
+    const zoneId = parseId(zoneName, 14);
+    const checkbox = this.page.locator(`input[name="coverageZones"][value="${zoneId}"]`).first();
+    await checkbox.waitFor({ state: "attached", timeout: 5000 });
+    assert.ok(await checkbox.isChecked(), `${zoneName} debería figurar seleccionada en la lista`);
+  }
+);
+
+
 
 
 

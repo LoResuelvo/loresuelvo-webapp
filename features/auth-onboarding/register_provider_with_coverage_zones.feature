@@ -20,7 +20,6 @@ Feature: US-35.5 Registrar prestador con zonas de cobertura
     Then ambas comunas figuran seleccionadas en la lista
     And ambos polígonos figuran seleccionados en el mapa
 
-  @wip
   Scenario: 03-RPZ Sincronizar una selección realizada en el mapa
     Given estoy en los datos de perfil con el mapa de comunas disponible
     When selecciono el polígono de "Comuna 14" en el mapa

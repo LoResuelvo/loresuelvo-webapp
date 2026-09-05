@@ -6,7 +6,6 @@ Feature: US-35.5 Registrar prestador con zonas de cobertura
   Background:
     Given que me registré exitosamente en Auth0 con email "prestador@example.com"
 
-  @wip
   Scenario: 01-RPZ Cargar las zonas habilitadas al ingresar a los datos de perfil
     Given la API dispone de las comunas habilitadas "Comuna 6" y "Comuna 14"
     And Google Maps está disponible con límites para esas comunas

@@ -32,42 +32,39 @@ When("elijo la opción de prestador y avanzo al paso de datos de perfil", async 
   }
 
   await this.page.goto(APP_URL + ROUTES.onboarding);
-  const providerButton = this.page.getByText("Soy Prestador").first();
+  const providerButton = this.page
+    .locator("#role-provider-btn")
+    .or(this.page.getByText("Soy Prestador"))
+    .first();
   await providerButton.click();
-  const continueButton = this.page.getByText("Continuar").first();
+  const continueButton = this.page.getByRole("button", { name: /continuar/i }).first();
   await continueButton.click();
+  await this.page.waitForSelector('input[name="firstName"]');
 });
 
 Then("veo el estado de carga de las zonas de cobertura", async function (this: CustomWorld) {
-  const loading = this.page
-    .locator('[data-testid="coverage-zones-loading"]')
-    .or(this.page.getByText(/cargando zonas/i))
-    .or(this.page.locator('[aria-busy="true"]'));
-  const list = this.page
-    .locator('[data-testid="coverage-zones-list"]')
-    .or(this.page.getByRole("group", { name: /zonas de cobertura/i }));
+  const loading = this.page.locator('[data-testid="coverage-zones-loading"]').first();
+  const list = this.page.locator('[data-testid="coverage-zones-list"]').first();
 
-  const isVisible = await Promise.race([
-    loading.waitFor({ state: "visible", timeout: 3000 }).then(() => true).catch(() => false),
-    list.waitFor({ state: "visible", timeout: 3000 }).then(() => true).catch(() => false),
-  ]);
-  assert.ok(isVisible, "No se encontró el estado de carga ni la lista cargada.");
+  const isVisible =
+    (await loading.isVisible().catch(() => false)) ||
+    (await list.isVisible().catch(() => false)) ||
+    (await list.waitFor({ state: "visible", timeout: 10000 }).then(() => true).catch(() => false));
+
+  assert.ok(isVisible, "No se encontró el estado de carga ni la lista cargada de zonas de cobertura.");
 });
 
 Then("veo los nombres de las comunas disponibles en la lista accesible", async function (this: CustomWorld) {
   const comuna6 = this.page.getByText("Comuna 6").first();
   const comuna14 = this.page.getByText("Comuna 14").first();
-  await comuna6.waitFor({ state: "visible" });
-  await comuna14.waitFor({ state: "visible" });
+  await comuna6.waitFor({ state: "visible", timeout: 10000 });
+  await comuna14.waitFor({ state: "visible", timeout: 10000 });
   assert.ok(await comuna6.isVisible(), "No se encontró Comuna 6 en la lista");
   assert.ok(await comuna14.isVisible(), "No se encontró Comuna 14 en la lista");
 });
 
 Then("veo sus límites identificados en el mapa de CABA", async function (this: CustomWorld) {
-  const map = this.page
-    .locator('[data-testid="coverage-map"]')
-    .or(this.page.locator('[aria-label*="Mapa"]'))
-    .first();
-  await map.waitFor({ state: "visible" });
+  const map = this.page.locator('[data-testid="coverage-map"]').first();
+  await map.waitFor({ state: "visible", timeout: 10000 });
   assert.ok(await map.isVisible(), "No se visualiza el mapa de zonas de cobertura");
 });

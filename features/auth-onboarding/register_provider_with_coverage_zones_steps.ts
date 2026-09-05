@@ -285,6 +285,80 @@ Then("su polígono deja de figurar seleccionado en el mapa", async function (thi
   assert.ok(!class6.includes("bg-brand-primary"), "El polígono no debería figurar seleccionado en el mapa");
 });
 
+Given(
+  "completé los datos, el rubro y la foto obligatorios del prestador",
+  async function (this: CustomWorld) {
+    (this as any).providerRegistrationSent = false;
+    this.page.on("request", (req) => {
+      if (req.method() === "POST" && req.url().includes("/providers")) {
+        (this as any).providerRegistrationSent = true;
+      }
+    });
+
+    const zones = [
+      aCoverageZone({ id: 6, name: "Comuna 6" }),
+      aCoverageZone({ id: 14, name: "Comuna 14" }),
+    ];
+    await this.stubGet("/coverage-zones", zones);
+
+    if (!(await this.hasApiStub("GET", "/categories"))) {
+      await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
+    }
+
+    setSelectedRole("provider");
+    await this.page.goto(APP_URL + ROUTES.onboarding);
+    const providerButton = this.page
+      .locator("#role-provider-btn")
+      .or(this.page.getByText("Soy Prestador"))
+      .first();
+    await providerButton.click();
+    const continueButton = this.page.getByRole("button", { name: /continuar/i }).first();
+    await continueButton.click();
+    await this.page.waitForSelector('input[name="firstName"]');
+
+    await this.page.getByLabel("Nombre").fill("Carlos");
+    await this.page.getByLabel("Apellido").fill("López");
+
+    const select = this.page.getByLabel("Rubro").or(this.page.locator("select")).first();
+    await select.waitFor();
+    await select.selectOption("Plomería");
+
+    const fileInput = this.page.locator('input[type="file"]');
+    await fileInput.waitFor({ state: "attached" });
+    await fileInput.setInputFiles({
+      name: "avatar.png",
+      mimeType: "image/png",
+      buffer: Buffer.alloc(1024 * 1024, "a"),
+    });
+  }
+);
+
+Given("no seleccioné ninguna zona de cobertura", async function (this: CustomWorld) {
+  const checked = await this.page.locator('input[name="coverageZones"]:checked').count();
+  assert.equal(checked, 0, "No debería haber ninguna zona seleccionada");
+});
+
+Then("veo el mensaje de error {string}", async function (this: CustomWorld, errorMessage: string) {
+  const errorElement = this.page
+    .locator('[role="alert"]')
+    .or(this.page.getByText(errorMessage))
+    .first();
+  await errorElement.waitFor({ state: "visible", timeout: 5000 });
+  const text = await errorElement.innerText();
+  assert.ok(
+    text.includes(errorMessage) || (await this.page.getByText(errorMessage).first().isVisible()),
+    `No se encontró el mensaje de error "${errorMessage}"`
+  );
+});
+
+Then("no se envía el registro del prestador", async function (this: CustomWorld) {
+  assert.ok(
+    !(this as any).providerRegistrationSent,
+    "El registro del prestador no debería haberse enviado"
+  );
+});
+
+
 
 
 

@@ -433,8 +433,76 @@ Then(
   }
 );
 
+Given(
+  "estoy en los datos de perfil sin API key o Map ID de Google Maps",
+  async function (this: CustomWorld) {
+    const zones = [
+      aCoverageZone({ id: 6, name: "Comuna 6" }),
+      aCoverageZone({ id: 14, name: "Comuna 14" }),
+    ];
+    await this.stubGet("/coverage-zones", zones);
 
+    if (!(await this.hasApiStub("GET", "/categories"))) {
+      await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
+    }
 
+    await this.page.addInitScript(() => {
+      (window as any).__MOCK_MAPS_CONFIG__ = "missing";
+    });
 
+    setSelectedRole("provider");
+    await this.page.goto(APP_URL + ROUTES.onboarding);
+    const providerButton = this.page
+      .locator("#role-provider-btn")
+      .or(this.page.getByText("Soy Prestador"))
+      .first();
+    await providerButton.click();
+    const continueButton = this.page.getByRole("button", { name: /continuar/i }).first();
+    await continueButton.click();
+    await this.page.waitForSelector('input[name="firstName"]');
+  }
+);
 
+When(
+  "selecciono {string} desde la lista de zonas",
+  async function (this: CustomWorld, zoneName: string) {
+    const item = this.page.getByTestId("coverage-zones-list").getByText(zoneName).first();
+    await item.waitFor({ state: "visible", timeout: 10000 });
+    await item.click();
+  }
+);
 
+Then(
+  "{string} figura seleccionada",
+  async function (this: CustomWorld, zoneName: string) {
+    const parseId = (name: string, fallback: number) => {
+      const match = name.match(/\d+/);
+      return match ? parseInt(match[0], 10) : fallback;
+    };
+    const zoneId = parseId(zoneName, 6);
+    const checkbox = this.page.locator(`input[name="coverageZones"][value="${zoneId}"]`).first();
+    await checkbox.waitFor({ state: "attached", timeout: 5000 });
+    assert.ok(await checkbox.isChecked(), `${zoneName} debería figurar seleccionada`);
+  }
+);
+
+Then(
+  "el formulario informa que el mapa no está disponible",
+  async function (this: CustomWorld) {
+    const notice = this.page
+      .locator('[data-testid="coverage-map-unavailable"]')
+      .or(this.page.getByText(/el mapa no está disponible/i))
+      .first();
+    await notice.waitFor({ state: "visible", timeout: 5000 });
+    assert.ok(await notice.isVisible(), "No se muestra el aviso de que el mapa no está disponible");
+  }
+);
+
+Then(
+  "puedo continuar el registro mediante la lista",
+  async function (this: CustomWorld) {
+    const submitButton = this.page.getByRole("button", { name: /finalizar registro/i }).first();
+    await submitButton.waitFor({ state: "visible", timeout: 5000 });
+    assert.ok(await submitButton.isEnabled(), "El botón de continuar/finalizar debería estar habilitado");
+  }
+);

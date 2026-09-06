@@ -130,7 +130,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "delivery_finalize",
       description:
-        "Closes a batch or User Story with exact Gate D evidence on HEAD, no @wip in scope, pushed commits, and valid ledger entries. A batch may close with CI pending; a User Story requires green CI for every relevant commit.",
+        "Closes a batch or User Story with exact Gate D evidence on HEAD, no @wip in scope, pushed commits, and valid ledger entries. A batch may close with CI pending; a User Story requires green CI for every relevant commit. Supports bounded waiting for in-flight CI runs.",
       inputSchema: {
         type: "object",
         properties: {
@@ -147,6 +147,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "array",
             items: { type: "string" },
             description: "Feature files whose completed scope must match Gate D evidence",
+          },
+          waitForCi: {
+            type: "boolean",
+            description: "Wait for in-flight CI runs to complete within bounded timeout; defaults to false",
+          },
+          timeoutMs: {
+            type: "integer",
+            description: "Maximum milliseconds to wait for CI (100 to 1800000, default 900000)",
+          },
+          pollIntervalMs: {
+            type: "integer",
+            description: "Polling interval in milliseconds (50 to 60000, default 10000)",
           },
         },
       },

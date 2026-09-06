@@ -55,6 +55,9 @@ export const DeliveryFinalizeInputSchema = z.object({
   usId: z.string().max(500).optional(),
   scopeFiles: z.array(z.string().max(500)).default([]),
   repairsSha: z.string().min(7).max(40).optional(),
+  waitForCi: z.boolean().default(false),
+  timeoutMs: z.number().int().min(100).max(1800000).default(900000),
+  pollIntervalMs: z.number().int().min(50).max(60000).default(10000),
 });
 
 export const DeliveryVerifyHeadInputSchema = z.object({

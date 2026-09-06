@@ -4,8 +4,37 @@ import { queryCommitEvidence, verifyCommitEvidence, resolveRepairChain, getCommi
 import { extractUsId } from "./git-snapshot.mjs";
 import { inspectCi } from "./ci-provider.mjs";
 import { loadDeliveryPolicy } from "./policy-loader.mjs";
+import { summarizeFailureOutput } from "./execute-check.mjs";
+import { redactSecrets } from "./redact-secrets.mjs";
 
 const BATCH_PENDING_CI_STATUSES = new Set(["queued", "in_progress", "not_found"]);
+const CI_PENDING_STATUSES = new Set(["queued", "in_progress", "not_found"]);
+const CI_TERMINAL_FAILURE_STATUSES = new Set(["failed", "cancelled", "timed_out", "provider_error"]);
+
+export function toCompactCi(ci) {
+  if (!ci) return null;
+  const compact = {
+    sha: ci.sha,
+    status: ci.status,
+    workflow: ci.workflow ? { id: ci.workflow.id, name: ci.workflow.name } : null,
+    url: ci.url || null,
+  };
+  if (ci.failure) {
+    let excerpt = null;
+    if (ci.failure.excerpt) {
+      const lines = summarizeFailureOutput(ci.failure.excerpt, 6);
+      excerpt =
+        lines.length > 0
+          ? lines.join("\n")
+          : redactSecrets(String(ci.failure.excerpt)).split("\n").slice(0, 6).join("\n");
+    }
+    compact.failure = {
+      message: ci.failure.message ? redactSecrets(String(ci.failure.message)).split("\n")[0] : null,
+      ...(excerpt ? { excerpt } : {}),
+    };
+  }
+  return compact;
+}
 
 function normalizeUsId(usId) {
   if (!usId || typeof usId !== "string") return null;
@@ -84,6 +113,10 @@ export async function finalizeDelivery({
   usId = null,
   scopeFiles = [],
   ciProvider = null,
+  waitForCi = false,
+  timeoutMs = 900000,
+  pollIntervalMs = 10000,
+  sleepFn = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 } = {}) {
   const root = findRepoRoot(repoRoot);
   const policy = await loadDeliveryPolicy({ repoRoot: root });
@@ -254,111 +287,184 @@ export async function finalizeDelivery({
     }
   }
 
-  const repairResolution = await resolveRepairChain({
-    repoRoot: root,
-    commits: shas,
-    ciProvider,
-  });
-  const supersededFailures = repairResolution.supersededFailures || [];
-  const failedRepairs = repairResolution.failedRepairs || [];
-  const invalidRepairs = repairResolution.invalidRepairs || [];
-  const supersededSet = new Set(supersededFailures.map((s) => s.toLowerCase()));
+  const startTime = Date.now();
 
-  const ciResults = [];
-  const pendingCi = [];
-  const pendingFailures = [];
+  while (true) {
+    const repairResolution = await resolveRepairChain({
+      repoRoot: root,
+      commits: shas,
+      ciProvider,
+    });
+    const supersededFailures = repairResolution.supersededFailures || [];
+    const failedRepairs = repairResolution.failedRepairs || [];
+    const invalidRepairs = repairResolution.invalidRepairs || [];
+    const supersededSet = new Set(supersededFailures.map((s) => s.toLowerCase()));
 
-  for (const sha of shas) {
-    const ci = await inspectCi({ sha, repoRoot: root, provider: ciProvider });
-    ciResults.push(ci);
-    const normalizedSha = sha.toLowerCase();
+    if (invalidRepairs.length > 0) {
+      return {
+        finalized: false,
+        status: "blocked",
+        reason: "INVALID_REPAIRS",
+        message: `Cannot finalize: observed ${invalidRepairs.length} invalid repair relation(s)`,
+        supersededFailures,
+        pendingFailures: [],
+        failedRepairs,
+        invalidRepairs,
+      };
+    }
 
-    if (ci.status !== "passed") {
+    const ciResults = [];
+    const pendingCi = [];
+    const pendingFailures = [];
+    const pendingShas = [];
+    let terminalFailureCi = null;
+    let terminalFailureSha = null;
+
+    for (const sha of shas) {
+      const ci = await inspectCi({ sha, repoRoot: root, provider: ciProvider });
+      ciResults.push(ci);
+      const normalizedSha = sha.toLowerCase();
+
       if (supersededSet.has(normalizedSha)) {
         // Historical failure formally superseded by a green repair commit; does not block
         continue;
       }
 
-      const pending = ci.status === "in_progress" || ci.status === "queued";
-      if (intent === "close_batch" && BATCH_PENDING_CI_STATUSES.has(ci.status)) {
-        pendingCi.push(ci);
-        continue;
+      if (ci.status !== "passed") {
+        const isPending = waitForCi
+          ? CI_PENDING_STATUSES.has(ci.status)
+          : (ci.status === "in_progress" || ci.status === "queued");
+
+        if (intent === "close_batch" && !waitForCi && BATCH_PENDING_CI_STATUSES.has(ci.status)) {
+          pendingCi.push(ci);
+          continue;
+        }
+
+        if (isPending) {
+          pendingShas.push(sha);
+        } else {
+          if (!terminalFailureCi) {
+            terminalFailureCi = ci;
+            terminalFailureSha = sha;
+          }
+        }
+
+        pendingFailures.push(sha);
+      }
+    }
+
+    // Salida temprana inmediata ante fallo de CI
+    if (terminalFailureCi) {
+      return {
+        finalized: false,
+        status: "blocked",
+        reason: "CI_NOT_GREEN",
+        message: `CI for commit ${terminalFailureSha.slice(0, 8)} is '${terminalFailureCi.status || "failed"}'${terminalFailureCi.failure?.message ? `: ${terminalFailureCi.failure.message}` : ""}`,
+        sha: terminalFailureSha,
+        ci: toCompactCi(terminalFailureCi),
+        supersededFailures,
+        pendingFailures,
+        failedRepairs,
+        invalidRepairs,
+      };
+    }
+
+    // Cierre exitoso: todos los commits requeridos pasaron CI
+    if (pendingFailures.length === 0 && pendingCi.length === 0) {
+      const deliveryLabel = intent === "close_batch" ? "Batch" : "User Story";
+      return {
+        finalized: true,
+        status: "passed",
+        intent,
+        usId: effectiveUsId,
+        headSha,
+        shas,
+        unverifiedCommits,
+        remoteVerification: "passed",
+        pendingCi: [],
+        maxInFlightCommits: policy.ci.maxInFlightCommits,
+        message: `${deliveryLabel} ${effectiveUsId ? `'${effectiveUsId}' ` : ""}finalized with Gate D and green CI`,
+        ci: ciResults.map(toCompactCi),
+        supersededFailures,
+        pendingFailures: [],
+        failedRepairs,
+        invalidRepairs,
+      };
+    }
+
+    // Si waitForCi es false: comportamiento inmediato actual
+    if (!waitForCi) {
+      if (pendingFailures.length > 0) {
+        const firstFailedSha = pendingFailures[0];
+        const firstFailedCi = ciResults.find((c) => c.sha.toLowerCase() === firstFailedSha.toLowerCase());
+        const isPending = firstFailedCi && (firstFailedCi.status === "in_progress" || firstFailedCi.status === "queued");
+
+        return {
+          finalized: false,
+          status: isPending ? "in_progress" : "blocked",
+          reason: isPending ? "CI_IN_PROGRESS" : "CI_NOT_GREEN",
+          message: `CI for commit ${firstFailedSha.slice(0, 8)} is '${firstFailedCi?.status || "failed"}'${firstFailedCi?.failure?.message ? `: ${firstFailedCi.failure.message}` : ""}`,
+          sha: firstFailedSha,
+          ci: toCompactCi(firstFailedCi),
+          supersededFailures,
+          pendingFailures,
+          failedRepairs,
+          invalidRepairs,
+        };
       }
 
-      pendingFailures.push(sha);
+      if (intent === "close_batch" && pendingCi.length > policy.ci.maxInFlightCommits) {
+        return {
+          finalized: false,
+          status: "blocked",
+          reason: "CI_PENDING_WINDOW_EXCEEDED",
+          message: `Cannot close batch: ${pendingCi.length} commits remain in flight (maximum ${policy.ci.maxInFlightCommits})`,
+          pendingCi: pendingCi.map(toCompactCi),
+          maxInFlightCommits: policy.ci.maxInFlightCommits,
+          supersededFailures,
+          pendingFailures,
+          failedRepairs,
+          invalidRepairs,
+        };
+      }
+
+      const hasPendingCi = pendingCi.length > 0;
+      return {
+        finalized: true,
+        status: hasPendingCi ? "passed_pending_ci" : "passed",
+        intent,
+        usId: effectiveUsId,
+        headSha,
+        shas,
+        unverifiedCommits,
+        remoteVerification: hasPendingCi ? "pending" : "passed",
+        pendingCi: pendingCi.map(toCompactCi),
+        maxInFlightCommits: policy.ci.maxInFlightCommits,
+        message: `Batch ${effectiveUsId ? `'${effectiveUsId}' ` : ""}closed locally with Gate D; ${pendingCi.length} CI run(s) remain pending`,
+        ci: ciResults.map(toCompactCi),
+        supersededFailures,
+        pendingFailures,
+        failedRepairs,
+        invalidRepairs,
+      };
     }
+
+    // Espera acotada con waitForCi: true
+    const elapsed = Date.now() - startTime;
+    if (elapsed >= timeoutMs) {
+      return {
+        finalized: false,
+        status: "in_progress",
+        reason: "CI_TIMEOUT",
+        pending: pendingShas,
+        message: "Timed out waiting for CI completion",
+      };
+    }
+
+    const remaining = timeoutMs - elapsed;
+    const sleepDuration = Math.min(pollIntervalMs, remaining);
+    await sleepFn(sleepDuration);
   }
-
-  if (pendingFailures.length > 0) {
-    const firstFailedSha = pendingFailures[0];
-    const firstFailedCi = ciResults.find((c) => c.sha.toLowerCase() === firstFailedSha.toLowerCase());
-    const isPending = firstFailedCi && (firstFailedCi.status === "in_progress" || firstFailedCi.status === "queued");
-
-    return {
-      finalized: false,
-      status: isPending ? "in_progress" : "blocked",
-      reason: isPending ? "CI_IN_PROGRESS" : "CI_NOT_GREEN",
-      message: `CI for commit ${firstFailedSha.slice(0, 8)} is '${firstFailedCi?.status || "failed"}'${firstFailedCi?.failure?.message ? `: ${firstFailedCi.failure.message}` : ""}`,
-      sha: firstFailedSha,
-      ci: firstFailedCi,
-      supersededFailures,
-      pendingFailures,
-      failedRepairs,
-      invalidRepairs,
-    };
-  }
-
-  if (invalidRepairs.length > 0) {
-    return {
-      finalized: false,
-      status: "blocked",
-      reason: "INVALID_REPAIRS",
-      message: `Cannot finalize: observed ${invalidRepairs.length} invalid repair relation(s)`,
-      supersededFailures,
-      pendingFailures,
-      failedRepairs,
-      invalidRepairs,
-    };
-  }
-
-  if (intent === "close_batch" && pendingCi.length > policy.ci.maxInFlightCommits) {
-    return {
-      finalized: false,
-      status: "blocked",
-      reason: "CI_PENDING_WINDOW_EXCEEDED",
-      message: `Cannot close batch: ${pendingCi.length} commits remain in flight (maximum ${policy.ci.maxInFlightCommits})`,
-      pendingCi,
-      maxInFlightCommits: policy.ci.maxInFlightCommits,
-      supersededFailures,
-      pendingFailures,
-      failedRepairs,
-      invalidRepairs,
-    };
-  }
-
-  const hasPendingCi = pendingCi.length > 0;
-  const deliveryLabel = intent === "close_batch" ? "Batch" : "User Story";
-
-  return {
-    finalized: true,
-    status: hasPendingCi ? "passed_pending_ci" : "passed",
-    intent,
-    usId: effectiveUsId,
-    headSha,
-    shas,
-    unverifiedCommits,
-    remoteVerification: hasPendingCi ? "pending" : "passed",
-    pendingCi,
-    maxInFlightCommits: policy.ci.maxInFlightCommits,
-    message: hasPendingCi
-      ? `${deliveryLabel} ${effectiveUsId ? `'${effectiveUsId}' ` : ""}closed locally with Gate D; ${pendingCi.length} CI run(s) remain pending`
-      : `${deliveryLabel} ${effectiveUsId ? `'${effectiveUsId}' ` : ""}finalized with Gate D and green CI`,
-    ci: ciResults,
-    supersededFailures,
-    pendingFailures,
-    failedRepairs,
-    invalidRepairs,
-  };
 }
 
 export { verifyHeadDelivery } from "./verify-head.mjs";

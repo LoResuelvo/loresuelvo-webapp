@@ -1258,3 +1258,314 @@ test("verifyHeadDelivery: reutiliza evidencia si el commit ya fue preparado con 
   assert.strictEqual(res.cached, true);
   assert.strictEqual(res.headSha, sha);
 });
+
+test("finalizeDelivery (waitForCi): CI ya verde retorna inmediatamente con finalized: true, status: 'passed'", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us41.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US41\n  Scenario: Done\n    Given ok\n",
+    "test[41]: complete scenario"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "41",
+    intent: "close_us",
+  });
+
+  const mockCi = new MockCiProvider({
+    [sha]: { status: "passed" },
+  });
+
+  const startTime = Date.now();
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_us",
+    usId: "41",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+    waitForCi: true,
+    timeoutMs: 5000,
+    pollIntervalMs: 50,
+  });
+  const duration = Date.now() - startTime;
+
+  assert.strictEqual(res.finalized, true);
+  assert.strictEqual(res.status, "passed");
+  assert.strictEqual(res.headSha, sha);
+  assert.ok(Array.isArray(res.ci));
+  assert.strictEqual(res.ci[0].status, "passed");
+  assert.ok(duration < 2000, "Debe retornar inmediatamente sin esperar timeout");
+});
+
+test("finalizeDelivery (waitForCi): CI pendiente que luego pasa resuelve a verde antes del timeout", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us42.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US42\n  Scenario: Done\n    Given ok\n",
+    "test[42]: complete scenario"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "42",
+    intent: "close_us",
+  });
+
+  let calls = 0;
+  const dynamicProvider = {
+    async inspectCommit(targetSha) {
+      calls++;
+      return {
+        schemaVersion: 1,
+        sha: targetSha,
+        workflow: { id: 1042, name: "CI" },
+        status: calls >= 3 ? "passed" : "in_progress",
+        failedJobs: [],
+        failure: null,
+        url: "https://github.com/example/runs/1042",
+        retryable: false,
+      };
+    },
+  };
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_us",
+    usId: "42",
+    scopeFiles: [featurePath],
+    ciProvider: dynamicProvider,
+    waitForCi: true,
+    timeoutMs: 5000,
+    pollIntervalMs: 30,
+  });
+
+  assert.strictEqual(res.finalized, true);
+  assert.strictEqual(res.status, "passed");
+  assert.strictEqual(res.headSha, sha);
+  assert.ok(calls >= 3, `Debe haber realizado polling (llamadas: ${calls})`);
+  assert.strictEqual(res.ci[0].status, "passed");
+});
+
+test("finalizeDelivery (waitForCi): CI pendiente que luego falla corta de inmediato ante el fallo sin agotar timeout", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us43.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US43\n  Scenario: Done\n    Given ok\n",
+    "test[43]: complete scenario"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "43",
+    intent: "close_us",
+  });
+
+  let calls = 0;
+  const dynamicProvider = {
+    async inspectCommit(targetSha) {
+      calls++;
+      if (calls < 2) {
+        return {
+          schemaVersion: 1,
+          sha: targetSha,
+          workflow: { id: 1043, name: "CI" },
+          status: "in_progress",
+          failedJobs: [],
+          failure: null,
+          url: "https://github.com/example/runs/1043",
+          retryable: false,
+        };
+      }
+      return {
+        schemaVersion: 1,
+        sha: targetSha,
+        workflow: { id: 1043, name: "CI" },
+        status: "failed",
+        failedJobs: ["test"],
+        failure: { message: "Test suite failure", excerpt: "Assertion failed" },
+        url: "https://github.com/example/runs/1043",
+        retryable: true,
+      };
+    },
+  };
+
+  const startTime = Date.now();
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_us",
+    usId: "43",
+    scopeFiles: [featurePath],
+    ciProvider: dynamicProvider,
+    waitForCi: true,
+    timeoutMs: 30000,
+    pollIntervalMs: 30,
+  });
+  const elapsed = Date.now() - startTime;
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.status, "blocked");
+  assert.strictEqual(res.reason, "CI_NOT_GREEN");
+  assert.strictEqual(res.ci.status, "failed");
+  assert.ok(elapsed < 5000, `Debe cortar inmediatamente ante el fallo (tiempo: ${elapsed}ms)`);
+});
+
+test("finalizeDelivery (waitForCi): timeout con timeout corto y CI pendiente retorna CI_TIMEOUT", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us44.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US44\n  Scenario: Done\n    Given ok\n",
+    "test[44]: complete scenario"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "44",
+    intent: "close_us",
+  });
+
+  const mockCi = new MockCiProvider({
+    [sha]: { status: "in_progress" },
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_us",
+    usId: "44",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+    waitForCi: true,
+    timeoutMs: 150,
+    pollIntervalMs: 40,
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.status, "in_progress");
+  assert.strictEqual(res.reason, "CI_TIMEOUT");
+  assert.deepStrictEqual(res.pending, [sha]);
+  assert.strictEqual(res.message, "Timed out waiting for CI completion");
+});
+
+test("finalizeDelivery (waitForCi): error de proveedor (provider_error) corta de inmediato", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us45.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US45\n  Scenario: Done\n    Given ok\n",
+    "test[45]: complete scenario"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "45",
+    intent: "close_us",
+  });
+
+  const mockCi = new MockCiProvider({
+    [sha]: {
+      status: "provider_error",
+      failure: { message: "GitHub service unavailable", excerpt: "503 Service Unavailable" },
+    },
+  });
+
+  const startTime = Date.now();
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_us",
+    usId: "45",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+    waitForCi: true,
+    timeoutMs: 30000,
+    pollIntervalMs: 50,
+  });
+  const elapsed = Date.now() - startTime;
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.status, "blocked");
+  assert.strictEqual(res.reason, "CI_NOT_GREEN");
+  assert.strictEqual(res.ci.status, "provider_error");
+  assert.ok(res.ci.failure.message.includes("GitHub service unavailable"));
+  assert.ok(elapsed < 2000, `Debe cortar de inmediato ante provider_error (tiempo: ${elapsed}ms)`);
+});
+
+test("finalizeDelivery (waitForCi): compact diagnostic asegura resumen limpio sin logs gigantes", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us46.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US46\n  Scenario: Done\n    Given ok\n",
+    "test[46]: complete scenario"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "46",
+    intent: "close_us",
+  });
+
+  const hugeExcerpt = Array.from({ length: 500 }, (_, i) => `at internal/module.js:${i}:10 Error: Stack trace line ${i}`).join("\n");
+  const mockCi = new MockCiProvider({
+    [sha]: {
+      status: "failed",
+      workflow: { id: 1046, name: "CI Test Suite" },
+      url: "https://github.com/example/runs/1046",
+      failure: {
+        message: "Check failed on tests",
+        excerpt: hugeExcerpt,
+      },
+    },
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_us",
+    usId: "46",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+    waitForCi: true,
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.status, "blocked");
+  assert.strictEqual(res.reason, "CI_NOT_GREEN");
+  assert.ok(res.ci);
+  // Verificar campos presentes en la respuesta compacta
+  assert.strictEqual(res.ci.sha, sha);
+  assert.strictEqual(res.ci.status, "failed");
+  assert.deepStrictEqual(res.ci.workflow, { id: 1046, name: "CI Test Suite" });
+  assert.strictEqual(res.ci.url, "https://github.com/example/runs/1046");
+  assert.ok(res.ci.failure);
+  assert.strictEqual(res.ci.failure.message, "Check failed on tests");
+  // Excerpt debe ser compacto (máximo 6 líneas) y no contener las 500 líneas
+  const excerptLines = res.ci.failure.excerpt.split("\n");
+  assert.ok(excerptLines.length <= 6, `El extracto debe tener máximo 6 líneas (obtenido: ${excerptLines.length})`);
+  // Tampoco debe volcar campos extra como failedJobs o schemaVersion en res.ci
+  assert.strictEqual(res.ci.schemaVersion, undefined);
+  assert.strictEqual(res.ci.failedJobs, undefined);
+  // El tamaño serializado debe ser pequeño (< 1000 bytes)
+  const jsonSize = Buffer.byteLength(JSON.stringify(res.ci), "utf8");
+  assert.ok(jsonSize < 1000, `El JSON de CI debe ser compacto (< 1000 bytes, obtenido: ${jsonSize})`);
+});

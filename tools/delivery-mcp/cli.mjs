@@ -74,6 +74,9 @@ Options for delivery:finalize:
   --us-id <US-XX>
   --repairs-sha <commit-sha>
   --scope <features/...feature>                  Repeat for the completed scope
+  --wait-for-ci                                  Wait for in-flight CI runs to complete
+  --timeout-ms <ms>                              Timeout in milliseconds (default: 900000)
+  --poll-interval-ms <ms>                        Polling interval in milliseconds (default: 10000)
 
 Options for delivery:verify-head:
   --intent <close_us|close_batch>
@@ -126,6 +129,10 @@ function parseArguments(argv) {
       input.force = true;
       continue;
     }
+    if (option === "--wait-for-ci") {
+      input.waitForCi = true;
+      continue;
+    }
     if (option === "--inspect" || option === "--show") {
       contextAction = "inspect";
       continue;
@@ -149,6 +156,8 @@ function parseArguments(argv) {
     else if (option === "--sha") input.sha = value;
     else if (option === "--repairs-sha") input.repairsSha = value;
     else if (option === "--scope") input.scopeFiles.push(value);
+    else if (option === "--timeout-ms") input.timeoutMs = Number.parseInt(value, 10);
+    else if (option === "--poll-interval-ms") input.pollIntervalMs = Number.parseInt(value, 10);
     else if (option === "--scope-files") {
       const files = value.split(",").map((f) => f.trim()).filter(Boolean);
       input.scopeFiles.push(...files);

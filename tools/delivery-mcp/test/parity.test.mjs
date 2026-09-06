@@ -80,6 +80,25 @@ test("paridad CLI / MCP: inspect, prepare, finalize y verify_head producen el mi
     assert.strictEqual(mcpFinalizeResult.status, cliFinalizeResult.status);
     assert.strictEqual(mcpFinalizeResult.reason, cliFinalizeResult.reason);
 
+    // 3.1 Finalize with waitForCi parity test
+    const finalizeWaitInput = {
+      intent: "close_us",
+      waitForCi: true,
+      timeoutMs: 500,
+      pollIntervalMs: 100,
+    };
+    const parsedFinalizeWait = DeliveryFinalizeInputSchema.parse(finalizeWaitInput);
+    const cliFinalizeWaitResult = await finalizeDelivery(parsedFinalizeWait);
+    const mcpFinalizeWaitCall = await client.callTool({
+      name: "delivery_finalize",
+      arguments: finalizeWaitInput,
+    });
+    const mcpFinalizeWaitResult = JSON.parse(mcpFinalizeWaitCall.content[0].text);
+
+    assert.strictEqual(mcpFinalizeWaitResult.finalized, cliFinalizeWaitResult.finalized);
+    assert.strictEqual(mcpFinalizeWaitResult.status, cliFinalizeWaitResult.status);
+    assert.strictEqual(mcpFinalizeWaitResult.reason, cliFinalizeWaitResult.reason);
+
     // 4. Verify-head parity test
     const verifyHeadInput = {
       intent: "close_us",

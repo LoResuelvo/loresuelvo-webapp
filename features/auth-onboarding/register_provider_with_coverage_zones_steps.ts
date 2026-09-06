@@ -447,7 +447,37 @@ Given(
     }
 
     await this.page.addInitScript(() => {
-      (window as any).__MOCK_MAPS_CONFIG__ = "missing";
+      (window as unknown as { __MOCK_MAPS_CONFIG__?: string }).__MOCK_MAPS_CONFIG__ = "missing";
+    });
+
+    setSelectedRole("provider");
+    await this.page.goto(APP_URL + ROUTES.onboarding);
+    const providerButton = this.page
+      .locator("#role-provider-btn")
+      .or(this.page.getByText("Soy Prestador"))
+      .first();
+    await providerButton.click();
+    const continueButton = this.page.getByRole("button", { name: /continuar/i }).first();
+    await continueButton.click();
+    await this.page.waitForSelector('input[name="firstName"]');
+  }
+);
+
+Given(
+  "estoy en los datos de perfil y falla la carga de Google Maps",
+  async function (this: CustomWorld) {
+    const zones = [
+      aCoverageZone({ id: 6, name: "Comuna 6" }),
+      aCoverageZone({ id: 14, name: "Comuna 14" }),
+    ];
+    await this.stubGet("/coverage-zones", zones);
+
+    if (!(await this.hasApiStub("GET", "/categories"))) {
+      await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
+    }
+
+    await this.page.addInitScript(() => {
+      (window as unknown as { __MOCK_MAPS_ERROR__?: boolean }).__MOCK_MAPS_ERROR__ = true;
     });
 
     setSelectedRole("provider");

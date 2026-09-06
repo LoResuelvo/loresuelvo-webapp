@@ -39,7 +39,6 @@ Feature: US-35.5 Registrar prestador con zonas de cobertura
     And el formulario informa que el mapa no está disponible
     And puedo continuar el registro mediante la lista
 
-  @wip
   Scenario: 06-RPZ Usar la lista cuando falla la carga de Google Maps
     Given estoy en los datos de perfil y falla la carga de Google Maps
     When selecciono "Comuna 14" desde la lista de zonas

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
   validateCommitMessage,
@@ -25,6 +26,7 @@ import {
 import { captureGitSnapshot } from "../lib/git-snapshot.mjs";
 import { prepareDelivery } from "../lib/prepare-delivery.mjs";
 import { MockCiProvider } from "../lib/ci-provider.mjs";
+import { finalizeDelivery } from "../lib/delivery-finalize.mjs";
 
 test("validateCommitMessage: valida tipos gobernados y rechaza (agent) y scopes entre parentesis", () => {
   // 1. Mensajes validos
@@ -898,4 +900,520 @@ test("pre-push hook: fallo previo subsanado por reparación verde no bloquea pus
     ciProvider: mockCi,
   });
   assert.strictEqual(pushRes2.passed, true);
+});
+
+test("pre-push hook: reparación válida en la misma rama y US es permitida", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  // Commit 1 con US 42
+  await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
+  execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42" })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore[42]: commit 1"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider({
+    [post1.commitSha]: { status: "failed" },
+  });
+
+  // Commit 2 reparación para post1 en la misma rama ("main") y US ("42")
+  await fs.writeFile(path.join(repoRoot, "fix.txt"), "fixed", "utf8");
+  execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
+  const fakeExecute = async ({ check }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 2,
+    exitCode: 0,
+    summaryLines: [],
+    diagnostic: null,
+  });
+  await prepareDelivery({
+    repoRoot,
+    intent: "repair_ci",
+    usId: "42",
+    repairsSha: post1.commitSha,
+    ciProvider: mockCi,
+    executeCheck: fakeExecute,
+  });
+  execFileSync("git", ["commit", "-m", "fix[42]: repair commit 1"], { cwd: repoRoot });
+  const post2 = await runPostCommitHook({ repoRoot });
+
+  const pushLine = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
+  const pushRes = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(pushRes.passed, true);
+});
+
+test("pre-push hook: reparación de otra US es bloqueada con REPAIR_US_MISMATCH", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  // Commit 1 con US 42
+  await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
+  execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42" })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore[42]: commit 1"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider({
+    [post1.commitSha]: { status: "failed" },
+  });
+
+  // Commit 2 reparación declarando US 99 (mismatch con US 42 de commit 1)
+  await fs.writeFile(path.join(repoRoot, "fix.txt"), "fixed", "utf8");
+  execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
+  const fakeExecute = async ({ check }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 2,
+    exitCode: 0,
+    summaryLines: [],
+    diagnostic: null,
+  });
+  await prepareDelivery({
+    repoRoot,
+    intent: "repair_ci",
+    usId: "99",
+    repairsSha: post1.commitSha,
+    ciProvider: mockCi,
+    executeCheck: fakeExecute,
+  });
+  execFileSync("git", ["commit", "-m", "fix[99]: repair commit 1 for wrong us"], { cwd: repoRoot });
+  const post2 = await runPostCommitHook({ repoRoot });
+
+  const pushLine = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
+  const pushRes = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(pushRes.passed, false);
+  assert.strictEqual(pushRes.reason, "REPAIR_US_MISMATCH");
+});
+
+test("pre-push hook: reparación de otra rama es bloqueada con REPAIR_BRANCH_MISMATCH", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  // Commit 1 en main
+  await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
+  execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore: commit 1 on main"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider({
+    [post1.commitSha]: { status: "failed" },
+  });
+
+  // Cambiar a rama 'feature'
+  execFileSync("git", ["checkout", "-b", "feature"], { cwd: repoRoot });
+  await fs.writeFile(path.join(repoRoot, "fix.txt"), "fixed", "utf8");
+  execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
+  const fakeExecute = async ({ check }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 2,
+    exitCode: 0,
+    summaryLines: [],
+    diagnostic: null,
+  });
+  await prepareDelivery({
+    repoRoot,
+    intent: "repair_ci",
+    repairsSha: post1.commitSha,
+    ciProvider: mockCi,
+    executeCheck: fakeExecute,
+  });
+  execFileSync("git", ["commit", "-m", "fix: repair commit on feature"], { cwd: repoRoot });
+  const post2 = await runPostCommitHook({ repoRoot });
+
+  const pushLine = `refs/heads/feature ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
+  const pushRes = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(pushRes.passed, false);
+  assert.strictEqual(pushRes.reason, "REPAIR_BRANCH_MISMATCH");
+});
+
+test("pre-push hook: reparación no descendiente del fallo es bloqueada con REPAIR_NOT_DESCENDANT", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  // Commit 1 en main
+  await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
+  execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  // Commit 2 en main (falla)
+  await fs.writeFile(path.join(repoRoot, "file2.txt"), "2", "utf8");
+  execFileSync("git", ["add", "file2.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore: commit 2"], { cwd: repoRoot });
+  const post2 = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider({
+    [post1.commitSha]: { status: "passed" },
+    [post2.commitSha]: { status: "failed" },
+  });
+
+  // Rebobinar localmente a commit 1 y crear commit 3 que no desciende de commit 2
+  execFileSync("git", ["reset", "--hard", post1.commitSha], { cwd: repoRoot });
+  await fs.writeFile(path.join(repoRoot, "fix.txt"), "fix", "utf8");
+  execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
+  const fakeExecute = async ({ check }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 2,
+    exitCode: 0,
+    summaryLines: [],
+    diagnostic: null,
+  });
+  await prepareDelivery({
+    repoRoot,
+    intent: "repair_ci",
+    repairsSha: post2.commitSha,
+    ciProvider: mockCi,
+    executeCheck: fakeExecute,
+  });
+  execFileSync("git", ["commit", "-m", "fix: repair attempt from old base"], { cwd: repoRoot });
+  const post3 = await runPostCommitHook({ repoRoot });
+
+  const pushLine = `refs/heads/main ${post3.commitSha} refs/heads/main ${post2.commitSha}`;
+  const pushRes = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(pushRes.passed, false);
+  assert.strictEqual(pushRes.reason, "REPAIR_NOT_DESCENDANT");
+});
+
+test("pre-push hook: reparación con Gate no R es bloqueada con REPAIR_GATE_INVALID", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
+  execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider({
+    [post1.commitSha]: { status: "failed" },
+  });
+
+  // Commit 2 con Gate A
+  await fs.writeFile(path.join(repoRoot, "fix.txt"), "fixed", "utf8");
+  execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed"); // Gate A
+  execFileSync("git", ["commit", "-m", "fix: repair attempt with Gate A"], { cwd: repoRoot });
+  const post2 = await runPostCommitHook({ repoRoot });
+
+  // Forzar intent: repair_ci y repairsSha pero gateId: "A"
+  const entry2 = await getCommitEvidence({ repoRoot, commitSha: post2.commitSha });
+  entry2.intent = "repair_ci";
+  entry2.repairsSha = post1.commitSha;
+  await fs.writeFile(
+    path.join(repoRoot, ".delivery/runtime/ledger", `${post2.commitSha}.json`),
+    JSON.stringify(entry2, null, 2),
+    "utf8"
+  );
+
+  const pushLine = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
+  const pushRes = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(pushRes.passed, false);
+  assert.strictEqual(pushRes.reason, "REPAIR_GATE_INVALID");
+});
+
+test("pre-push hook: reparación contra target ya verde es bloqueada con REPAIR_TARGET_NOT_FAILED", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  // Commit 1 pasa en CI
+  await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
+  execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider({
+    [post1.commitSha]: { status: "passed" }, // Ya pasó
+  });
+
+  // Commit 2 es una reparación para post1 que ya está verde
+  await fs.writeFile(path.join(repoRoot, "fix.txt"), "fixed", "utf8");
+  execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
+  const fakeExecute = async ({ check }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 2,
+    exitCode: 0,
+    summaryLines: [],
+    diagnostic: null,
+  });
+  mockCi.setFixture(post1.commitSha, { status: "failed" });
+  await prepareDelivery({
+    repoRoot,
+    intent: "repair_ci",
+    repairsSha: post1.commitSha,
+    ciProvider: mockCi,
+    executeCheck: fakeExecute,
+  });
+  execFileSync("git", ["commit", "-m", "fix: repair commit 1"], { cwd: repoRoot });
+  const post2 = await runPostCommitHook({ repoRoot });
+
+  // Para el push, el CI de post1 ya es passed
+  mockCi.setFixture(post1.commitSha, { status: "passed" });
+
+  const pushLine = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
+  const pushRes = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(pushRes.passed, false);
+  assert.strictEqual(pushRes.reason, "REPAIR_TARGET_NOT_FAILED");
+});
+
+test("pre-push hook: reparación contra target ya subsanado es bloqueada con REPAIR_ALREADY_SUPERSEDED", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  // 1. Commit 1 que falló
+  await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
+  execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider({
+    [post1.commitSha]: { status: "failed" },
+  });
+
+  // 2. Commit 2 repara commit 1
+  await fs.writeFile(path.join(repoRoot, "fix1.txt"), "fix1", "utf8");
+  execFileSync("git", ["add", "fix1.txt"], { cwd: repoRoot });
+  const fakeExecute = async ({ check }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 2,
+    exitCode: 0,
+    summaryLines: [],
+    diagnostic: null,
+  });
+  await prepareDelivery({
+    repoRoot,
+    intent: "repair_ci",
+    repairsSha: post1.commitSha,
+    ciProvider: mockCi,
+    executeCheck: fakeExecute,
+  });
+  execFileSync("git", ["commit", "-m", "fix: first repair for commit 1"], { cwd: repoRoot });
+  const post2 = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  // El CI de post2 pasa (post1 queda subsanado)
+  mockCi.setFixture(post2.commitSha, { status: "passed" });
+
+  // 3. Commit 3 intenta reparar post1 de nuevo (ya subsanado)
+  await fs.writeFile(path.join(repoRoot, "fix2.txt"), "fix2", "utf8");
+  execFileSync("git", ["add", "fix2.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix: redundant repair for commit 1"], { cwd: repoRoot });
+  const post3 = await runPostCommitHook({ repoRoot });
+
+  // Registrar evidencia de reparación con Gate R válida para post3 apuntando al commit 1 ya subsanado
+  const snapshotHash = crypto.createHash("sha256").update(`snapshot:${post3.commitSha}`).digest("hex");
+  const runKey = crypto.createHash("sha256").update(`run:${post3.commitSha}:R`).digest("hex");
+  const recordPath = `.delivery/runtime/records/${post3.commitSha}-R.json`;
+  const policyHash = crypto.createHash("sha256").update("test-policy").digest("hex");
+  const record = {
+    schemaVersion: 1,
+    status: "passed",
+    snapshotHash,
+    runKey,
+    cached: false,
+    policy: { version: 1, hash: policyHash },
+    gate: {
+      id: "R",
+      reasonCodes: ["TEST_EVIDENCE"],
+      checkIds: [],
+      parameters: {},
+      postPushChecks: [],
+    },
+    summary: { passed: 0, failed: 0, skipped: 0, durationMs: 0 },
+    checks: [],
+    diagnostics: [],
+    evidence: { recordPath },
+  };
+  const rawRecord = `${JSON.stringify(record, null, 2)}\n`;
+  await fs.mkdir(path.join(repoRoot, path.dirname(recordPath)), { recursive: true });
+  await fs.writeFile(path.join(repoRoot, recordPath), rawRecord, "utf8");
+  const recordDigest = crypto.createHash("sha256").update(rawRecord).digest("hex");
+
+  const entry3 = await getCommitEvidence({ repoRoot, commitSha: post3.commitSha });
+  entry3.intent = "repair_ci";
+  entry3.repairsSha = post1.commitSha;
+  entry3.gateId = "R";
+  entry3.status = "passed";
+  entry3.verificationStatus = "passed";
+  entry3.snapshotHash = snapshotHash;
+  entry3.runKey = runKey;
+  entry3.recordPath = recordPath;
+  entry3.recordDigest = recordDigest;
+  entry3.policyHash = policyHash;
+  await fs.writeFile(
+    path.join(repoRoot, ".delivery/runtime/ledger", `${post3.commitSha}.json`),
+    JSON.stringify(entry3, null, 2),
+    "utf8"
+  );
+
+  const pushLine = `refs/heads/main ${post3.commitSha} refs/heads/main ${post2.commitSha}`;
+  const pushRes = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(pushRes.passed, false);
+  assert.strictEqual(pushRes.reason, "REPAIR_ALREADY_SUPERSEDED");
+});
+
+test("paridad entre pre-push y finalizeDelivery en el rechazo de relaciones inválidas", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  const initialSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+
+  // Commit 1 con US 42 que falla
+  await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
+  execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42" })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore[42]: commit 1"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider({
+    [post1.commitSha]: { status: "failed" },
+  });
+
+  // Commit 2 en rama aislada (no desciende de post1)
+  execFileSync("git", ["checkout", "-b", "isolated-branch", initialSha], { cwd: repoRoot });
+  const featurePath = "features/us42.feature";
+  await fs.mkdir(path.join(repoRoot, "features"), { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, featurePath),
+    "Feature: US42\n  Scenario: Done\n    Given ok\n",
+    "utf8"
+  );
+  execFileSync("git", ["add", featurePath], { cwd: repoRoot });
+  const fakeExecute = async ({ check }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 2,
+    exitCode: 0,
+    summaryLines: [],
+    diagnostic: null,
+  });
+  await prepareDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "42",
+    scopeFiles: [featurePath],
+    repairsSha: post1.commitSha,
+    ciProvider: mockCi,
+    executeCheck: fakeExecute,
+  });
+  execFileSync("git", ["commit", "-m", "test[42]: repair outside branch"], { cwd: repoRoot });
+  const post2 = await runPostCommitHook({ repoRoot });
+
+  // 1. Pre-push hook bloquea con REPAIR_NOT_DESCENDANT
+  const pushLine = `refs/heads/isolated-branch ${post2.commitSha} refs/heads/isolated-branch 0000000000000000000000000000000000000000`;
+  const pushRes = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine],
+    ciProvider: mockCi,
+  });
+  assert.strictEqual(pushRes.passed, false);
+  assert.strictEqual(pushRes.reason, "REPAIR_NOT_DESCENDANT");
+
+  // 2. finalizeDelivery bloquea con el mismo criterio (REPAIR_NOT_DESCENDANT)
+  mockCi.setFixture(post2.commitSha, { status: "passed" });
+  const prevAllow = process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE;
+  process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE = "1";
+  let finalizeRes;
+  try {
+    finalizeRes = await finalizeDelivery({
+      repoRoot,
+      intent: "close_us",
+      usId: "42",
+      scopeFiles: [featurePath],
+      ciProvider: mockCi,
+    });
+  } finally {
+    if (prevAllow === undefined) delete process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE;
+    else process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE = prevAllow;
+  }
+  assert.strictEqual(finalizeRes.finalized, false);
+  assert.strictEqual(finalizeRes.status, "blocked");
+  assert.strictEqual(finalizeRes.invalidRepairs.length, 1);
+  assert.strictEqual(finalizeRes.invalidRepairs[0].reason, pushRes.reason);
 });

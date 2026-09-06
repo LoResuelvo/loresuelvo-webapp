@@ -17,6 +17,7 @@ import {
   queryCommitEvidence,
   markRepairPushConsumed,
   resolveRepairChain,
+  validateRepairLineage,
 } from "./delivery-ledger.mjs";
 import { inspectCi } from "./ci-provider.mjs";
 import { loadDeliveryPolicy } from "./policy-loader.mjs";
@@ -527,6 +528,8 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
       supersededSet = new Set();
     }
 
+    const localEntry = localEvidence?.entry;
+
     for (const priorSha of recentPriorShas) {
       let ci;
       try {
@@ -545,7 +548,6 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
           continue;
         }
 
-        const localEntry = localEvidence?.entry;
         const normalizedPrior = priorSha.toLowerCase();
         const normalizedRepairs = localEntry?.repairsSha ? String(localEntry.repairsSha).toLowerCase() : "";
         const shaMatches =
@@ -554,14 +556,37 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
             normalizedPrior.startsWith(normalizedRepairs) ||
             normalizedRepairs.startsWith(normalizedPrior));
 
-        const isValidRepair =
-          localEvidence?.valid &&
-          localEvidence?.state === "verified" &&
-          localEntry?.intent === "repair_ci" &&
-          localEntry?.gateId === "R" &&
-          shaMatches;
+        const isRepairCandidate =
+          localEntry?.intent === "repair_ci" ||
+          localEntry?.gateId === "R" ||
+          Boolean(localEntry?.repairsSha);
 
-        if (isValidRepair) {
+        if (isRepairCandidate) {
+          if (!shaMatches) {
+            return {
+              passed: false,
+              reason: "PRIOR_COMMIT_CI_FAILED",
+              message: `Pre-push blocked: prior commit ${priorSha.slice(0, 8)} failed CI in GitHub Actions. Fix the failure before pushing new commits.`,
+              sha: priorSha,
+            };
+          }
+
+          const targetValidation = await validateRepairLineage({
+            repoRoot: root,
+            repairSha: localSha,
+            targetSha: priorSha,
+            ciProvider,
+            supersededSet,
+          });
+          if (!targetValidation.valid) {
+            return {
+              passed: false,
+              reason: targetValidation.reason,
+              message: targetValidation.message,
+              sha: localSha,
+            };
+          }
+
           if (localEntry.repairPushConsumed) {
             return {
               passed: false,
@@ -606,6 +631,28 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
         inFlightCount,
         maxInFlightCommits,
       };
+    }
+
+    const isRepair =
+      localEntry?.intent === "repair_ci" ||
+      localEntry?.gateId === "R" ||
+      Boolean(localEntry?.repairsSha);
+
+    if (isRepair) {
+      const selfValidation = await validateRepairLineage({
+        repoRoot: root,
+        repairSha: localSha,
+        ciProvider,
+        supersededSet,
+      });
+      if (!selfValidation.valid) {
+        return {
+          passed: false,
+          reason: selfValidation.reason,
+          message: selfValidation.message,
+          sha: localSha,
+        };
+      }
     }
   }
 

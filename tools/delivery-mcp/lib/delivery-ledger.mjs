@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import { assertSafeRepoPath, findRepoRoot } from "./repo-root.mjs";
 import { validateExecutionResult } from "./validate-schema.mjs";
 import { inspectCi } from "./ci-provider.mjs";
+import { extractUsId } from "./git-snapshot.mjs";
 
 export const LEDGER_DIR = ".delivery/runtime/ledger";
 export const LEDGER_FILE = ".delivery/runtime/ledger.json";
@@ -637,6 +638,347 @@ export function sortCommitsTopologically(root, shas) {
   }
 }
 
+export async function validateRepairLineage({
+  repoRoot,
+  repairSha,
+  targetSha = null,
+  ciProvider = null,
+  supersededSet = null,
+} = {}) {
+  const root = findRepoRoot(repoRoot);
+  const cleanRepairSha = assertCommitSha(repairSha);
+
+  // 1. Verify repair commit exists in git
+  let repairInGit = false;
+  try {
+    execFileSync("git", ["rev-parse", `${cleanRepairSha}^{commit}`], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    repairInGit = true;
+  } catch {
+    repairInGit = false;
+  }
+
+  if (!repairInGit) {
+    return {
+      valid: false,
+      reason: "REPAIR_COMMIT_NOT_FOUND",
+      message: `Repair commit ${cleanRepairSha} does not exist in git.`,
+      repairEntry: null,
+      targetEntry: null,
+      targetSha: null,
+    };
+  }
+
+  // Load repair entry from ledger
+  let repairEntry = null;
+  try {
+    repairEntry = await getCommitEvidence({ repoRoot: root, commitSha: cleanRepairSha });
+  } catch {
+    repairEntry = null;
+  }
+
+  // 2. Resolve target commit (repairsSha exists in git, ledger, or CI)
+  const declaredRepairsSha = repairEntry?.repairsSha ? String(repairEntry.repairsSha).trim() : null;
+  const expectedTargetSha = targetSha ? String(targetSha).trim() : null;
+
+  if (!declaredRepairsSha && !expectedTargetSha) {
+    return {
+      valid: false,
+      reason: "REPAIR_TARGET_NOT_FOUND",
+      message: `Repair commit ${cleanRepairSha.slice(0, 8)} does not declare a target commit to repair.`,
+      repairEntry,
+      targetEntry: null,
+      targetSha: null,
+    };
+  }
+
+  if (expectedTargetSha && declaredRepairsSha) {
+    const normDeclared = declaredRepairsSha.toLowerCase();
+    const normExpected = expectedTargetSha.toLowerCase();
+    if (normDeclared !== normExpected && !normExpected.startsWith(normDeclared) && !normDeclared.startsWith(normExpected)) {
+      return {
+        valid: false,
+        reason: "REPAIR_TARGET_MISMATCH",
+        message: `Repair commit ${cleanRepairSha.slice(0, 8)} declared repair for ${normDeclared.slice(0, 8)}, but target is ${normExpected.slice(0, 8)}.`,
+        repairEntry,
+        targetEntry: null,
+        targetSha: expectedTargetSha,
+      };
+    }
+  }
+
+  const rawTargetSha = declaredRepairsSha || expectedTargetSha;
+  let fullTargetSha = null;
+  let targetInGit = false;
+  try {
+    fullTargetSha = execFileSync("git", ["rev-parse", `${rawTargetSha}^{commit}`], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .trim()
+      .toLowerCase();
+    targetInGit = true;
+  } catch {
+    const targetEvidence = await getCommitEvidence({ repoRoot: root, commitSha: rawTargetSha });
+    if (targetEvidence) {
+      fullTargetSha = targetEvidence.commitSha.toLowerCase();
+    } else {
+      try {
+        const ci = await inspectCi({ sha: rawTargetSha, repoRoot: root, provider: ciProvider });
+        if (ci && ci.status !== "provider_error" && ci.status !== "not_found") {
+          fullTargetSha = rawTargetSha.toLowerCase();
+        }
+      } catch {
+        // not found
+      }
+    }
+  }
+
+  if (!fullTargetSha) {
+    return {
+      valid: false,
+      reason: "REPAIR_TARGET_NOT_FOUND",
+      message: `Target commit ${rawTargetSha} was not found in git, ledger, or CI.`,
+      repairEntry,
+      targetEntry: null,
+      targetSha: null,
+    };
+  }
+
+  let targetEntry = null;
+  try {
+    targetEntry = await getCommitEvidence({ repoRoot: root, commitSha: fullTargetSha });
+  } catch {
+    // best-effort
+  }
+
+  // 3. Git descendant check
+  let isAncestor = false;
+  if (targetInGit) {
+    try {
+      execFileSync("git", ["merge-base", "--is-ancestor", fullTargetSha, cleanRepairSha], {
+        cwd: root,
+        stdio: ["ignore", "ignore", "ignore"],
+      });
+      isAncestor = fullTargetSha !== cleanRepairSha;
+    } catch {
+      isAncestor = false;
+    }
+  }
+
+  if (!isAncestor) {
+    return {
+      valid: false,
+      reason: "REPAIR_NOT_DESCENDANT",
+      message: `Repair commit ${cleanRepairSha.slice(0, 8)} is not a git descendant of target commit ${fullTargetSha.slice(0, 8)}.`,
+      repairEntry,
+      targetEntry,
+      targetSha: fullTargetSha,
+    };
+  }
+
+  // 4. Branch concordance
+  const targetBranch = targetEntry?.branch ? String(targetEntry.branch).trim().toLowerCase() : null;
+  const repairBranch = repairEntry?.branch ? String(repairEntry.branch).trim().toLowerCase() : null;
+  if (targetBranch && repairBranch && targetBranch !== repairBranch) {
+    return {
+      valid: false,
+      reason: "REPAIR_BRANCH_MISMATCH",
+      message: `Repair commit registered on branch '${repairEntry.branch}', but target commit was on '${targetEntry.branch}'.`,
+      repairEntry,
+      targetEntry,
+      targetSha: fullTargetSha,
+    };
+  }
+
+  // 5. US concordance
+  function resolveUs(entry, sha) {
+    if (entry?.usId) return String(entry.usId).trim().toLowerCase();
+    try {
+      const msg = execFileSync("git", ["log", "-1", "--format=%B", sha], {
+        cwd: root,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+      const parsed = extractUsId(msg);
+      return parsed ? String(parsed).trim().toLowerCase() : null;
+    } catch {
+      return null;
+    }
+  }
+
+  const targetUs = resolveUs(targetEntry, fullTargetSha);
+  const repairUs = resolveUs(repairEntry, cleanRepairSha);
+  if (targetUs && repairUs && targetUs !== repairUs) {
+    return {
+      valid: false,
+      reason: "REPAIR_US_MISMATCH",
+      message: `Repair commit US '${repairUs}' does not match target commit US '${targetUs}'.`,
+      repairEntry,
+      targetEntry,
+      targetSha: fullTargetSha,
+    };
+  }
+
+  // 6. Gate R valid
+  const hasGateR =
+    repairEntry?.gateId === "R" &&
+    (repairEntry?.status === "passed" || repairEntry?.verificationStatus === "passed");
+
+  if (!hasGateR) {
+    return {
+      valid: false,
+      reason: "REPAIR_GATE_INVALID",
+      message: `Repair commit ${cleanRepairSha.slice(0, 8)} does not have an approved Gate R evidence.`,
+      repairEntry: repairEntry || null,
+      targetEntry,
+      targetSha: fullTargetSha,
+    };
+  }
+
+  // 7. Absence of prior superseding repair
+  if (supersededSet && supersededSet.has(fullTargetSha)) {
+    return {
+      valid: false,
+      reason: "REPAIR_ALREADY_SUPERSEDED",
+      message: `Target commit ${fullTargetSha.slice(0, 8)} has already been superseded by a prior repair.`,
+      repairEntry,
+      targetEntry,
+      targetSha: fullTargetSha,
+    };
+  }
+
+  const allEvidence = await listCommitEvidence({ repoRoot: root });
+  for (const entry of allEvidence) {
+    if (entry.commitSha.toLowerCase() === cleanRepairSha) continue;
+    const entrySupersedes = Array.isArray(entry.supersedes)
+      ? entry.supersedes.map((s) => String(s).toLowerCase())
+      : [];
+    const declaresTarget = entry.repairsSha && entry.repairsSha.toLowerCase() === fullTargetSha;
+    const supersedesTarget = entrySupersedes.includes(fullTargetSha);
+
+    if (supersedesTarget || declaresTarget) {
+      if (entry.repairStatus === "validated") {
+        return {
+          valid: false,
+          reason: "REPAIR_ALREADY_SUPERSEDED",
+          message: `Target commit ${fullTargetSha.slice(0, 8)} was already superseded by validated repair ${entry.commitSha.slice(0, 8)}.`,
+          repairEntry,
+          targetEntry,
+          targetSha: fullTargetSha,
+        };
+      }
+      try {
+        const earlierCi = await inspectCi({ sha: entry.commitSha, repoRoot: root, provider: ciProvider });
+        if (earlierCi && earlierCi.status === "passed") {
+          return {
+            valid: false,
+            reason: "REPAIR_ALREADY_SUPERSEDED",
+            message: `Target commit ${fullTargetSha.slice(0, 8)} was already superseded by green repair commit ${entry.commitSha.slice(0, 8)}.`,
+            repairEntry,
+            targetEntry,
+            targetSha: fullTargetSha,
+          };
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  // 8. CI of target commit effectively failed
+  let targetCi;
+  try {
+    targetCi = await inspectCi({ sha: fullTargetSha, repoRoot: root, provider: ciProvider });
+    if (targetCi.status === "not_found" && rawTargetSha !== fullTargetSha) {
+      targetCi = await inspectCi({ sha: rawTargetSha, repoRoot: root, provider: ciProvider });
+    }
+  } catch {
+    return {
+      valid: false,
+      reason: "CI_INSPECTION_FAILED",
+      message: `Could not inspect CI for target commit ${fullTargetSha.slice(0, 8)}.`,
+      repairEntry,
+      targetEntry,
+      targetSha: fullTargetSha,
+    };
+  }
+
+  if (targetCi.status === "provider_error") {
+    return {
+      valid: false,
+      reason: "CI_PROVIDER_ERROR",
+      message: `CI provider returned an error inspecting target commit ${fullTargetSha.slice(0, 8)}.`,
+      repairEntry,
+      targetEntry,
+      targetSha: fullTargetSha,
+    };
+  }
+
+  if (targetCi.status === "passed") {
+    return {
+      valid: false,
+      reason: "REPAIR_TARGET_NOT_FAILED",
+      message: `Target commit ${fullTargetSha.slice(0, 8)} passed CI (status: passed). Repair not needed.`,
+      repairEntry,
+      targetEntry,
+      targetSha: fullTargetSha,
+    };
+  }
+
+  if (!["failed", "cancelled", "timed_out"].includes(targetCi.status)) {
+    return {
+      valid: false,
+      reason: "REPAIR_TARGET_NOT_FAILED",
+      message: `Target commit ${fullTargetSha.slice(0, 8)} is not in a failed state (status: ${targetCi.status}).`,
+      repairEntry,
+      targetEntry,
+      targetSha: fullTargetSha,
+    };
+  }
+
+  // 9. Snapshot / digest / policyHash verification
+  let repairEvidence;
+  try {
+    repairEvidence = await queryCommitEvidence({ repoRoot: root, commitSha: cleanRepairSha });
+  } catch (err) {
+    return {
+      valid: false,
+      reason: "REPAIR_SNAPSHOT_MISMATCH",
+      message: `Repair commit ${cleanRepairSha.slice(0, 8)} evidence is unreadable: ${err.message}`,
+      repairEntry,
+      targetEntry,
+      targetSha: fullTargetSha,
+    };
+  }
+
+  if (!repairEvidence?.valid || repairEvidence?.state !== "verified") {
+    return {
+      valid: false,
+      reason: "REPAIR_SNAPSHOT_MISMATCH",
+      message: `Repair commit ${cleanRepairSha.slice(0, 8)} evidence does not match its execution record, snapshot, or policy (${repairEvidence?.reason || "RECORD_INVALID"}).`,
+      repairEntry,
+      targetEntry,
+      targetSha: fullTargetSha,
+    };
+  }
+
+  return {
+    valid: true,
+    reason: null,
+    message: null,
+    repairEntry,
+    targetEntry,
+    targetSha: fullTargetSha,
+  };
+}
+
+export const validateRepairCommit = validateRepairLineage;
+
 export async function resolveRepairChain({
   repoRoot,
   commits = null,
@@ -693,127 +1035,27 @@ export async function resolveRepairChain({
   for (const repairSha of sortedRepairShas) {
     const entry = entriesBySha.get(repairSha);
     const rawRepairsSha = String(entry.repairsSha).trim();
-    const normalizedRepairsSha = rawRepairsSha.toLowerCase();
 
-    // 1. Verify repairsSha exists
-    let fullRepairsSha = null;
-    let targetInGit = false;
-    try {
-      fullRepairsSha = execFileSync("git", ["rev-parse", `${rawRepairsSha}^{commit}`], {
-        cwd: root,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-      })
-        .trim()
-        .toLowerCase();
-      targetInGit = true;
-    } catch {
-      const targetEvidence = await getCommitEvidence({ repoRoot: root, commitSha: rawRepairsSha });
-      if (targetEvidence) {
-        fullRepairsSha = targetEvidence.commitSha.toLowerCase();
-      } else {
-        try {
-          const ci = await inspectCi({ sha: rawRepairsSha, repoRoot: root, provider: ciProvider });
-          if (ci && ci.status !== "provider_error" && ci.status !== "not_found") {
-            fullRepairsSha = normalizedRepairsSha;
-          }
-        } catch {
-          // not found
-        }
-      }
-    }
+    const validation = await validateRepairLineage({
+      repoRoot: root,
+      repairSha,
+      ciProvider,
+      supersededSet: supersededFailures,
+    });
 
-    if (!fullRepairsSha) {
+    if (!validation.valid) {
       invalidRepairs.push({
         repairSha,
         repairsSha: rawRepairsSha,
-        reason: "TARGET_NOT_FOUND",
+        reason: validation.reason,
+        message: validation.message,
       });
       continue;
     }
 
-    // 2. Verify repair commit is a descendant of repairsSha
-    if (!targetInGit) {
-      invalidRepairs.push({
-        repairSha,
-        repairsSha: fullRepairsSha,
-        reason: "NOT_ANCESTOR",
-      });
-      continue;
-    }
+    const fullRepairsSha = validation.targetSha;
 
-    let isAncestor = false;
-    try {
-      execFileSync("git", ["merge-base", "--is-ancestor", fullRepairsSha, repairSha], {
-        cwd: root,
-        stdio: ["ignore", "ignore", "ignore"],
-      });
-      isAncestor = fullRepairsSha !== repairSha;
-    } catch {
-      isAncestor = false;
-    }
-
-    if (!isAncestor) {
-      invalidRepairs.push({
-        repairSha,
-        repairsSha: fullRepairsSha,
-        reason: "NOT_ANCESTOR",
-      });
-      continue;
-    }
-
-    // 3. Verify CI of repairsSha was failed (failed, cancelled, timed_out)
-    let targetCi;
-    try {
-      targetCi = await inspectCi({ sha: fullRepairsSha, repoRoot: root, provider: ciProvider });
-      if (targetCi.status === "not_found" && rawRepairsSha !== fullRepairsSha) {
-        targetCi = await inspectCi({ sha: rawRepairsSha, repoRoot: root, provider: ciProvider });
-      }
-    } catch {
-      invalidRepairs.push({
-        repairSha,
-        repairsSha: fullRepairsSha,
-        reason: "TARGET_CI_ERROR",
-      });
-      continue;
-    }
-
-    if (targetCi.status === "passed") {
-      invalidRepairs.push({
-        repairSha,
-        repairsSha: fullRepairsSha,
-        reason: "TARGET_CI_PASSED",
-      });
-      continue;
-    }
-
-    if (!["failed", "cancelled", "timed_out"].includes(targetCi.status)) {
-      invalidRepairs.push({
-        repairSha,
-        repairsSha: fullRepairsSha,
-        reason: "TARGET_CI_NOT_FAILED",
-      });
-      continue;
-    }
-
-    // 4. Verify repair commit passed Gate R
-    const repairEvidence = await queryCommitEvidence({ repoRoot: root, commitSha: repairSha });
-    const passedGateR =
-      repairEvidence.valid &&
-      repairEvidence.state === "verified" &&
-      repairEvidence.entry?.gateId === "R" &&
-      (repairEvidence.entry?.status === "passed" || repairEvidence.record?.status === "passed");
-
-    if (!passedGateR) {
-      invalidRepairs.push({
-        repairSha,
-        repairsSha: fullRepairsSha,
-        reason: "GATE_R_REQUIRED",
-      });
-      continue;
-    }
-
-    // 5. Inspect CI of the repair commit itself
+    // Inspect CI of the repair commit itself
     let repairCi;
     try {
       repairCi = await inspectCi({ sha: repairSha, repoRoot: root, provider: ciProvider });

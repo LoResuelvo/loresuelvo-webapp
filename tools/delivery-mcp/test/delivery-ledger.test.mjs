@@ -13,6 +13,7 @@ import {
   hasCommitEvidence,
   resolveRepairChain,
   updateCommitRepairStatus,
+  validateRepairLineage,
   LEDGER_DIR,
   LEDGER_FILE,
 } from "../lib/delivery-ledger.mjs";
@@ -405,6 +406,8 @@ async function attachCommitEvidence({
   supersedes = [],
   repairStatus = null,
   intent = gateId === "R" ? "repair_ci" : "prepare_commit",
+  branch = "main",
+  usId = null,
 }) {
   const identity = getCommitIdentity(repoRoot, sha);
   const mockEvidence = await createMockEvidenceRecord(repoRoot, sha, gateId);
@@ -417,13 +420,14 @@ async function attachCommitEvidence({
     runKey: mockEvidence.runKey,
     recordPath: mockEvidence.recordPath,
     recordDigest: mockEvidence.recordDigest,
-    branch: "main",
+    branch,
     parentSha: identity.parents[0] || null,
     treeSha: identity.treeSha,
     stagedFiles: ["file.txt"],
     gateId,
     policyHash: mockEvidence.policyHash,
     intent,
+    usId,
     repairsSha,
     supersedes,
     repairStatus,
@@ -495,7 +499,7 @@ test("resolveRepairChain: rechaza reparación fuera de rama o no ancestro en inv
   assert.strictEqual(res.invalidRepairs.length, 1);
   assert.strictEqual(res.invalidRepairs[0].repairSha, shaB);
   assert.strictEqual(res.invalidRepairs[0].repairsSha, shaA);
-  assert.strictEqual(res.invalidRepairs[0].reason, "NOT_ANCESTOR");
+  assert.strictEqual(res.invalidRepairs[0].reason, "REPAIR_NOT_DESCENDANT");
 });
 
 test("resolveRepairChain: rechaza reparación si el target CI era verde (passed)", async (t) => {
@@ -524,7 +528,7 @@ test("resolveRepairChain: rechaza reparación si el target CI era verde (passed)
 
   assert.strictEqual(res.supersededFailures.length, 0);
   assert.strictEqual(res.invalidRepairs.length, 1);
-  assert.strictEqual(res.invalidRepairs[0].reason, "TARGET_CI_PASSED");
+  assert.strictEqual(res.invalidRepairs[0].reason, "REPAIR_TARGET_NOT_FAILED");
 });
 
 test("resolveRepairChain: soporta cadena de dos reparaciones (A falla -> B falla -> C pasa)", async (t) => {
@@ -605,4 +609,245 @@ test("resolveRepairChain: reparación cuyo CI falla es registrada en failedRepai
 
   const entryB = await getCommitEvidence({ repoRoot, commitSha: shaB });
   assert.strictEqual(entryB.repairStatus, "failed");
+});
+
+test("validateRepairLineage: reparación válida en la misma rama y US retorna valid: true", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const shaA = await commitFile(repoRoot, "src/a.txt", "a", "chore[42]: fail commit");
+  await attachCommitEvidence({ repoRoot, sha: shaA, gateId: "A", branch: "main", usId: "42" });
+
+  const shaB = await commitFile(repoRoot, "src/b.txt", "b", "fix[42]: repair commit");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: shaB,
+    gateId: "R",
+    repairsSha: shaA,
+    branch: "main",
+    usId: "42",
+  });
+
+  const ciProvider = new MockCiProvider({
+    [shaA]: { status: "failed" },
+  });
+
+  const validation = await validateRepairLineage({
+    repoRoot,
+    repairSha: shaB,
+    targetSha: shaA,
+    ciProvider,
+  });
+
+  assert.strictEqual(validation.valid, true);
+  assert.strictEqual(validation.reason, null);
+  assert.strictEqual(validation.targetSha, shaA);
+});
+
+test("validateRepairLineage: rechaza reparación con US mismatch con REPAIR_US_MISMATCH", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const shaA = await commitFile(repoRoot, "src/a.txt", "a", "chore[42]: fail commit");
+  await attachCommitEvidence({ repoRoot, sha: shaA, gateId: "A", branch: "main", usId: "42" });
+
+  const shaB = await commitFile(repoRoot, "src/b.txt", "b", "fix[99]: repair commit");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: shaB,
+    gateId: "R",
+    repairsSha: shaA,
+    branch: "main",
+    usId: "99",
+  });
+
+  const ciProvider = new MockCiProvider({
+    [shaA]: { status: "failed" },
+  });
+
+  const validation = await validateRepairLineage({
+    repoRoot,
+    repairSha: shaB,
+    targetSha: shaA,
+    ciProvider,
+  });
+
+  assert.strictEqual(validation.valid, false);
+  assert.strictEqual(validation.reason, "REPAIR_US_MISMATCH");
+});
+
+test("validateRepairLineage: rechaza reparación con rama mismatch con REPAIR_BRANCH_MISMATCH", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const shaA = await commitFile(repoRoot, "src/a.txt", "a", "chore[42]: fail commit");
+  await attachCommitEvidence({ repoRoot, sha: shaA, gateId: "A", branch: "main", usId: "42" });
+
+  const shaB = await commitFile(repoRoot, "src/b.txt", "b", "fix[42]: repair commit on feature branch");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: shaB,
+    gateId: "R",
+    repairsSha: shaA,
+    branch: "feature-branch",
+    usId: "42",
+  });
+
+  const ciProvider = new MockCiProvider({
+    [shaA]: { status: "failed" },
+  });
+
+  const validation = await validateRepairLineage({
+    repoRoot,
+    repairSha: shaB,
+    targetSha: shaA,
+    ciProvider,
+  });
+
+  assert.strictEqual(validation.valid, false);
+  assert.strictEqual(validation.reason, "REPAIR_BRANCH_MISMATCH");
+});
+
+test("validateRepairLineage: rechaza reparación no descendiente del fallo con REPAIR_NOT_DESCENDANT", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const shaA = await commitFile(repoRoot, "src/a.txt", "a", "chore: commit A");
+  await attachCommitEvidence({ repoRoot, sha: shaA, gateId: "A" });
+
+  const shaB = await commitFile(repoRoot, "src/b.txt", "b", "chore: commit B");
+  await attachCommitEvidence({ repoRoot, sha: shaB, gateId: "A" });
+
+  // shaA no es descendiente de shaB (shaA es ancestro de shaB)
+  // Crear shaC que repara shaB pero dice ser shaA
+  const validation = await validateRepairLineage({
+    repoRoot,
+    repairSha: shaA,
+    targetSha: shaB,
+  });
+
+  assert.strictEqual(validation.valid, false);
+  assert.strictEqual(validation.reason, "REPAIR_NOT_DESCENDANT");
+});
+
+test("validateRepairLineage: rechaza reparación con Gate no R con REPAIR_GATE_INVALID", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const shaA = await commitFile(repoRoot, "src/a.txt", "a", "chore: commit A fails");
+  await attachCommitEvidence({ repoRoot, sha: shaA, gateId: "A" });
+
+  const shaB = await commitFile(repoRoot, "src/b.txt", "b", "fix: repair with Gate A instead of Gate R");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: shaB,
+    gateId: "A", // No es Gate R
+    repairsSha: shaA,
+  });
+
+  const ciProvider = new MockCiProvider({
+    [shaA]: { status: "failed" },
+  });
+
+  const validation = await validateRepairLineage({
+    repoRoot,
+    repairSha: shaB,
+    targetSha: shaA,
+    ciProvider,
+  });
+
+  assert.strictEqual(validation.valid, false);
+  assert.strictEqual(validation.reason, "REPAIR_GATE_INVALID");
+});
+
+test("validateRepairLineage: rechaza reparación contra target verde con REPAIR_TARGET_NOT_FAILED", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const shaA = await commitFile(repoRoot, "src/a.txt", "a", "chore: commit A passed");
+  await attachCommitEvidence({ repoRoot, sha: shaA, gateId: "A" });
+
+  const shaB = await commitFile(repoRoot, "src/b.txt", "b", "fix: repair for green commit");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: shaB,
+    gateId: "R",
+    repairsSha: shaA,
+  });
+
+  const ciProvider = new MockCiProvider({
+    [shaA]: { status: "passed" },
+  });
+
+  const validation = await validateRepairLineage({
+    repoRoot,
+    repairSha: shaB,
+    targetSha: shaA,
+    ciProvider,
+  });
+
+  assert.strictEqual(validation.valid, false);
+  assert.strictEqual(validation.reason, "REPAIR_TARGET_NOT_FAILED");
+});
+
+test("validateRepairLineage: rechaza reparación contra target ya subsanado con REPAIR_ALREADY_SUPERSEDED", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const shaA = await commitFile(repoRoot, "src/a.txt", "a", "chore: commit A fails");
+  await attachCommitEvidence({ repoRoot, sha: shaA, gateId: "A" });
+
+  const shaB = await commitFile(repoRoot, "src/b.txt", "b", "fix: repair commit 1");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: shaB,
+    gateId: "R",
+    repairsSha: shaA,
+    repairStatus: "validated",
+    supersedes: [shaA],
+  });
+
+  const shaC = await commitFile(repoRoot, "src/c.txt", "c", "fix: redundant repair for commit A");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: shaC,
+    gateId: "R",
+    repairsSha: shaA,
+  });
+
+  const ciProvider = new MockCiProvider({
+    [shaA]: { status: "failed" },
+    [shaB]: { status: "passed" },
+  });
+
+  const validation = await validateRepairLineage({
+    repoRoot,
+    repairSha: shaC,
+    targetSha: shaA,
+    ciProvider,
+  });
+
+  assert.strictEqual(validation.valid, false);
+  assert.strictEqual(validation.reason, "REPAIR_ALREADY_SUPERSEDED");
+});
+
+test("validateRepairLineage: rechaza reparación con snapshot alterado con REPAIR_SNAPSHOT_MISMATCH", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const shaA = await commitFile(repoRoot, "src/a.txt", "a", "chore: commit A fails");
+  await attachCommitEvidence({ repoRoot, sha: shaA, gateId: "A" });
+
+  const shaB = await commitFile(repoRoot, "src/b.txt", "b", "fix: repair commit B");
+  const evidenceB = await attachCommitEvidence({
+    repoRoot,
+    sha: shaB,
+    gateId: "R",
+    repairsSha: shaA,
+  });
+
+  // Alterar el archivo de registro de ejecución para que el digest no coincida
+  const recordPath = path.join(repoRoot, evidenceB.recordPath);
+  const raw = await fs.readFile(recordPath, "utf8");
+  const parsed = JSON.parse(raw);
+  parsed.status = "failed"; // Alterado
+  await fs.writeFile(recordPath, JSON.stringify(parsed, null, 2), "utf8");
+
+  const ciProvider = new MockCiProvider({
+    [shaA]: { status: "failed" },
+  });
+
+  const validation = await validateRepairLineage({
+    repoRoot,
+    repairSha: shaB,
+    targetSha: shaA,
+    ciProvider,
+  });
+
+  assert.strictEqual(validation.valid, false);
+  assert.strictEqual(validation.reason, "REPAIR_SNAPSHOT_MISMATCH");
 });

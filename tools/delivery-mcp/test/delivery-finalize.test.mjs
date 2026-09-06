@@ -782,7 +782,7 @@ test("finalizeDelivery: reparación fuera de la rama (no ancestro) es rechazada 
 
   assert.strictEqual(res.finalized, false);
   assert.ok(res.invalidRepairs.length > 0);
-  assert.strictEqual(res.invalidRepairs[0].reason, "NOT_ANCESTOR");
+  assert.strictEqual(res.invalidRepairs[0].reason, "REPAIR_NOT_DESCENDANT");
   assert.strictEqual(res.supersededFailures.length, 0);
 });
 

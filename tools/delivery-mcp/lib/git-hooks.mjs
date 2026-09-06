@@ -134,7 +134,22 @@ export function validateCommitMessage(rawMessage, activeContext = null) {
   return { valid: true, type, usId: usId || null, description };
 }
 
+function rejectDeprecatedCiBypass() {
+  if (process.env.DELIVERY_SKIP_CI_CHECK !== undefined && process.env.DELIVERY_SKIP_CI_CHECK !== "") {
+    return {
+      passed: false,
+      reason: "DEPRECATED_CI_BYPASS_REJECTED",
+      message:
+        "DELIVERY_SKIP_CI_CHECK is deprecated and forbidden. Use repair_ci workflow for CI failure remediation.",
+    };
+  }
+  return null;
+}
+
 export async function runPreCommitHook({ repoRoot } = {}) {
+  const deprecatedBypass = rejectDeprecatedCiBypass();
+  if (deprecatedBypass) return deprecatedBypass;
+
   const root = findRepoRoot(repoRoot);
   const requireEvidence = process.env.DELIVERY_REQUIRE_EVIDENCE === "1";
 
@@ -179,6 +194,9 @@ export async function runPreCommitHook({ repoRoot } = {}) {
 }
 
 export async function runCommitMsgHook({ repoRoot, messageFilePath } = {}) {
+  const deprecatedBypass = rejectDeprecatedCiBypass();
+  if (deprecatedBypass) return deprecatedBypass;
+
   const root = findRepoRoot(repoRoot);
   if (!messageFilePath) {
     throw new Error("Missing commit message file path parameter");
@@ -380,21 +398,22 @@ export async function runPostCommitHook({ repoRoot } = {}) {
 }
 
 export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = null } = {}) {
+  const deprecatedBypass = rejectDeprecatedCiBypass();
+  if (deprecatedBypass) return deprecatedBypass;
+
   const root = findRepoRoot(repoRoot);
   const requireEvidence = process.env.DELIVERY_REQUIRE_EVIDENCE === "1";
   let maxInFlightCommits = null;
 
-  if (process.env.DELIVERY_SKIP_CI_CHECK !== "1") {
-    try {
-      const policy = await loadDeliveryPolicy({ repoRoot: root });
-      maxInFlightCommits = policy.ci.maxInFlightCommits;
-    } catch (error) {
-      return {
-        passed: false,
-        reason: "INVALID_DELIVERY_POLICY",
-        message: `Pre-push blocked: cannot load CI policy (${error.message}).`,
-      };
-    }
+  try {
+    const policy = await loadDeliveryPolicy({ repoRoot: root });
+    maxInFlightCommits = policy.ci.maxInFlightCommits;
+  } catch (error) {
+    return {
+      passed: false,
+      reason: "INVALID_DELIVERY_POLICY",
+      message: `Pre-push blocked: cannot load CI policy (${error.message}).`,
+    };
   }
 
   for (const line of stdinLines) {
@@ -482,51 +501,64 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
     }
 
     // Check CI of prior commits registered in the ledger
-    if (process.env.DELIVERY_SKIP_CI_CHECK !== "1") {
-      let priorShas = [];
+    let priorShas = [];
+    try {
+      const currentSet = new Set(commits);
+      const entries = await listCommitEvidence({ repoRoot: root });
+      priorShas = entries.map((entry) => entry.commitSha).filter((s) => !currentSet.has(s));
+    } catch {
+      priorShas = [];
+    }
+
+    // Inspect one commit beyond the allowed window so an already-overflowed
+    // ledger cannot hide the oldest pending or failed run.
+    const recentPriorShas = priorShas.slice(-(maxInFlightCommits + 1)).reverse();
+    let pendingCount = 0;
+
+    for (const priorSha of recentPriorShas) {
+      let ci;
       try {
-        const currentSet = new Set(commits);
-        const entries = await listCommitEvidence({ repoRoot: root });
-        priorShas = entries.map((entry) => entry.commitSha).filter((s) => !currentSet.has(s));
+        ci = await inspectCi({ sha: priorSha, repoRoot: root, provider: ciProvider });
       } catch {
-        priorShas = [];
-      }
-
-      // Inspect one commit beyond the allowed window so an already-overflowed
-      // ledger cannot hide the oldest pending or failed run.
-      const recentPriorShas = priorShas.slice(-(maxInFlightCommits + 1)).reverse();
-      let pendingCount = 0;
-
-      for (const priorSha of recentPriorShas) {
-        try {
-          const ci = await inspectCi({ sha: priorSha, repoRoot: root, provider: ciProvider });
-          if (["failed", "timed_out", "cancelled"].includes(ci.status)) {
-            return {
-              passed: false,
-              reason: "PRIOR_COMMIT_CI_FAILED",
-              message: `Pre-push blocked: prior commit ${priorSha.slice(0, 8)} failed CI in GitHub Actions. Fix the failure before pushing new commits.`,
-              sha: priorSha,
-            };
-          }
-          if (["in_progress", "queued", "not_found"].includes(ci.status)) {
-            pendingCount += 1;
-          }
-        } catch {
-          // If CI inspection throws (offline / network issue), do not block falsely
-        }
-      }
-
-      const inFlightCount = pendingCount + commits.length;
-      if (inFlightCount > maxInFlightCommits) {
         return {
           passed: false,
-          reason: "CI_PENDING_WINDOW_EXCEEDED",
-          message: `Pre-push blocked: this push would create ${inFlightCount} commits in flight (maximum ${maxInFlightCommits}). Wait for CI to complete.`,
-          pendingCount,
-          inFlightCount,
-          maxInFlightCommits,
+          reason: "CI_INSPECTION_FAILED",
+          message: "Pre-push blocked: could not inspect remote CI.",
         };
       }
+
+      if (["failed", "timed_out", "cancelled"].includes(ci.status)) {
+        return {
+          passed: false,
+          reason: "PRIOR_COMMIT_CI_FAILED",
+          message: `Pre-push blocked: prior commit ${priorSha.slice(0, 8)} failed CI in GitHub Actions. Fix the failure before pushing new commits.`,
+          sha: priorSha,
+        };
+      }
+
+      if (ci.status === "provider_error") {
+        return {
+          passed: false,
+          reason: "CI_PROVIDER_ERROR",
+          message: "Pre-push blocked: CI provider returned an error. Cannot determine remote CI safely.",
+        };
+      }
+
+      if (["in_progress", "queued", "not_found"].includes(ci.status)) {
+        pendingCount += 1;
+      }
+    }
+
+    const inFlightCount = pendingCount + commits.length;
+    if (inFlightCount > maxInFlightCommits) {
+      return {
+        passed: false,
+        reason: "CI_PENDING_WINDOW_EXCEEDED",
+        message: `Pre-push blocked: this push would create ${inFlightCount} commits in flight (maximum ${maxInFlightCommits}). Wait for CI to complete.`,
+        pendingCount,
+        inFlightCount,
+        maxInFlightCommits,
+      };
     }
   }
 

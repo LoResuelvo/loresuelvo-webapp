@@ -24,6 +24,7 @@ import {
 } from "../lib/delivery-context.mjs";
 import { captureGitSnapshot } from "../lib/git-snapshot.mjs";
 import { prepareDelivery } from "../lib/prepare-delivery.mjs";
+import { MockCiProvider } from "../lib/ci-provider.mjs";
 
 test("validateCommitMessage: valida tipos gobernados y rechaza (agent) y scopes entre parentesis", () => {
   // 1. Mensajes validos
@@ -106,6 +107,10 @@ async function createTempGitRepo(t) {
   await fs.copyFile(
     ".delivery/schemas/delivery-context.schema.json",
     path.join(repoRoot, ".delivery", "schemas", "delivery-context.schema.json")
+  );
+  await fs.copyFile(
+    ".delivery/schemas/ci-inspection-result.schema.json",
+    path.join(repoRoot, ".delivery", "schemas", "ci-inspection-result.schema.json")
   );
   await fs.copyFile(".gitignore", path.join(repoRoot, ".gitignore"));
 
@@ -477,4 +482,173 @@ test("repositorio sin hooks sigue pudiendo usar la CLI manualmente", async (t) =
   const res = await inspectDelivery({ repoRoot });
   assert.strictEqual(res.result.schemaVersion, 1);
   assert.strictEqual(res.result.status, "no_changes");
+});
+
+test("pre-push hook: si DELIVERY_SKIP_CI_CHECK está definida, pre-push es rechazado con DEPRECATED_CI_BYPASS_REJECTED", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const pushLine = "refs/heads/main aaaa refs/heads/main bbbb";
+
+  const origEnv = process.env.DELIVERY_SKIP_CI_CHECK;
+  try {
+    process.env.DELIVERY_SKIP_CI_CHECK = "1";
+    const res = await runPrePushHook({ repoRoot, stdinLines: [pushLine] });
+    assert.strictEqual(res.passed, false);
+    assert.strictEqual(res.reason, "DEPRECATED_CI_BYPASS_REJECTED");
+    assert.strictEqual(
+      res.message,
+      "DELIVERY_SKIP_CI_CHECK is deprecated and forbidden. Use repair_ci workflow for CI failure remediation."
+    );
+
+    // También con cualquier otro valor no vacío
+    process.env.DELIVERY_SKIP_CI_CHECK = "true";
+    const res2 = await runPrePushHook({ repoRoot, stdinLines: [pushLine] });
+    assert.strictEqual(res2.passed, false);
+    assert.strictEqual(res2.reason, "DEPRECATED_CI_BYPASS_REJECTED");
+  } finally {
+    if (origEnv === undefined) delete process.env.DELIVERY_SKIP_CI_CHECK;
+    else process.env.DELIVERY_SKIP_CI_CHECK = origEnv;
+  }
+});
+
+test("pre-push hook: si un commit previo devuelve status: provider_error, es bloqueado fail-closed (CI_PROVIDER_ERROR)", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  // Commit 1 registrado en ledger y pusheado
+  await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
+  execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  assert.strictEqual(post1.recorded, true);
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  // Commit 2 nuevo local
+  await fs.writeFile(path.join(repoRoot, "file2.txt"), "2", "utf8");
+  execFileSync("git", ["add", "file2.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore: commit 2"], { cwd: repoRoot });
+  const post2 = await runPostCommitHook({ repoRoot });
+  assert.strictEqual(post2.recorded, true);
+
+  const mockCi = new MockCiProvider();
+  mockCi.setFixture(post1.commitSha, { status: "provider_error" });
+
+  const pushLine = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
+  const pushRes = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(pushRes.passed, false);
+  assert.strictEqual(pushRes.reason, "CI_PROVIDER_ERROR");
+  assert.strictEqual(
+    pushRes.message,
+    "Pre-push blocked: CI provider returned an error. Cannot determine remote CI safely."
+  );
+});
+
+test("pre-push hook: si inspectCi arroja un error (excepción / offline), es bloqueado fail-closed (CI_INSPECTION_FAILED)", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  // Commit 1 en ledger
+  await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
+  execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  assert.strictEqual(post1.recorded, true);
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  // Commit 2 nuevo local
+  await fs.writeFile(path.join(repoRoot, "file2.txt"), "2", "utf8");
+  execFileSync("git", ["add", "file2.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore: commit 2"], { cwd: repoRoot });
+  const post2 = await runPostCommitHook({ repoRoot });
+  assert.strictEqual(post2.recorded, true);
+
+  const throwingCi = {
+    async inspectCommit() {
+      throw new Error("Network unreachable / offline");
+    },
+  };
+
+  const pushLine = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
+  const pushRes = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine],
+    ciProvider: throwingCi,
+  });
+
+  assert.strictEqual(pushRes.passed, false);
+  assert.strictEqual(pushRes.reason, "CI_INSPECTION_FAILED");
+  assert.strictEqual(pushRes.message, "Pre-push blocked: could not inspect remote CI.");
+});
+
+test("pre-push hook: flujo humano normal con not_run y límite de commits en vuelo", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  // Commit 1 humano (not_run)
+  await fs.writeFile(path.join(repoRoot, "h1.txt"), "h1", "utf8");
+  execFileSync("git", ["add", "h1.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "docs: human commit 1"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  assert.strictEqual(post1.verificationStatus, "not_run");
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  // Commit 2 humano (not_run)
+  await fs.writeFile(path.join(repoRoot, "h2.txt"), "h2", "utf8");
+  execFileSync("git", ["add", "h2.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "docs: human commit 2"], { cwd: repoRoot });
+  const post2 = await runPostCommitHook({ repoRoot });
+  assert.strictEqual(post2.verificationStatus, "not_run");
+
+  // CI de commit 1 está en progreso (pending)
+  const mockCi = new MockCiProvider();
+  mockCi.setFixture(post1.commitSha, { status: "in_progress" });
+
+  const pushLine = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
+  // En modo normal (DELIVERY_REQUIRE_EVIDENCE no es 1), un commit not_run pasa si CI está dentro del límite
+  const pushRes = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine],
+    ciProvider: mockCi,
+  });
+  assert.strictEqual(pushRes.passed, true);
+});
+
+test("pre-commit y commit-msg hooks: rechazan DELIVERY_SKIP_CI_CHECK con DEPRECATED_CI_BYPASS_REJECTED", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const origEnv = process.env.DELIVERY_SKIP_CI_CHECK;
+  try {
+    process.env.DELIVERY_SKIP_CI_CHECK = "1";
+    const preCommitRes = await runPreCommitHook({ repoRoot });
+    assert.strictEqual(preCommitRes.passed, false);
+    assert.strictEqual(preCommitRes.reason, "DEPRECATED_CI_BYPASS_REJECTED");
+
+    const msgFile = path.join(repoRoot, "msg.txt");
+    await fs.writeFile(msgFile, "chore: test message\n", "utf8");
+    const commitMsgRes = await runCommitMsgHook({ repoRoot, messageFilePath: msgFile });
+    assert.strictEqual(commitMsgRes.passed, false);
+    assert.strictEqual(commitMsgRes.reason, "DEPRECATED_CI_BYPASS_REJECTED");
+  } finally {
+    if (origEnv === undefined) delete process.env.DELIVERY_SKIP_CI_CHECK;
+    else process.env.DELIVERY_SKIP_CI_CHECK = origEnv;
+  }
 });

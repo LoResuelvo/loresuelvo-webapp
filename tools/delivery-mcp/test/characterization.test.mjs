@@ -269,7 +269,7 @@ test("characterization: nuevos campos de receipt, invalidación por policyHash, 
   assert.strictEqual(queryLegacy.state, "verified");
 });
 
-test("characterization: bypass ambiental actual DELIVERY_SKIP_CI_CHECK=1 en git-hooks.mjs", async (t) => {
+test("characterization: bypass ambiental DELIVERY_SKIP_CI_CHECK es rechazado con DEPRECATED_CI_BYPASS_REJECTED", async (t) => {
   const repoRoot = await createTempGitRepo(t);
 
   const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-char-remote-"));
@@ -342,7 +342,7 @@ test("characterization: bypass ambiental actual DELIVERY_SKIP_CI_CHECK=1 en git-
 
   const pushLine = `refs/heads/main ${sha2} refs/heads/main ${sha1}`;
 
-  // Comportamiento actual SIN bypass: pre-push bloquea porque el CI de sha1 está fallido
+  // Comportamiento SIN bypass: pre-push bloquea porque el CI de sha1 está fallido
   const pushNormal = await runPrePushHook({
     repoRoot,
     stdinLines: [pushLine],
@@ -352,7 +352,7 @@ test("characterization: bypass ambiental actual DELIVERY_SKIP_CI_CHECK=1 en git-
   assert.strictEqual(pushNormal.reason, "PRIOR_COMMIT_CI_FAILED");
   assert.strictEqual(pushNormal.sha, sha1);
 
-  // Comportamiento actual CON bypass DELIVERY_SKIP_CI_CHECK=1: se omite el chequeo de CI previo
+  // Comportamiento CON bypass DELIVERY_SKIP_CI_CHECK: es rechazado explícitamente
   const origEnv = process.env.DELIVERY_SKIP_CI_CHECK;
   process.env.DELIVERY_SKIP_CI_CHECK = "1";
   try {
@@ -361,8 +361,12 @@ test("characterization: bypass ambiental actual DELIVERY_SKIP_CI_CHECK=1 en git-
       stdinLines: [pushLine],
       ciProvider,
     });
-    // Documentar que actualmente este bypass permite pushear a pesar de CI fallido
-    assert.strictEqual(pushBypassed.passed, true);
+    assert.strictEqual(pushBypassed.passed, false);
+    assert.strictEqual(pushBypassed.reason, "DEPRECATED_CI_BYPASS_REJECTED");
+    assert.strictEqual(
+      pushBypassed.message,
+      "DELIVERY_SKIP_CI_CHECK is deprecated and forbidden. Use repair_ci workflow for CI failure remediation."
+    );
   } finally {
     if (origEnv === undefined) delete process.env.DELIVERY_SKIP_CI_CHECK;
     else process.env.DELIVERY_SKIP_CI_CHECK = origEnv;

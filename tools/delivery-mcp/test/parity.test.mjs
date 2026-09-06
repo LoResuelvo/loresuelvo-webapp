@@ -5,14 +5,15 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { server } from "../server.mjs";
 import { inspectDelivery } from "../lib/inspect-delivery.mjs";
 import { prepareDelivery } from "../lib/prepare-delivery.mjs";
-import { finalizeDelivery } from "../lib/delivery-finalize.mjs";
+import { finalizeDelivery, verifyHeadDelivery } from "../lib/delivery-finalize.mjs";
 import {
   DeliveryInspectInputSchema,
   DeliveryPrepareInputSchema,
   DeliveryFinalizeInputSchema,
+  DeliveryVerifyHeadInputSchema,
 } from "../lib/input-schema.mjs";
 
-test("paridad CLI / MCP: inspect, prepare y finalize producen el mismo resultado semantico", async () => {
+test("paridad CLI / MCP: inspect, prepare, finalize y verify_head producen el mismo resultado semantico", async () => {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "parity-test", version: "1.0.0" });
 
@@ -78,6 +79,22 @@ test("paridad CLI / MCP: inspect, prepare y finalize producen el mismo resultado
     assert.strictEqual(mcpFinalizeResult.finalized, cliFinalizeResult.finalized);
     assert.strictEqual(mcpFinalizeResult.status, cliFinalizeResult.status);
     assert.strictEqual(mcpFinalizeResult.reason, cliFinalizeResult.reason);
+
+    // 4. Verify-head parity test
+    const verifyHeadInput = {
+      intent: "close_us",
+    };
+    const parsedVerifyHead = DeliveryVerifyHeadInputSchema.parse(verifyHeadInput);
+    const cliVerifyHeadResult = await verifyHeadDelivery(parsedVerifyHead);
+    const mcpVerifyHeadCall = await client.callTool({
+      name: "delivery_verify_head",
+      arguments: verifyHeadInput,
+    });
+    const mcpVerifyHeadResult = JSON.parse(mcpVerifyHeadCall.content[0].text);
+
+    assert.strictEqual(mcpVerifyHeadResult.verified, cliVerifyHeadResult.verified);
+    assert.strictEqual(mcpVerifyHeadResult.status, cliVerifyHeadResult.status);
+    assert.strictEqual(mcpVerifyHeadResult.reason, cliVerifyHeadResult.reason);
   } finally {
     await client.close();
   }

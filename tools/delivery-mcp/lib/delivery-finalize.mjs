@@ -360,3 +360,5 @@ export async function finalizeDelivery({
     invalidRepairs,
   };
 }
+
+export { verifyHeadDelivery } from "./verify-head.mjs";

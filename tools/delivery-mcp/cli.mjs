@@ -7,10 +7,11 @@ import {
   DeliveryContextInputSchema,
   DeliveryCiInputSchema,
   DeliveryFinalizeInputSchema,
+  DeliveryVerifyHeadInputSchema,
   formatInputIssues,
 } from "./lib/input-schema.mjs";
 import { inspectCi } from "./lib/ci-provider.mjs";
-import { finalizeDelivery } from "./lib/delivery-finalize.mjs";
+import { finalizeDelivery, verifyHeadDelivery } from "./lib/delivery-finalize.mjs";
 import {
   loadDeliveryContext,
   saveDeliveryContext,
@@ -37,6 +38,7 @@ function usage() {
   npm run delivery:context -- [options]
   npm run delivery:ci -- --sha <commit-sha>
   npm run delivery:finalize -- --intent <close_us|close_batch> [options]
+  npm run delivery:verify-head -- [--intent close_us] [--us-id US] [--scope-files ...]
   npm run delivery:hooks:install
   npm run delivery:hooks:status
 
@@ -71,7 +73,14 @@ Options for delivery:finalize:
   --intent <close_us|close_batch>
   --us-id <US-XX>
   --repairs-sha <commit-sha>
-  --scope <features/...feature>                  Repeat for the completed scope`;
+  --scope <features/...feature>                  Repeat for the completed scope
+
+Options for delivery:verify-head:
+  --intent <close_us|close_batch>
+  --us-id <US-XX>
+  --scope <features/...feature>                  Repeat for the completed scope
+  --scope-files <comma-separated feature files>
+  --force                                        Re-run checks instead of reusing cached evidence`;
 }
 
 function takeValue(args, index, option) {
@@ -86,8 +95,9 @@ function parseArguments(argv) {
   let subAction = "";
   let hookArgs = [];
 
-  if (["inspect", "prepare", "context", "hooks", "hook", "ci", "finalize"].includes(args[0])) {
+  if (["inspect", "prepare", "context", "hooks", "hook", "ci", "finalize", "verify-head", "verify_head"].includes(args[0])) {
     command = args.shift();
+    if (command === "verify_head") command = "verify-head";
   }
 
   if (command === "hooks" || command === "hook") {
@@ -343,6 +353,16 @@ async function main() {
     const res = await finalizeDelivery({ repoRoot: root, ...parsed.data });
     writeJson(res, options.pretty);
     process.exitCode = res.finalized ? 0 : 2;
+    return;
+  }
+
+  // 5.5. Verify HEAD delivery
+  if (options.command === "verify-head") {
+    const parsed = DeliveryVerifyHeadInputSchema.safeParse(options.input);
+    if (!parsed.success) throw new Error(formatInputIssues(parsed.error));
+    const res = await verifyHeadDelivery({ repoRoot: root, ...parsed.data });
+    writeJson(res, options.pretty);
+    process.exitCode = res.verified ? 0 : 2;
     return;
   }
 

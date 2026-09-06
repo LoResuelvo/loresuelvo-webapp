@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { finalizeDelivery } from "../lib/delivery-finalize.mjs";
+import { finalizeDelivery, verifyHeadDelivery } from "../lib/delivery-finalize.mjs";
 import { MockCiProvider } from "../lib/ci-provider.mjs";
 import { recordCommitEvidence } from "../lib/delivery-ledger.mjs";
 import { runPrePushHook } from "../lib/git-hooks.mjs";
@@ -70,6 +70,7 @@ async function attachEvidence({
   repairsSha = null,
   supersedes = [],
   repairStatus = null,
+  policyHash: customPolicyHash = null,
 }) {
   const parentsLine = execFileSync("git", ["rev-list", "--parents", "-n", "1", sha], {
     cwd: repoRoot,
@@ -89,7 +90,15 @@ async function attachEvidence({
   const snapshotHash = crypto.createHash("sha256").update(`snapshot:${sha}`).digest("hex");
   const runKey = crypto.createHash("sha256").update(`run:${sha}:${gateId}`).digest("hex");
   const recordPath = `.delivery/runtime/records/${sha}-${gateId}.json`;
-  const policyHash = crypto.createHash("sha256").update("test-policy").digest("hex");
+  let policyHash = customPolicyHash;
+  if (!policyHash) {
+    try {
+      const rawPol = await fs.readFile(path.join(repoRoot, ".delivery", "policy.v1.json"), "utf8");
+      policyHash = crypto.createHash("sha256").update(rawPol).digest("hex");
+    } catch {
+      policyHash = crypto.createHash("sha256").update("test-policy").digest("hex");
+    }
+  }
   const record = {
     schemaVersion: 1,
     status: "passed",
@@ -888,4 +897,364 @@ test("finalizeDelivery: fallo histórico sin relación de reparación explícita
   assert.strictEqual(res.reason, "CI_NOT_GREEN");
   assert.strictEqual(res.supersededFailures.length, 0);
   assert.ok(res.pendingFailures.includes(sha1));
+});
+
+test("verifyHeadDelivery: verifica un HEAD existente y tras verify_head, finalizeDelivery(close_us) aprueba sin commits artificiales", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us35.feature";
+  const initialHead = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US35\n  Scenario: Done\n    Given ok\n",
+    "test[35]: finalize us35 scenario without wip"
+  );
+
+  const mockPassedCheck = async ({ check, logPath }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 5,
+    exitCode: 0,
+    summaryLines: [],
+    locations: [],
+    logPath,
+    diagnostic: null,
+  });
+
+  const verifyRes = await verifyHeadDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "35",
+    scopeFiles: [featurePath],
+    executeCheck: mockPassedCheck,
+  });
+
+  assert.strictEqual(verifyRes.verified, true);
+  assert.strictEqual(verifyRes.status, "passed");
+  assert.strictEqual(verifyRes.gate, "D");
+  assert.strictEqual(verifyRes.cached, false);
+  assert.strictEqual(verifyRes.headSha, initialHead);
+
+  // Verify HEAD in git did NOT change (no artificial commit created)
+  const currentHead = headSha(repoRoot);
+  assert.strictEqual(currentHead, initialHead);
+
+  // Now finalizeDelivery(close_us) succeeds on this HEAD
+  const mockCi = new MockCiProvider({
+    [initialHead]: { status: "passed" },
+  });
+
+  const finalizeRes = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_us",
+    usId: "35",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(finalizeRes.finalized, true);
+  assert.strictEqual(finalizeRes.status, "passed");
+  assert.strictEqual(finalizeRes.headSha, initialHead);
+});
+
+test("verifyHeadDelivery: idempotencia - segunda ejecución sobre el mismo HEAD devuelve cached: true sin re-ejecutar checks", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us36.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US36\n  Scenario: Done\n    Given ok\n",
+    "test[36]: complete scenario"
+  );
+
+  let checkRunCount = 0;
+  const mockCheck = async ({ check, logPath }) => {
+    checkRunCount++;
+    return {
+      id: check.id,
+      status: "passed",
+      durationMs: 5,
+      exitCode: 0,
+      summaryLines: [],
+      locations: [],
+      logPath,
+      diagnostic: null,
+    };
+  };
+
+  const res1 = await verifyHeadDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "36",
+    scopeFiles: [featurePath],
+    executeCheck: mockCheck,
+  });
+  assert.strictEqual(res1.verified, true);
+  assert.strictEqual(res1.cached, false);
+  const initialRuns = checkRunCount;
+  assert.ok(initialRuns > 0);
+
+  // Second execution with a check runner that fails if called
+  const res2 = await verifyHeadDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "36",
+    scopeFiles: [featurePath],
+    executeCheck: () => {
+      throw new Error("Checks should not be re-executed on cached head");
+    },
+  });
+
+  assert.strictEqual(res2.verified, true);
+  assert.strictEqual(res2.status, "passed");
+  assert.strictEqual(res2.cached, true);
+  assert.strictEqual(res2.headSha, sha);
+  assert.strictEqual(checkRunCount, initialRuns);
+});
+
+test("verifyHeadDelivery: cambio de HEAD - la evidencia previa no sirve para el nuevo HEAD", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us37.feature";
+  const sha1 = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US37\n  Scenario: Done\n    Given ok\n",
+    "test[37]: first commit"
+  );
+
+  const mockPassedCheck = async ({ check, logPath }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 5,
+    exitCode: 0,
+    summaryLines: [],
+    locations: [],
+    logPath,
+    diagnostic: null,
+  });
+
+  const res1 = await verifyHeadDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "37",
+    scopeFiles: [featurePath],
+    executeCheck: mockPassedCheck,
+  });
+  assert.strictEqual(res1.verified, true);
+  assert.strictEqual(res1.headSha, sha1);
+
+  // Create a new commit sha2
+  const sha2 = await commitFile(
+    repoRoot,
+    "src/extra.txt",
+    "extra content",
+    "chore[37]: subsequent commit"
+  );
+  assert.notStrictEqual(sha2, sha1);
+
+  // finalizeDelivery should block on sha2 because sha2 lacks Gate D evidence
+  const mockCi = new MockCiProvider({
+    [sha1]: { status: "passed" },
+    [sha2]: { status: "passed" },
+  });
+  const finalizeRes = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_us",
+    usId: "37",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+  });
+  assert.strictEqual(finalizeRes.finalized, false);
+  assert.strictEqual(finalizeRes.reason, "INVALID_HEAD_EVIDENCE");
+
+  // verifyHeadDelivery on sha2 must not be cached: true from sha1
+  let sha2Executed = false;
+  const res2 = await verifyHeadDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "37",
+    scopeFiles: [featurePath],
+    executeCheck: async ({ check, logPath }) => {
+      sha2Executed = true;
+      return mockPassedCheck({ check, logPath });
+    },
+  });
+  assert.strictEqual(res2.verified, true);
+  assert.strictEqual(res2.cached, false);
+  assert.strictEqual(res2.headSha, sha2);
+  assert.strictEqual(sha2Executed, true);
+});
+
+test("verifyHeadDelivery: cambio de scope o política invalida la evidencia de HEAD", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const f1 = "features/us38a.feature";
+  const f2 = "features/us38b.feature";
+  await commitFile(repoRoot, f1, "Feature: US38A\n  Scenario: Done\n    Given ok\n", "test[38]: f1");
+  const sha = await commitFile(repoRoot, f2, "Feature: US38B\n  Scenario: Done\n    Given ok\n", "test[38]: f2");
+
+  const mockPassedCheck = async ({ check, logPath }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 5,
+    exitCode: 0,
+    summaryLines: [],
+    locations: [],
+    logPath,
+    diagnostic: null,
+  });
+
+  // 1. Verify with scope [f1]
+  const res1 = await verifyHeadDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "38",
+    scopeFiles: [f1],
+    executeCheck: mockPassedCheck,
+  });
+  assert.strictEqual(res1.verified, true);
+  assert.strictEqual(res1.cached, false);
+
+  // Calling again with same scope [f1] is cached
+  const resCached = await verifyHeadDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "38",
+    scopeFiles: [f1],
+    executeCheck: () => {
+      throw new Error("Should be cached");
+    },
+  });
+  assert.strictEqual(resCached.cached, true);
+
+  // 2. Changing scope to [f1, f2] invalidates cached evidence and re-runs
+  let scopeChangeExecuted = false;
+  const res2 = await verifyHeadDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "38",
+    scopeFiles: [f1, f2],
+    executeCheck: async ({ check, logPath }) => {
+      scopeChangeExecuted = true;
+      return mockPassedCheck({ check, logPath });
+    },
+  });
+  assert.strictEqual(res2.verified, true);
+  assert.strictEqual(res2.cached, false);
+  assert.strictEqual(scopeChangeExecuted, true);
+
+  // 3. Changing policy invalidates cached evidence
+  const policyFile = path.join(repoRoot, ".delivery", "policy.v1.json");
+  const rawPol = JSON.parse(await fs.readFile(policyFile, "utf8"));
+  rawPol.limits.maxSignals = 30;
+  await fs.writeFile(policyFile, JSON.stringify(rawPol, null, 2), "utf8");
+  execFileSync("git", ["add", ".delivery/policy.v1.json"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "chore[38]: update policy limits"], { cwd: repoRoot });
+  const newSha = headSha(repoRoot);
+
+  let policyChangeExecuted = false;
+  const res3 = await verifyHeadDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "38",
+    scopeFiles: [f1, f2],
+    executeCheck: async ({ check, logPath }) => {
+      policyChangeExecuted = true;
+      return mockPassedCheck({ check, logPath });
+    },
+  });
+  assert.strictEqual(res3.verified, true);
+  assert.strictEqual(res3.cached, false);
+  assert.strictEqual(res3.headSha, newSha);
+  assert.strictEqual(policyChangeExecuted, true);
+
+  // Calling again on the new policy is now cached
+  const res4 = await verifyHeadDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "38",
+    scopeFiles: [f1, f2],
+    executeCheck: () => {
+      throw new Error("Should be cached on new policy");
+    },
+  });
+  assert.strictEqual(res4.verified, true);
+  assert.strictEqual(res4.cached, true);
+  assert.strictEqual(res4.headSha, newSha);
+});
+
+test("verifyHeadDelivery: working tree incompatible o cambios conflictivos bloquean verify_head", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us39.feature";
+  await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US39\n  Scenario: Done\n    Given ok\n",
+    "test[39]: clean commit"
+  );
+
+  // 1. Unstaged modification
+  await fs.writeFile(path.join(repoRoot, featurePath), "Feature: US39\n  # dirty\n", "utf8");
+  const resUnstaged = await verifyHeadDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "39",
+    scopeFiles: [featurePath],
+  });
+  assert.strictEqual(resUnstaged.verified, false);
+  assert.strictEqual(resUnstaged.status, "blocked");
+  assert.ok(["DIRTY_WORKTREE", "UNSTAGED_CONFLICT"].includes(resUnstaged.reason));
+
+  // Reset file
+  execFileSync("git", ["checkout", "--", featurePath], { cwd: repoRoot });
+
+  // 2. Staged uncommitted changes
+  await fs.mkdir(path.join(repoRoot, "src"), { recursive: true });
+  await fs.writeFile(path.join(repoRoot, "src/staged.txt"), "staged change", "utf8");
+  execFileSync("git", ["add", "src/staged.txt"], { cwd: repoRoot });
+
+  const resStaged = await verifyHeadDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "39",
+    scopeFiles: [featurePath],
+  });
+  assert.strictEqual(resStaged.verified, false);
+  assert.strictEqual(resStaged.status, "blocked");
+  assert.ok(["DIRTY_WORKTREE", "STAGED_CHANGES_PRESENT"].includes(resStaged.reason));
+});
+
+test("verifyHeadDelivery: reutiliza evidencia si el commit ya fue preparado con close_us", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us40.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US40\n  Scenario: Done\n    Given ok\n",
+    "test[40]: commit with prepared close_us"
+  );
+
+  // Simulate commit prepared with delivery_prepare(intent: "close_us")
+  await attachEvidence({
+    repoRoot,
+    sha,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "40",
+    intent: "close_us",
+  });
+
+  // verifyHeadDelivery should reuse it as cached: true
+  const res = await verifyHeadDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "40",
+    scopeFiles: [featurePath],
+    executeCheck: () => {
+      throw new Error("Should not execute checks");
+    },
+  });
+
+  assert.strictEqual(res.verified, true);
+  assert.strictEqual(res.status, "passed");
+  assert.strictEqual(res.cached, true);
+  assert.strictEqual(res.headSha, sha);
 });

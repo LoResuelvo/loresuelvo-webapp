@@ -12,10 +12,11 @@ import {
   DeliveryPrepareInputSchema,
   DeliveryCiInputSchema,
   DeliveryFinalizeInputSchema,
+  DeliveryVerifyHeadInputSchema,
   formatInputIssues,
 } from "./lib/input-schema.mjs";
 import { inspectCi } from "./lib/ci-provider.mjs";
-import { finalizeDelivery } from "./lib/delivery-finalize.mjs";
+import { finalizeDelivery, verifyHeadDelivery } from "./lib/delivery-finalize.mjs";
 import { redactSecrets } from "./lib/redact-secrets.mjs";
 
 const intentProperty = {
@@ -156,6 +157,36 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         openWorldHint: true,
       },
     },
+    {
+      name: "delivery_verify_head",
+      description:
+        "Verifica Gate D sobre el commit HEAD actual y registra la evidencia directamente sin requerir un commit adicional",
+      inputSchema: {
+        type: "object",
+        properties: {
+          intent: {
+            type: "string",
+            enum: ["close_us", "close_batch"],
+            description: "Delivery intent to verify on HEAD; defaults to close_us",
+          },
+          usId: {
+            type: "string",
+            description: "Optional User Story identifier",
+          },
+          scopeFiles: {
+            type: "array",
+            items: { type: "string" },
+            description: "Completed feature paths to verify with Gate D",
+          },
+        },
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
   ],
 }));
 
@@ -242,6 +273,38 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         "\n"
       )[0];
       return toolResponse(finalizationError("INTERNAL_ERROR", message), true);
+    }
+  }
+
+  if (name === "delivery_verify_head") {
+    const parsed = DeliveryVerifyHeadInputSchema.safeParse(request.params.arguments || {});
+    if (!parsed.success) {
+      return toolResponse(
+        {
+          verified: false,
+          status: "blocked",
+          reason: "INVALID_ARGUMENTS",
+          message: formatInputIssues(parsed.error),
+        },
+        true
+      );
+    }
+    try {
+      const result = await verifyHeadDelivery(parsed.data);
+      return toolResponse(result, !result.verified);
+    } catch (error) {
+      const message = redactSecrets(String(error.message || "Delivery verify head error")).split(
+        "\n"
+      )[0];
+      return toolResponse(
+        {
+          verified: false,
+          status: "blocked",
+          reason: "INTERNAL_ERROR",
+          message,
+        },
+        true
+      );
     }
   }
 

@@ -5,7 +5,8 @@ export interface UserRepository {
   registerProvider(
     data: RegisterUserData,
     categoryId: number,
-    profilePhotoId?: string
+    profilePhotoId?: string,
+    coverageZoneIds?: number[]
   ): Promise<{ profilePhotoUrl?: string }>;
 
   registerConsumer(

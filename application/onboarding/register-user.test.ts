@@ -110,7 +110,8 @@ describe("registerUser", () => {
         surname: "Pérez",
       },
       1,
-      "photo-123"
+      "photo-123",
+      undefined
     );
     expect(mockAuthService.updateSession).toHaveBeenCalledWith({
       firstName: "Juan",
@@ -120,5 +121,31 @@ describe("registerUser", () => {
       profilePhotoUrl: "http://example.com/avatar.png",
     });
     expect(result.redirectTo).toBe(ROUTES.provider.home);
+  });
+
+  it("registers a provider with coverage zones and passes them to repository", async () => {
+    vi.mocked(mockAuthService.getSession).mockResolvedValue({
+      user: { id: "2", email: "prestador@test.com", firstName: "", lastName: "" },
+    });
+
+    await registerUser(mockUserRepository, mockAuthService, {
+      firstName: "Juan",
+      lastName: "Pérez",
+      role: "provider",
+      categoryId: 1,
+      profilePhotoId: "photo-123",
+      coverageZoneIds: [6, 14],
+    });
+
+    expect(mockUserRepository.registerProvider).toHaveBeenCalledWith(
+      {
+        email: "prestador@test.com",
+        name: "Juan",
+        surname: "Pérez",
+      },
+      1,
+      "photo-123",
+      [6, 14]
+    );
   });
 });

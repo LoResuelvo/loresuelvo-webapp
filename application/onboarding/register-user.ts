@@ -10,6 +10,7 @@ interface RegisterUserCommand {
   categoryId?: number;
   profilePhotoId?: string;
   profilePhotoUrl?: string;
+  coverageZoneIds?: number[];
 }
 
 export async function registerUser(
@@ -32,7 +33,12 @@ export async function registerUser(
 
   if (command.role === "provider") {
     const categoryId = command.categoryId ?? 0;
-    await userRepository.registerProvider(userData, categoryId, command.profilePhotoId);
+    await userRepository.registerProvider(
+      userData,
+      categoryId,
+      command.profilePhotoId,
+      command.coverageZoneIds
+    );
     if (command.profilePhotoUrl) {
       finalProfilePhotoUrl = command.profilePhotoUrl;
     }

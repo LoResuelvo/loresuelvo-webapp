@@ -41,8 +41,8 @@ test("selectGate: dominio/helper aislado -> Gate A", () => {
     intent: "prepare_commit",
     snapshot: {
       stagedFiles: [
-        "domain/proposal/proposal-status.ts",
-        "ports/proposal/proposal-repository.ts",
+        "domain/payment/PricingBreakdown.ts",
+        "ports/shared/clock.ts",
       ],
     },
   });
@@ -58,7 +58,7 @@ test("selectGate: cierre de escenario de bajo riesgo con feature única inferida
     snapshot: {
       stagedFiles: [
         "features/auth/login.feature",
-        "domain/user/user-helper.ts",
+        "domain/payment/PricingBreakdown.ts",
       ],
     },
   });
@@ -75,7 +75,7 @@ test("selectGate: cierre de escenario sin feature inferible ni especificada -> s
     intent: "close_scenario",
     snapshot: {
       stagedFiles: [
-        "domain/user/user-helper.ts",
+        "domain/payment/PricingBreakdown.ts",
       ],
     },
   });
@@ -186,7 +186,7 @@ test("selectGate: documentación o configuración solamente -> Gate NONE", () =>
   assert.deepStrictEqual(result.gate.checks, []);
 });
 
-test("selectGate: cambios del delivery runner ejecutan sus tests en Gate A", () => {
+test("selectGate: cambios del delivery runner ejecutan sus tests en Gate A y workflows son HUMAN_ONLY", () => {
   const cases = [
     ".delivery/policy.v1.json",
     "tools/delivery-mcp/lib/run-gate.mjs",
@@ -201,9 +201,25 @@ test("selectGate: cambios del delivery runner ejecutan sus tests en Gate A", () 
       intent: "prepare_commit",
       snapshot: { stagedFiles: [file] },
     });
-    assert.strictEqual(result.gate.id, "A", `${file} must receive Gate A`);
-    assert.ok(result.gate.checkIds.includes("delivery_unit"));
-    assert.ok(result.gate.reasonCodes.includes("DELIVERY_TOOLING_CHANGED"));
+    if (file.startsWith(".github/workflows/")) {
+      assert.strictEqual(result.status, "blocked", `${file} must be HUMAN_ONLY`);
+      assert.ok(result.diagnostics.some((d) => d.code === "HUMAN_ONLY_CHANGE"));
+    } else {
+      assert.strictEqual(result.gate.id, "A", `${file} must receive Gate A`);
+      assert.ok(result.gate.checkIds.includes("delivery_unit"));
+      assert.ok(result.gate.reasonCodes.includes("DELIVERY_TOOLING_CHANGED"));
+    }
+  }
+});
+
+test("selectGate: cualquier archivo bajo workflows es HUMAN_ONLY aunque no sea YAML", () => {
+  for (const file of [".github/workflows/generated", ".github/workflows/build.json"]) {
+    const result = selectGate({
+      intent: "prepare_commit",
+      snapshot: { stagedFiles: [file] },
+    });
+    assert.strictEqual(result.status, "blocked", `${file} must be HUMAN_ONLY`);
+    assert.ok(result.diagnostics.some((d) => d.code === "HUMAN_ONLY_CHANGE"));
   }
 });
 
@@ -220,7 +236,7 @@ test("selectGate: diff mixto -> gate de mayor cobertura", () => {
     intent: "prepare_commit",
     snapshot: {
       stagedFiles: [
-        "domain/proposal/proposal.ts",
+        "domain/payment/PricingBreakdown.ts",
         "components/ui/button.tsx",
       ],
     },
@@ -232,8 +248,8 @@ test("selectGate: diff mixto -> gate de mayor cobertura", () => {
     intent: "prepare_commit",
     snapshot: {
       stagedFiles: [
-        "domain/proposal/proposal.ts",
-        "features/proposal/steps/proposal.steps.ts",
+        "domain/payment/PricingBreakdown.ts",
+        "features/proposal/steps/proposal.feature",
       ],
     },
   });
@@ -802,4 +818,3 @@ test("selectGate: modificar .dockerignore o compose*.yml bloquea con HUMAN_ONLY_
   assert.strictEqual(workflowResult.status, "blocked");
   assert.ok(workflowResult.diagnostics.some((d) => d.code === "HUMAN_ONLY_CHANGE"));
 });
-

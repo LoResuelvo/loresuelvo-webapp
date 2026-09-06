@@ -351,6 +351,26 @@ test("dependency-impact: eliminación de archivo compartido de TypeScript -> Gat
   assert.strictEqual(result.confidence, "high");
 });
 
+test("dependency-impact: reanaliza imports dinámicos introducidos después del índice base", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+  await fs.mkdir(path.join(repoRoot, "components", "dynamic"), { recursive: true });
+  const loader = path.join(repoRoot, "components", "dynamic", "loader.tsx");
+  await fs.writeFile(loader, `import { Widget } from "./widget";\nexport const load = () => Widget;\n`, "utf8");
+  await fs.writeFile(path.join(repoRoot, "components", "dynamic", "widget.tsx"), `export const Widget = "ok";\n`, "utf8");
+
+  const baseIndex = buildTypeScriptImpactIndex({ repoRoot });
+  await fs.writeFile(loader, `const moduleName = "./widget";\nexport const load = () => import(moduleName);\n`, "utf8");
+
+  const result = analyzeTypeScriptImpact({
+    repoRoot,
+    files: ["components/dynamic/loader.tsx"],
+    baseIndex,
+  });
+  assert.strictEqual(result.gate, "C");
+  assert.ok(result.reasonCodes.includes("AMBIGUOUS_DEPENDENCY_IMPACT"));
+  assert.strictEqual(result.confidence, "low");
+});
+
 test("dependency-impact: require(...) con variable dinámica -> Gate C (AMBIGUOUS_DEPENDENCY_IMPACT, confidence: low)", async (t) => {
   const repoRoot = await createTempFixtureRepo(t);
 
@@ -458,6 +478,27 @@ test("dependency-impact: factorear stepConsumers importando un módulo desde mú
   assert.strictEqual(result.confidence, "high");
 });
 
+test("dependency-impact: stepConsumers cuentan features reales aunque compartan carpeta", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+  await fs.mkdir(path.join(repoRoot, "domain"), { recursive: true });
+  await fs.writeFile(path.join(repoRoot, "domain", "calculator.ts"), `export const calculate = () => 42;\n`, "utf8");
+  await fs.mkdir(path.join(repoRoot, "features", "shared"), { recursive: true });
+  await fs.writeFile(path.join(repoRoot, "features", "shared", "first_steps.ts"),
+    `import { calculate } from "@/domain/calculator";\nGiven("primer flujo", () => calculate());\n`, "utf8");
+  await fs.writeFile(path.join(repoRoot, "features", "shared", "second_steps.ts"),
+    `import { calculate } from "@/domain/calculator";\nGiven("segundo flujo", () => calculate());\n`, "utf8");
+  await fs.writeFile(path.join(repoRoot, "features", "shared", "first.feature"),
+    `Feature: First\nScenario: First\nGiven primer flujo\n`, "utf8");
+  await fs.writeFile(path.join(repoRoot, "features", "shared", "second.feature"),
+    `Feature: Second\nScenario: Second\nGiven segundo flujo\n`, "utf8");
+
+  const result = analyzeTypeScriptImpact({ repoRoot, files: ["domain/calculator.ts"] });
+  assert.strictEqual(result.gate, "C");
+  assert.ok(result.reasonCodes.includes("SHARED_STEP_DEPENDENCY_CONSUMERS"));
+  assert.strictEqual(result.affectedFeatures, 2);
+  assert.strictEqual(result.confidence, "high");
+});
+
 test("dependency-impact: índice base corrupto eleva a Gate C (AMBIGUOUS_DEPENDENCY_IMPACT, confidence: low)", async (t) => {
   const repoRoot = await createTempFixtureRepo(t);
 
@@ -469,5 +510,88 @@ test("dependency-impact: índice base corrupto eleva a Gate C (AMBIGUOUS_DEPENDE
 
   assert.strictEqual(result.gate, "C");
   assert.ok(result.reasonCodes.includes("AMBIGUOUS_DEPENDENCY_IMPACT"));
+  assert.strictEqual(result.confidence, "low");
+});
+
+test("dependency-impact: índice vacío o incompleto para el archivo relevante nunca da Gate A", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+  await fs.mkdir(path.join(repoRoot, "domain"), { recursive: true });
+  await fs.writeFile(path.join(repoRoot, "domain", "user.ts"), "export const user = true;\n", "utf8");
+
+  const result = analyzeTypeScriptImpact({
+    repoRoot,
+    files: ["domain/user.ts"],
+    baseIndex: {
+      schemaVersion: 1,
+      fileHashes: {},
+      files: {},
+      reverseDependencies: {},
+      flowRoots: [],
+      summary: { totalFiles: 0, totalEdges: 0, totalFlowRoots: 0 },
+    },
+  });
+
+  assert.strictEqual(result.gate, "C");
+  assert.deepStrictEqual(result.reasonCodes, ["AMBIGUOUS_DEPENDENCY_IMPACT"]);
+  assert.strictEqual(result.confidence, "low");
+});
+
+test("dependency-impact: eliminación sin índice de HEAD reconstruible eleva a Gate C", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+  await fs.mkdir(path.join(repoRoot, "domain"), { recursive: true });
+  const deletedPath = path.join(repoRoot, "domain", "deleted.ts");
+  await fs.writeFile(deletedPath, "export const deleted = true;\n", "utf8");
+  await fs.unlink(deletedPath);
+
+  const result = analyzeTypeScriptImpact({ repoRoot, files: ["domain/deleted.ts"] });
+  assert.strictEqual(result.gate, "C");
+  assert.ok(result.reasonCodes.includes("AMBIGUOUS_DEPENDENCY_IMPACT"));
+  assert.strictEqual(result.confidence, "low");
+});
+
+test("dependency-impact: consumer TS modificado bajo features se reanaliza para imports dinámicos", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+  await fs.mkdir(path.join(repoRoot, "domain"), { recursive: true });
+  await fs.mkdir(path.join(repoRoot, "features", "orders"), { recursive: true });
+  await fs.writeFile(path.join(repoRoot, "domain", "helper.ts"), "export const helper = true;\n", "utf8");
+  const stepPath = path.join(repoRoot, "features", "orders", "checkout_steps.ts");
+  await fs.writeFile(stepPath, "import { helper } from \"@/domain/helper\";\nexport const value = helper;\n", "utf8");
+  const baseIndex = buildTypeScriptImpactIndex({ repoRoot });
+  await fs.writeFile(stepPath, "const moduleName = \"@/domain/helper\";\nexport const value = import(moduleName);\n", "utf8");
+
+  const result = analyzeTypeScriptImpact({
+    repoRoot,
+    files: ["domain/helper.ts", "features/orders/checkout_steps.ts"],
+    baseIndex,
+  });
+  assert.strictEqual(result.gate, "C");
+  assert.ok(result.reasonCodes.includes("AMBIGUOUS_DEPENDENCY_IMPACT"));
+  assert.strictEqual(result.confidence, "low");
+});
+
+test("dependency-impact: índice Cucumber con hashes/entradas incompletas eleva a Gate C", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+  await fs.mkdir(path.join(repoRoot, "domain"), { recursive: true });
+  await fs.mkdir(path.join(repoRoot, "features", "orders"), { recursive: true });
+  await fs.writeFile(path.join(repoRoot, "domain", "helper.ts"), "export const helper = true;\n", "utf8");
+  await fs.writeFile(path.join(repoRoot, "features", "orders", "checkout_steps.ts"),
+    "import { helper } from \"@/domain/helper\";\nGiven(\"checkout\", () => helper);\n", "utf8");
+
+  const result = analyzeTypeScriptImpact({
+    repoRoot,
+    files: ["domain/helper.ts"],
+    cucumberIndex: {
+      schemaVersion: 1,
+      fileHashes: {},
+      featureFiles: ["features/orders/checkout.feature"],
+      stepFiles: ["features/orders/checkout_steps.ts"],
+      supportFiles: [],
+      reachableSupportFiles: [],
+      stepDefinitions: [],
+      summary: { totalFeatures: 1, totalStepDefinitions: 0, totalSupportFiles: 0, totalReachableSupportFiles: 0 },
+    },
+  });
+  assert.strictEqual(result.gate, "C");
+  assert.ok(result.reasonCodes.includes("AMBIGUOUS_STEP_IMPACT"));
   assert.strictEqual(result.confidence, "low");
 });

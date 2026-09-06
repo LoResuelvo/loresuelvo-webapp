@@ -15,7 +15,10 @@ import { summarizeFailureOutput } from "./execute-check.mjs";
 import { redactSecrets } from "./redact-secrets.mjs";
 
 const BATCH_PENDING_CI_STATUSES = new Set(["queued", "in_progress", "not_found"]);
-const CI_PENDING_STATUSES = new Set(["queued", "in_progress", "not_found"]);
+// A missing run is not in flight: polling it forever can turn a provider
+// lookup failure into a false green closure. Batch closure keeps its legacy
+// window semantics, but close_us must treat not_found as terminal.
+const CI_PENDING_STATUSES = new Set(["queued", "in_progress"]);
 const CI_TERMINAL_FAILURE_STATUSES = new Set(["failed", "cancelled", "timed_out", "provider_error"]);
 
 export function toCompactCi(ci) {
@@ -237,10 +240,24 @@ export async function finalizeDelivery({
   }
 
   let unpushedCommits = [];
+  let remoteVerification = "passed";
   if (typeof unpushedCommitsResolver === "function") {
-    const resolved = await unpushedCommitsResolver({ repoRoot: root, headSha });
-    unpushedCommits = Array.isArray(resolved) ? resolved : (resolved ? [resolved] : []);
+    try {
+      const resolved = await unpushedCommitsResolver({ repoRoot: root, headSha });
+      unpushedCommits = Array.isArray(resolved) ? resolved : (resolved ? [resolved] : []);
+    } catch (error) {
+      remoteVerification = "unavailable";
+      return {
+        finalized: false,
+        status: "blocked",
+        reason: "REMOTE_VERIFICATION_UNAVAILABLE",
+        remoteReason: "UPSTREAM_UNAVAILABLE",
+        remoteVerification,
+        message: `Cannot finalize: unable to verify whether HEAD is pushed (${String(error?.message || "remote check failed").split("\n")[0].slice(0, 160)}).`,
+      };
+    }
   } else {
+    let remoteVerified = false;
     try {
       const unpushed = execFileSync("git", ["log", "@{u}..HEAD", "--oneline"], {
         cwd: root,
@@ -248,6 +265,7 @@ export async function finalizeDelivery({
         stdio: ["ignore", "pipe", "pipe"],
       }).trim();
       if (unpushed) unpushedCommits = unpushed.split("\n");
+      remoteVerified = true;
     } catch {
       try {
         const unpushed = execFileSync("git", ["log", "origin/main..HEAD", "--oneline"], {
@@ -256,9 +274,21 @@ export async function finalizeDelivery({
           stdio: ["ignore", "pipe", "pipe"],
         }).trim();
         if (unpushed) unpushedCommits = unpushed.split("\n");
+        remoteVerified = true;
       } catch {
-        // Remote or upstream branch not configured/resolvable
+        // Neither upstream nor origin/main could be resolved.
       }
+    }
+    if (!remoteVerified) {
+      remoteVerification = "unavailable";
+      return {
+        finalized: false,
+        status: "blocked",
+        reason: "REMOTE_VERIFICATION_UNAVAILABLE",
+        remoteReason: "UPSTREAM_UNAVAILABLE",
+        remoteVerification,
+        message: "Cannot finalize: unable to verify whether HEAD is pushed to an upstream or origin/main.",
+      };
     }
   }
 

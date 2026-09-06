@@ -700,8 +700,10 @@ test("finalizeDelivery: deniega cierre si un commit de la US tiene evidencia cor
   });
 
   assert.strictEqual(res.finalized, false);
-  assert.strictEqual(res.reason, "CORRUPT_COMMIT_EVIDENCE");
-  assert.strictEqual(res.sha, sha1);
+  // The fail-closed preflight reports the canonical ledger-level reason
+  // before commit-specific evidence inspection can proceed.
+  assert.strictEqual(res.reason, "LEDGER_CORRUPT");
+  assert.match(res.message, /ledger is corrupt/i);
 });
 
 test("finalizeDelivery: reparación válida aprueba close_us y reporta supersededFailures", async (t) => {
@@ -1458,6 +1460,60 @@ test("finalizeDelivery (waitForCi): timeout con timeout corto y CI pendiente ret
   assert.strictEqual(res.message, "Timed out waiting for CI completion");
 });
 
+test("finalizeDelivery (waitForCi): not_found es terminal y no se vuelve a consultar", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us44-not-found.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US44\n  Scenario: Done\n    Given ok\n",
+    "test[44]: close scenario with missing CI run"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "44",
+    intent: "close_us",
+  });
+
+  let calls = 0;
+  let sleepCalls = 0;
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_us",
+    usId: "44",
+    scopeFiles: [featurePath],
+    ciProvider: {
+      async inspectCommit(targetSha) {
+        calls += 1;
+        return {
+          schemaVersion: 1,
+          sha: targetSha,
+          workflow: null,
+          status: "not_found",
+          failedJobs: [],
+          failure: null,
+          url: null,
+          retryable: false,
+        };
+      },
+    },
+    waitForCi: true,
+    timeoutMs: 5000,
+    pollIntervalMs: 1,
+    sleepFn: async () => { sleepCalls += 1; },
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.status, "blocked");
+  assert.strictEqual(res.reason, "CI_NOT_GREEN");
+  assert.strictEqual(res.ci.status, "not_found");
+  assert.strictEqual(sleepCalls, 0, "not_found must not enter the polling loop");
+  assert.ok(calls >= 1);
+});
+
 test("finalizeDelivery (waitForCi): error de proveedor (provider_error) corta de inmediato", async (t) => {
   const repoRoot = await createTempGitRepo(t);
   const featurePath = "features/us45.feature";
@@ -1789,6 +1845,40 @@ test("finalizeDelivery: close_us bloquea efectivamente ante commits no pusheados
   assert.strictEqual(resPushed.status, "passed");
 });
 
+test("finalizeDelivery: close_us bloquea si no puede verificar upstream ni origin/main", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/no-remote.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: No remote\n  Scenario: Done\n    Given ok\n",
+    "test[57]: close without remote"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "57",
+    intent: "close_us",
+  });
+
+  const res = await finalizeDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "57",
+    scopeFiles: [featurePath],
+    ciProvider: new MockCiProvider({ [sha]: { status: "passed" } }),
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.status, "blocked");
+  assert.strictEqual(res.reason, "REMOTE_VERIFICATION_UNAVAILABLE");
+  assert.strictEqual(res.remoteReason, "UPSTREAM_UNAVAILABLE");
+  assert.strictEqual(res.remoteVerification, "unavailable");
+  assert.match(res.message, /unable to verify/i);
+});
+
 test("finalizeDelivery: DELIVERY_ALLOW_UNPUSHED_FINALIZE=1 en el entorno ya NO omite la verificación de commits no pusheados", async (t) => {
   const repoRoot = await createTempGitRepo(t);
   const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
@@ -1839,5 +1929,3 @@ test("finalizeDelivery: DELIVERY_ALLOW_UNPUSHED_FINALIZE=1 en el entorno ya NO o
   assert.strictEqual(res.reason, "UNPUSHED_COMMITS");
   assert.match(res.message, /Cannot finalize: unpushed commits include/);
 });
-
-

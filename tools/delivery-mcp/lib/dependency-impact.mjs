@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 import { isProductionSourceFile, normalizePath } from "./classify-files.mjs";
+import { loadOrBuildCucumberImpactIndex } from "./impact-index.mjs";
 import { findRepoRoot } from "./repo-root.mjs";
 
 export const TYPESCRIPT_IMPACT_INDEX_PATH = ".delivery/runtime/indexes/typescript-impact-v1.json";
@@ -36,36 +37,19 @@ export function computeFileHash(filePath) {
 export function loadTsConfigPaths(repoRoot) {
   const tsconfigPath = path.resolve(repoRoot, "tsconfig.json");
   if (!fs.existsSync(tsconfigPath)) {
-    return {
-      baseUrl: ".",
-      paths: {
-        "@/*": ["./*"],
-        "@domain/*": ["./domain/*"],
-        "@application/*": ["./application/*"],
-        "@infrastructure/*": ["./infrastructure/*"],
-        "@ports/*": ["./ports/*"],
-      },
-    };
+    return defaultTsConfigPaths();
   }
 
   try {
-    const { config, error } = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
-    if (!error && config?.compilerOptions) {
-      return {
-        baseUrl: config.compilerOptions.baseUrl || ".",
-        paths: config.compilerOptions.paths || {
-          "@/*": ["./*"],
-          "@domain/*": ["./domain/*"],
-          "@application/*": ["./application/*"],
-          "@infrastructure/*": ["./infrastructure/*"],
-          "@ports/*": ["./ports/*"],
-        },
-      };
-    }
+    return parseTsConfigPaths(fs.readFileSync(tsconfigPath, "utf8")).paths;
   } catch {
     // fallback
   }
 
+  return defaultTsConfigPaths();
+}
+
+function defaultTsConfigPaths() {
   return {
     baseUrl: ".",
     paths: {
@@ -76,6 +60,24 @@ export function loadTsConfigPaths(repoRoot) {
       "@ports/*": ["./ports/*"],
     },
   };
+}
+
+function parseTsConfigPaths(content) {
+  try {
+    const parsed = ts.parseConfigFileTextToJson("tsconfig.json", content);
+    if (parsed.error || !parsed.config?.compilerOptions) {
+      return { paths: defaultTsConfigPaths(), reliable: false };
+    }
+    return {
+      paths: {
+        baseUrl: parsed.config.compilerOptions.baseUrl || ".",
+        paths: parsed.config.compilerOptions.paths || defaultTsConfigPaths().paths,
+      },
+      reliable: true,
+    };
+  } catch {
+    return { paths: defaultTsConfigPaths(), reliable: false };
+  }
 }
 
 export function matchPathAlias(specifier, paths) {
@@ -551,6 +553,221 @@ export function isFileInGitHead(repoRoot, relativePath) {
   }
 }
 
+// Build the dependency graph as it existed in HEAD. This is intentionally
+// in-memory: a deleted file is no longer visible to the working-tree index,
+// but its former consumers are still needed to classify the deletion safely.
+export function buildGitHeadTypeScriptImpactIndex({ repoRoot = findRepoRoot() } = {}) {
+  const root = path.resolve(repoRoot);
+  let names;
+  try {
+    names = execFileSync("git", ["ls-tree", "-r", "--name-only", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    })
+      .split(/\r?\n/)
+      .map(normalizePath)
+      .filter(Boolean);
+  } catch {
+    return null;
+  }
+
+  const files = names.filter((file) => {
+    const ext = path.extname(file);
+    return SOURCE_EXTENSIONS.has(ext) && !file.endsWith(".d.ts") &&
+      !file.split("/").some((part) => EXCLUDED_DIRS.has(part));
+  });
+  const fileSet = new Set(files);
+  // Resolve aliases from the committed tree. Reading the working-tree
+  // tsconfig here can make a deleted import appear resolvable (or vice versa)
+  // when the current branch has already changed its aliases.
+  let tsconfigPaths = defaultTsConfigPaths();
+  let reconstructionReliable = true;
+  try {
+    const headTsconfig = execFileSync("git", ["show", "HEAD:tsconfig.json"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    });
+    const parsed = parseTsConfigPaths(headTsconfig);
+    tsconfigPaths = parsed.paths;
+    reconstructionReliable = parsed.reliable;
+  } catch {
+    // A repository without a committed tsconfig cannot safely reconstruct
+    // alias imports from HEAD. Relative imports may still be collected, but
+    // callers must treat the resulting graph as low-confidence.
+    reconstructionReliable = false;
+  }
+  const fileDetails = {};
+  const fileHashes = {};
+  const reverseDependencies = {};
+  let complete = true;
+
+  for (const file of files) {
+    let content;
+    try {
+      content = execFileSync("git", ["show", `HEAD:${file}`], {
+        cwd: root,
+        encoding: "utf8",
+        stdio: ["pipe", "pipe", "ignore"],
+      });
+    } catch {
+      complete = false;
+      continue;
+    }
+    fileHashes[file] = crypto.createHash("sha256").update(content).digest("hex");
+    const details = extractFileDependencies(content, file, {
+      repoRoot: root,
+      tsconfigPaths,
+      fileSet,
+    });
+    fileDetails[file] = details;
+    for (const dep of details.dependencies) {
+      (reverseDependencies[dep] ||= []).push(file);
+    }
+  }
+  for (const dep of Object.keys(reverseDependencies)) {
+    reverseDependencies[dep] = [...new Set(reverseDependencies[dep])].sort();
+  }
+  return {
+    schemaVersion: 1,
+    fileHashes,
+    files: fileDetails,
+    reverseDependencies,
+    flowRoots: files.filter(isFlowRoot),
+    summary: {
+      totalFiles: files.length,
+      totalEdges: Object.values(reverseDependencies).reduce((sum, xs) => sum + xs.length, 0),
+      totalFlowRoots: files.filter(isFlowRoot).length,
+    },
+    reconstructionReliable: reconstructionReliable && complete && Object.keys(fileDetails).length === files.length,
+  };
+}
+
+function isSha256(value) {
+  return typeof value === "string" && /^[a-f0-9]{64}$/i.test(value);
+}
+
+function isStringArray(value) {
+  return Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
+}
+
+/**
+ * Validate the graph itself, not just its top-level JSON shape. A partial
+ * index must never be allowed to turn an impacted production file into Gate A.
+ * Hashes are checked for integrity/shape here; snapshot hashes are not
+ * compared to the working tree because a supplied base index is expected to
+ * describe the pre-change tree.
+ */
+export function isTypeScriptImpactIndexReliable(index, { relevantFiles = [] } = {}) {
+  if (!index || index.schemaVersion !== 1 ||
+      !index.fileHashes || typeof index.fileHashes !== "object" || Array.isArray(index.fileHashes) ||
+      !index.files || typeof index.files !== "object" || Array.isArray(index.files) ||
+      !index.reverseDependencies || typeof index.reverseDependencies !== "object" || Array.isArray(index.reverseDependencies) ||
+      !Array.isArray(index.flowRoots) || !index.summary || typeof index.summary !== "object") {
+    return false;
+  }
+
+  const fileNames = Object.keys(index.files);
+  const hashNames = Object.keys(index.fileHashes);
+  if (fileNames.length === 0 || hashNames.length !== fileNames.length) return false;
+  for (const file of fileNames) {
+    if (!isSha256(index.fileHashes[file])) return false;
+    const details = index.files[file];
+    if (!details || !isStringArray(details.dependencies) ||
+        typeof details.hasDynamicImports !== "boolean" ||
+        typeof details.hasUnresolvableImports !== "boolean" ||
+        typeof details.hasAmbiguousBarrel !== "boolean" ||
+        !isStringArray(details.unresolvableSpecifiers) ||
+        !Array.isArray(details.dynamicSpecifiers) ||
+        !details.dynamicSpecifiers.every((specifier) => typeof specifier === "string")) {
+      return false;
+    }
+  }
+
+  const fileSet = new Set(fileNames);
+  for (const [dependency, consumers] of Object.entries(index.reverseDependencies)) {
+    if (!isStringArray(consumers)) return false;
+    for (const consumer of consumers) {
+      if (!fileSet.has(consumer) || !index.files[consumer].dependencies.includes(dependency)) return false;
+    }
+  }
+  for (const [file, details] of Object.entries(index.files)) {
+    for (const dependency of details.dependencies) {
+      // Resolved non-source assets (CSS, images, etc.) are intentionally not
+      // present in the TS index, but their reverse edge is still useful. A
+      // source dependency must be represented by a complete indexed node.
+      if (fileSet.has(dependency) && !index.reverseDependencies[dependency]?.includes(file)) return false;
+    }
+  }
+  if (!index.flowRoots.every((file) => fileSet.has(file))) return false;
+  if (index.summary.totalFiles !== fileNames.length ||
+      index.summary.totalEdges !== Object.values(index.reverseDependencies).reduce((sum, xs) => sum + xs.length, 0) ||
+      index.summary.totalFlowRoots !== index.flowRoots.length) return false;
+
+  for (const file of relevantFiles.map(normalizePath)) {
+    if (!index.files[file] || !isSha256(index.fileHashes[file])) return false;
+  }
+  return true;
+}
+
+function isCucumberImpactIndexReliable(index) {
+  if (!index || index.schemaVersion !== 1 ||
+      !index.fileHashes || typeof index.fileHashes !== "object" || Array.isArray(index.fileHashes) ||
+      !isStringArray(index.featureFiles) || !isStringArray(index.stepFiles) ||
+      !isStringArray(index.supportFiles) || !isStringArray(index.reachableSupportFiles) ||
+      !Array.isArray(index.stepDefinitions) || !index.summary || typeof index.summary !== "object") {
+    return false;
+  }
+  const allIndexedFiles = new Set([
+    ...index.featureFiles,
+    ...index.stepFiles,
+    ...index.supportFiles,
+    ...index.reachableSupportFiles,
+  ]);
+  const hashNames = Object.keys(index.fileHashes);
+  if (hashNames.length !== allIndexedFiles.size || hashNames.some((file) => !allIndexedFiles.has(file))) return false;
+  // Every source contributing to matching must have a trustworthy hash. This
+  // catches indexes that only contain the arrays but were truncated while
+  // being written.
+  for (const file of allIndexedFiles) {
+    if (!isSha256(index.fileHashes[file])) return false;
+  }
+  const arraysAreUnique = [
+    index.featureFiles,
+    index.stepFiles,
+    index.supportFiles,
+    index.reachableSupportFiles,
+  ].every((items) => new Set(items).size === items.length);
+  if (!arraysAreUnique) return false;
+  for (const key of ["totalFeatures", "totalScenarios", "totalSteps", "totalStepDefinitions", "totalSupportFiles", "totalReachableSupportFiles"]) {
+    if (!Number.isInteger(index.summary[key]) || index.summary[key] < 0) return false;
+  }
+  if (index.summary.totalFeatures !== index.featureFiles.length ||
+      index.summary.totalStepDefinitions !== index.stepDefinitions.length ||
+      index.summary.totalSupportFiles !== index.supportFiles.length ||
+      index.summary.totalReachableSupportFiles !== index.reachableSupportFiles.length) {
+    return false;
+  }
+  const featureSet = new Set(index.featureFiles);
+  const stepSet = new Set(index.stepFiles);
+  for (const def of index.stepDefinitions) {
+    if (!def || typeof def.id !== "string" || typeof def.keyword !== "string" ||
+        !Number.isInteger(def.line) || typeof def.file !== "string" || !stepSet.has(normalizePath(def.file)) ||
+        typeof def.pattern !== "string" || typeof def.patternType !== "string" ||
+        typeof def.ambiguous !== "boolean" || !Array.isArray(def.consumers) ||
+        !isStringArray(def.consumerFeatures)) return false;
+    if (def.consumerFeatures.some((feature) => !featureSet.has(normalizePath(feature)))) return false;
+    for (const consumer of def.consumers) {
+      if (!consumer || typeof consumer.featureFile !== "string" ||
+          !featureSet.has(normalizePath(consumer.featureFile)) ||
+          typeof consumer.scenario !== "string" || !Number.isInteger(consumer.line) ||
+          typeof consumer.stepText !== "string") return false;
+    }
+  }
+  return true;
+}
+
 export function analyzeTypeScriptImpact({
   repoRoot = findRepoRoot(),
   files = [],
@@ -563,17 +780,26 @@ export function analyzeTypeScriptImpact({
   const normalizedFiles = files.map(normalizePath);
 
   const effBaseIndex = getBaseTypeScriptIndex({ repoRoot: root, index, baseIndex });
-  let impactIndex = effBaseIndex && !effBaseIndex.corrupt ? effBaseIndex : null;
+  const hasExplicitIndex = Boolean(index || baseIndex);
+  let impactIndex = effBaseIndex && !effBaseIndex.corrupt &&
+    isTypeScriptImpactIndexReliable(effBaseIndex)
+    ? effBaseIndex
+    : null;
+  // An explicitly supplied partial snapshot is evidence failure. A stale or
+  // old on-disk cache, on the other hand, can be safely regenerated.
+  if (hasExplicitIndex && effBaseIndex && !impactIndex && !effBaseIndex.corrupt) {
+    impactIndex = { corrupt: true };
+  }
   if (!impactIndex) {
     try {
       impactIndex = loadOrBuildTypeScriptImpactIndex({ repoRoot: root, force });
+      if (!isTypeScriptImpactIndexReliable(impactIndex)) {
+        impactIndex = buildTypeScriptImpactIndex({ repoRoot: root });
+      }
     } catch {
       impactIndex = null;
     }
   }
-
-  const knownFiles = impactIndex?.files || {};
-  const reverseDeps = impactIndex?.reverseDependencies || {};
 
   const tsFiles = normalizedFiles.filter((f) => isProductionSourceFile(f));
 
@@ -597,6 +823,62 @@ export function analyzeTypeScriptImpact({
     };
   }
 
+  // Prefer the supplied/base index, but recover a missing deleted target from
+  // HEAD when possible. If neither source can describe it, remain fail-closed.
+  const deletedCandidates = tsFiles.filter((file) => !fs.existsSync(path.resolve(root, file)));
+  if (deletedCandidates.length > 0) {
+    const headIndex = buildGitHeadTypeScriptImpactIndex({ repoRoot: root });
+    if (headIndex) {
+      const baseDescribesDeleted = deletedCandidates.every((file) => Boolean(impactIndex?.files?.[file]));
+      if (!impactIndex) impactIndex = headIndex;
+      else {
+        const mergedReverseDependencies = { ...(headIndex.reverseDependencies || {}) };
+        for (const [dependency, consumers] of Object.entries(impactIndex.reverseDependencies || {})) {
+          mergedReverseDependencies[dependency] = [
+            ...new Set([...(mergedReverseDependencies[dependency] || []), ...consumers]),
+          ].sort();
+        }
+        const mergedFiles = { ...headIndex.files, ...(impactIndex.files || {}) };
+        const mergedHashes = { ...headIndex.fileHashes, ...(impactIndex.fileHashes || {}) };
+        const mergedFlowRoots = [...new Set([
+          ...(headIndex.flowRoots || []),
+          ...(impactIndex.flowRoots || []),
+        ])].sort();
+        impactIndex = {
+          ...impactIndex,
+          fileHashes: mergedHashes,
+          files: mergedFiles,
+          reverseDependencies: mergedReverseDependencies,
+          flowRoots: mergedFlowRoots,
+          summary: {
+            totalFiles: Object.keys(mergedFiles).length,
+            totalEdges: Object.values(mergedReverseDependencies).reduce((sum, xs) => sum + xs.length, 0),
+            totalFlowRoots: mergedFlowRoots.length,
+          },
+        };
+      }
+      if (!headIndex.reconstructionReliable && !baseDescribesDeleted) {
+        impactIndex = { ...impactIndex, corrupt: true };
+      }
+    }
+  }
+
+  const knownFiles = impactIndex?.files || {};
+  const reverseDeps = impactIndex?.reverseDependencies || {};
+
+  // Do this after the HEAD merge so a deleted file can be validated against
+  // its committed snapshot. An empty/partial index is never sufficient
+  // evidence for an impacted production file.
+  if (!impactIndex || impactIndex.corrupt || !isTypeScriptImpactIndexReliable(impactIndex, { relevantFiles: tsFiles })) {
+    return {
+      gate: "C",
+      reasonCodes: ["AMBIGUOUS_DEPENDENCY_IMPACT"],
+      consumerCount: 0,
+      affectedFeatures: 0,
+      confidence: "low",
+    };
+  }
+
   const allConsumers = new Set();
   let isAmbiguous = false;
   let isGlobal = false;
@@ -605,6 +887,66 @@ export function analyzeTypeScriptImpact({
   const flowsFound = new Set();
   const affectedFeatureDomains = new Set();
   const stepConsumers = new Set();
+  const currentDetailsByFile = new Map();
+  const currentFileSet = new Set(findTypeScriptFiles(root));
+  const currentTsconfigPaths = loadTsConfigPaths(root);
+  const modifiedFeatureTsFiles = normalizedFiles.filter((file) =>
+    /^features\/.+\.[cm]?[jt]sx?$/.test(file)
+  );
+
+  // A base index is useful for reverse edges, but changed files must always
+  // be parsed from the working tree. Otherwise a newly introduced dynamic
+  // import/require can be hidden by the stale cached details.
+  for (const stagedFile of tsFiles) {
+    if (!fs.existsSync(path.resolve(root, stagedFile))) continue;
+    try {
+      const content = fs.readFileSync(path.resolve(root, stagedFile), "utf8");
+      currentDetailsByFile.set(
+        stagedFile,
+        extractFileDependencies(content, stagedFile, {
+          repoRoot: root,
+          tsconfigPaths: currentTsconfigPaths,
+          fileSet: currentFileSet,
+        })
+      );
+    } catch {
+      isAmbiguous = true;
+    }
+  }
+
+  // Feature step consumers are intentionally excluded from the production
+  // source set above. If one is modified, however, its current imports must
+  // be reanalysed: a newly introduced dynamic import can invalidate the
+  // otherwise stale reverse graph.
+  for (const featureFile of modifiedFeatureTsFiles) {
+    const fullPath = path.resolve(root, featureFile);
+    if (!fs.existsSync(fullPath)) {
+      isAmbiguous = true;
+      continue;
+    }
+    try {
+      const content = fs.readFileSync(fullPath, "utf8");
+      const details = extractFileDependencies(content, featureFile, {
+        repoRoot: root,
+        tsconfigPaths: currentTsconfigPaths,
+        fileSet: currentFileSet,
+      });
+      currentDetailsByFile.set(featureFile, details);
+      if (details.hasDynamicImports || details.hasUnresolvableImports || details.hasAmbiguousBarrel) {
+        isAmbiguous = true;
+      }
+      for (const stagedFile of tsFiles) {
+        if (details.dependencies.includes(stagedFile)) {
+          allConsumers.add(featureFile);
+          stepConsumers.add(featureFile);
+          const parts = featureFile.split("/");
+          if (parts.length > 1) affectedFeatureDomains.add(parts[1]);
+        }
+      }
+    } catch {
+      isAmbiguous = true;
+    }
+  }
 
   for (const stagedFile of tsFiles) {
     const full = path.resolve(root, stagedFile);
@@ -632,7 +974,7 @@ export function analyzeTypeScriptImpact({
       if (domain) affectedFeatureDomains.add(domain);
     }
 
-    const details = knownFiles[stagedFile];
+    const details = currentDetailsByFile.get(stagedFile) || knownFiles[stagedFile];
     if (details) {
       if (details.hasDynamicImports || details.hasUnresolvableImports || details.hasAmbiguousBarrel) {
         isAmbiguous = true;
@@ -678,7 +1020,7 @@ export function analyzeTypeScriptImpact({
             if (domain) affectedFeatureDomains.add(domain);
           }
 
-          if (consumer.startsWith("features/") && consumer.endsWith(".ts")) {
+          if (consumer.startsWith("features/") && /\.[cm]?[jt]sx?$/.test(consumer)) {
             stepConsumers.add(consumer);
             const parts = consumer.split("/");
             if (parts.length > 1) {
@@ -686,7 +1028,19 @@ export function analyzeTypeScriptImpact({
             }
           }
 
-          const consumerDetails = knownFiles[consumer];
+          let consumerDetails = currentDetailsByFile.get(consumer) || knownFiles[consumer];
+          if (consumer.startsWith("features/") && /\.[cm]?[jt]sx?$/.test(consumer) && fs.existsSync(path.resolve(root, consumer))) {
+            try {
+              consumerDetails = extractFileDependencies(
+                fs.readFileSync(path.resolve(root, consumer), "utf8"),
+                consumer,
+                { repoRoot: root, tsconfigPaths: currentTsconfigPaths, fileSet: currentFileSet }
+              );
+              currentDetailsByFile.set(consumer, consumerDetails);
+            } catch {
+              isAmbiguous = true;
+            }
+          }
           if (consumerDetails?.hasDynamicImports || consumerDetails?.hasUnresolvableImports || consumerDetails?.hasAmbiguousBarrel) {
             isAmbiguous = true;
           }
@@ -697,17 +1051,18 @@ export function analyzeTypeScriptImpact({
 
   // Factorear stepConsumers
   const stepFeatures = new Set();
+  let stepConsumerImpactUnknown = false;
   if (stepConsumers.size > 0) {
     let cIndex = cucumberIndex;
     if (!cIndex) {
       try {
-        const cPath = path.resolve(root, ".delivery/runtime/indexes/cucumber-impact-v1.json");
-        if (fs.existsSync(cPath)) {
-          cIndex = JSON.parse(fs.readFileSync(cPath, "utf8"));
-        }
+        cIndex = loadOrBuildCucumberImpactIndex({ repoRoot: root });
       } catch {}
     }
-    if (cIndex?.stepDefinitions) {
+    const reliableCucumberIndex = isCucumberImpactIndexReliable(cIndex);
+    if (!reliableCucumberIndex) {
+      stepConsumerImpactUnknown = true;
+    } else {
       for (const def of cIndex.stepDefinitions) {
         if (stepConsumers.has(normalizePath(def.file))) {
           for (const f of def.consumerFeatures || []) {
@@ -715,11 +1070,11 @@ export function analyzeTypeScriptImpact({
           }
         }
       }
-    }
-    for (const sc of stepConsumers) {
-      const parts = sc.split("/");
-      if (parts.length > 2) {
-        stepFeatures.add(parts[1]);
+      for (const sc of stepConsumers) {
+        const mapped = cIndex.stepDefinitions.some(
+          (def) => normalizePath(def.file) === normalizePath(sc)
+        );
+        if (!mapped) stepConsumerImpactUnknown = true;
       }
     }
   }
@@ -732,10 +1087,28 @@ export function analyzeTypeScriptImpact({
     stepFeatures.size
   );
 
-  if (isAmbiguous) {
+  // Multiple step-definition consumers are already a conservative shared
+  // dependency signal even when the Cucumber index has no matching entries
+  // (for example while a new feature index is being generated). Keep the
+  // historical reason code for this unambiguous fan-out; a single unmapped
+  // consumer remains low-confidence below.
+  if (stepConsumerImpactUnknown && stepConsumers.size >= 2 && !isAmbiguous) {
     return {
       gate: "C",
-      reasonCodes: ["AMBIGUOUS_DEPENDENCY_IMPACT"],
+      reasonCodes: ["SHARED_STEP_DEPENDENCY_CONSUMERS"],
+      consumerCount: allConsumers.size,
+      affectedFeatures: distinctFeatureCount,
+      confidence: "high",
+    };
+  }
+
+  if (isAmbiguous || stepConsumerImpactUnknown) {
+    return {
+      gate: "C",
+      reasonCodes: [
+        ...(isAmbiguous ? ["AMBIGUOUS_DEPENDENCY_IMPACT"] : []),
+        ...(stepConsumerImpactUnknown ? ["AMBIGUOUS_STEP_IMPACT"] : []),
+      ],
       consumerCount: allConsumers.size,
       affectedFeatures: distinctFeatureCount,
       confidence: "low",

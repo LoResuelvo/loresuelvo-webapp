@@ -102,4 +102,4 @@ Para subsanar el fallo de forma auditable:
 5. Con `status: passed`, crear el commit (`git commit -m "fix: ..."`) y pushearlo inmediatamente (`git push origin main`).
 6. El hook `pre-push` comprueba la correspondencia con el SHA fallido, valida el Gate R y consume la autorización de reparación (de uso único). En el ledger local se asocia la reparación y se marca como subsanado el fallo previo, habilitando nuevamente pushes normales.
 
-Superficie Docker (HUMAN_ONLY): Modificaciones a `Dockerfile`, `.dockerignore`, `compose*.yml`, workflows de Docker o scripts de construcción de imágenes pertenecen exclusivamente al desarrollador humano. Los agentes se detienen con `HUMAN_ONLY_CHANGE` o `HUMAN_ONLY_CI_FAILURE` y escalan a `STOP_USER`.
+Superficie Docker y pipeline (HUMAN_ONLY): Modificaciones a `Dockerfile`, `.dockerignore`, `compose*.yml`, cualquier archivo bajo `.github/workflows/**` o scripts de construcción de imágenes pertenecen exclusivamente al desarrollador humano. Los agentes se detienen con `HUMAN_ONLY_CHANGE` o `HUMAN_ONLY_CI_FAILURE` y escalan a `STOP_USER`.

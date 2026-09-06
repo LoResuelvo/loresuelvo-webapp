@@ -5,7 +5,6 @@ import { execFileSync } from "node:child_process";
 import { assertSafeRepoPath, findRepoRoot } from "./repo-root.mjs";
 import { validateExecutionResult } from "./validate-schema.mjs";
 import { inspectCi } from "./ci-provider.mjs";
-import { extractUsId } from "./git-snapshot.mjs";
 
 export const LEDGER_DIR = ".delivery/runtime/ledger";
 export const LEDGER_FILE = ".delivery/runtime/ledger.json";
@@ -50,6 +49,14 @@ function evidenceReadError(code) {
 
 function isJsonObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (isJsonObject(value)) {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",\n")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 async function writeJsonAtomic(root, relativePath, value) {
@@ -438,7 +445,7 @@ export async function recordCommitEvidence({
   return entry;
 }
 
-export async function markRepairPushConsumed({ repoRoot, commitSha } = {}) {
+export async function markRepairPushConsumed({ repoRoot, commitSha, lockHeld = false } = {}) {
   const root = findRepoRoot(repoRoot);
   const cleanSha = assertCommitSha(commitSha);
   const entry = await getCommitEvidence({ repoRoot: root, commitSha: cleanSha });
@@ -464,18 +471,28 @@ export async function markRepairPushConsumed({ repoRoot, commitSha } = {}) {
   if (entry.repairsSha) {
     try {
       const existingAuth = await getRepairAuthorization({ repoRoot: root, targetSha: entry.repairsSha });
-      await saveRepairAuthorization({
-        repoRoot: root,
-        authorization: {
-          ...(existingAuth || {}),
-          targetSha: entry.repairsSha.toLowerCase(),
-          commitSha: cleanSha,
-          state: entry.repairAuthState,
-          attemptCount: (existingAuth?.attemptCount || 0) + 1,
-          lastAttemptAt: entry.repairPushConsumedAt,
-          updatedAt: entry.repairPushConsumedAt,
-        },
-      });
+      const authorization = {
+        ...(existingAuth || {}),
+        targetSha: entry.repairsSha.toLowerCase(),
+        commitSha: cleanSha,
+        state: entry.repairAuthState,
+        attemptCount: (existingAuth?.attemptCount || 0) + 1,
+        lastAttemptAt: entry.repairPushConsumedAt,
+        updatedAt: entry.repairPushConsumedAt,
+      };
+      if (lockHeld) {
+        const cleanTarget = assertCommitSha(authorization.targetSha);
+        const cleanCommit = assertCommitSha(authorization.commitSha);
+        await saveRepairAuthorizationLocked({
+          root,
+          authorization,
+          cleanTarget,
+          cleanCommit,
+          state: authorization.state,
+        });
+      } else {
+        await saveRepairAuthorization({ repoRoot: root, authorization });
+      }
     } catch {
       // best-effort
     }
@@ -503,6 +520,51 @@ export function isCommitInRemote(root, commitSha) {
   }
 }
 
+function sameFileIdentity(left, right) {
+  return left && right && left.dev === right.dev && left.ino === right.ino;
+}
+
+function lockPidFromRaw(raw) {
+  const match = /"pid"\s*:\s*(\d+)/.exec(String(raw || ""));
+  return match ? Number(match[1]) : null;
+}
+
+function isProcessAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return true;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code !== "ESRCH";
+  }
+}
+
+async function readLockHandle(handle) {
+  const stats = await handle.stat();
+  const buffer = Buffer.alloc(stats.size);
+  let offset = 0;
+  while (offset < buffer.length) {
+    const result = await handle.read(buffer, offset, buffer.length - offset, offset);
+    if (!result.bytesRead) break;
+    offset += result.bytesRead;
+  }
+  return buffer.subarray(0, offset).toString("utf8");
+}
+
+async function writeLockHandle(handle, value) {
+  const payload = Buffer.from(`${JSON.stringify(value)}\n`, "utf8");
+  let offset = 0;
+  while (offset < payload.length) {
+    const result = await handle.write(payload, offset, payload.length - offset, offset);
+    if (!result.bytesWritten) throw new Error("Unable to write repair lock");
+    offset += result.bytesWritten;
+  }
+  // Write the replacement before shrinking the old contents. This never
+  // exposes an empty lock and keeps renewal tied to the original inode.
+  await handle.truncate(payload.length);
+  await handle.sync();
+}
+
 export async function acquireRepairLock({
   repoRoot,
   targetSha = null,
@@ -518,23 +580,95 @@ export async function acquireRepairLock({
   const lockDir = path.resolve(root, REPAIR_LOCKS_DIR);
   await fs.mkdir(lockDir, { recursive: true, mode: 0o700 });
   const lockPath = path.join(lockDir, `repair-${lockKey}.lock`);
+  const ownerToken = crypto.randomBytes(16).toString("hex");
+  const leaseMs = Math.max(1000, Number(staleLockMs) || 30000);
 
   const startTime = Date.now();
 
   while (true) {
     let handle = null;
     try {
-      handle = await fs.open(lockPath, "wx", 0o600);
-      await handle.writeFile(JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() }) + "\n");
-      await handle.close();
+      handle = await fs.open(lockPath, "wx+", 0o600);
+      const acquiredAt = new Date().toISOString();
+      await writeLockHandle(handle, {
+        pid: process.pid,
+        ownerToken,
+        acquiredAt,
+        leaseUntil: Date.now() + leaseMs,
+      });
 
-      return async () => {
+      // Keep the descriptor for the entire lease. A later owner may replace
+      // the pathname, but writes through this descriptor can then only touch
+      // the old inode and can never overwrite the new owner's lock.
+      const lockHandle = handle;
+      handle = null;
+
+      let released = false;
+      let renewalTimer = null;
+      let renewalInFlight = null;
+      const renew = async () => {
+        if (released || renewalInFlight) return false;
+        renewalInFlight = (async () => {
+          let current;
+          try {
+            const [raw, descriptorStat, pathStat] = await Promise.all([
+              readLockHandle(lockHandle),
+              lockHandle.stat(),
+              fs.lstat(lockPath),
+            ]);
+            // The descriptor and pathname must still identify this lock. If
+            // the pathname was replaced, never write through the pathname.
+            if (!sameFileIdentity(descriptorStat, pathStat)) return false;
+            current = JSON.parse(raw);
+          } catch {
+            return false;
+          }
+          if (released || current?.ownerToken !== ownerToken || current?.pid !== process.pid) return false;
+          const renewed = { ...current, leaseUntil: Date.now() + leaseMs };
+          try {
+            await writeLockHandle(lockHandle, renewed);
+            return true;
+          } catch {
+            return false;
+          }
+        })();
         try {
-          await fs.unlink(lockPath);
-        } catch (err) {
-          if (err.code !== "ENOENT") throw err;
+          return await renewalInFlight;
+        } finally {
+          renewalInFlight = null;
         }
       };
+      renewalTimer = setInterval(() => { void renew(); }, Math.max(250, Math.floor(leaseMs / 3)));
+      renewalTimer.unref?.();
+
+      const release = async () => {
+        released = true;
+        if (renewalTimer) clearInterval(renewalTimer);
+        try {
+          if (renewalInFlight) await renewalInFlight;
+          const [raw, descriptorStat, pathStat] = await Promise.all([
+            readLockHandle(lockHandle),
+            lockHandle.stat(),
+            fs.lstat(lockPath),
+          ]);
+          const current = JSON.parse(raw);
+          if (
+            current?.ownerToken === ownerToken &&
+            current?.pid === process.pid &&
+            sameFileIdentity(descriptorStat, pathStat)
+          ) {
+            await fs.unlink(lockPath);
+          }
+        } catch (err) {
+          if (err.code !== "ENOENT" && !(err instanceof SyntaxError)) throw err;
+        } finally {
+          try { await lockHandle.close(); } catch (err) {
+            if (err.code !== "EBADF") throw err;
+          }
+        }
+      };
+      release.renew = renew;
+      return release;
     } catch (err) {
       if (handle) {
         try { await handle.close(); } catch {}
@@ -542,13 +676,55 @@ export async function acquireRepairLock({
       if (err.code !== "EEXIST") throw err;
 
       try {
-        const stat = await fs.stat(lockPath);
-        if (Date.now() - stat.mtimeMs > staleLockMs) {
+        const rawLock = await fs.readFile(lockPath, "utf8");
+        let existingLock;
+        try { existingLock = JSON.parse(rawLock); } catch { existingLock = null; }
+        const lockStat = await fs.lstat(lockPath);
+        const pid = Number.isInteger(existingLock?.pid) ? existingLock.pid : lockPidFromRaw(rawLock);
+        // A crash can leave an empty/partial JSON file before pid is written.
+        // Such a file has no owner to protect, but is recoverable only after
+        // the stale-age threshold. Parsed legacy objects without a PID remain
+        // conservative and are treated as owned.
+        const ownerAlive = pid == null ? existingLock !== null : isProcessAlive(pid);
+        const leaseUntil = existingLock && existingLock.leaseUntil != null
+          ? Number(existingLock.leaseUntil)
+          : Number.NaN;
+        const acquiredAt = Date.parse(existingLock?.acquiredAt || "");
+        const issuedAt = Number.isFinite(acquiredAt) ? acquiredAt : lockStat.mtimeMs;
+        // Legacy locks have no leaseUntil. They are stale only after the
+        // acquiredAt/mtime age threshold and a definitely dead owner.
+        const stale = Number.isFinite(leaseUntil)
+          ? Date.now() > leaseUntil
+          : (existingLock === null && Date.now() - lockStat.mtimeMs >= leaseMs) ||
+            (existingLock !== null && Date.now() - issuedAt >= leaseMs);
+
+        // A lock is removable only after expiry and a dead, known owner. For
+        // malformed JSON, extracting the PID from the prefix permits safe
+        // recovery after a crash without trusting an unknown owner.
+        if (stale && !ownerAlive) {
           try {
-            await fs.unlink(lockPath);
-            continue;
+            const latestStat = await fs.lstat(lockPath);
+            if (!sameFileIdentity(lockStat, latestStat)) continue;
+            const latestRaw = await fs.readFile(lockPath, "utf8");
+            let latest;
+            try { latest = JSON.parse(latestRaw); } catch { latest = null; }
+            const latestPid = Number.isInteger(latest?.pid) ? latest.pid : lockPidFromRaw(latestRaw);
+            const latestAlive = latestPid == null ? latest !== null : isProcessAlive(latestPid);
+            const latestLeaseUntil = latest && latest.leaseUntil != null
+              ? Number(latest.leaseUntil)
+              : Number.NaN;
+            const latestAcquiredAt = Date.parse(latest?.acquiredAt || "");
+            const latestIssuedAt = Number.isFinite(latestAcquiredAt) ? latestAcquiredAt : latestStat.mtimeMs;
+            const latestStale = Number.isFinite(latestLeaseUntil)
+              ? Date.now() > latestLeaseUntil
+              : (latest === null && Date.now() - latestStat.mtimeMs >= leaseMs) ||
+                (latest !== null && Date.now() - latestIssuedAt >= leaseMs);
+            if (latestStale && !latestAlive) {
+              await fs.unlink(lockPath);
+              continue;
+            }
           } catch {
-            // ignore
+            // ignore races with the owner/replacer
           }
         }
       } catch {
@@ -633,6 +809,25 @@ export async function saveRepairAuthorization({ repoRoot, authorization } = {}) 
   if (!REPAIR_AUTH_STATES.includes(state)) {
     throw new Error(`Invalid repair authorization state: ${state}`);
   }
+
+  // Serialize the read/validate/write sequence. Without this CAS-equivalent,
+  // two concurrent repair SHAs can both observe an unbound authorization and
+  // the last writer silently wins.
+  const releaseLock = await acquireRepairLock({ repoRoot: root, targetSha: cleanTarget });
+  try {
+    return await saveRepairAuthorizationLocked({
+      root,
+      authorization,
+      cleanTarget,
+      cleanCommit,
+      state,
+    });
+  } finally {
+    await releaseLock();
+  }
+}
+
+async function saveRepairAuthorizationLocked({ root, authorization, cleanTarget, cleanCommit, state }) {
 
   // Enforce single-use commit binding: cannot overwrite an authorization bound to another commit
   const existing = await getRepairAuthorization({ repoRoot: root, targetSha: cleanTarget });
@@ -719,6 +914,7 @@ export async function authorizeRepairPush({
   targetSha,
   commitSha,
   ciProvider = null,
+  lockHeld = false,
 } = {}) {
   const root = findRepoRoot(repoRoot);
   const cleanTarget = assertCommitSha(targetSha);
@@ -794,8 +990,18 @@ export async function authorizeRepairPush({
     boundAt: auth?.boundAt || null,
   };
 
-  await saveRepairAuthorization({ repoRoot: root, authorization: updatedAuth });
-  await markRepairPushConsumed({ repoRoot: root, commitSha: cleanCommit });
+  if (lockHeld) {
+    await saveRepairAuthorizationLocked({
+      root,
+      authorization: updatedAuth,
+      cleanTarget,
+      cleanCommit,
+      state: nextState,
+    });
+  } else {
+    await saveRepairAuthorization({ repoRoot: root, authorization: updatedAuth });
+  }
+  await markRepairPushConsumed({ repoRoot: root, commitSha: cleanCommit, lockHeld });
 
   return {
     authorized: true,
@@ -822,13 +1028,41 @@ export async function getCommitEvidence({ repoRoot, commitSha } = {}) {
     if (error.code !== "ENOENT") throw evidenceReadError("COMMIT_EVIDENCE_FILE_UNREADABLE");
   }
   if (rawCommitEntry !== undefined) {
+    let parsed;
     try {
-      const parsed = JSON.parse(rawCommitEntry);
-      if (!isJsonObject(parsed)) throw evidenceReadError("INVALID_COMMIT_EVIDENCE_FILE");
-      return parsed;
+      parsed = JSON.parse(rawCommitEntry);
     } catch {
       throw evidenceReadError("INVALID_COMMIT_EVIDENCE_FILE");
     }
+    if (!isJsonObject(parsed)) throw evidenceReadError("INVALID_COMMIT_EVIDENCE_FILE");
+    // An individual record is authoritative only when it can be reconciled
+    // with the consolidated ledger. If the latter is absent, the historical
+    // individual record remains verifiable on its own and can be rebuilt.
+    let rawLedger;
+    try {
+      rawLedger = await fs.readFile(path.resolve(root, LEDGER_FILE), "utf8");
+    } catch (error) {
+      if (error.code === "ENOENT") return parsed;
+      throw evidenceReadError("CONSOLIDATED_LEDGER_UNREADABLE");
+    }
+    let parsedLedger;
+    try {
+      parsedLedger = JSON.parse(rawLedger);
+    } catch {
+      throw evidenceReadError("INVALID_CONSOLIDATED_LEDGER");
+    }
+    if (!isJsonObject(parsedLedger)) throw evidenceReadError("INVALID_CONSOLIDATED_LEDGER");
+    const consolidatedKey = Object.keys(parsedLedger).find(
+      (key) => key.toLowerCase() === cleanSha
+    );
+    if (!consolidatedKey) throw evidenceReadError("LEDGER_INCONSISTENT");
+    if (!isJsonObject(parsedLedger[consolidatedKey])) {
+      throw evidenceReadError("INVALID_COMMIT_EVIDENCE_ENTRY");
+    }
+    if (canonicalJson(parsedLedger[consolidatedKey]) !== canonicalJson(parsed)) {
+      throw evidenceReadError("LEDGER_INCONSISTENT");
+    }
+    return parsed;
   }
 
   let rawLedger;
@@ -845,11 +1079,17 @@ export async function getCommitEvidence({ repoRoot, commitSha } = {}) {
     throw evidenceReadError("INVALID_CONSOLIDATED_LEDGER");
   }
   if (!isJsonObject(parsedLedger)) throw evidenceReadError("INVALID_CONSOLIDATED_LEDGER");
-  if (!Object.hasOwn(parsedLedger, cleanSha)) return null;
-  if (!isJsonObject(parsedLedger[cleanSha])) {
+  const consolidatedKey = Object.keys(parsedLedger).find(
+    (key) => key.toLowerCase() === cleanSha
+  );
+  if (!consolidatedKey) return null;
+  if (!isJsonObject(parsedLedger[consolidatedKey])) {
     throw evidenceReadError("INVALID_COMMIT_EVIDENCE_ENTRY");
   }
-  return parsedLedger[cleanSha];
+
+  // Never accept a consolidated-only entry once the ledger has been
+  // initialized: its individual source is required for reconciliation.
+  throw evidenceReadError("LEDGER_INCONSISTENT");
 }
 
 export async function validateCommitEvidenceEntryShape(entry, root = null, fileSha = null) {
@@ -902,27 +1142,26 @@ export async function validateCommitEvidenceEntryShape(entry, root = null, fileS
     if (!entry.recordDigest || typeof entry.recordDigest !== "string") {
       throw ledgerError("LEDGER_CORRUPT", "Individual ledger record with status passed requires recordDigest", { fileSha });
     }
+    if (!/^[a-f0-9]{64}$/i.test(entry.recordDigest)) {
+      throw ledgerError("LEDGER_CORRUPT", "Individual ledger record has invalid recordDigest", { fileSha });
+    }
     if (root && entry.recordPath) {
-      let raw;
       try {
-        raw = await fs.readFile(path.resolve(root, entry.recordPath), "utf8");
-        const digest = crypto.createHash("sha256").update(raw).digest("hex");
-        if (digest !== entry.recordDigest) {
+        const loaded = await loadEvidenceRecord({ repoRoot: root, recordPath: entry.recordPath });
+        if (loaded.digest !== entry.recordDigest) {
           throw ledgerError(
             "LEDGER_CORRUPT",
             `Individual ledger record digest mismatch for ${fileSha || cleanSha}`,
-            { fileSha, expectedDigest: entry.recordDigest, actualDigest: digest }
+            { fileSha, expectedDigest: entry.recordDigest, actualDigest: loaded.digest }
           );
         }
       } catch (err) {
         if (err.code === "LEDGER_CORRUPT") throw err;
-        if (err.code !== "ENOENT") {
-          throw ledgerError(
-            "LEDGER_CORRUPT",
-            `Individual ledger record execution file unreadable for ${fileSha || cleanSha}: ${err.message}`,
-            { fileSha, recordPath: entry.recordPath }
-          );
-        }
+        throw ledgerError(
+          "LEDGER_CORRUPT",
+          `Individual ledger record execution file unreadable for ${fileSha || cleanSha}: ${err.message}`,
+          { fileSha, recordPath: entry.recordPath }
+        );
       }
     }
   }
@@ -984,63 +1223,98 @@ export async function listCommitEvidence({ repoRoot } = {}) {
   const ledgerPath = path.resolve(root, LEDGER_FILE);
   const ledgerDir = path.resolve(root, LEDGER_DIR);
 
+  const readIndividualFiles = async () => {
+    try {
+      return (await fs.readdir(ledgerDir)).filter((f) => f.endsWith(".json") && !f.endsWith(".tmp"));
+    } catch (error) {
+      if (error.code === "ENOENT") return [];
+      throw ledgerError("LEDGER_CORRUPT", `Cannot read individual ledger directory: ${error.message}`);
+    }
+  };
+
+  const rebuildIfSafe = async () => {
+    const files = await readIndividualFiles();
+    if (files.length === 0) {
+      throw ledgerError("LEDGER_CORRUPT", "Delivery ledger has no valid consolidated or individual records");
+    }
+    return rebuildLedgerFromIndividualRecords({ repoRoot: root });
+  };
+
   let rawLedger;
   try {
     rawLedger = await fs.readFile(ledgerPath, "utf8");
   } catch (error) {
     if (error.code === "ENOENT") {
-      let individualFiles = [];
-      try {
-        individualFiles = (await fs.readdir(ledgerDir)).filter(
-          (f) => f.endsWith(".json") && !f.endsWith(".tmp")
-        );
-      } catch {
-        individualFiles = [];
-      }
+      const individualFiles = await readIndividualFiles();
       if (individualFiles.length === 0) {
         return [];
       }
       return await rebuildLedgerFromIndividualRecords({ repoRoot: root });
     }
-    return await rebuildLedgerFromIndividualRecords({ repoRoot: root });
+    throw ledgerError("LEDGER_CORRUPT", `Cannot read consolidated delivery ledger: ${error.message}`);
   }
 
   let parsed;
   try {
     parsed = JSON.parse(rawLedger);
   } catch {
-    return await rebuildLedgerFromIndividualRecords({ repoRoot: root });
+    return rebuildIfSafe();
   }
 
   if (!isJsonObject(parsed)) {
-    return await rebuildLedgerFromIndividualRecords({ repoRoot: root });
+    return rebuildIfSafe();
   }
 
   const entries = Object.values(parsed);
   if (entries.length === 0) {
-    let individualFiles = [];
-    try {
-      individualFiles = (await fs.readdir(ledgerDir)).filter(
-        (f) => f.endsWith(".json") && !f.endsWith(".tmp")
-      );
-    } catch {
-      individualFiles = [];
-    }
+    const individualFiles = await readIndividualFiles();
     if (individualFiles.length === 0) {
       return [];
     }
     return await rebuildLedgerFromIndividualRecords({ repoRoot: root });
   }
 
-  for (const entry of entries) {
-    if (
-      !isJsonObject(entry) ||
-      entry.schemaVersion !== 2 ||
-      !entry.commitSha ||
-      (entry.status !== "passed" && entry.status !== "not_run") ||
-      entry.verificationStatus !== entry.status
-    ) {
-      return await rebuildLedgerFromIndividualRecords({ repoRoot: root });
+  for (const [key, entry] of Object.entries(parsed)) {
+    try {
+      await validateCommitEvidenceEntryShape(entry, root, key);
+    } catch {
+      // A malformed consolidated file can be safely repaired only when every
+      // individual source record validates below.
+      return rebuildIfSafe();
+    }
+  }
+
+  const individualFiles = await readIndividualFiles();
+  if (individualFiles.length === 0) {
+    throw ledgerError("LEDGER_INCONSISTENT", "Consolidated ledger exists without individual records");
+  }
+
+  const consolidatedKeys = new Set(Object.keys(parsed).map((key) => key.toLowerCase()));
+  const individualKeys = new Set();
+  for (const file of individualFiles) {
+    const fileSha = path.basename(file, ".json").toLowerCase();
+    if (!/^[a-f0-9]{7,40}$/.test(fileSha)) {
+      throw ledgerError("LEDGER_CORRUPT", `Invalid individual ledger record filename: ${file}`, { fileSha });
+    }
+    individualKeys.add(fileSha);
+    let individual;
+    try {
+      individual = JSON.parse(await fs.readFile(path.join(ledgerDir, file), "utf8"));
+    } catch (error) {
+      throw ledgerError("LEDGER_CORRUPT", `Cannot read individual ledger record ${file}: ${error.message}`, { fileSha });
+    }
+    await validateCommitEvidenceEntryShape(individual, root, fileSha);
+    const consolidated = parsed[fileSha] || parsed[individual.commitSha];
+    if (!consolidated) {
+      throw ledgerError("LEDGER_INCONSISTENT", "Individual record is absent from consolidated ledger", { fileSha });
+    }
+    if (canonicalJson(consolidated) !== canonicalJson(individual)) {
+      throw ledgerError("LEDGER_INCONSISTENT", "Consolidated and individual ledger records differ", { fileSha });
+    }
+  }
+  for (const sha of consolidatedKeys) {
+    if (!individualKeys.has(sha)) {
+      throw ledgerError("LEDGER_INCONSISTENT", "Consolidated ledger record has no individual source", { fileSha: sha });
     }
   }
 
@@ -1529,50 +1803,7 @@ export async function validateRepairLineage({
     };
   }
 
-  // 4. Branch concordance
-  const targetBranch = targetEntry?.branch ? String(targetEntry.branch).trim().toLowerCase() : null;
-  const repairBranch = repairEntry?.branch ? String(repairEntry.branch).trim().toLowerCase() : null;
-  if (targetBranch && repairBranch && targetBranch !== repairBranch) {
-    return {
-      valid: false,
-      reason: "REPAIR_BRANCH_MISMATCH",
-      message: `Repair commit registered on branch '${repairEntry.branch}', but target commit was on '${targetEntry.branch}'.`,
-      repairEntry,
-      targetEntry,
-      targetSha: fullTargetSha,
-    };
-  }
-
-  // 5. US concordance
-  function resolveUs(entry, sha) {
-    if (entry?.usId) return String(entry.usId).trim().toLowerCase();
-    try {
-      const msg = execFileSync("git", ["log", "-1", "--format=%B", sha], {
-        cwd: root,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-      });
-      const parsed = extractUsId(msg);
-      return parsed ? String(parsed).trim().toLowerCase() : null;
-    } catch {
-      return null;
-    }
-  }
-
-  const targetUs = resolveUs(targetEntry, fullTargetSha);
-  const repairUs = resolveUs(repairEntry, cleanRepairSha);
-  if (targetUs && repairUs && targetUs !== repairUs) {
-    return {
-      valid: false,
-      reason: "REPAIR_US_MISMATCH",
-      message: `Repair commit US '${repairUs}' does not match target commit US '${targetUs}'.`,
-      repairEntry,
-      targetEntry,
-      targetSha: fullTargetSha,
-    };
-  }
-
-  // 6. Gate R valid
+  // 4. Gate R valid
   const hasGateR =
     repairEntry?.gateId === "R" &&
     (repairEntry?.status === "passed" || repairEntry?.verificationStatus === "passed");
@@ -1583,6 +1814,44 @@ export async function validateRepairLineage({
       reason: "REPAIR_GATE_INVALID",
       message: `Repair commit ${cleanRepairSha.slice(0, 8)} does not have an approved Gate R evidence.`,
       repairEntry: repairEntry || null,
+      targetEntry,
+      targetSha: fullTargetSha,
+    };
+  }
+
+  // 5. Branch and US metadata are part of the repair authorization context.
+  // Never infer missing values from a commit message or the current checkout:
+  // that would allow an otherwise unrelated green commit to resolve a failure.
+  const targetBranch = targetEntry?.branch ? String(targetEntry.branch).trim().toLowerCase() : null;
+  const repairBranch = repairEntry?.branch ? String(repairEntry.branch).trim().toLowerCase() : null;
+  const targetUs = targetEntry?.usId ? String(targetEntry.usId).trim().toLowerCase() : null;
+  const repairUs = repairEntry?.usId ? String(repairEntry.usId).trim().toLowerCase() : null;
+  if (!targetBranch || !repairBranch || !targetUs || !repairUs) {
+    return {
+      valid: false,
+      reason: "REPAIR_CONTEXT_UNKNOWN",
+      message: `Repair ${cleanRepairSha.slice(0, 8)} is missing required branch or US metadata for lineage validation.`,
+      repairEntry,
+      targetEntry,
+      targetSha: fullTargetSha,
+    };
+  }
+  if (targetBranch !== repairBranch) {
+    return {
+      valid: false,
+      reason: "REPAIR_BRANCH_MISMATCH",
+      message: `Repair commit registered on branch '${repairEntry.branch}', but target commit was on '${targetEntry.branch}'.`,
+      repairEntry,
+      targetEntry,
+      targetSha: fullTargetSha,
+    };
+  }
+  if (targetUs !== repairUs) {
+    return {
+      valid: false,
+      reason: "REPAIR_US_MISMATCH",
+      message: `Repair commit US '${repairUs}' does not match target commit US '${targetUs}'.`,
+      repairEntry,
       targetEntry,
       targetSha: fullTargetSha,
     };
@@ -1600,7 +1869,19 @@ export async function validateRepairLineage({
     };
   }
 
-  const allEvidence = await listCommitEvidence({ repoRoot: root });
+  let allEvidence;
+  try {
+    allEvidence = await listCommitEvidence({ repoRoot: root });
+  } catch (error) {
+    return {
+      valid: false,
+      reason: "REPAIR_SNAPSHOT_MISMATCH",
+      message: `Repair lineage ledger is not trustworthy: ${error.code || error.message}.`,
+      repairEntry,
+      targetEntry,
+      targetSha: fullTargetSha,
+    };
+  }
   for (const entry of allEvidence) {
     if (entry.commitSha.toLowerCase() === cleanRepairSha) continue;
     const entrySupersedes = Array.isArray(entry.supersedes)
@@ -1895,6 +2176,16 @@ export async function getActiveCiIncidents({
   const supersededFailures = new Set(
     (repairResolution.supersededFailures || []).map((s) => s.toLowerCase())
   );
+  // Only lineage-validated repairs are allowed to resolve an incident. A
+  // repair receipt that merely exists in the ledger (even with green CI) is
+  // untrusted until validateRepairLineage accepted its target, branch, US,
+  // ancestry and Gate R evidence.
+  const validatedRepairSet = new Set(
+    (repairResolution.validatedRepairs || []).map((s) => s.toLowerCase())
+  );
+  const invalidRepairSet = new Set(
+    (repairResolution.invalidRepairs || []).map((repair) => String(repair.repairSha).toLowerCase())
+  );
 
   // Mark historical failures in completed user stories whose close_us commit passed CI as superseded
   for (const entry of rawEntries || []) {
@@ -1936,7 +2227,7 @@ export async function getActiveCiIncidents({
 
   const repairsByTarget = new Map();
   for (const entry of entries) {
-    if (entry.repairsSha) {
+    if (entry.repairsSha && !invalidRepairSet.has(entry.commitSha.toLowerCase())) {
       const rawTarget = String(entry.repairsSha).trim().toLowerCase();
       if (!repairsByTarget.has(rawTarget)) {
         repairsByTarget.set(rawTarget, []);
@@ -1997,7 +2288,11 @@ export async function getActiveCiIncidents({
           }
 
           if (rCi.status === "passed") {
-            status = supersededFailures.has(sha) ? "superseded" : "passed";
+            // A green receipt resolves the target only after the exact same
+            // repair has passed lineage validation in resolveRepairChain.
+            status = validatedRepairSet.has(rSha)
+              ? (supersededFailures.has(sha) ? "superseded" : "passed")
+              : "repair_submitted";
           } else if (["in_progress", "queued"].includes(rCi.status)) {
             status = "repair_submitted";
           } else if (["failed", "cancelled", "timed_out"].includes(rCi.status)) {
@@ -2071,4 +2366,3 @@ export async function getActiveCiIncidents({
   activeCiIncidents.allIncidents = allIncidents;
   return activeCiIncidents;
 }
-

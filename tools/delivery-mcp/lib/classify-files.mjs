@@ -34,7 +34,10 @@ const HUMAN_ONLY_PATTERNS = [
   /^\.dockerignore$/i,
   /^docker\//i,
   /^(?:docker-)?compose.*\.ya?ml$/i,
-  /^\.github\/workflows\/.*docker.*\.ya?ml$/i,
+  // Workflow policy applies to every file under this control-plane prefix;
+  // relying on a YAML extension leaves extensionless/generated workflows
+  // outside HUMAN_ONLY.
+  /^\.github\/workflows(?:\/|$)/i,
   /(?:^|\/)docker[-_].*\.(?:sh|bash|mjs|js|ts)$/i,
   /(?:^|\/)build[-_]image.*\.(?:sh|bash|mjs|js|ts)$/i,
 ];

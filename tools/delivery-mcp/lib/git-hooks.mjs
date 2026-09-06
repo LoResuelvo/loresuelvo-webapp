@@ -142,7 +142,7 @@ export function validateCommitMessage(rawMessage, activeContext = null) {
 }
 
 function rejectDeprecatedCiBypass() {
-  if (process.env.DELIVERY_SKIP_CI_CHECK !== undefined && process.env.DELIVERY_SKIP_CI_CHECK !== "") {
+  if (process.env.DELIVERY_SKIP_CI_CHECK !== undefined) {
     return {
       passed: false,
       reason: "DEPRECATED_CI_BYPASS_REJECTED",
@@ -664,6 +664,7 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
           targetSha,
           commitSha: localSha,
           ciProvider,
+          lockHeld: true,
         });
 
         if (!authResult.authorized) {
@@ -725,6 +726,7 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
             targetSha: String(localEntry.repairsSha),
             commitSha: localSha,
             ciProvider,
+            lockHeld: true,
           });
 
           if (!authResult.authorized) {

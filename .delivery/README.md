@@ -87,7 +87,7 @@ El runner selecciona el gate evaluando el impacto real del snapshot staged:
 
 ### Superficie Docker reservada a humanos (HUMAN_ONLY)
 
-Los archivos y scripts relacionados con Docker y la construcción de imágenes de contenedores (`Dockerfile`, `Dockerfile.*`, `.dockerignore`, `docker/**`, `compose*.yml`, `compose*.yaml`, workflows de Docker en `.github/workflows/**` y scripts exclusivos de construcción de imágenes) están reservados exclusivamente a desarrolladores humanos (`HUMAN_ONLY`).
+Los archivos y scripts relacionados con Docker y el pipeline (`Dockerfile`, `Dockerfile.*`, `.dockerignore`, `docker/**`, `compose*.yml`, `compose*.yaml`, cualquier archivo bajo `.github/workflows/**` y scripts exclusivos de construcción de imágenes) están reservados exclusivamente a desarrolladores humanos (`HUMAN_ONLY`).
 - Si un agente modifica estas rutas, `delivery_inspect` y `delivery_prepare` bloquean la ejecución con diagnóstico `HUMAN_ONLY_CHANGE`, requiriendo escalación a `STOP_USER`.
 - Si el fallo remoto en CI ocurre en un job de Docker, `repair_ci` bloquea con `HUMAN_ONLY_CI_FAILURE`, escalando igualmente a `STOP_USER`. Los agentes no reparan incidencias de contenedores ni ejecutan Docker build localmente.
 

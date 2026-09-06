@@ -468,8 +468,7 @@ test("pre-push hook: acepta evidencia exacta y bloquea si su record fue alterado
   await fs.writeFile(path.join(repoRoot, post.ledgerEntry.recordPath), "{}\n", "utf8");
   const tampered = await runPrePushHook({ repoRoot, stdinLines: [pushLine] });
   assert.strictEqual(tampered.passed, false);
-  assert.strictEqual(tampered.reason, "INVALID_COMMIT_EVIDENCE");
-  assert.strictEqual(tampered.evidenceReason, "EVIDENCE_RECORD_INVALID");
+  assert.strictEqual(tampered.reason, "LEDGER_CORRUPT");
 });
 
 test("repositorio sin hooks sigue pudiendo usar la CLI manualmente", async (t) => {
@@ -501,11 +500,16 @@ test("pre-push hook: si DELIVERY_SKIP_CI_CHECK está definida, pre-push es recha
       "DELIVERY_SKIP_CI_CHECK is deprecated and forbidden. Use repair_ci workflow for CI failure remediation."
     );
 
-    // También con cualquier otro valor no vacío
+    // También con cualquier otro valor, incluso vacío.
     process.env.DELIVERY_SKIP_CI_CHECK = "true";
     const res2 = await runPrePushHook({ repoRoot, stdinLines: [pushLine] });
     assert.strictEqual(res2.passed, false);
     assert.strictEqual(res2.reason, "DEPRECATED_CI_BYPASS_REJECTED");
+
+    process.env.DELIVERY_SKIP_CI_CHECK = "";
+    const res3 = await runPrePushHook({ repoRoot, stdinLines: [pushLine] });
+    assert.strictEqual(res3.passed, false);
+    assert.strictEqual(res3.reason, "DEPRECATED_CI_BYPASS_REJECTED");
   } finally {
     if (origEnv === undefined) delete process.env.DELIVERY_SKIP_CI_CHECK;
     else process.env.DELIVERY_SKIP_CI_CHECK = origEnv;
@@ -523,8 +527,8 @@ test("pre-push hook: si un commit previo devuelve status: provider_error, es blo
   // Commit 1 registrado en ledger y pusheado
   await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
   execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
-  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
-  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42" })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore[42]: commit 1"], { cwd: repoRoot });
   const post1 = await runPostCommitHook({ repoRoot });
   assert.strictEqual(post1.recorded, true);
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
@@ -666,8 +670,8 @@ test("pre-push hook: un commit con receipt valido de Gate R para el SHA fallido 
   // Commit 1 registrado en ledger y pusheado
   await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
   execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
-  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
-  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42" })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore[42]: commit 1"], { cwd: repoRoot });
   const post1 = await runPostCommitHook({ repoRoot });
   assert.strictEqual(post1.recorded, true);
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
@@ -693,13 +697,14 @@ test("pre-push hook: un commit con receipt valido de Gate R para el SHA fallido 
     repoRoot,
     intent: "repair_ci",
     repairsSha: post1.commitSha,
+    usId: "42",
     ciProvider: mockCi,
     executeCheck: fakeExecute,
   });
   assert.strictEqual(prepRes.status, "passed");
   assert.strictEqual(prepRes.gate.id, "R");
 
-  execFileSync("git", ["commit", "-m", "fix: repair commit 1"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix[42]: repair commit 1"], { cwd: repoRoot });
   const post2 = await runPostCommitHook({ repoRoot });
   assert.strictEqual(post2.verificationStatus, "passed");
   assert.strictEqual(post2.ledgerEntry.gateId, "R");
@@ -727,8 +732,8 @@ test("pre-push hook: reintento de red del mismo commit de reparación es permiti
   // Commit 1 registrado en ledger y pusheado
   await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
   execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
-  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
-  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42" })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore[42]: commit 1"], { cwd: repoRoot });
   const post1 = await runPostCommitHook({ repoRoot });
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
 
@@ -750,10 +755,11 @@ test("pre-push hook: reintento de red del mismo commit de reparación es permiti
     repoRoot,
     intent: "repair_ci",
     repairsSha: post1.commitSha,
+    usId: "42",
     ciProvider: mockCi,
     executeCheck: fakeExecute,
   });
-  execFileSync("git", ["commit", "-m", "fix: repair commit 1"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix[42]: repair commit 1"], { cwd: repoRoot });
   const post2 = await runPostCommitHook({ repoRoot });
 
   const pushLine = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
@@ -786,8 +792,8 @@ test("pre-push hook: un segundo commit distinto intentando usar la misma reparac
   // Commit 1 registrado en ledger y pusheado
   await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
   execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
-  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
-  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42" })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore[42]: commit 1"], { cwd: repoRoot });
   const post1 = await runPostCommitHook({ repoRoot });
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
 
@@ -809,10 +815,11 @@ test("pre-push hook: un segundo commit distinto intentando usar la misma reparac
     repoRoot,
     intent: "repair_ci",
     repairsSha: post1.commitSha,
+    usId: "42",
     ciProvider: mockCi,
     executeCheck: fakeExecute,
   });
-  execFileSync("git", ["commit", "-m", "fix: repair commit 1"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix[42]: repair commit 1"], { cwd: repoRoot });
   const post2 = await runPostCommitHook({ repoRoot });
 
   const pushLine2 = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
@@ -827,7 +834,7 @@ test("pre-push hook: un segundo commit distinto intentando usar la misma reparac
   execFileSync("git", ["reset", "--hard", post1.commitSha], { cwd: repoRoot });
   await fs.writeFile(path.join(repoRoot, "fix.txt"), "fixed", "utf8");
   execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
-  execFileSync("git", ["commit", "-m", "fix: second repair attempt different sha"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix[42]: second repair attempt different sha"], { cwd: repoRoot });
   const post3Sha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
 
   const entry2 = post2.ledgerEntry;
@@ -847,6 +854,7 @@ test("pre-push hook: un segundo commit distinto intentando usar la misma reparac
     policyHash: entry2.policyHash,
     intent: "repair_ci",
     repairsSha: post1.commitSha,
+    usId: "42",
     supersedes: entry2.supersedes,
   });
 
@@ -870,8 +878,8 @@ test("pre-push hook: concurrencia de dos invocaciones simultáneas para el mismo
 
   await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
   execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
-  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
-  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42" })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore[42]: commit 1"], { cwd: repoRoot });
   const post1 = await runPostCommitHook({ repoRoot });
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
 
@@ -892,10 +900,11 @@ test("pre-push hook: concurrencia de dos invocaciones simultáneas para el mismo
     repoRoot,
     intent: "repair_ci",
     repairsSha: post1.commitSha,
+    usId: "42",
     ciProvider: mockCi,
     executeCheck: fakeExecute,
   });
-  execFileSync("git", ["commit", "-m", "fix: repair commit 1"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix[42]: repair commit 1"], { cwd: repoRoot });
   const post2 = await runPostCommitHook({ repoRoot });
 
   const pushLine = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
@@ -920,8 +929,8 @@ test("pre-push hook: commit de reparación ya presente en remoto o con CI pendie
 
   await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
   execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
-  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
-  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42" })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore[42]: commit 1"], { cwd: repoRoot });
   const post1 = await runPostCommitHook({ repoRoot });
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
 
@@ -942,10 +951,11 @@ test("pre-push hook: commit de reparación ya presente en remoto o con CI pendie
     repoRoot,
     intent: "repair_ci",
     repairsSha: post1.commitSha,
+    usId: "42",
     ciProvider: mockCi,
     executeCheck: fakeExecute,
   });
-  execFileSync("git", ["commit", "-m", "fix: repair commit 1"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix[42]: repair commit 1"], { cwd: repoRoot });
   const post2 = await runPostCommitHook({ repoRoot });
 
   // Push inicial a remoto
@@ -1026,10 +1036,20 @@ test("pre-push hook: fallo previo subsanado por reparación verde no bloquea pus
   execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
   execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
 
+  const fakeExecute = async ({ check }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 1,
+    exitCode: 0,
+    summaryLines: [],
+    diagnostic: null,
+  });
+
   // 1. Commit 1 que falló en CI
   await fs.writeFile(path.join(repoRoot, "src.txt"), "v1\n", "utf8");
   execFileSync("git", ["add", "src.txt"], { cwd: repoRoot });
-  execFileSync("git", ["commit", "-m", "chore: bad commit"], { cwd: repoRoot });
+  await prepareDelivery({ repoRoot, usId: "42", executeCheck: fakeExecute });
+  execFileSync("git", ["commit", "-m", "chore[42]: bad commit"], { cwd: repoRoot });
   const post1 = await runPostCommitHook({ repoRoot });
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
 
@@ -1042,22 +1062,15 @@ test("pre-push hook: fallo previo subsanado por reparación verde no bloquea pus
   // 2. Commit 2 de reparación Gate R
   await fs.writeFile(path.join(repoRoot, "fix.txt"), "fixed\n", "utf8");
   execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
-  const fakeExecute = async ({ check }) => ({
-    id: check.id,
-    status: "passed",
-    durationMs: 1,
-    exitCode: 0,
-    summaryLines: [],
-    diagnostic: null,
-  });
   await prepareDelivery({
     repoRoot,
     intent: "repair_ci",
     repairsSha: post1.commitSha,
+    usId: "42",
     ciProvider: mockCi,
     executeCheck: fakeExecute,
   });
-  execFileSync("git", ["commit", "-m", "fix: repair bad commit"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix[42]: repair bad commit"], { cwd: repoRoot });
   const post2 = await runPostCommitHook({ repoRoot });
 
   // Pushear la reparación (válido)
@@ -1205,8 +1218,8 @@ test("pre-push hook: reparación de otra rama es bloqueada con REPAIR_BRANCH_MIS
   // Commit 1 en main
   await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
   execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
-  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
-  execFileSync("git", ["commit", "-m", "chore: commit 1 on main"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42" })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore[42]: commit 1 on main"], { cwd: repoRoot });
   const post1 = await runPostCommitHook({ repoRoot });
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
 
@@ -1230,10 +1243,11 @@ test("pre-push hook: reparación de otra rama es bloqueada con REPAIR_BRANCH_MIS
     repoRoot,
     intent: "repair_ci",
     repairsSha: post1.commitSha,
+    usId: "42",
     ciProvider: mockCi,
     executeCheck: fakeExecute,
   });
-  execFileSync("git", ["commit", "-m", "fix: repair commit on feature"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix[42]: repair commit on feature"], { cwd: repoRoot });
   const post2 = await runPostCommitHook({ repoRoot });
 
   const pushLine = `refs/heads/feature ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
@@ -1319,8 +1333,8 @@ test("pre-push hook: reparación con Gate no R es bloqueada con REPAIR_GATE_INVA
 
   await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
   execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
-  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
-  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42" })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore[42]: commit 1"], { cwd: repoRoot });
   const post1 = await runPostCommitHook({ repoRoot });
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
 
@@ -1331,8 +1345,8 @@ test("pre-push hook: reparación con Gate no R es bloqueada con REPAIR_GATE_INVA
   // Commit 2 con Gate A
   await fs.writeFile(path.join(repoRoot, "fix.txt"), "fixed", "utf8");
   execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
-  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed"); // Gate A
-  execFileSync("git", ["commit", "-m", "fix: repair attempt with Gate A"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42" })).status, "passed"); // Gate A
+  execFileSync("git", ["commit", "-m", "fix[42]: repair attempt with Gate A"], { cwd: repoRoot });
   const post2 = await runPostCommitHook({ repoRoot });
 
   // Forzar intent: repair_ci y repairsSha pero gateId: "A"
@@ -1344,6 +1358,10 @@ test("pre-push hook: reparación con Gate no R es bloqueada con REPAIR_GATE_INVA
     JSON.stringify(entry2, null, 2),
     "utf8"
   );
+  const consolidatedPath = path.join(repoRoot, ".delivery/runtime/ledger.json");
+  const consolidated = JSON.parse(await fs.readFile(consolidatedPath, "utf8"));
+  consolidated[post2.commitSha] = entry2;
+  await fs.writeFile(consolidatedPath, JSON.stringify(consolidated, null, 2), "utf8");
 
   const pushLine = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
   const pushRes = await runPrePushHook({
@@ -1367,8 +1385,8 @@ test("pre-push hook: reparación contra target ya verde es bloqueada con REPAIR_
   // Commit 1 pasa en CI
   await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
   execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
-  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
-  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42" })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore[42]: commit 1"], { cwd: repoRoot });
   const post1 = await runPostCommitHook({ repoRoot });
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
 
@@ -1392,10 +1410,11 @@ test("pre-push hook: reparación contra target ya verde es bloqueada con REPAIR_
     repoRoot,
     intent: "repair_ci",
     repairsSha: post1.commitSha,
+    usId: "42",
     ciProvider: mockCi,
     executeCheck: fakeExecute,
   });
-  execFileSync("git", ["commit", "-m", "fix: repair commit 1"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix[42]: repair commit 1"], { cwd: repoRoot });
   const post2 = await runPostCommitHook({ repoRoot });
 
   // Para el push, el CI de post1 ya es passed
@@ -1423,8 +1442,8 @@ test("pre-push hook: reparación contra target ya subsanado es bloqueada con REP
   // 1. Commit 1 que falló
   await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
   execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
-  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
-  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42" })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore[42]: commit 1"], { cwd: repoRoot });
   const post1 = await runPostCommitHook({ repoRoot });
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
 
@@ -1447,10 +1466,11 @@ test("pre-push hook: reparación contra target ya subsanado es bloqueada con REP
     repoRoot,
     intent: "repair_ci",
     repairsSha: post1.commitSha,
+    usId: "42",
     ciProvider: mockCi,
     executeCheck: fakeExecute,
   });
-  execFileSync("git", ["commit", "-m", "fix: first repair for commit 1"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix[42]: first repair for commit 1"], { cwd: repoRoot });
   const post2 = await runPostCommitHook({ repoRoot });
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
 
@@ -1460,7 +1480,7 @@ test("pre-push hook: reparación contra target ya subsanado es bloqueada con REP
   // 3. Commit 3 intenta reparar post1 de nuevo (ya subsanado)
   await fs.writeFile(path.join(repoRoot, "fix2.txt"), "fix2", "utf8");
   execFileSync("git", ["add", "fix2.txt"], { cwd: repoRoot });
-  execFileSync("git", ["commit", "-m", "fix: redundant repair for commit 1"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix[42]: redundant repair for commit 1"], { cwd: repoRoot });
   const post3 = await runPostCommitHook({ repoRoot });
 
   // Registrar evidencia de reparación con Gate R válida para post3 apuntando al commit 1 ya subsanado
@@ -1503,11 +1523,16 @@ test("pre-push hook: reparación contra target ya subsanado es bloqueada con REP
   entry3.recordPath = recordPath;
   entry3.recordDigest = recordDigest;
   entry3.policyHash = policyHash;
+  entry3.usId = "42";
   await fs.writeFile(
     path.join(repoRoot, ".delivery/runtime/ledger", `${post3.commitSha}.json`),
     JSON.stringify(entry3, null, 2),
     "utf8"
   );
+  const consolidatedPath = path.join(repoRoot, ".delivery/runtime/ledger.json");
+  const consolidated = JSON.parse(await fs.readFile(consolidatedPath, "utf8"));
+  consolidated[post3.commitSha] = entry3;
+  await fs.writeFile(consolidatedPath, JSON.stringify(consolidated, null, 2), "utf8");
 
   const pushLine = `refs/heads/main ${post3.commitSha} refs/heads/main ${post2.commitSha}`;
   const pushRes = await runPrePushHook({
@@ -1755,10 +1780,20 @@ test("pre-push hook: ciclo de incidente activo (bloqueo ordinario, repair_ci per
   execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
   execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
 
+  const fakeExecute = async ({ check }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 1,
+    exitCode: 0,
+    summaryLines: [],
+    diagnostic: null,
+  });
+
   // 1. Commit que falla en CI
   await fs.writeFile(path.join(repoRoot, "src.txt"), "v1", "utf8");
   execFileSync("git", ["add", "src.txt"], { cwd: repoRoot });
-  execFileSync("git", ["commit", "-m", "chore: bad commit"], { cwd: repoRoot });
+  await prepareDelivery({ repoRoot, usId: "42", executeCheck: fakeExecute });
+  execFileSync("git", ["commit", "-m", "chore[42]: bad commit"], { cwd: repoRoot });
   const postBad = await runPostCommitHook({ repoRoot });
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
 
@@ -1787,14 +1822,6 @@ test("pre-push hook: ciclo de incidente activo (bloqueo ordinario, repair_ci per
   // 3. Commit de reparación R1 con repair_ci y Gate R es permitido
   await fs.writeFile(path.join(repoRoot, "src.txt"), "v2-repair-1", "utf8");
   execFileSync("git", ["add", "src.txt"], { cwd: repoRoot });
-  const fakeExecute = async ({ check }) => ({
-    id: check.id,
-    status: "passed",
-    durationMs: 1,
-    exitCode: 0,
-    summaryLines: [],
-    diagnostic: null,
-  });
   await prepareDelivery({
     repoRoot,
     intent: "repair_ci",
@@ -1802,7 +1829,7 @@ test("pre-push hook: ciclo de incidente activo (bloqueo ordinario, repair_ci per
     ciProvider: mockCi,
     executeCheck: fakeExecute,
   });
-  execFileSync("git", ["commit", "-m", "fix: repair 1 bad commit"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix[42]: repair 1 bad commit"], { cwd: repoRoot });
   const postR1 = await runPostCommitHook({ repoRoot });
 
   const pushLineR1 = `refs/heads/main ${postR1.commitSha} refs/heads/main ${postBad.commitSha}`;
@@ -1843,7 +1870,7 @@ test("pre-push hook: ciclo de incidente activo (bloqueo ordinario, repair_ci per
     ciProvider: mockCi,
     executeCheck: fakeExecute,
   });
-  execFileSync("git", ["commit", "-m", "fix: repair 2 bad commit"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix[42]: repair 2 bad commit"], { cwd: repoRoot });
   const postR2 = await runPostCommitHook({ repoRoot });
 
   const pushLineR2 = `refs/heads/main ${postR2.commitSha} refs/heads/main ${postR1.commitSha}`;
@@ -1871,4 +1898,3 @@ test("pre-push hook: ciclo de incidente activo (bloqueo ordinario, repair_ci per
   });
   assert.strictEqual(resOrd3.passed, true);
 });
-

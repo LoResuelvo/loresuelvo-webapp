@@ -62,7 +62,7 @@ El runner ejecuta en fail-fast, reutiliza evidencia determinística del mismo sn
 
 ### Superficie Docker reservada a humanos (HUMAN_ONLY)
 
-Los archivos y scripts de Docker (`Dockerfile`, `Dockerfile.*`, `.dockerignore`, `docker/**`, `compose*.yml`, `compose*.yaml`, workflows de Docker o scripts de imágenes) pertenecen exclusivamente al desarrollador humano (`HUMAN_ONLY`).
+Los archivos y scripts de Docker (`Dockerfile`, `Dockerfile.*`, `.dockerignore`, `docker/**`, `compose*.yml`, `compose*.yaml`, cualquier archivo bajo `.github/workflows/**` y scripts de imágenes) pertenecen exclusivamente al desarrollador humano (`HUMAN_ONLY`).
 - Si un agente los incluye en su snapshot staged, `delivery_inspect` y `delivery_prepare` bloquean con `HUMAN_ONLY_CHANGE` y escalan a `STOP_USER`.
 - Si un fallo remoto de CI ocurre en un job de Docker, `repair_ci` bloquea con `HUMAN_ONLY_CI_FAILURE` y escala a `STOP_USER`.
 

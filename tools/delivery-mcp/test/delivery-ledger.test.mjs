@@ -26,6 +26,7 @@ import {
   LEDGER_STATES,
   LEDGER_DIR,
   LEDGER_FILE,
+  REPAIR_LOCKS_DIR,
 } from "../lib/delivery-ledger.mjs";
 import { MockCiProvider } from "../lib/ci-provider.mjs";
 
@@ -184,7 +185,7 @@ test("queryCommitEvidence: solo acepta not_run con ambos estados y shape canóni
   );
   const inconsistent = await queryCommitEvidence({ repoRoot, commitSha: sha });
   assert.strictEqual(inconsistent.state, "corrupt");
-  assert.strictEqual(inconsistent.reason, "INCONSISTENT_NOT_RUN_STATUS");
+  assert.strictEqual(inconsistent.reason, "LEDGER_INCONSISTENT");
 
   await fs.writeFile(
     entryPath,
@@ -193,7 +194,7 @@ test("queryCommitEvidence: solo acepta not_run con ambos estados y shape canóni
   );
   const malformed = await queryCommitEvidence({ repoRoot, commitSha: sha });
   assert.strictEqual(malformed.state, "corrupt");
-  assert.strictEqual(malformed.reason, "INVALID_NOT_RUN_SHAPE");
+  assert.strictEqual(malformed.reason, "LEDGER_INCONSISTENT");
 });
 
 test("queryCommitEvidence: un archivo de evidencia ilegible es corrupt y no usa el ledger como fallback", async (t) => {
@@ -341,6 +342,47 @@ test("queryCommitEvidence: evidencia declarada passed que es alterada da corrupt
   assert.strictEqual(queryDeleted.reason, "EVIDENCE_RECORD_INVALID");
 });
 
+test("queryCommitEvidence/verifyCommitEvidence: rechazan consolidado sin su registro individual", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const sha = await commitFile(repoRoot, "missing-individual.txt", "missing", "docs: missing individual");
+  const evidence = await attachCommitEvidence({ repoRoot, sha, gateId: "A" });
+  await fs.rm(path.join(repoRoot, LEDGER_DIR, `${sha}.json`));
+
+  await assert.rejects(
+    () => getCommitEvidence({ repoRoot, commitSha: sha }),
+    (error) => error.code === "LEDGER_INCONSISTENT"
+  );
+  const query = await queryCommitEvidence({ repoRoot, commitSha: sha });
+  assert.equal(query.valid, false);
+  assert.equal(query.state, "corrupt");
+  assert.equal(query.reason, "LEDGER_INCONSISTENT");
+  const verified = await verifyCommitEvidence({ repoRoot, commitSha: sha });
+  assert.equal(verified.valid, false);
+  assert.equal(verified.reason, "LEDGER_INCONSISTENT");
+  assert.ok(evidence.recordPath);
+});
+
+test("queryCommitEvidence/verifyCommitEvidence: rechazan divergencia completa entre individual y consolidado", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const sha = await commitFile(repoRoot, "divergent-evidence.txt", "divergent", "docs: divergent evidence");
+  await attachCommitEvidence({ repoRoot, sha, gateId: "A" });
+  const ledgerPath = path.join(repoRoot, LEDGER_FILE);
+  const consolidated = JSON.parse(await fs.readFile(ledgerPath, "utf8"));
+  consolidated[sha].intent = "tampered-intent";
+  await fs.writeFile(ledgerPath, `${JSON.stringify(consolidated, null, 2)}\n`, "utf8");
+
+  await assert.rejects(
+    () => getCommitEvidence({ repoRoot, commitSha: sha }),
+    (error) => error.code === "LEDGER_INCONSISTENT"
+  );
+  const query = await queryCommitEvidence({ repoRoot, commitSha: sha });
+  assert.equal(query.valid, false);
+  assert.equal(query.reason, "LEDGER_INCONSISTENT");
+  const verified = await verifyCommitEvidence({ repoRoot, commitSha: sha });
+  assert.equal(verified.valid, false);
+  assert.equal(verified.reason, "LEDGER_INCONSISTENT");
+});
+
 test("queryCommitEvidence: compatibilidad con entradas históricas schemaVersion: 2 sin status explícito", async (t) => {
   const repoRoot = await createTempGitRepo(t);
 
@@ -417,7 +459,7 @@ async function attachCommitEvidence({
   repairStatus = null,
   intent = gateId === "R" ? "repair_ci" : "prepare_commit",
   branch = "main",
-  usId = null,
+  usId = "42",
 }) {
   const identity = getCommitIdentity(repoRoot, sha);
   const mockEvidence = await createMockEvidenceRecord(repoRoot, sha, gateId);
@@ -967,6 +1009,120 @@ test("acquireRepairLock: previene operaciones concurrentes en conflicto y respet
   await release2();
 });
 
+test("acquireRepairLock: renew del owner A no pisa el lock reemplazado por owner B", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const targetSha = "2222222222222222222222222222222222222222";
+  const lockPath = path.join(repoRoot, REPAIR_LOCKS_DIR, `repair-${targetSha}.lock`);
+  const releaseA = await acquireRepairLock({ repoRoot, targetSha, staleLockMs: 1000 });
+
+  await fs.unlink(lockPath);
+  const releaseB = await acquireRepairLock({ repoRoot, targetSha, staleLockMs: 1000 });
+  const before = await fs.readFile(lockPath, "utf8");
+
+  assert.strictEqual(await releaseA.renew(), false);
+  assert.strictEqual(await fs.readFile(lockPath, "utf8"), before);
+
+  await releaseA();
+  await releaseB();
+});
+
+test("acquireRepairLock: recupera JSON parcial antiguo solo con PID muerto", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const targetSha = "3333333333333333333333333333333333333333";
+  const lockDir = path.join(repoRoot, REPAIR_LOCKS_DIR);
+  const lockPath = path.join(lockDir, `repair-${targetSha}.lock`);
+  await fs.mkdir(lockDir, { recursive: true });
+  await fs.writeFile(lockPath, '{"pid":999999999,"ownerToken":"partial', "utf8");
+  const old = new Date(Date.now() - 5000);
+  await fs.utimes(lockPath, old, old);
+
+  const release = await acquireRepairLock({
+    repoRoot,
+    targetSha,
+    timeoutMs: 500,
+    retryIntervalMs: 10,
+    staleLockMs: 1000,
+  });
+  assert.equal(typeof release, "function");
+  await release();
+});
+
+test("acquireRepairLock: lock vacío por crash solo se recupera tras el umbral de stale", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const staleSha = "6666666666666666666666666666666666666666";
+  const recentSha = "7777777777777777777777777777777777777777";
+  const lockDir = path.join(repoRoot, REPAIR_LOCKS_DIR);
+  await fs.mkdir(lockDir, { recursive: true });
+
+  const stalePath = path.join(lockDir, `repair-${staleSha}.lock`);
+  await fs.writeFile(stalePath, "", "utf8");
+  const old = new Date(Date.now() - 5000);
+  await fs.utimes(stalePath, old, old);
+  const staleRelease = await acquireRepairLock({
+    repoRoot,
+    targetSha: staleSha,
+    timeoutMs: 500,
+    retryIntervalMs: 10,
+    staleLockMs: 1000,
+  });
+  await staleRelease();
+
+  const recentPath = path.join(lockDir, `repair-${recentSha}.lock`);
+  await fs.writeFile(recentPath, "", "utf8");
+  await assert.rejects(
+    () => acquireRepairLock({
+      repoRoot,
+      targetSha: recentSha,
+      timeoutMs: 100,
+      retryIntervalMs: 10,
+      staleLockMs: 1000,
+    }),
+    (error) => error.code === "REPAIR_LOCK_TIMEOUT"
+  );
+  assert.equal(await fs.readFile(recentPath, "utf8"), "");
+});
+
+test("acquireRepairLock: lock legacy con PID muerto se recupera, pero uno con proceso vivo no", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const deadSha = "4444444444444444444444444444444444444444";
+  const liveSha = "5555555555555555555555555555555555555555";
+  const lockDir = path.join(repoRoot, REPAIR_LOCKS_DIR);
+  await fs.mkdir(lockDir, { recursive: true });
+  const old = new Date(Date.now() - 5000).toISOString();
+
+  const deadPath = path.join(lockDir, `repair-${deadSha}.lock`);
+  await fs.writeFile(deadPath, JSON.stringify({
+    pid: 999999999,
+    ownerToken: "dead-owner",
+    acquiredAt: old,
+  }), "utf8");
+  const release = await acquireRepairLock({
+    repoRoot,
+    targetSha: deadSha,
+    timeoutMs: 500,
+    retryIntervalMs: 10,
+    staleLockMs: 1000,
+  });
+  await release();
+
+  const livePath = path.join(lockDir, `repair-${liveSha}.lock`);
+  await fs.writeFile(livePath, JSON.stringify({
+    pid: process.pid,
+    ownerToken: "live-owner",
+    acquiredAt: old,
+  }), "utf8");
+  await assert.rejects(
+    () => acquireRepairLock({
+      repoRoot,
+      targetSha: liveSha,
+      timeoutMs: 100,
+      retryIntervalMs: 10,
+      staleLockMs: 1000,
+    }),
+    (error) => error.code === "REPAIR_LOCK_TIMEOUT"
+  );
+});
+
 test("authorizeRepairPush: rechaza un commit SHA diferente para la misma autorización con REPAIR_RECEIPT_ALREADY_CONSUMED", async (t) => {
   const repoRoot = await createTempGitRepo(t);
   const targetSha = "1111111111111111111111111111111111111111";
@@ -1023,6 +1179,26 @@ test("authorizeRepairPush: reintento del mismo SHA es permitido y cuenta intento
   assert.strictEqual(res2.authorized, true);
   assert.strictEqual(res2.authorization.attemptCount, 2);
   assert.strictEqual(res2.state, "submitted");
+});
+
+test("saveRepairAuthorization: serializa el binding y rechaza un segundo SHA concurrente", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const targetSha = "1111111111111111111111111111111111111111";
+  const commitA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const commitB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  const results = await Promise.allSettled([
+    saveRepairAuthorization({
+      repoRoot,
+      authorization: { targetSha, commitSha: commitA, state: "bound_to_commit" },
+    }),
+    saveRepairAuthorization({
+      repoRoot,
+      authorization: { targetSha, commitSha: commitB, state: "bound_to_commit" },
+    }),
+  ]);
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  assert.equal(results.filter((result) => result.status === "rejected").length, 1);
+  assert.equal(results.find((result) => result.status === "rejected").reason.code, "REPAIR_RECEIPT_ALREADY_CONSUMED");
 });
 
 test("listCommitEvidence y getLedgerState: ledger no inicializado (ENOENT) devuelve [] y LEDGER_NOT_INITIALIZED", async (t) => {
@@ -1395,4 +1571,77 @@ test("getActiveCiIncidents: rastrea estados y ciclo completo de incidentes (fail
   assert.deepStrictEqual(materialized.activeCiIncidents, []);
 });
 
+test("validateRepairLineage: contexto incompleto falla cerrado con REPAIR_CONTEXT_UNKNOWN", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const targetSha = await commitFile(repoRoot, "target.txt", "target", "chore[42]: failed target");
+  await attachCommitEvidence({ repoRoot, sha: targetSha, gateId: "A", usId: "42" });
+  const repairSha = await commitFile(repoRoot, "repair.txt", "repair", "fix[42]: repair target");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: repairSha,
+    gateId: "R",
+    repairsSha: targetSha,
+    usId: null,
+  });
 
+  const validation = await validateRepairLineage({
+    repoRoot,
+    repairSha,
+    targetSha,
+    ciProvider: new MockCiProvider({ [targetSha]: { status: "failed" } }),
+  });
+  assert.equal(validation.valid, false);
+  assert.equal(validation.reason, "REPAIR_CONTEXT_UNKNOWN");
+});
+
+test("listCommitEvidence: recordPath inexistente es LEDGER_CORRUPT", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const sha = await commitFile(repoRoot, "missing-record.txt", "missing", "chore[42]: missing record");
+  const evidence = await attachCommitEvidence({ repoRoot, sha });
+  await fs.rm(path.join(repoRoot, evidence.recordPath));
+
+  await assert.rejects(
+    () => listCommitEvidence({ repoRoot }),
+    (error) => error.code === "LEDGER_CORRUPT"
+  );
+});
+
+test("listCommitEvidence: divergencia entre consolidado e individual es LEDGER_INCONSISTENT", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const sha = await commitFile(repoRoot, "divergent.txt", "divergent", "chore[42]: divergent ledger");
+  await attachCommitEvidence({ repoRoot, sha });
+  const ledgerPath = path.join(repoRoot, LEDGER_FILE);
+  const consolidated = JSON.parse(await fs.readFile(ledgerPath, "utf8"));
+  consolidated[sha].usId = "different-us";
+  await fs.writeFile(ledgerPath, `${JSON.stringify(consolidated, null, 2)}\n`, "utf8");
+
+  await assert.rejects(
+    () => listCommitEvidence({ repoRoot }),
+    (error) => error.code === "LEDGER_INCONSISTENT"
+  );
+});
+
+test("getActiveCiIncidents: reparación verde pero inválida por lineage no resuelve el incidente", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const targetSha = await commitFile(repoRoot, "invalid-target.txt", "target", "chore[42]: failed target");
+  await attachCommitEvidence({ repoRoot, sha: targetSha, gateId: "A", usId: "42" });
+  const repairSha = await commitFile(repoRoot, "invalid-repair.txt", "repair", "fix[99]: unrelated repair");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: repairSha,
+    gateId: "R",
+    repairsSha: targetSha,
+    usId: "99",
+  });
+  const incidents = await getActiveCiIncidents({
+    repoRoot,
+    ciProvider: new MockCiProvider({
+      [targetSha]: { status: "failed" },
+      [repairSha]: { status: "passed" },
+    }),
+  });
+  const targetIncident = incidents.find((incident) => incident.failedSha === targetSha);
+  assert.ok(targetIncident);
+  assert.notEqual(targetIncident.status, "passed");
+  assert.ok(incidents.includes(targetIncident));
+});

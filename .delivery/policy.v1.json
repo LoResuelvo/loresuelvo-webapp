@@ -29,11 +29,10 @@
         "category": "human_only",
         "match": {
           "exact": [".dockerignore"],
-          "prefixes": ["docker/"],
+          "prefixes": ["docker/", ".github/workflows/"],
           "patterns": [
             "^Dockerfile(?:\\..*)?$",
-            "^(?:docker-)?compose.*\\.ya?ml$",
-            "^\\.github/workflows/.*docker.*\\.ya?ml$"
+            "^(?:docker-)?compose.*\\.ya?ml$"
           ]
         },
         "isGateCTrigger": false,

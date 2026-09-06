@@ -12,6 +12,27 @@ import {
 import { inspectCi } from "./ci-provider.mjs";
 import { listCommitEvidence } from "./delivery-ledger.mjs";
 
+function isLedgerFailure(error) {
+  return (
+    error?.code === "LEDGER_CORRUPT" ||
+    error?.code === "LEDGER_INCONSISTENT" ||
+    String(error?.message || "").includes("LEDGER_CORRUPT") ||
+    String(error?.message || "").includes("LEDGER_INCONSISTENT")
+  );
+}
+
+function compactLedgerDiagnostic(error) {
+  const code = error?.code === "LEDGER_INCONSISTENT" ? "LEDGER_INCONSISTENT" : "LEDGER_CORRUPT";
+  const detail = String(error?.message || "delivery ledger could not be validated")
+    .split("\n")[0]
+    .slice(0, 240);
+  return {
+    code,
+    message: `Delivery ledger is not reliable: ${detail}`,
+    retryable: false,
+  };
+}
+
 export async function inspectDelivery({
   repoRoot,
   intent = "prepare_commit",
@@ -105,14 +126,30 @@ export async function inspectDelivery({
         retryable: false,
       });
     } else {
-      let ledgerEntries = [];
+      let ledgerEntries = null;
+      let ledgerDiagnostic = null;
       try {
         ledgerEntries = await listCommitEvidence({ repoRoot: root });
-      } catch {
+      } catch (error) {
+        // An unavailable/corrupt ledger must never be treated as empty: that
+        // would permit a duplicate or unrelated repair to proceed.
+        ledgerDiagnostic = isLedgerFailure(error)
+          ? compactLedgerDiagnostic(error)
+          : {
+              code: "LEDGER_UNAVAILABLE",
+              message: `Delivery ledger could not be validated: ${String(error?.message || "unknown error").split("\n")[0].slice(0, 240)}`,
+              retryable: false,
+            };
         ledgerEntries = [];
       }
+      if (ledgerDiagnostic) {
+        gateResult.status = "blocked";
+        // Keep the safety-critical reason visible even when the gate already
+        // accumulated the maximum number of diagnostics.
+        gateResult.diagnostics.unshift(ledgerDiagnostic);
+      }
       const targetSha = effectiveRepairsSha.toLowerCase();
-      const alreadyRepaired = ledgerEntries.some((entry) => {
+      const alreadyRepaired = !ledgerDiagnostic && ledgerEntries.some((entry) => {
         if (!entry.repairsSha) return false;
         const entryRepairs = String(entry.repairsSha).toLowerCase();
         return (
@@ -121,7 +158,9 @@ export async function inspectDelivery({
           targetSha.startsWith(entryRepairs)
         );
       });
-      if (alreadyRepaired) {
+      if (ledgerDiagnostic) {
+        // Ledger validation failure is terminal for repair_ci.
+      } else if (alreadyRepaired) {
         gateResult.status = "blocked";
         gateResult.diagnostics.push({
           code: "ALREADY_REPAIRED",

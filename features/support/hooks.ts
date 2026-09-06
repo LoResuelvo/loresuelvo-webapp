@@ -55,13 +55,6 @@ Before(async function (this: CustomWorld, scenario: ITestCaseHookParameter) {
     status: 200,
     body: [],
   });
-
-  await this.addApiStub({
-    method: "GET",
-    endpoint: "/coverage-zones",
-    status: 200,
-    body: [{ id: 1, name: "Comuna 1" }],
-  });
 });
 
 After(async function (this: CustomWorld) {

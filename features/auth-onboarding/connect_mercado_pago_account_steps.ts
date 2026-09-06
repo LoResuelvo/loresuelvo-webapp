@@ -25,12 +25,13 @@ When("finalizo el registro como prestador", async function (this: CustomWorld) {
   );
 
   await this.stubGet("/providers/me/payment-accounts", aPaymentAccount());
-
-  const zoneCheckbox = this.page.locator('input[type="checkbox"][name="coverageZones"]').first();
-  await zoneCheckbox.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
-  if (await zoneCheckbox.isVisible().catch(() => false)) {
-    await zoneCheckbox.check();
+  if (!(await this.hasApiStub("GET", "/coverage-zones"))) {
+    await this.stubGet("/coverage-zones", [{ id: 1, name: "Comuna 1" }]);
   }
+
+  const zoneCheckbox = this.page.locator('input[name="coverageZones"]').first();
+  await zoneCheckbox.waitFor({ state: "visible", timeout: 10000 });
+  await zoneCheckbox.check();
 
   const button = this.page.getByRole("button", { name: "Finalizar Registro" }).first();
   await button.waitFor();
@@ -76,12 +77,13 @@ Given(
     );
 
     await this.stubGet("/providers/me/payment-accounts", aPaymentAccount());
-
-    const zoneCheckbox = this.page.locator('input[type="checkbox"][name="coverageZones"]').first();
-    await zoneCheckbox.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
-    if (await zoneCheckbox.isVisible().catch(() => false)) {
-      await zoneCheckbox.check();
+    if (!(await this.hasApiStub("GET", "/coverage-zones"))) {
+      await this.stubGet("/coverage-zones", [{ id: 1, name: "Comuna 1" }]);
     }
+
+    const zoneCheckbox = this.page.locator('input[name="coverageZones"]').first();
+    await zoneCheckbox.waitFor({ state: "visible", timeout: 10000 });
+    await zoneCheckbox.check();
 
     const button = this.page.getByRole("button", { name: "Finalizar Registro" }).first();
     await button.waitFor();

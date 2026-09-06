@@ -16,6 +16,9 @@ Given("elegí la opción de prestador en la pagina de registro", async function 
   setSelectedRole("provider");
 
   await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
+  if (!(await this.hasApiStub("GET", "/coverage-zones"))) {
+    await this.stubGet("/coverage-zones", [{ id: 1, name: "Comuna 1" }]);
+  }
 
   await this.page.goto(APP_URL + ROUTES.onboarding);
   const providerButton = this.page.getByText("Soy Prestador").first();

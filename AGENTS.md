@@ -54,8 +54,8 @@ Antes de planificar u orquestar una US, leer `.agents/local/README.md` si existe
 6. La presentación inicial se implementa aislada con props o mocks y sin anticipar rutas, fetch, repositorios, Server Actions ni integración. Esas dependencias se incorporan al avanzar hacia adentro.
 7. Ownership, commits, push, reportes y escalamiento se rigen por la granularidad declarada en `frontend-ai-development-workflow`. En `SCENARIO` y `SCENARIO_GROUP`, el desarrollador persistente puede completar, commitear, pushear y monitorear únicamente el batch aprobado.
 8. Cada commit debe ser coherente, compilable y testeable. Antes de cada commit de agente, con el cambio exacto staged, `delivery_prepare` selecciona y ejecuta el gate local; solo `status: passed` habilita al agente a commitear y pushear a `main`. El flujo humano se define más abajo.
-9. CI se monitorea por SHA en paralelo. La política permite hasta cuatro commits totales en vuelo; ante una falla se detienen nuevos pushes y se corrige la causa. Un batch puede cerrarse localmente y dar paso al siguiente con CI pendiente dentro de esa ventana.
-10. Un escenario pierde `@wip` solo al pasar su E2E. La US se cierra con sus gates completos y CI verde.
+9. CI se monitorea por SHA en paralelo. La política permite hasta cuatro commits totales en vuelo; ante una falla se detienen nuevos pushes y se corrige la causa mediante el flujo de reparación auditable (`repair_ci` / Gate R). Queda prohibido cualquier bypass de CI (`DELIVERY_SKIP_CI_CHECK` es rechazado fail-closed). Un batch puede cerrarse localmente y dar paso al siguiente con CI pendiente dentro de esa ventana.
+10. Un escenario pierde `@wip` solo al pasar su E2E. La US se cierra sobre HEAD sin commits artificiales (`delivery_verify_head`), con sus gates completos y CI verde (`delivery_finalize` con `waitForCi`).
 
 Los escenarios aprobados son inmutables: no resumir, reescribir ni eliminar `Given`, `When` o `Then` sin una nueva aprobación funcional explícita.
 
@@ -112,11 +112,13 @@ Las referencias de una skill se leen únicamente cuando la tarea coincide con su
 ### Agente con MCP
 
 ```text
-delivery_inspect({ intent, proposedCommitMessage, ... })     # previsualización opcional
-delivery_prepare({ intent, proposedCommitMessage, ... })     # gate obligatorio sobre staged
-delivery_ci_inspect({ sha })                                 # CI compacto tras push
-delivery_finalize({ intent: "close_batch", usId, scopeFiles }) # cierre local; CI pendiente permitido
-delivery_finalize({ intent: "close_us", usId, scopeFiles }) # cierre con Gate D + CI verde
+delivery_inspect({ intent, proposedCommitMessage, ... })       # previsualización opcional
+delivery_prepare({ intent, proposedCommitMessage, ... })       # gate obligatorio sobre staged
+delivery_prepare({ intent: "repair_ci", repairsSha, ... })     # Gate R: reparación de un solo uso ante CI rojo
+delivery_verify_head({ intent: "close_us", scopeFiles, usId }) # verifica Gate D sobre HEAD sin commits artificiales
+delivery_ci_inspect({ sha })                                   # CI compacto tras push
+delivery_finalize({ intent: "close_batch", usId, scopeFiles })  # cierre local; CI pendiente permitido
+delivery_finalize({ intent: "close_us", usId, scopeFiles, waitForCi: true }) # cierre con Gate D + CI verde (espera acotada opcional)
 ```
 
 El agente edita y usa Git normalmente, pero no ejecuta manualmente `make`, lint, typecheck, suites ni comandos crudos de CI como flujo habitual. El servidor MCP elige y ejecuta los checks mediante el core compartido y devuelve resultados procesados.
@@ -126,8 +128,10 @@ El agente edita y usa Git normalmente, pero no ejecuta manualmente `make`, lint,
 ```bash
 npm run delivery:hooks:install
 npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuesto>'
+npm run delivery:prepare -- --intent repair_ci --repairs-sha <sha-fallido> --message 'fix: ...'
+npm run delivery:verify-head -- --intent close_us --scope features/<feature>.feature
 npm run delivery:ci -- --sha <commit-sha>
-npm run delivery:finalize -- --intent close_us --scope features/<feature>.feature
+npm run delivery:finalize -- --intent close_us --scope features/<feature>.feature --wait-for-ci
 npm run test
 npm run lint
 npm run build
@@ -138,12 +142,19 @@ Los comandos de `make` (`make test-e2e-managed`, etc.) son de uso interno para l
 
 La política versionada en `.delivery/policy.v1.json` es la única fuente autoritativa que decide clasificación, gates, checks, límites y orden. La evidencia generada queda ligada criptográficamente a HEAD, árbol staged, política, intent y alcance. La caché cubre éxitos y fallos idénticos; `--force` fuerza una ejecución nueva.
 
+La selección de gates se realiza por **impacto real** del diff:
+- **Cucumber**: mapea definiciones de steps contra sus features consumidoras mediante índice estructural. Un step nuevo no usado clasifica en Gate 0; un step consumido por una sola feature selecciona Gate B; steps consumidos por múltiples features, modificaciones a soporte compartido (`features/support/hooks.ts`) o resolución ambigua se elevan determinísticamente a Gate C.
+- **TypeScript**: analiza el grafo de dependencias e importaciones mediante AST. Componentes en carpetas no estándar se clasifican por su alcance real; archivos importados por múltiples flujos o layouts/providers globales se elevan a Gate C.
+
 El flujo de entrega distingue claramente entre agente y humano:
 - **Agentes autónomos**: MCP `delivery_prepare` es la entrada canónica obligatoria sobre el snapshot staged antes de cada commit. El guard anticipatorio disponible en el cliente deniega `git commit` si no existe un receipt válido y coincidente. Si el MCP requerido no está disponible, detenerse; la CLI neutral solo sustituye al MCP en un entorno aprobado explícitamente.
 - **Humanos**: desarrollan, realizan stage y pueden commitear directamente ejecutando tests de forma manual o delegando la verificación a CI. En ausencia de receipt previo, el commit se registra en el ledger local como `not_run` y se permite tanto el commit como el push (salvo que se configure `DELIVERY_REQUIRE_EVIDENCE=1`).
 - **Git hooks**: los hooks de Git (`pre-commit`, `commit-msg`, `post-commit`, `pre-push`) son deliberadamente livianos. **Nunca ejecutan suites de tests**. Solo validan formato de mensaje, presencia o correspondencia de receipt ya existente (sin re-ejecutar gates), atomicidad de push (un commit a la vez), una ventana máxima de cuatro commits totales en vuelo, CI previo no fallido y registro en el ledger. Se instalan una vez por clon con `npm run delivery:hooks:install`.
+- **Prohibición total de bypass de CI**: La variable `DELIVERY_SKIP_CI_CHECK` está prohibida y cualquier intento de utilizarla es rechazado inmediatamente de forma fail-closed (`DEPRECATED_CI_BYPASS_REJECTED`). No existe ningún bypass ambiental para eludir las comprobaciones de CI.
+- **Flujo de reparación de CI (`repair_ci` / Gate R)**: Ante una falla de CI, pre-push bloquea nuevos pushes ordinarios. La subsanación requiere crear un commit correctivo mediante `intent: "repair_ci"` indicando obligatoriamente `repairsSha` (el SHA del commit fallido). Esto ejecuta el **Gate R**, que reproduce exhaustivamente a nivel local el pipeline completo de CI (lint, typecheck de app y cucumber, unit tests y E2E gestionado). Dicho receipt genera una autorización de un solo uso en `pre-push`; una vez consumida al pushear, el fallo previo queda marcado como subsanado en el ledger y no bloquea futuros pushes.
+- **Verificación sin commits artificiales (`delivery_verify_head`)**: Al finalizar una User Story o batch cuando HEAD ya contiene los cambios definitivos y no restan tags `@wip`, no se deben generar commits vacíos o artificiales. Se invoca `delivery_verify_head({ intent: "close_us", scopeFiles })` (o `delivery:verify-head`), lo que valida Gate D sobre HEAD y asocia la evidencia requerida para el cierre.
 - **Concurrencia local**: en un worktree compartido existe un solo owner del staging y commit a la vez. Un commit externo invalida contexto y receipts ligados al `HEAD`; el agente vuelve a inspeccionar y ejecutar `delivery_prepare` antes de commitear.
 - **Cierre de batch**: MCP `delivery_finalize` con `close_batch` exige Gate D, commits pusheados, ledger válido y que todos los feature files declarados estén completos y sin `@wip`. Permite `queued`, `in_progress` o `not_found` y puede devolver `passed_pending_ci`. Si una feature conserva escenarios futuros con `@wip`, reportar el batch tras cerrar sus escenarios sin invocar `close_batch` sobre esa feature incompleta.
-- **Cierre de User Story**: la US termina únicamente cuando MCP `delivery_finalize` con `close_us` devuelve `finalized: true` y `status: passed`. Exige Gate D válido en `HEAD`, scope sin `@wip`, commits pusheados, ledger íntegro y CI `passed` para todos los commits relevantes, incluidos los registrados como `not_run`.
+- **Cierre de User Story**: la US termina únicamente cuando MCP `delivery_finalize` con `close_us` devuelve `finalized: true` y `status: passed`. Exige Gate D válido en `HEAD`, scope sin `@wip`, commits pusheados, ledger íntegro y CI `passed` para todos los commits relevantes, incluidos los registrados como `not_run`. Admite `waitForCi: true` para aguardar automáticamente la finalización de los jobs remotos en vuelo.
 
 Los agentes consumen resultados estructurados y normalizados; no deben calcular gates, procesar tracebacks completos, administrar manualmente comandos de CI ni descargar logs masivos. Los comandos `npm run delivery:*` comparten el mismo núcleo y quedan como interfaz humana, diagnóstico o fallback expresamente aprobado. Los comandos individuales se reservan para TDD o diagnóstico focalizado.

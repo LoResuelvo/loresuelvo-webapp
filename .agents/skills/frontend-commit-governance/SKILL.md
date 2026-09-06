@@ -28,7 +28,7 @@ Debe:
 
 No dividir por archivo ni por cantidad de líneas. Si el diff es grande, buscar un corte vertical independiente; si no existe, conservar el cambio coherente.
 
-Antes de cada commit del agente, dejar staged únicamente el cambio atómico e invocar `delivery_prepare` con el `intent` aplicable (`prepare_commit`, `close_scenario`, `close_batch`, `close_us`) y el mensaje propuesto. Esta herramienta inspecciona el snapshot, selecciona y ejecuta el gate local; el agente no calcula el gate ni reproduce sus comandos.
+Antes de cada commit del agente, dejar staged únicamente el cambio atómico e invocar `delivery_prepare` con el `intent` aplicable (`prepare_commit`, `close_scenario`, `close_batch`, `close_us`, `repair_ci`) y el mensaje propuesto. Esta herramienta inspecciona el snapshot, selecciona y ejecuta el gate local; el agente no calcula el gate ni reproduce sus comandos.
 
 El repositorio distingue claramente el flujo humano del flujo de agente:
 - **Agentes autónomos**: deben usar MCP `delivery_prepare` antes de commitear para obtener un receipt con `status: passed`. El guard anticipatorio disponible en el entorno intercepta `git commit` y deniega cualquier commit que no cuente con un receipt previo coincidente. Si el MCP requerido no está disponible, detenerse salvo aprobación explícita de otro entorno.
@@ -84,4 +84,20 @@ docs: clarify local E2E setup
 
 No pushear un commit intermedio que requiera archivos aún no presentes en `main`. Para commits de agente, ejecutar `delivery_prepare`, crear el commit solo con evidencia `passed` y pushearlo inmediatamente; no acumular varios commits locales para un único push. CI se sigue por SHA dentro de la ventana de commits en vuelo. Los commits humanos sin receipt siguen la excepción `not_run` definida en `AGENTS.md`.
 
-En `SCENARIO` y `SCENARIO_GROUP`, el desarrollador registra cada SHA y continúa sin reportes ordinarios mientras respete la ventana de CI. Cualquier estimación de commits por reporte es orientativa, no una cuota, mínimo ni máximo. No fusionar cambios independientes ni agrandar commits para ajustarse a una cifra; si el batch requiere más o menos fronteras, continuar con el siguiente commit atómico y registrar la desviación al llegar a una frontera segura. Si CI falla, detener nuevos pushes y escalar según `frontend-ai-development-workflow`.
+En `SCENARIO` y `SCENARIO_GROUP`, el desarrollador registra cada SHA y continúa sin reportes ordinarios mientras respete la ventana de CI. Cualquier estimación de commits por reporte es orientativa, no una cuota, mínimo ni máximo. No fusionar cambios independientes ni agrandar commits para ajustarse a una cifra; si el batch requiere más o menos fronteras, continuar con el siguiente commit atómico y registrar la desviación al llegar a una frontera segura. Si CI falla, detener nuevos pushes e iniciar el flujo de reparación auditable (`repair_ci`).
+
+## Reparación de CI de un solo uso (`repair_ci` / Gate R)
+
+Cuando un commit anterior falla en CI remoto, el hook `pre-push` bloquea cualquier push ordinario subsiguiente. Queda estrictamente prohibido intentar eludir este bloqueo con variables ambientales (`DELIVERY_SKIP_CI_CHECK` es rechazado de forma fail-closed con `DEPRECATED_CI_BYPASS_REJECTED`) o con `--no-verify`.
+
+Para subsanar el fallo de forma auditable:
+1. Inspeccionar el fallo con `delivery_ci_inspect({ sha: "<failed-sha>" })` o `npm run delivery:ci -- --sha <failed-sha>`.
+2. Implementar la corrección atómica y dejarla staged (`git add`).
+3. Invocar MCP `delivery_prepare` con `intent: "repair_ci"`, `repairsSha: "<failed-sha>"` y un mensaje propuesto con tipo `fix`, `test` o `chore`:
+   ```text
+   delivery_prepare({ intent: "repair_ci", repairsSha: "<failed-sha>", proposedCommitMessage: "fix: ..." })
+   ```
+   (o en CLI: `npm run delivery:prepare -- --intent repair_ci --repairs-sha <failed-sha> --message 'fix: ...'`).
+4. Esta invocación selecciona y ejecuta obligatoriamente el **Gate R**, que reproduce exhaustivamente el pipeline de CI a nivel local (lint, typecheck de app y cucumber, unit tests y E2E gestionado).
+5. Con `status: passed`, crear el commit (`git commit -m "fix: ..."`) y pushearlo inmediatamente (`git push origin main`).
+6. El hook `pre-push` comprueba la correspondencia con el SHA fallido, valida el Gate R y consume la autorización de reparación (de uso único). En el ledger local se asocia la reparación y se marca como subsanado el fallo previo, habilitando nuevamente pushes normales.

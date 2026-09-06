@@ -54,6 +54,18 @@ El runner ejecuta en fail-fast, reutiliza evidencia determinística del mismo sn
 - **Selección**: Cierre formal de User Story (`close_us`), cierre de batch (`close_batch`) o escenario de alto riesgo cerrado.
 - **Frontera semántica**: Máxima cobertura local: ejecuta la batería de Gate C y verifica de forma estricta la ausencia total de tags `@wip` en el alcance de features declarado.
 
+### Gate R — Reproducción exhaustiva de CI para reparación de un solo uso
+
+- **Selección**: Intent `repair_ci` con `repairsSha` indicando el commit fallido en CI remoto.
+- **Frontera semántica**: Reproduce de forma exhaustiva la batería completa de CI local: lint, typecheck de app (`tsconfig.json`), typecheck de cucumber (`tsconfig.cucumber.json`), suite unitaria (`npm test`) y suite E2E gestionada (`make test-e2e-managed`).
+- **Autorización de un solo uso**: Emite un receipt de reparación consumible una única vez en `pre-push` para autorizar el push del fix y subsanar el SHA fallido en el ledger.
+
+### Elevación determinística por impacto real
+
+La selección del gate no se guía por heurísticas superficiales de directorios, sino por el análisis estático de impacto:
+- **Cucumber Steps**: Mapeo estático de definiciones de steps contra sus features consumidoras. Un step nuevo no usado selecciona Gate 0; un step consumido por una única feature selecciona Gate B; steps consumidos por múltiples features, cambios en soporte global (`features/support/hooks.ts`) o ambigüedad elevan determinísticamente a Gate C.
+- **TypeScript AST**: Grafo de dependencias que analiza importaciones de componentes y módulos. Archivos o componentes consumidos por múltiples flujos, layouts o providers globales elevan a Gate C. Prevalece siempre el gate de mayor cobertura entre los impactos detectados.
+
 El runner local verifica que no queden tags `@wip` en los feature files del alcance terminado. Después del push todavía corresponde verificar:
 
 - commits coherentes, pusheados individualmente y registrados por SHA;
@@ -69,13 +81,16 @@ El runner local verifica que no queden tags `@wip` en los feature files del alca
 
 Cuando una falla no se resuelve con su causa directa, leer [diagnóstico y escalamiento](references/failure-diagnostics.md). Esa referencia define firma causal, evidencia compacta, señales de falta de progreso y `STOP_USER`; no cargarla durante ejecuciones verdes.
 
-## CI remoto
+## CI remoto, verificación sobre HEAD y reparación
 
 - Monitorear cada push por SHA, con una ventana máxima de cuatro commits totales en vuelo, incluido el commit que se está pusheando. La cifra vive en `ci.maxInFlightCommits` dentro de la política versionada.
 - La consulta de CI se realiza de forma compacta mediante `delivery_ci_inspect` o `npm run delivery:ci -- --sha <sha>`, sin emitir comandos crudos de `gh` ni tracebacks masivos.
 - Mientras el siguiente push no exceda cuatro SHAs en vuelo, continuar el trabajo local. Ante CI fallido, `timed_out` o `cancelled`, los hooks de Git bloquean nuevos pushes hasta resolver la causa.
+- Queda terminantemente prohibido cualquier intento de bypass ambiental de CI: la variable `DELIVERY_SKIP_CI_CHECK` está obsoleta y es rechazada inmediatamente de forma fail-closed (`DEPRECATED_CI_BYPASS_REJECTED`).
+- La resolución de fallos remotos de CI se realiza únicamente mediante el flujo de reparación auditable: preparar el fix y ejecutar `delivery_prepare({ intent: "repair_ci", repairsSha: "<failed-sha>", proposedCommitMessage: "fix: ..." })`. Esto corre el Gate R y genera un receipt de uso único que autoriza el push correctivo y subsana el fallo en el ledger.
+- **Verificación sobre HEAD**: Para verificar Gate D sobre un commit HEAD ya existente sin crear commits vacíos ni artificiales, invocar `delivery_verify_head({ intent: "close_us", scopeFiles })` (o CLI `delivery:verify-head`). Esto valida el árbol de HEAD y registra la evidencia para autorizar el cierre.
 - `delivery_finalize` con `close_batch` se usa solamente cuando todos los feature files declarados como scope del batch están completos y sin `@wip`. Puede aceptar `queued`, `in_progress` o `not_found`, devolver `passed_pending_ci` y habilitar el siguiente batch. Si una feature conserva escenarios futuros con `@wip`, reportar el batch sin formalizar `close_batch` sobre ese archivo.
-- En `close_us`, MCP `delivery_finalize` —o `npm run delivery:finalize` sin MCP— comprueba de forma automática que todos los commits de la US (incluyendo commits previos registrados como `not_run`) estén en verde con `status: passed` en CI, y que HEAD cuente con Gate D aprobado sin `@wip`. Estados `not_found`, `cancelled`, `timed_out` o `provider_error`, así como evidencia corrupta o faltante, bloquean el cierre. El bypass offline de pre-push no convierte CI desconocido o fallido en éxito.
+- En `close_us`, MCP `delivery_finalize` —o `npm run delivery:finalize` sin MCP— comprueba de forma automática que todos los commits de la US (incluyendo commits previos registrados como `not_run`) estén en verde con `status: passed` en CI, y que HEAD cuente con Gate D aprobado sin `@wip`. Estados `not_found`, `cancelled`, `timed_out` o `provider_error`, así como evidencia corrupta o faltante, bloquean el cierre. Admite `waitForCi: true` (con `timeoutMs` y `pollIntervalMs` configurables) para aguardar de forma acotada a que los checks de CI en vuelo completen en verde.
 
 ## Seguridad antes de commit
 

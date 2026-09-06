@@ -68,6 +68,16 @@ En un worktree compartido existe un solo owner del staging y commit a la vez. Un
 
 Aplicar el protocolo de `frontend-testing-gates` por firma causal. No repetir una falla idéntica sin un cambio relevante ni reiniciar el diagnóstico mediante handoffs o subagentes.
 
+### Protocolo ante CI fallido (repair_ci)
+1. Ante un fallo en CI remoto reportado por `delivery_ci_inspect`, detener de inmediato nuevos pushes.
+2. Queda prohibido cualquier bypass ambiental (`DELIVERY_SKIP_CI_CHECK` es rechazado fail-closed con `DEPRECATED_CI_BYPASS_REJECTED`) o el uso de `--no-verify`.
+3. Analizar la causa con el diagnóstico estructurado de CI.
+4. Preparar la corrección atómica y hacer stage exacto de los archivos modificados.
+5. Invocar MCP `delivery_prepare({ intent: "repair_ci", repairsSha: "<failed-sha>", proposedCommitMessage: "fix: ..." })`.
+6. Gate R reproduce exhaustivamente la validación de CI a nivel local y genera un receipt de reparación de uso único.
+7. Con `status: passed`, crear el commit y realizar `git push origin main`.
+8. El hook `pre-push` consume la autorización de reparación y el ledger actualiza el registro resolviendo la subsanación del SHA fallido.
+
 El developer prueba solo hipótesis distintas y sustentadas por evidencia; cuando deja de haber progreso razonable, escala con la respuesta compacta del runner. El orquestador puede realizar un único triage senior y decide si existe una hipótesis nueva justificada, si hace falta ampliar alcance o si corresponde declarar `STOP_USER`. No existe una cuota universal que obligue a abandonar una corrección que muestra progreso real.
 
 Una vez declarado `STOP_USER`, se detienen reparaciones, cambios, commits y pushes hasta recibir instrucciones. La transición no cambia por sí sola `AGENT_ORCHESTRATED` a `USER_GUIDED`.
@@ -75,10 +85,15 @@ Una vez declarado `STOP_USER`, se detienen reparaciones, cambios, commits y push
 ## CI y cierres
 
 - Pushear cada commit inmediatamente y consultar su SHA mediante `delivery_ci_inspect`; continuar mientras la ventana configurada permita otro push.
-- Ante CI fallido, detener nuevos pushes y usar el diagnóstico estructurado. No descargar logs completos sin una hipótesis concreta.
+- Ante CI fallido, detener nuevos pushes y aplicar el protocolo `repair_ci`.
 - `delivery_finalize(close_batch)` solo corresponde cuando todos los feature files declarados como scope del batch están completos y sin `@wip`. Si el batch cierra algunos escenarios de una feature que aún conserva otros `@wip`, reportar el batch y continuar mediante cierres de escenario; no invocar `close_batch` sobre esa feature incompleta.
 - Un cierre de batch puede devolver `passed_pending_ci`; habilita el siguiente batch dentro de la ventana, pero no representa CI verde.
-- Una US termina únicamente cuando `delivery_finalize(close_us)` devuelve `finalized: true` y `status: passed`. Esto exige Gate D válido en `HEAD`, scope sin `@wip`, commits pusheados, ledger íntegro y CI verde para todos los commits relevantes.
+
+### Protocolo de cierre de User Story
+Una US termina únicamente cuando se verifican todos los escenarios, gates y CI:
+1. **Último escenario completado**: El último commit atómico que retira `@wip` del feature file se prepara con `delivery_prepare`, se commitea y se pushea a `main`.
+2. **Verificación sobre HEAD**: Con el árbol limpio y posicionado en `HEAD`, invocar MCP `delivery_verify_head({ intent: "close_us", scopeFiles: ["features/<feature>.feature"] })` (o CLI `npm run delivery:verify-head -- --intent close_us --scope features/<feature>.feature`). Esto ejecuta Gate D sobre el commit HEAD y asocia la evidencia al ledger sin requerir commits artificiales ni vacíos.
+3. **Finalización formal**: Invocar MCP `delivery_finalize({ intent: "close_us", scopeFiles: ["features/<feature>.feature"], waitForCi: true })`. `waitForCi: true` aguarda de forma acotada a que los runs de CI en vuelo completen en verde. La US queda formalizada cuando devuelve `finalized: true` y `status: passed`.
 
 ## Reportes y monitoreo
 

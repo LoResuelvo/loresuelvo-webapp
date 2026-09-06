@@ -58,6 +58,13 @@ export function formatInspectionResult({
       parameters: gateResult?.gate?.parameters || {},
       postPushChecks: gateResult?.gate?.postPushChecks || [],
     },
+    impact: gateResult?.impact || {
+      gate: "NONE",
+      reasonCodes: [],
+      consumerCount: 0,
+      affectedFeatures: 0,
+      confidence: "high",
+    },
     maintainability: {
       status: maintainability?.status || "not_applicable",
       filesReviewed: maintainability?.filesReviewed || [],

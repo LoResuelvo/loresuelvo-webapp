@@ -185,9 +185,26 @@ export async function captureGitSnapshot({
   const diffBuffer = diffRes.stdout;
   const diffSizeBytes = diffBuffer.length;
 
-  const treeRes = await runGit(["write-tree"], repoRoot);
-  assertGitSucceeded(treeRes, "write-tree");
-  const stagedTreeSha = treeRes.stdout.toString("utf8").trim();
+  let stagedTreeSha = "UNKNOWN";
+  if (staged.length === 0) {
+    const headTreeRes = await runGit(["rev-parse", "HEAD^{tree}"], repoRoot);
+    if (!headTreeRes.error) {
+      stagedTreeSha = headTreeRes.stdout.toString("utf8").trim();
+    }
+  }
+  if (stagedTreeSha === "UNKNOWN") {
+    const treeRes = await runGit(["write-tree"], repoRoot);
+    if (treeRes.error) {
+      const fallbackTree = await runGit(["rev-parse", "HEAD^{tree}"], repoRoot);
+      if (!fallbackTree.error) {
+        stagedTreeSha = fallbackTree.stdout.toString("utf8").trim();
+      } else {
+        assertGitSucceeded(treeRes, "write-tree");
+      }
+    } else {
+      stagedTreeSha = treeRes.stdout.toString("utf8").trim();
+    }
+  }
 
   const hash = crypto.createHash("sha256");
   hash.update(diffBuffer);

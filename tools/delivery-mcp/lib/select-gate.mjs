@@ -3,6 +3,8 @@ import {
   isDeliveryControlPlanePath,
   normalizePath,
 } from "./classify-files.mjs";
+import { analyzeCucumberImpact } from "./impact-index.mjs";
+import { findRepoRoot } from "./repo-root.mjs";
 
 function policyGate(policy, gateId) {
   const gate = policy?.gates?.[gateId];
@@ -143,6 +145,8 @@ export function selectGate({
   snapshot,
   policy,
   maintainability = { status: "not_applicable", signalCount: 0, signals: [] },
+  cucumberImpact = null,
+  repoRoot = null,
 } = {}) {
   const diagnostics = [];
   const stagedFiles = snapshot?.stagedFiles || [];
@@ -152,6 +156,13 @@ export function selectGate({
       gate: buildGate(policy, "NONE", ["NO_STAGED_CHANGES"]),
       status: "no_changes",
       diagnostics,
+      impact: {
+        gate: "NONE",
+        reasonCodes: [],
+        consumerCount: 0,
+        affectedFeatures: 0,
+        confidence: "high",
+      },
     };
   }
 
@@ -232,6 +243,60 @@ export function selectGate({
     gate = buildGate(policy, "NONE", ["NON_FUNCTIONAL_CHANGES"]);
   }
 
+  // Cucumber impact analysis and elevation
+  let impact = cucumberImpact;
+  if (!impact && stagedFiles.length > 0) {
+    try {
+      const root = repoRoot || findRepoRoot();
+      impact = analyzeCucumberImpact({ repoRoot: root, files: stagedFiles });
+    } catch {
+      impact = null;
+    }
+  }
+
+  const effectiveImpact = impact || {
+    gate: "NONE",
+    reasonCodes: [],
+    consumerCount: 0,
+    affectedFeatures: 0,
+    confidence: "high",
+  };
+
+  if (impact && impact.gate && impact.gate !== "NONE") {
+    const currentPriority = policy.gates[gate.id]?.priority ?? 0;
+    const impactPriority = policy.gates[impact.gate]?.priority ?? 0;
+
+    if (impactPriority > currentPriority) {
+      if (impact.gate === "B") {
+        const targetFeature = impact.parameters?.featureFile || featureFile;
+        gate = buildGate(policy, "B", impact.reasonCodes, { featureFile: targetFeature });
+        if (!targetFeature && status !== "blocked") {
+          status = "needs_input";
+          pushDiagnostic(
+            diagnostics,
+            "MISSING_FEATURE_FOR_GATE_B",
+            "Gate B requires exactly one feature path, inferred or explicitly declared"
+          );
+        }
+      } else if (impact.gate === "C") {
+        gate = buildGate(policy, "C", impact.reasonCodes, gate.parameters);
+      } else if (impact.gate === "D") {
+        gate = buildGate(policy, "D", impact.reasonCodes, gate.parameters);
+      } else if (impact.gate === "0") {
+        gate = buildGate(policy, "0", impact.reasonCodes);
+      }
+    } else if (impactPriority === currentPriority && impact.gate === gate.id) {
+      if (impact.reasonCodes?.length > 0) {
+        gate = buildGate(
+          policy,
+          gate.id,
+          [...new Set([...impact.reasonCodes, ...gate.reasonCodes])],
+          { ...gate.parameters, ...(impact.parameters || {}) }
+        );
+      }
+    }
+  }
+
   if (maintainability?.operationalDiagnostic) {
     status = "blocked";
   } else if (
@@ -250,5 +315,6 @@ export function selectGate({
     gate,
     status,
     diagnostics: diagnostics.slice(0, policy.limits.maxDiagnostics),
+    impact: effectiveImpact,
   };
 }

@@ -85,6 +85,7 @@ export async function inspectDelivery({
   });
 
   const gateResult = selectGate({
+    repoRoot: root,
     intent: effectiveIntent,
     featureFile: effectiveFeatureFile,
     scenarioName: effectiveScenarioName,

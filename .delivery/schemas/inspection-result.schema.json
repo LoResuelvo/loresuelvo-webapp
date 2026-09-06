@@ -70,6 +70,26 @@
         }
       }
     },
+    "impact": {
+      "type": "object",
+      "required": ["gate", "reasonCodes", "consumerCount", "affectedFeatures", "confidence"],
+      "properties": {
+        "gate": { "type": "string" },
+        "reasonCodes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "consumerCount": { "type": "integer", "minimum": 0 },
+        "affectedFeatures": { "type": "integer", "minimum": 0 },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "parameters": {
+          "type": "object"
+        }
+      }
+    },
     "maintainability": {
       "type": "object",
       "required": ["status", "filesReviewed", "signalCount", "signals", "truncated"],

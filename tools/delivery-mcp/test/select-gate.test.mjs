@@ -387,3 +387,108 @@ test("selectGate: intent repair_ci sin repairsSha -> Gate R y diagnostic MISSING
   assert.strictEqual(result.status, "needs_input");
   assert.ok(result.diagnostics.some((d) => d.code === "MISSING_REPAIRS_SHA"));
 });
+
+test("selectGate: modificar features/support/hooks.ts selecciona Gate C", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["features/support/hooks.ts"],
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "C");
+  assert.strictEqual(result.status, "ready");
+  assert.ok(result.gate.reasonCodes.includes("GLOBAL_CUCUMBER_SUPPORT_CHANGED"));
+  assert.strictEqual(result.impact.gate, "C");
+  assert.deepStrictEqual(result.impact.reasonCodes, ["GLOBAL_CUCUMBER_SUPPORT_CHANGED"]);
+  assert.strictEqual(result.impact.confidence, "high");
+  assert.ok(result.impact.consumerCount > 0);
+  assert.ok(result.impact.affectedFeatures > 0);
+  assert.ok(result.gate.checks.includes("make test-e2e-managed"));
+});
+
+test("selectGate: step definition compartido por varias features selecciona Gate C", () => {
+  // connect_mercado_pago_account_steps.ts is used by multiple features
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["features/auth-onboarding/connect_mercado_pago_account_steps.ts"],
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "C");
+  assert.strictEqual(result.status, "ready");
+  assert.ok(result.gate.reasonCodes.includes("SHARED_STEP_CONSUMERS"));
+  assert.strictEqual(result.impact.gate, "C");
+  assert.deepStrictEqual(result.impact.reasonCodes, ["SHARED_STEP_CONSUMERS"]);
+  assert.strictEqual(result.impact.confidence, "high");
+  assert.ok(result.impact.affectedFeatures >= 2);
+  assert.ok(result.impact.consumerCount >= 2);
+});
+
+test("selectGate: step definition utilizado por una única feature selecciona Gate B", () => {
+  // register_consumer_with_profile_photo_steps.ts is used ONLY by register_consumer_with_profile_photo.feature
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: [
+        "features/auth-onboarding/register_consumer_with_profile_photo_steps.ts",
+      ],
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "B");
+  assert.strictEqual(result.status, "ready");
+  assert.ok(result.gate.reasonCodes.includes("SINGLE_FEATURE_STEP_CONSUMER"));
+  assert.strictEqual(result.impact.gate, "B");
+  assert.deepStrictEqual(result.impact.reasonCodes, ["SINGLE_FEATURE_STEP_CONSUMER"]);
+  assert.strictEqual(result.impact.affectedFeatures, 1);
+  assert.strictEqual(
+    result.gate.parameters.featureFile,
+    "features/auth-onboarding/register_consumer_with_profile_photo.feature"
+  );
+  assert.deepStrictEqual(result.gate.checks, [
+    "make test-e2e-managed E2E_FILE=features/auth-onboarding/register_consumer_with_profile_photo.feature",
+  ]);
+});
+
+test("selectGate: step definition nuevo no utilizado selecciona Gate 0", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["features/unused/new_unused_step_file_steps.ts"],
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "0");
+  assert.strictEqual(result.status, "ready");
+  assert.strictEqual(result.impact.gate, "0");
+  assert.ok(result.impact.reasonCodes.includes("NEW_STEP_NO_CONSUMERS"));
+  assert.strictEqual(result.impact.affectedFeatures, 0);
+  assert.strictEqual(result.impact.consumerCount, 0);
+  assert.strictEqual(result.impact.confidence, "high");
+  assert.deepStrictEqual(result.gate.checks, ["make test-e2e-steps-compatible"]);
+});
+
+test("selectGate: step definition ambiguo o no resoluble selecciona Gate C conservador", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["features/demo/ambiguous_steps.ts"],
+    },
+    cucumberImpact: {
+      gate: "C",
+      reasonCodes: ["AMBIGUOUS_STEP_IMPACT"],
+      consumerCount: 1,
+      affectedFeatures: 1,
+      confidence: "low",
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "C");
+  assert.strictEqual(result.status, "ready");
+  assert.strictEqual(result.impact.gate, "C");
+  assert.deepStrictEqual(result.impact.reasonCodes, ["AMBIGUOUS_STEP_IMPACT"]);
+  assert.strictEqual(result.impact.confidence, "low");
+});
+

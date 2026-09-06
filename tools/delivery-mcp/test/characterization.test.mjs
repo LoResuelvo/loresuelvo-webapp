@@ -373,28 +373,79 @@ test("characterization: bypass ambiental DELIVERY_SKIP_CI_CHECK es rechazado con
   }
 });
 
-test("characterization: comportamiento actual de Gate 0 sobre steps existentes", async () => {
+test("characterization: selección de gate por impacto Cucumber sobre steps existentes y hooks (patrón 5d0a34d)", async () => {
   const policy = await loadDeliveryPolicy();
 
-  // Al modificar un step existente (con o sin su feature), actualmente la clasificación
-  // solo mira prefijos/extensiones estáticas y asigna Gate 0 sin comprobar si el step
-  // ya existe o si es consumido por una o más features.
-  const result = selectGate({
+  // 1. Patrón del commit 5d0a34d: cambio en hooks.ts y step existente
+  // Anteriormente recibía Gate 0 estático; ahora debe seleccionar Gate C.
+  const result5d0a34d = selectGate({
     intent: "prepare_commit",
     snapshot: {
       stagedFiles: [
-        "features/proposal/accept-proposal.feature",
-        "features/proposal/steps/accept-proposal.steps.ts",
+        "features/auth-onboarding/connect_mercado_pago_account_steps.ts",
+        "features/support/hooks.ts",
       ],
     },
     policy,
   });
 
-  assert.strictEqual(result.gate.id, "0");
-  assert.strictEqual(result.status, "ready");
-  assert.deepStrictEqual(result.gate.checks, ["make test-e2e-steps-compatible"]);
-  // Batch 3 incorporará el índice de impacto de Cucumber para resolver si este step
-  // tiene consumidores y requiere Gate B o Gate C en vez de Gate 0 estático.
+  assert.strictEqual(result5d0a34d.gate.id, "C");
+  assert.strictEqual(result5d0a34d.status, "ready");
+  assert.ok(result5d0a34d.gate.reasonCodes.includes("GLOBAL_CUCUMBER_SUPPORT_CHANGED"));
+  assert.strictEqual(result5d0a34d.impact.gate, "C");
+  assert.ok(result5d0a34d.gate.checks.includes("make test-e2e-managed"));
+
+  // 2. Step existente utilizado por una sola feature -> Gate B (no Gate 0 estático)
+  const resultSingle = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: [
+        "features/auth-onboarding/register_consumer_with_profile_photo_steps.ts",
+      ],
+    },
+    policy,
+  });
+
+  assert.strictEqual(resultSingle.gate.id, "B");
+  assert.strictEqual(resultSingle.status, "ready");
+  assert.ok(resultSingle.gate.reasonCodes.includes("SINGLE_FEATURE_STEP_CONSUMER"));
+  assert.strictEqual(resultSingle.impact.gate, "B");
+  assert.strictEqual(
+    resultSingle.gate.parameters.featureFile,
+    "features/auth-onboarding/register_consumer_with_profile_photo.feature"
+  );
+
+  // 3. Step existente compartido por varias features -> Gate C
+  const resultShared = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: [
+        "features/auth-onboarding/connect_mercado_pago_account_steps.ts",
+      ],
+    },
+    policy,
+  });
+
+  assert.strictEqual(resultShared.gate.id, "C");
+  assert.strictEqual(resultShared.status, "ready");
+  assert.ok(resultShared.gate.reasonCodes.includes("SHARED_STEP_CONSUMERS"));
+  assert.strictEqual(resultShared.impact.gate, "C");
+
+  // 4. Step nuevo sin consumidores -> Gate 0
+  const resultNew = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: [
+        "features/proposal/steps/accept-proposal-unconsumed.steps.ts",
+      ],
+    },
+    policy,
+  });
+
+  assert.strictEqual(resultNew.gate.id, "0");
+  assert.strictEqual(resultNew.status, "ready");
+  assert.ok(resultNew.impact.reasonCodes.includes("NEW_STEP_NO_CONSUMERS"));
+  assert.deepStrictEqual(resultNew.gate.checks, ["make test-e2e-steps-compatible"]);
 });
 
 test("characterization: fallo de CI histórico en close_us cuando un commit previo no está passed", async (t) => {

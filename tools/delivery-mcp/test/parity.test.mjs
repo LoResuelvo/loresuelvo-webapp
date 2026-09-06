@@ -102,6 +102,7 @@ test("paridad CLI / MCP: inspect, prepare, finalize y verify_head producen el mi
     // 4. Verify-head parity test
     const verifyHeadInput = {
       intent: "close_us",
+      force: true,
     };
     const parsedVerifyHead = DeliveryVerifyHeadInputSchema.parse(verifyHeadInput);
     const cliVerifyHeadResult = await verifyHeadDelivery(parsedVerifyHead);

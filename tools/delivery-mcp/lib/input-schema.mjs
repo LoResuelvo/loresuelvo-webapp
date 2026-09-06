@@ -64,6 +64,7 @@ export const DeliveryVerifyHeadInputSchema = z.object({
   intent: z.enum(["close_us", "close_batch"]).default("close_us"),
   usId: z.string().max(500).optional(),
   scopeFiles: z.array(z.string().max(500)).default([]),
+  force: z.boolean().default(false),
 });
 
 export function formatInputIssues(error) {

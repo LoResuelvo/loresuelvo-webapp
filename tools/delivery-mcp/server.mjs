@@ -190,6 +190,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             items: { type: "string" },
             description: "Completed feature paths to verify with Gate D",
           },
+          force: {
+            type: "boolean",
+            description: "Re-run checks instead of reusing cached evidence",
+          },
         },
       },
       annotations: {

@@ -74,9 +74,10 @@ Aplicar el protocolo de `frontend-testing-gates` por firma causal. No repetir un
 3. Analizar la causa con el diagnóstico estructurado de CI.
 4. Preparar la corrección atómica y hacer stage exacto de los archivos modificados.
 5. Invocar MCP `delivery_prepare({ intent: "repair_ci", repairsSha: "<failed-sha>", proposedCommitMessage: "fix: ..." })`.
-6. Gate R reproduce exhaustivamente la validación de CI a nivel local y genera un receipt de reparación de uso único.
-7. Con `status: passed`, crear el commit y realizar `git push origin main`.
-8. El hook `pre-push` consume la autorización de reparación y el ledger actualiza el registro resolviendo la subsanación del SHA fallido.
+6. Gate R reproduce exhaustivamente los checks de CI asignados a agentes (`delivery_unit`, `lint`, `typecheck_app`, `typecheck_cucumber`, `unit`, `e2e_full` y `build`; excluyendo Docker build) y genera un receipt de reparación de uso único.
+7. Si el fallo remoto en CI ocurre en un job de Docker o involucra archivos de contenedor (`Dockerfile`, `.dockerignore`, `compose*.yml`), pertenece exclusivamente a desarrolladores humanos (`HUMAN_ONLY`); detenerse con `HUMAN_ONLY_CI_FAILURE` o `HUMAN_ONLY_CHANGE` y escalar a `STOP_USER`.
+8. Con `status: passed`, crear el commit y realizar `git push origin main`.
+9. El hook `pre-push` consume la autorización de reparación y el ledger actualiza el registro resolviendo la subsanación del SHA fallido.
 
 El developer prueba solo hipótesis distintas y sustentadas por evidencia; cuando deja de haber progreso razonable, escala con la respuesta compacta del runner. El orquestador puede realizar un único triage senior y decide si existe una hipótesis nueva justificada, si hace falta ampliar alcance o si corresponde declarar `STOP_USER`. No existe una cuota universal que obligue a abandonar una corrección que muestra progreso real.
 

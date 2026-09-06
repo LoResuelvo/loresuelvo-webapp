@@ -98,6 +98,8 @@ Para subsanar el fallo de forma auditable:
    delivery_prepare({ intent: "repair_ci", repairsSha: "<failed-sha>", proposedCommitMessage: "fix: ..." })
    ```
    (o en CLI: `npm run delivery:prepare -- --intent repair_ci --repairs-sha <failed-sha> --message 'fix: ...'`).
-4. Esta invocación selecciona y ejecuta obligatoriamente el **Gate R**, que reproduce exhaustivamente el pipeline de CI a nivel local (lint, typecheck de app y cucumber, unit tests y E2E gestionado).
+4. Esta invocación selecciona y ejecuta obligatoriamente el **Gate R**, que reproduce exhaustivamente a nivel local los checks de CI asignados a agentes (`delivery_unit`, `lint`, `typecheck_app`, `typecheck_cucumber`, `unit`, `e2e_full` y `build`; excluyendo la construcción de imágenes Docker, reservada para GitHub Actions y humanos).
 5. Con `status: passed`, crear el commit (`git commit -m "fix: ..."`) y pushearlo inmediatamente (`git push origin main`).
 6. El hook `pre-push` comprueba la correspondencia con el SHA fallido, valida el Gate R y consume la autorización de reparación (de uso único). En el ledger local se asocia la reparación y se marca como subsanado el fallo previo, habilitando nuevamente pushes normales.
+
+Superficie Docker (HUMAN_ONLY): Modificaciones a `Dockerfile`, `.dockerignore`, `compose*.yml`, workflows de Docker o scripts de construcción de imágenes pertenecen exclusivamente al desarrollador humano. Los agentes se detienen con `HUMAN_ONLY_CHANGE` o `HUMAN_ONLY_CI_FAILURE` y escalan a `STOP_USER`.

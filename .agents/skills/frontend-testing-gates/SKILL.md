@@ -57,8 +57,14 @@ El runner ejecuta en fail-fast, reutiliza evidencia determinística del mismo sn
 ### Gate R — Reproducción exhaustiva de CI para reparación de un solo uso
 
 - **Selección**: Intent `repair_ci` con `repairsSha` indicando el commit fallido en CI remoto.
-- **Frontera semántica**: Reproduce de forma exhaustiva la batería completa de CI local: lint, typecheck de app (`tsconfig.json`), typecheck de cucumber (`tsconfig.cucumber.json`), suite unitaria (`npm test`) y suite E2E gestionada (`make test-e2e-managed`).
+- **Frontera semántica**: Reproduce de forma exhaustiva los checks de CI asignados a agentes (`delivery_unit`, `lint`, `typecheck_app`, `typecheck_cucumber`, `unit`, `e2e_full` y `build`; excluyendo la construcción de imágenes Docker, reservada a humanos y GitHub Actions).
 - **Autorización de un solo uso**: Emite un receipt de reparación consumible una única vez en `pre-push` para autorizar el push del fix y subsanar el SHA fallido en el ledger.
+
+### Superficie Docker reservada a humanos (HUMAN_ONLY)
+
+Los archivos y scripts de Docker (`Dockerfile`, `Dockerfile.*`, `.dockerignore`, `docker/**`, `compose*.yml`, `compose*.yaml`, workflows de Docker o scripts de imágenes) pertenecen exclusivamente al desarrollador humano (`HUMAN_ONLY`).
+- Si un agente los incluye en su snapshot staged, `delivery_inspect` y `delivery_prepare` bloquean con `HUMAN_ONLY_CHANGE` y escalan a `STOP_USER`.
+- Si un fallo remoto de CI ocurre en un job de Docker, `repair_ci` bloquea con `HUMAN_ONLY_CI_FAILURE` y escala a `STOP_USER`.
 
 ### Elevación determinística por impacto real
 

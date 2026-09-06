@@ -339,6 +339,7 @@ async function main() {
       featureFile: parsed.data.featureFile,
       scenarioName: parsed.data.scenarioName,
       scopeFiles: parsed.data.scopeFiles,
+      repairsSha: parsed.data.repairsSha,
     });
     writeJson(saved, options.pretty);
     process.exitCode = 0;

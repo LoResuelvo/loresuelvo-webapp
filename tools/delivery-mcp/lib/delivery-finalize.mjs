@@ -124,6 +124,7 @@ export async function finalizeDelivery({
   timeoutMs = 900000,
   pollIntervalMs = 10000,
   sleepFn = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  unpushedCommitsResolver = null,
 } = {}) {
   const root = findRepoRoot(repoRoot);
   try {
@@ -236,26 +237,32 @@ export async function finalizeDelivery({
   }
 
   let unpushedCommits = [];
-  try {
-    const unpushed = execFileSync("git", ["log", "@{u}..HEAD", "--oneline"], {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    }).trim();
-    if (unpushed) unpushedCommits = unpushed.split("\n");
-  } catch {
+  if (typeof unpushedCommitsResolver === "function") {
+    const resolved = await unpushedCommitsResolver({ repoRoot: root, headSha });
+    unpushedCommits = Array.isArray(resolved) ? resolved : (resolved ? [resolved] : []);
+  } else {
     try {
-      const unpushed = execFileSync("git", ["log", "origin/main..HEAD", "--oneline"], {
+      const unpushed = execFileSync("git", ["log", "@{u}..HEAD", "--oneline"], {
         cwd: root,
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
       }).trim();
       if (unpushed) unpushedCommits = unpushed.split("\n");
     } catch {
-      // Isolated repositories can opt in through DELIVERY_ALLOW_UNPUSHED_FINALIZE.
+      try {
+        const unpushed = execFileSync("git", ["log", "origin/main..HEAD", "--oneline"], {
+          cwd: root,
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+        }).trim();
+        if (unpushed) unpushedCommits = unpushed.split("\n");
+      } catch {
+        // Remote or upstream branch not configured/resolvable
+      }
     }
   }
-  if (unpushedCommits.length > 0 && process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE !== "1") {
+
+  if (unpushedCommits.length > 0) {
     return {
       finalized: false,
       status: "blocked",

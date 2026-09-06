@@ -1584,21 +1584,14 @@ test("paridad entre pre-push y finalizeDelivery en el rechazo de relaciones invÃ
 
   // 2. finalizeDelivery bloquea con el mismo criterio (REPAIR_NOT_DESCENDANT)
   mockCi.setFixture(post2.commitSha, { status: "passed" });
-  const prevAllow = process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE;
-  process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE = "1";
-  let finalizeRes;
-  try {
-    finalizeRes = await finalizeDelivery({
-      repoRoot,
-      intent: "close_us",
-      usId: "42",
-      scopeFiles: [featurePath],
-      ciProvider: mockCi,
-    });
-  } finally {
-    if (prevAllow === undefined) delete process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE;
-    else process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE = prevAllow;
-  }
+  const finalizeRes = await finalizeDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "42",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+    unpushedCommitsResolver: () => [],
+  });
   assert.strictEqual(finalizeRes.finalized, false);
   assert.strictEqual(finalizeRes.status, "blocked");
   assert.strictEqual(finalizeRes.invalidRepairs.length, 1);

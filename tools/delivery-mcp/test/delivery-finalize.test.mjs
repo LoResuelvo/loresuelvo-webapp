@@ -144,14 +144,10 @@ async function attachEvidence({
 }
 
 async function finalizeInIsolatedRepo(options) {
-  const previous = process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE;
-  process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE = "1";
-  try {
-    return await finalizeDelivery(options);
-  } finally {
-    if (previous === undefined) delete process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE;
-    else process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE = previous;
-  }
+  return await finalizeDelivery({
+    unpushedCommitsResolver: () => [],
+    ...options,
+  });
 }
 
 test("finalizeDelivery: bloquea si falta Gate D local aprobado en HEAD", async (t) => {
@@ -1722,4 +1718,126 @@ test("finalizeDelivery: close_batch con incidente activo no subsanado es bloquea
   assert.ok(["ACTIVE_CI_INCIDENT", "CI_NOT_GREEN"].includes(res.reason));
   assert.strictEqual(res.sha, sha1);
 });
+
+test("finalizeDelivery: close_us bloquea efectivamente ante commits no pusheados", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  const featurePath = "features/unpushed.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: Unpushed\n  Scenario: S1\n    Given ok\n",
+    "chore[55]: unpushed commit"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "55",
+    intent: "close_us",
+  });
+
+  const ciProvider = new MockCiProvider({
+    [sha]: { status: "passed" },
+  });
+
+  // 1. Sin resolver: verifica contra git real y bloquea porque el commit no fue pusheado
+  const resRealGit = await finalizeDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "55",
+    scopeFiles: [featurePath],
+    ciProvider,
+  });
+
+  assert.strictEqual(resRealGit.finalized, false);
+  assert.strictEqual(resRealGit.status, "blocked");
+  assert.strictEqual(resRealGit.reason, "UNPUSHED_COMMITS");
+  assert.match(resRealGit.message, /Cannot finalize: unpushed commits include/);
+
+  // 2. Con resolver explícito que reporta commits no pusheados: también bloquea
+  const resWithResolver = await finalizeDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "55",
+    scopeFiles: [featurePath],
+    ciProvider,
+    unpushedCommitsResolver: () => ["fake123 chore[55]: mocked unpushed commit"],
+  });
+
+  assert.strictEqual(resWithResolver.finalized, false);
+  assert.strictEqual(resWithResolver.status, "blocked");
+  assert.strictEqual(resWithResolver.reason, "UNPUSHED_COMMITS");
+
+  // 3. Tras pushear a origin/main: la comprobación de unpushed pasa y finaliza con éxito
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+  const resPushed = await finalizeDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "55",
+    scopeFiles: [featurePath],
+    ciProvider,
+  });
+
+  assert.strictEqual(resPushed.finalized, true);
+  assert.strictEqual(resPushed.status, "passed");
+});
+
+test("finalizeDelivery: DELIVERY_ALLOW_UNPUSHED_FINALIZE=1 en el entorno ya NO omite la verificación de commits no pusheados", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  const featurePath = "features/unpushed-env.feature";
+  const sha = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: Unpushed Env\n  Scenario: S1\n    Given ok\n",
+    "chore[56]: unpushed commit with env var set"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "56",
+    intent: "close_us",
+  });
+
+  const ciProvider = new MockCiProvider({
+    [sha]: { status: "passed" },
+  });
+
+  // Con la variable de entorno seteada en '1', la verificación en producción DEBE seguir bloqueando
+  const prevEnv = process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE;
+  process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE = "1";
+  let res;
+  try {
+    res = await finalizeDelivery({
+      repoRoot,
+      intent: "close_us",
+      usId: "56",
+      scopeFiles: [featurePath],
+      ciProvider,
+    });
+  } finally {
+    if (prevEnv === undefined) delete process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE;
+    else process.env.DELIVERY_ALLOW_UNPUSHED_FINALIZE = prevEnv;
+  }
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.status, "blocked");
+  assert.strictEqual(res.reason, "UNPUSHED_COMMITS");
+  assert.match(res.message, /Cannot finalize: unpushed commits include/);
+});
+
 

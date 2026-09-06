@@ -17,6 +17,7 @@ export async function inspectDelivery({
   featureFile = "",
   scenarioName = "",
   scopeFiles = [],
+  repairsSha = null,
 } = {}) {
   const root = findRepoRoot(repoRoot);
   const policy = await loadDeliveryPolicy({ repoRoot: root });
@@ -31,6 +32,7 @@ export async function inspectDelivery({
   let effectiveScenarioName = scenarioName;
   let effectiveScopeFiles = [...scopeFiles];
   let effectiveUsId = snapshot.proposedUsId || null;
+  let effectiveRepairsSha = repairsSha ? String(repairsSha).trim() : null;
   const contextDiagnostics = [];
 
   const activeContext = await loadDeliveryContext({ repoRoot: root });
@@ -57,6 +59,7 @@ export async function inspectDelivery({
       if (effectiveScopeFiles.length === 0 && activeContext.scopeFiles?.length > 0) {
         effectiveScopeFiles = [...activeContext.scopeFiles];
       }
+      effectiveRepairsSha = effectiveRepairsSha || activeContext.repairsSha || null;
     }
   }
 
@@ -112,6 +115,7 @@ export async function inspectDelivery({
       scenarioName: effectiveScenarioName,
       scopeFiles: effectiveScopeFiles,
       usId: effectiveUsId,
+      repairsSha: effectiveRepairsSha,
     },
   };
 }

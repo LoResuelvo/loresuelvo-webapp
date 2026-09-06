@@ -2,12 +2,13 @@ import { z } from "zod";
 
 export const DeliveryInspectInputSchema = z.object({
   intent: z
-    .enum(["prepare_commit", "close_scenario", "close_batch", "close_us"])
+    .enum(["prepare_commit", "close_scenario", "close_batch", "close_us", "repair_ci"])
     .default("prepare_commit"),
   proposedCommitMessage: z.string().max(500).optional(),
   featureFile: z.string().max(500).optional(),
   scenarioName: z.string().max(500).optional(),
   scopeFiles: z.array(z.string().max(500)).max(100).default([]),
+  repairsSha: z.string().min(7).max(40).optional(),
 });
 
 export const DeliveryPrepareInputSchema = DeliveryInspectInputSchema.extend({
@@ -36,12 +37,13 @@ export const DeliveryPrepareInputSchema = DeliveryInspectInputSchema.extend({
 export const DeliveryContextInputSchema = z.object({
   action: z.enum(["set", "inspect", "clear", "consume"]).default("set"),
   intent: z
-    .enum(["prepare_commit", "close_scenario", "close_batch", "close_us"])
+    .enum(["prepare_commit", "close_scenario", "close_batch", "close_us", "repair_ci"])
     .optional(),
   usId: z.string().max(500).optional(),
   featureFile: z.string().max(500).optional(),
   scenarioName: z.string().max(500).optional(),
   scopeFiles: z.array(z.string().max(500)).max(100).default([]),
+  repairsSha: z.string().min(7).max(40).optional(),
 });
 
 export const DeliveryCiInputSchema = z.object({
@@ -49,6 +51,13 @@ export const DeliveryCiInputSchema = z.object({
 });
 
 export const DeliveryFinalizeInputSchema = z.object({
+  intent: z.enum(["close_us", "close_batch"]).default("close_us"),
+  usId: z.string().max(500).optional(),
+  scopeFiles: z.array(z.string().max(500)).default([]),
+  repairsSha: z.string().min(7).max(40).optional(),
+});
+
+export const DeliveryVerifyHeadInputSchema = z.object({
   intent: z.enum(["close_us", "close_batch"]).default("close_us"),
   usId: z.string().max(500).optional(),
   scopeFiles: z.array(z.string().max(500)).default([]),

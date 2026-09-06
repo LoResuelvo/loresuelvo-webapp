@@ -20,7 +20,7 @@ import { redactSecrets } from "./lib/redact-secrets.mjs";
 
 const intentProperty = {
   type: "string",
-  enum: ["prepare_commit", "close_scenario", "close_batch", "close_us"],
+  enum: ["prepare_commit", "close_scenario", "close_batch", "close_us", "repair_ci"],
   description: "Delivery intent for this boundary",
 };
 
@@ -42,6 +42,10 @@ const commonProperties = {
     type: "array",
     items: { type: "string" },
     description: "Completed feature paths that define Gate D @wip scope",
+  },
+  repairsSha: {
+    type: "string",
+    description: "Optional failed commit SHA being repaired by repair_ci",
   },
 };
 

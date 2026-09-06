@@ -176,6 +176,7 @@ export async function prepareDelivery({
       snapshot,
       inspection,
       intent: resolvedInput.intent,
+      repairsSha: resolvedInput.repairsSha,
     });
     if (prepared.valid) return { ...prepared.record, cached: true };
   }
@@ -203,6 +204,7 @@ export async function prepareDelivery({
       featureFile: resolvedInput.featureFile,
       scenarioName: resolvedInput.scenarioName,
       scopeFiles: resolvedInput.scopeFiles,
+      repairsSha: resolvedInput.repairsSha,
     });
   }
 
@@ -218,6 +220,7 @@ export async function prepareDelivery({
     runKey: outcome.runKey,
     status: outcome.status,
     recordPath: outcome.evidence?.recordPath,
+    repairsSha: resolvedInput.repairsSha,
   });
 
   return outcome;

@@ -47,7 +47,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "enum": ["NONE", "0", "A", "B", "C", "D"]
+          "enum": ["NONE", "0", "A", "B", "C", "D", "R"]
         },
         "reasonCodes": {
           "type": "array",

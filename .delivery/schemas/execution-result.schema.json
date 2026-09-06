@@ -21,7 +21,7 @@
       "type": "object",
       "required": ["id", "reasonCodes", "checkIds", "parameters", "postPushChecks"],
       "properties": {
-        "id": { "type": "string", "enum": ["NONE", "0", "A", "B", "C", "D"] },
+        "id": { "type": "string", "enum": ["NONE", "0", "A", "B", "C", "D", "R"] },
         "reasonCodes": { "type": "array", "items": { "type": "string" } },
         "checkIds": { "type": "array", "items": { "type": "string" } },
         "parameters": { "type": "object" },

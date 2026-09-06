@@ -34,6 +34,7 @@ export async function saveDeliveryContext({
   featureFile = null,
   scenarioName = null,
   scopeFiles = [],
+  repairsSha = null,
 } = {}) {
   const root = findRepoRoot(repoRoot);
   const absolutePath = path.resolve(root, DELIVERY_CONTEXT_PATH);
@@ -59,6 +60,7 @@ export async function saveDeliveryContext({
     featureFile: featureFile ? String(featureFile).trim() : null,
     scenarioName: scenarioName ? String(scenarioName).trim() : null,
     scopeFiles: cleanScopeFiles,
+    repairsSha: repairsSha ? String(repairsSha).trim() : null,
     consumed: false,
     consumedAt: null,
   };

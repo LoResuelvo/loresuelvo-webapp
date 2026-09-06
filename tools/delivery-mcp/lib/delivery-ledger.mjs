@@ -60,6 +60,10 @@ export async function recordPreparedEvidence({
   runKey = null,
   status,
   recordPath = null,
+  repairsSha = null,
+  supersedes = [],
+  repairStatus = null,
+  repairedFailure = null,
 } = {}) {
   const root = findRepoRoot(repoRoot);
   if (status === "passed" && (!snapshot?.stagedTreeSha || !recordPath)) {
@@ -81,6 +85,9 @@ export async function recordPreparedEvidence({
     recordDigest = loaded.digest;
   }
 
+  const effectivePolicyHash = inspection?.policy?.hash || null;
+  const effectiveRepairsSha = repairsSha || inspection?.repairsSha || null;
+
   const data = {
     schemaVersion: 2,
     recordedAt: new Date().toISOString(),
@@ -94,12 +101,16 @@ export async function recordPreparedEvidence({
     stagedTreeSha: snapshot?.stagedTreeSha || null,
     stagedFiles: [...new Set(snapshot?.stagedFiles || [])].sort(),
     gateId: inspection?.gate?.id || null,
-    policyHash: inspection?.policy?.hash || null,
+    policyHash: effectivePolicyHash,
     intent,
     usId: usId || snapshot?.proposedUsId || null,
     featureFile: featureFile || null,
     scenarioName: scenarioName || null,
     scopeFiles: [...new Set(scopeFiles || [])].sort(),
+    repairsSha: effectiveRepairsSha,
+    supersedes: Array.isArray(supersedes) ? supersedes : [],
+    repairStatus: repairStatus || null,
+    repairedFailure: repairedFailure || null,
     consumedByCommitSha: null,
     consumedAt: null,
   };
@@ -144,6 +155,7 @@ export async function verifyPreparedEvidence({
   intent,
   gateId,
   policyHash,
+  repairsSha,
 } = {}) {
   const root = findRepoRoot(repoRoot);
   const prepared = suppliedPrepared || (await getLastPreparedEvidence({ repoRoot: root }));
@@ -156,8 +168,17 @@ export async function verifyPreparedEvidence({
     return { valid: false, reason: "STALE_PREPARED_EVIDENCE", prepared };
   }
 
-  const expectedGateId = gateId ?? inspection?.gate?.id;
   const expectedPolicyHash = policyHash ?? inspection?.policy?.hash;
+  if (expectedPolicyHash !== undefined && prepared.policyHash !== expectedPolicyHash) {
+    return { valid: false, reason: "POLICY_MISMATCH", prepared };
+  }
+
+  const expectedRepairsSha = repairsSha ?? inspection?.repairsSha ?? inspection?.resolvedInput?.repairsSha;
+  if (expectedRepairsSha !== undefined && (prepared.repairsSha || null) !== (expectedRepairsSha || null)) {
+    return { valid: false, reason: "REPAIRS_SHA_MISMATCH", prepared };
+  }
+
+  const expectedGateId = gateId ?? inspection?.gate?.id;
   const identityMatches =
     prepared.snapshotHash === snapshot?.snapshotHash &&
     prepared.parentHeadSha === snapshot?.headSha &&
@@ -165,8 +186,7 @@ export async function verifyPreparedEvidence({
     prepared.branch === snapshot?.branch &&
     hasMatchingFiles(prepared.stagedFiles, snapshot?.stagedFiles) &&
     (intent === undefined || prepared.intent === intent) &&
-    (expectedGateId === undefined || prepared.gateId === expectedGateId) &&
-    (expectedPolicyHash === undefined || prepared.policyHash === expectedPolicyHash);
+    (expectedGateId === undefined || prepared.gateId === expectedGateId);
   if (!identityMatches) {
     return { valid: false, reason: "PREPARED_EVIDENCE_SNAPSHOT_MISMATCH", prepared };
   }
@@ -225,6 +245,10 @@ export async function recordCommitEvidence({
   featureFile = null,
   scenarioName = null,
   scopeFiles = [],
+  repairsSha = null,
+  supersedes = [],
+  repairStatus = null,
+  repairedFailure = null,
 } = {}) {
   const root = findRepoRoot(repoRoot);
   const cleanSha = assertCommitSha(commitSha);
@@ -259,6 +283,10 @@ export async function recordCommitEvidence({
           featureFile: null,
           scenarioName: null,
           scopeFiles: [],
+          repairsSha: null,
+          supersedes: [],
+          repairStatus: null,
+          repairedFailure: null,
         }
       : {
           notRunReason: null,
@@ -277,6 +305,10 @@ export async function recordCommitEvidence({
           featureFile,
           scenarioName,
           scopeFiles: sortedUnique(scopeFiles),
+          repairsSha: repairsSha || null,
+          supersedes: Array.isArray(supersedes) ? supersedes : [],
+          repairStatus: repairStatus || null,
+          repairedFailure: repairedFailure || null,
           recordedAt: new Date().toISOString(),
         }),
   };

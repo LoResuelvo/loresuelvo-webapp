@@ -335,6 +335,10 @@ export async function runPostCommitHook({ repoRoot } = {}) {
       featureFile: matchingReceipt.featureFile,
       scenarioName: matchingReceipt.scenarioName,
       scopeFiles: matchingReceipt.scopeFiles,
+      repairsSha: matchingReceipt.repairsSha || null,
+      supersedes: matchingReceipt.supersedes || [],
+      repairStatus: matchingReceipt.repairStatus || null,
+      repairedFailure: matchingReceipt.repairedFailure || null,
     });
     await consumePreparedEvidence({ repoRoot: root, commitSha });
     await consumeDeliveryContext({ repoRoot: root });

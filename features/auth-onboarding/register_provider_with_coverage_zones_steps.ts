@@ -1,7 +1,7 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import { CustomWorld, APP_URL } from "../support/world";
 import { setSelectedRole } from "./register_consumer_account_steps";
-import { aCoverageZone, aCategory, anApiError } from "../support/factories";
+import { aCoverageZone, aCategory, anApiError, aProvider, aPresignedUpload, aConfirmedFile } from "../support/factories";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 
@@ -536,3 +536,52 @@ Then(
     assert.ok(await submitButton.isEnabled(), "El botón de continuar/finalizar debería estar habilitado");
   }
 );
+
+Given(
+  "seleccioné {string} desde la lista y {string} desde el mapa",
+  async function (this: CustomWorld, listZone: string, mapZone: string) {
+    await this.stubPost("/files/presign", 200, aPresignedUpload());
+    await this.stubPost("/files/test-file-id/confirm", 200, aConfirmedFile());
+    await this.page.route("**/mock-s3-upload", async (route, request) => {
+      if (request.method() === "PUT") {
+        await route.fulfill({ status: 200 });
+      } else {
+        await route.continue();
+      }
+    });
+
+    const parseId = (name: string, fallback: number) => {
+      const match = name.match(/\d+/);
+      return match ? parseInt(match[0], 10) : fallback;
+    };
+    const listZoneId = parseId(listZone, 6);
+    const mapZoneId = parseId(mapZone, 14);
+
+    const listItem = this.page.getByTestId("coverage-zones-list").getByText(listZone).first();
+    await listItem.waitFor({ state: "visible", timeout: 10000 });
+    await listItem.click();
+
+    const mapPolygon = this.page.locator(`[data-testid="map-zone-${mapZoneId}"]`).first();
+    await mapPolygon.waitFor({ state: "visible", timeout: 5000 });
+    await mapPolygon.click();
+
+    const check1 = this.page.locator(`input[name="coverageZones"][value="${listZoneId}"]`).first();
+    const check2 = this.page.locator(`input[name="coverageZones"][value="${mapZoneId}"]`).first();
+    await check1.waitFor({ state: "attached", timeout: 5000 });
+    await check2.waitFor({ state: "attached", timeout: 5000 });
+    assert.ok(await check1.isChecked(), `${listZone} no figura seleccionada en la lista`);
+    assert.ok(await check2.isChecked(), `${mapZone} no figura seleccionada en la lista`);
+
+    await this.stubPost(
+      "/providers",
+      201,
+      aProvider({
+        name: "Carlos",
+        surname: "López",
+        coverage_zone_ids: [listZoneId, mapZoneId],
+      })
+    );
+    await this.stubGet("/providers/me/payment-accounts", []);
+  }
+);
+

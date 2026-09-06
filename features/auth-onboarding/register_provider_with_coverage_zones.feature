@@ -67,7 +67,6 @@ Feature: US-35.5 Registrar prestador con zonas de cobertura
     And permanezco en la página de registro
     And no se envía el registro del prestador
 
-  @wip
   Scenario: 10-RPZ Registrar exactamente las zonas seleccionadas
     Given completé los datos, el rubro y la foto obligatorios del prestador
     And seleccioné "Comuna 6" desde la lista y "Comuna 14" desde el mapa

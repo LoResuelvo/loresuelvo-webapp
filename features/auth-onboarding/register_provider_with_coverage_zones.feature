@@ -32,7 +32,6 @@ Feature: US-35.5 Registrar prestador con zonas de cobertura
     Then "Comuna 6" deja de figurar seleccionada en la lista
     And su polígono deja de figurar seleccionado en el mapa
 
-  @wip
   Scenario: 05-RPZ Usar la lista cuando no existe configuración de Google Maps
     Given estoy en los datos de perfil sin API key o Map ID de Google Maps
     When selecciono "Comuna 6" desde la lista de zonas

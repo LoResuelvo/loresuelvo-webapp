@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -316,6 +317,47 @@ export function extractStepDefinitionsFromSource(content, filePath) {
   return definitions;
 }
 
+export function matchDefinitionsAgainstFeatureSteps(stepDefinitions, allSteps) {
+  const registry = new ParameterTypeRegistry();
+  for (const def of stepDefinitions) {
+    def.consumers = [];
+    def.consumerFeatures = [];
+    let compiled = null;
+    if (!def.ambiguous) {
+      try {
+        if (def.patternType === "cucumber_expression") {
+          compiled = new CucumberExpression(def.pattern, registry);
+        } else if (def.patternType === "regex") {
+          compiled = new RegularExpression(new RegExp(def.pattern, def.regexFlags), registry);
+        }
+      } catch {
+        def.ambiguous = true;
+      }
+    }
+
+    if (compiled) {
+      const consumerFeaturesSet = new Set();
+      for (const step of allSteps) {
+        try {
+          const match = compiled.match(step.text);
+          if (match !== null) {
+            def.consumers.push({
+              featureFile: step.featureFile,
+              scenario: step.scenario,
+              line: step.line,
+              stepText: step.text,
+            });
+            consumerFeaturesSet.add(step.featureFile);
+          }
+        } catch {
+          def.ambiguous = true;
+        }
+      }
+      def.consumerFeatures = [...consumerFeaturesSet].sort();
+    }
+  }
+}
+
 export function buildCucumberImpactIndex({ repoRoot = findRepoRoot() } = {}) {
   const root = path.resolve(repoRoot);
   const featuresDir = path.join(root, "features");
@@ -368,43 +410,7 @@ export function buildCucumberImpactIndex({ repoRoot = findRepoRoot() } = {}) {
   }
 
   // 3. Compile and match step definitions with feature steps
-  const registry = new ParameterTypeRegistry();
-
-  for (const def of stepDefinitions) {
-    let compiled = null;
-    if (!def.ambiguous) {
-      try {
-        if (def.patternType === "cucumber_expression") {
-          compiled = new CucumberExpression(def.pattern, registry);
-        } else if (def.patternType === "regex") {
-          compiled = new RegularExpression(new RegExp(def.pattern, def.regexFlags), registry);
-        }
-      } catch {
-        def.ambiguous = true;
-      }
-    }
-
-    if (compiled) {
-      const consumerFeaturesSet = new Set();
-      for (const step of allSteps) {
-        try {
-          const match = compiled.match(step.text);
-          if (match !== null) {
-            def.consumers.push({
-              featureFile: step.featureFile,
-              scenario: step.scenario,
-              line: step.line,
-              stepText: step.text,
-            });
-            consumerFeaturesSet.add(step.featureFile);
-          }
-        } catch {
-          def.ambiguous = true;
-        }
-      }
-      def.consumerFeatures = [...consumerFeaturesSet].sort();
-    }
-  }
+  matchDefinitionsAgainstFeatureSteps(stepDefinitions, allSteps);
 
   const index = {
     schemaVersion: 1,
@@ -502,10 +508,83 @@ export function isCucumberSupportFile(file, index) {
   return false;
 }
 
-export function analyzeCucumberImpact({ repoRoot = findRepoRoot(), files = [], index = null, force = false } = {}) {
+export function isSameStepDefinition(a, b) {
+  if (!a || !b) return false;
+  return (
+    normalizePath(a.file) === normalizePath(b.file) &&
+    a.pattern === b.pattern &&
+    a.patternType === b.patternType &&
+    (a.regexFlags || "") === (b.regexFlags || "")
+  );
+}
+
+export function isFileInGitHead(repoRoot, relativePath) {
+  try {
+    execFileSync("git", ["cat-file", "-e", `HEAD:${relativePath}`], {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "ignore"],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function readBaseFileFromGit(repoRoot, relativePath) {
+  try {
+    const stdout = execFileSync("git", ["show", `HEAD:${relativePath}`], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    });
+    return stdout;
+  } catch {
+    return null;
+  }
+}
+
+export function getBaseCucumberIndex({ repoRoot, index = null, baseIndex = null }) {
+  if (baseIndex) return baseIndex;
+  if (index) return index;
+
+  const root = path.resolve(repoRoot);
+  const targetPath = path.resolve(root, CUCUMBER_IMPACT_INDEX_PATH);
+  if (fs.existsSync(targetPath)) {
+    try {
+      const raw = fs.readFileSync(targetPath, "utf8");
+      const cached = JSON.parse(raw);
+      if (cached && cached.schemaVersion === 1 && Array.isArray(cached.stepDefinitions)) {
+        return cached;
+      }
+      return { corrupt: true };
+    } catch {
+      return { corrupt: true };
+    }
+  }
+  return null;
+}
+
+export function analyzeCucumberImpact({
+  repoRoot = findRepoRoot(),
+  files = [],
+  index = null,
+  baseIndex = null,
+  force = false,
+} = {}) {
   const root = path.resolve(repoRoot);
   const normalizedFiles = files.map(normalizePath);
-  const impactIndex = index || loadOrBuildCucumberImpactIndex({ repoRoot: root, force });
+
+  const effBaseIndex = getBaseCucumberIndex({ repoRoot: root, index, baseIndex });
+  if (effBaseIndex?.corrupt) {
+    return {
+      gate: "C",
+      reasonCodes: ["AMBIGUOUS_STEP_IMPACT"],
+      consumerCount: 0,
+      affectedFeatures: 0,
+      confidence: "low",
+    };
+  }
+  const impactIndex = effBaseIndex || loadOrBuildCucumberImpactIndex({ repoRoot: root, force });
 
   // 1. Global Cucumber support changed
   const supportTouched = normalizedFiles.some((f) => isCucumberSupportFile(f, impactIndex));
@@ -513,8 +592,8 @@ export function analyzeCucumberImpact({ repoRoot = findRepoRoot(), files = [], i
     return {
       gate: "C",
       reasonCodes: ["GLOBAL_CUCUMBER_SUPPORT_CHANGED"],
-      consumerCount: impactIndex.summary?.totalScenarios ?? impactIndex.featureFiles.length,
-      affectedFeatures: impactIndex.featureFiles.length,
+      consumerCount: impactIndex?.summary?.totalScenarios ?? impactIndex?.featureFiles?.length ?? 1,
+      affectedFeatures: impactIndex?.featureFiles?.length ?? 1,
       confidence: "high",
     };
   }
@@ -533,28 +612,86 @@ export function analyzeCucumberImpact({ repoRoot = findRepoRoot(), files = [], i
     };
   }
 
-  // 3. Find step definitions belonging to modified step files
-  const matchingDefs = impactIndex.stepDefinitions.filter((def) =>
-    modifiedStepFiles.includes(normalizePath(def.file))
-  );
+  // 3. Collect all feature steps for matching
+  const featuresDir = path.join(root, "features");
+  const featureFiles = findFeatureFiles(featuresDir, root);
+  const allSteps = [];
+  for (const file of featureFiles) {
+    try {
+      const content = fs.readFileSync(path.resolve(root, file), "utf8");
+      allSteps.push(...extractStepsFromFeature(content, file));
+    } catch {}
+  }
 
-  if (matchingDefs.length === 0) {
-    // Step file modified, but no registered definitions found (e.g. brand new step file)
+  // 4. Compare definitions for each modified step file
+  let unreconstructibleBase = false;
+  let hasAmbiguousDefs = false;
+  const allDeletedDefs = [];
+  const allCurrentDefs = [];
+
+  for (const stepFile of modifiedStepFiles) {
+    const fullPath = path.resolve(root, stepFile);
+    const fileExists = fs.existsSync(fullPath);
+
+    // Extract current definitions
+    let curDefs = [];
+    if (fileExists) {
+      try {
+        const content = fs.readFileSync(fullPath, "utf8");
+        curDefs = extractStepDefinitionsFromSource(content, stepFile);
+        matchDefinitionsAgainstFeatureSteps(curDefs, allSteps);
+      } catch {
+        curDefs = [];
+      }
+    }
+
+    // Retrieve base definitions
+    let bDefs = null;
+    if (effBaseIndex?.stepDefinitions) {
+      bDefs = effBaseIndex.stepDefinitions.filter((d) => normalizePath(d.file) === normalizePath(stepFile));
+    }
+    if (!bDefs || bDefs.length === 0) {
+      const gitContent = readBaseFileFromGit(root, stepFile);
+      if (gitContent !== null) {
+        bDefs = extractStepDefinitionsFromSource(gitContent, stepFile);
+        matchDefinitionsAgainstFeatureSteps(bDefs, allSteps);
+      }
+    }
+
+    if (bDefs === null) {
+      if (!fileExists) {
+        unreconstructibleBase = true;
+      } else {
+        bDefs = curDefs;
+      }
+    }
+
+    if (bDefs) {
+      if (bDefs.some((d) => d.ambiguous)) hasAmbiguousDefs = true;
+      if (curDefs.some((d) => d.ambiguous)) hasAmbiguousDefs = true;
+
+      const fileDeletedDefs = bDefs.filter((b) => !curDefs.some((c) => isSameStepDefinition(b, c)));
+      allDeletedDefs.push(...fileDeletedDefs);
+    }
+
+    allCurrentDefs.push(...curDefs);
+  }
+
+  if (unreconstructibleBase) {
     return {
-      gate: "0",
-      reasonCodes: ["NEW_STEP_NO_CONSUMERS"],
+      gate: "C",
+      reasonCodes: ["AMBIGUOUS_STEP_IMPACT"],
       consumerCount: 0,
       affectedFeatures: 0,
-      confidence: "high",
+      confidence: "low",
     };
   }
 
-  // Check for ambiguous definitions
-  if (matchingDefs.some((d) => d.ambiguous)) {
+  if (hasAmbiguousDefs) {
     const uniqueFeatures = new Set();
     let totalConsumers = 0;
-    for (const d of matchingDefs) {
-      for (const c of d.consumers) {
+    for (const d of [...allDeletedDefs, ...allCurrentDefs]) {
+      for (const c of d.consumers || []) {
         uniqueFeatures.add(c.featureFile);
         totalConsumers++;
       }
@@ -568,17 +705,93 @@ export function analyzeCucumberImpact({ repoRoot = findRepoRoot(), files = [], i
     };
   }
 
-  const consumerFeatures = new Set();
-  let totalConsumers = 0;
-
-  for (const def of matchingDefs) {
-    for (const c of def.consumers) {
-      consumerFeatures.add(c.featureFile);
-      totalConsumers++;
+  // Calculate consumers of deleted definitions
+  const deletedConsumerFeatures = new Set();
+  let deletedConsumersCount = 0;
+  for (const d of allDeletedDefs) {
+    for (const c of d.consumers || []) {
+      deletedConsumerFeatures.add(c.featureFile);
+      deletedConsumersCount++;
     }
   }
 
-  if (consumerFeatures.size === 0) {
+  // Calculate consumers of current definitions
+  const currentConsumerFeatures = new Set();
+  let currentConsumersCount = 0;
+  for (const d of allCurrentDefs) {
+    for (const c of d.consumers || []) {
+      currentConsumerFeatures.add(c.featureFile);
+      currentConsumersCount++;
+    }
+  }
+
+  const combinedFeatures = new Set([...deletedConsumerFeatures, ...currentConsumerFeatures]);
+
+  // A) Step definitions were deleted
+  if (allDeletedDefs.length > 0) {
+    if (deletedConsumerFeatures.size > 1) {
+      return {
+        gate: "C",
+        reasonCodes: ["DELETED_SHARED_STEP_CONSUMERS"],
+        consumerCount: Math.max(deletedConsumersCount, currentConsumersCount),
+        affectedFeatures: deletedConsumerFeatures.size,
+        confidence: "high",
+      };
+    }
+
+    if (deletedConsumerFeatures.size === 1) {
+      const singleFeature = [...deletedConsumerFeatures][0];
+      if (combinedFeatures.size === 1) {
+        return {
+          gate: "B",
+          reasonCodes: ["DELETED_STEP_SINGLE_FEATURE_CONSUMER"],
+          consumerCount: Math.max(deletedConsumersCount, currentConsumersCount),
+          affectedFeatures: 1,
+          confidence: "high",
+          parameters: { featureFile: singleFeature },
+        };
+      } else {
+        return {
+          gate: "C",
+          reasonCodes: ["DELETED_SHARED_STEP_CONSUMERS"],
+          consumerCount: Math.max(deletedConsumersCount, currentConsumersCount),
+          affectedFeatures: combinedFeatures.size,
+          confidence: "high",
+        };
+      }
+    }
+
+    // deletedConsumerFeatures.size === 0 (deleted unused steps)
+    if (currentConsumerFeatures.size === 0) {
+      return {
+        gate: "0",
+        reasonCodes: ["NEW_STEP_NO_CONSUMERS"],
+        consumerCount: 0,
+        affectedFeatures: 0,
+        confidence: "high",
+      };
+    }
+    if (currentConsumerFeatures.size === 1) {
+      return {
+        gate: "B",
+        reasonCodes: ["SINGLE_FEATURE_STEP_CONSUMER"],
+        consumerCount: currentConsumersCount,
+        affectedFeatures: 1,
+        confidence: "high",
+        parameters: { featureFile: [...currentConsumerFeatures][0] },
+      };
+    }
+    return {
+      gate: "C",
+      reasonCodes: ["SHARED_STEP_CONSUMERS"],
+      consumerCount: currentConsumersCount,
+      affectedFeatures: currentConsumerFeatures.size,
+      confidence: "high",
+    };
+  }
+
+  // B) No step definitions were deleted
+  if (currentConsumerFeatures.size === 0) {
     return {
       gate: "0",
       reasonCodes: ["NEW_STEP_NO_CONSUMERS"],
@@ -588,12 +801,12 @@ export function analyzeCucumberImpact({ repoRoot = findRepoRoot(), files = [], i
     };
   }
 
-  if (consumerFeatures.size === 1) {
-    const [singleFeature] = [...consumerFeatures];
+  if (currentConsumerFeatures.size === 1) {
+    const [singleFeature] = [...currentConsumerFeatures];
     return {
       gate: "B",
       reasonCodes: ["SINGLE_FEATURE_STEP_CONSUMER"],
-      consumerCount: totalConsumers,
+      consumerCount: currentConsumersCount,
       affectedFeatures: 1,
       confidence: "high",
       parameters: { featureFile: singleFeature },
@@ -603,8 +816,8 @@ export function analyzeCucumberImpact({ repoRoot = findRepoRoot(), files = [], i
   return {
     gate: "C",
     reasonCodes: ["SHARED_STEP_CONSUMERS"],
-    consumerCount: totalConsumers,
-    affectedFeatures: consumerFeatures.size,
+    consumerCount: currentConsumersCount,
+    affectedFeatures: currentConsumerFeatures.size,
     confidence: "high",
   };
 }

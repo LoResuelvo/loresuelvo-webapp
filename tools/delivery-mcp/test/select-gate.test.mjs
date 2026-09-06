@@ -660,3 +660,113 @@ test("selectGate: combina cucumberImpact y typeScriptImpact prevaleciendo el gat
   assert.deepStrictEqual(mixCucumberWins.impact.reasonCodes, ["GLOBAL_CUCUMBER_SUPPORT_CHANGED"]);
 });
 
+test("selectGate: eliminación de step consumido por una feature eleva a Gate B (DELETED_STEP_SINGLE_FEATURE_CONSUMER)", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["features/orders/checkout_steps.ts"],
+    },
+    cucumberImpact: {
+      gate: "B",
+      reasonCodes: ["DELETED_STEP_SINGLE_FEATURE_CONSUMER"],
+      consumerCount: 1,
+      affectedFeatures: 1,
+      confidence: "high",
+      parameters: { featureFile: "features/orders/checkout.feature" },
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "B");
+  assert.ok(result.gate.reasonCodes.includes("DELETED_STEP_SINGLE_FEATURE_CONSUMER"));
+  assert.strictEqual(result.gate.parameters?.featureFile, "features/orders/checkout.feature");
+  assert.deepStrictEqual(result.gate.checks, [
+    "make test-e2e-managed E2E_FILE=features/orders/checkout.feature",
+  ]);
+});
+
+test("selectGate: eliminación de step consumido por múltiples features eleva a Gate C (DELETED_SHARED_STEP_CONSUMERS)", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["features/auth/auth_steps.ts"],
+    },
+    cucumberImpact: {
+      gate: "C",
+      reasonCodes: ["DELETED_SHARED_STEP_CONSUMERS"],
+      consumerCount: 4,
+      affectedFeatures: 2,
+      confidence: "high",
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "C");
+  assert.ok(result.gate.reasonCodes.includes("DELETED_SHARED_STEP_CONSUMERS"));
+  assert.ok(result.gate.checks.includes("make test-e2e-managed"));
+});
+
+test("selectGate: eliminación de dependencia compartida de TypeScript eleva a Gate C (DELETED_SHARED_DEPENDENCY)", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["components/shared/badge.tsx"],
+    },
+    typeScriptImpact: {
+      gate: "C",
+      reasonCodes: ["DELETED_SHARED_DEPENDENCY"],
+      consumerCount: 2,
+      affectedFeatures: 2,
+      confidence: "high",
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "C");
+  assert.ok(result.gate.reasonCodes.includes("DELETED_SHARED_DEPENDENCY"));
+});
+
+test("selectGate: ambigüedad o incertidumbre (confidence: low) prioriza Gate C", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["domain/calc.ts"],
+    },
+    typeScriptImpact: {
+      gate: "C",
+      reasonCodes: ["AMBIGUOUS_DEPENDENCY_IMPACT"],
+      consumerCount: 0,
+      affectedFeatures: 0,
+      confidence: "low",
+    },
+    cucumberImpact: {
+      gate: "0",
+      reasonCodes: ["NEW_STEP_NO_CONSUMERS"],
+      consumerCount: 0,
+      affectedFeatures: 0,
+      confidence: "high",
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "C");
+  assert.strictEqual(result.impact.gate, "C");
+  assert.strictEqual(result.impact.confidence, "low");
+  assert.ok(result.impact.reasonCodes.includes("AMBIGUOUS_DEPENDENCY_IMPACT"));
+});
+
+test("selectGate: factorear stepConsumers que afectan varias features eleva a Gate C (SHARED_STEP_DEPENDENCY_CONSUMERS)", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["domain/calc.ts"],
+    },
+    typeScriptImpact: {
+      gate: "C",
+      reasonCodes: ["SHARED_STEP_DEPENDENCY_CONSUMERS"],
+      consumerCount: 2,
+      affectedFeatures: 2,
+      confidence: "high",
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "C");
+  assert.ok(result.gate.reasonCodes.includes("SHARED_STEP_DEPENDENCY_CONSUMERS"));
+});
+

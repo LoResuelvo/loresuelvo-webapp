@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -151,6 +152,16 @@ export function resolveImportSpecifier(
   } else {
     const matched = matchPathAlias(specifier, tsconfigPaths?.paths);
     if (!matched) {
+      if (specifier.startsWith("@/") || specifier.startsWith("~/")) {
+        return { resolvedPath: null, isExternal: false, isUnresolvable: true };
+      }
+      if (specifier.startsWith("@")) {
+        const scopePackage = specifier.split("/").slice(0, 2).join("/");
+        const nodeModulesPath = path.resolve(repoRoot, "node_modules", scopePackage);
+        if (!fs.existsSync(nodeModulesPath)) {
+          return { resolvedPath: null, isExternal: false, isUnresolvable: true };
+        }
+      }
       // External package (e.g. "react", "next", "@cucumber/cucumber")
       return { resolvedPath: null, isExternal: true, isUnresolvable: false };
     }
@@ -201,8 +212,10 @@ export function extractFileDependencies(
   const dependencies = new Set();
   let hasDynamicImports = false;
   let hasUnresolvableImports = false;
+  let hasAmbiguousBarrel = false;
   const unresolvableSpecifiers = [];
   const dynamicSpecifiers = [];
+  let starExportCount = 0;
 
   let sf;
   try {
@@ -212,6 +225,7 @@ export function extractFileDependencies(
       dependencies: [],
       hasDynamicImports: true,
       hasUnresolvableImports: true,
+      hasAmbiguousBarrel: false,
       unresolvableSpecifiers: ["<parse_error>"],
       dynamicSpecifiers: [],
     };
@@ -239,6 +253,9 @@ export function extractFileDependencies(
     } else if (ts.isExportDeclaration(node)) {
       if (node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
         handleSpecifier(node.moduleSpecifier.text, false);
+        if (!node.exportClause) {
+          starExportCount++;
+        }
       }
     } else if (ts.isCallExpression(node)) {
       if (
@@ -262,6 +279,10 @@ export function extractFileDependencies(
           (ts.isStringLiteral(node.arguments[0]) || ts.isNoSubstitutionTemplateLiteral(node.arguments[0]))
         ) {
           handleSpecifier(node.arguments[0].text, false);
+        } else {
+          hasDynamicImports = true;
+          hasUnresolvableImports = true;
+          unresolvableSpecifiers.push("<dynamic_require>");
         }
       }
     } else if (ts.isImportTypeNode(node)) {
@@ -283,10 +304,17 @@ export function extractFileDependencies(
 
   visit(sf);
 
+  if (starExportCount >= 2) {
+    hasAmbiguousBarrel = true;
+    hasUnresolvableImports = true;
+    unresolvableSpecifiers.push("<ambiguous_barrel>");
+  }
+
   return {
     dependencies: [...dependencies].sort(),
     hasDynamicImports,
     hasUnresolvableImports,
+    hasAmbiguousBarrel,
     unresolvableSpecifiers,
     dynamicSpecifiers,
   };
@@ -491,18 +519,61 @@ export function loadOrBuildTypeScriptImpactIndex({ repoRoot = findRepoRoot(), fo
   return buildTypeScriptImpactIndex({ repoRoot: root });
 }
 
+export function getBaseTypeScriptIndex({ repoRoot, index = null, baseIndex = null }) {
+  if (baseIndex) return baseIndex;
+  if (index) return index;
+
+  const root = path.resolve(repoRoot);
+  const cachePath = path.resolve(root, TYPESCRIPT_IMPACT_INDEX_PATH);
+  if (fs.existsSync(cachePath)) {
+    try {
+      const cached = JSON.parse(fs.readFileSync(cachePath, "utf8"));
+      if (cached && cached.schemaVersion === 1 && cached.files && cached.reverseDependencies) {
+        return cached;
+      }
+      return { corrupt: true };
+    } catch {
+      return { corrupt: true };
+    }
+  }
+  return null;
+}
+
+export function isFileInGitHead(repoRoot, relativePath) {
+  try {
+    execFileSync("git", ["cat-file", "-e", `HEAD:${relativePath}`], {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "ignore"],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function analyzeTypeScriptImpact({
   repoRoot = findRepoRoot(),
   files = [],
   index = null,
+  baseIndex = null,
   force = false,
+  cucumberIndex = null,
 } = {}) {
   const root = path.resolve(repoRoot);
   const normalizedFiles = files.map(normalizePath);
 
-  const impactIndex = index || loadOrBuildTypeScriptImpactIndex({ repoRoot: root, force });
-  const knownFiles = impactIndex.files || {};
-  const reverseDeps = impactIndex.reverseDependencies || {};
+  const effBaseIndex = getBaseTypeScriptIndex({ repoRoot: root, index, baseIndex });
+  let impactIndex = effBaseIndex && !effBaseIndex.corrupt ? effBaseIndex : null;
+  if (!impactIndex) {
+    try {
+      impactIndex = loadOrBuildTypeScriptImpactIndex({ repoRoot: root, force });
+    } catch {
+      impactIndex = null;
+    }
+  }
+
+  const knownFiles = impactIndex?.files || {};
+  const reverseDeps = impactIndex?.reverseDependencies || {};
 
   const tsFiles = normalizedFiles.filter((f) => isProductionSourceFile(f));
 
@@ -516,15 +587,40 @@ export function analyzeTypeScriptImpact({
     };
   }
 
+  if (effBaseIndex?.corrupt) {
+    return {
+      gate: "C",
+      reasonCodes: ["AMBIGUOUS_DEPENDENCY_IMPACT"],
+      consumerCount: 0,
+      affectedFeatures: 0,
+      confidence: "low",
+    };
+  }
+
   const allConsumers = new Set();
   let isAmbiguous = false;
   let isGlobal = false;
+  let hasDeletedFiles = false;
   const flowRootsFound = new Set();
   const flowsFound = new Set();
   const affectedFeatureDomains = new Set();
   const stepConsumers = new Set();
 
   for (const stagedFile of tsFiles) {
+    const full = path.resolve(root, stagedFile);
+    const fileExists = fs.existsSync(full);
+
+    if (!fileExists) {
+      const wasInBase = Boolean(knownFiles[stagedFile] || effBaseIndex?.fileHashes?.[stagedFile]);
+      const wasInGit = isFileInGitHead(root, stagedFile);
+      if (wasInBase) {
+        hasDeletedFiles = true;
+      } else if (wasInGit) {
+        hasDeletedFiles = true;
+        isAmbiguous = true;
+      }
+    }
+
     if (isNextLayout(stagedFile) || isGlobalProvider(stagedFile)) {
       isGlobal = true;
     }
@@ -538,22 +634,19 @@ export function analyzeTypeScriptImpact({
 
     const details = knownFiles[stagedFile];
     if (details) {
-      if (details.hasDynamicImports || details.hasUnresolvableImports) {
+      if (details.hasDynamicImports || details.hasUnresolvableImports || details.hasAmbiguousBarrel) {
         isAmbiguous = true;
       }
-    } else {
+    } else if (fileExists) {
       try {
-        const full = path.resolve(root, stagedFile);
-        if (fs.existsSync(full)) {
-          const content = fs.readFileSync(full, "utf8");
-          const tsconfigPaths = loadTsConfigPaths(root);
-          const liveDetails = extractFileDependencies(content, stagedFile, {
-            repoRoot: root,
-            tsconfigPaths,
-          });
-          if (liveDetails.hasDynamicImports || liveDetails.hasUnresolvableImports) {
-            isAmbiguous = true;
-          }
+        const content = fs.readFileSync(full, "utf8");
+        const tsconfigPaths = loadTsConfigPaths(root);
+        const liveDetails = extractFileDependencies(content, stagedFile, {
+          repoRoot: root,
+          tsconfigPaths,
+        });
+        if (liveDetails.hasDynamicImports || liveDetails.hasUnresolvableImports || liveDetails.hasAmbiguousBarrel) {
+          isAmbiguous = true;
         }
       } catch {
         isAmbiguous = true;
@@ -594,7 +687,7 @@ export function analyzeTypeScriptImpact({
           }
 
           const consumerDetails = knownFiles[consumer];
-          if (consumerDetails?.hasDynamicImports || consumerDetails?.hasUnresolvableImports) {
+          if (consumerDetails?.hasDynamicImports || consumerDetails?.hasUnresolvableImports || consumerDetails?.hasAmbiguousBarrel) {
             isAmbiguous = true;
           }
         }
@@ -602,8 +695,42 @@ export function analyzeTypeScriptImpact({
     }
   }
 
+  // Factorear stepConsumers
+  const stepFeatures = new Set();
+  if (stepConsumers.size > 0) {
+    let cIndex = cucumberIndex;
+    if (!cIndex) {
+      try {
+        const cPath = path.resolve(root, ".delivery/runtime/indexes/cucumber-impact-v1.json");
+        if (fs.existsSync(cPath)) {
+          cIndex = JSON.parse(fs.readFileSync(cPath, "utf8"));
+        }
+      } catch {}
+    }
+    if (cIndex?.stepDefinitions) {
+      for (const def of cIndex.stepDefinitions) {
+        if (stepConsumers.has(normalizePath(def.file))) {
+          for (const f of def.consumerFeatures || []) {
+            stepFeatures.add(f);
+          }
+        }
+      }
+    }
+    for (const sc of stepConsumers) {
+      const parts = sc.split("/");
+      if (parts.length > 2) {
+        stepFeatures.add(parts[1]);
+      }
+    }
+  }
+
+  const isSharedStepDependency = stepFeatures.size >= 2 || (stepConsumers.size >= 2 && affectedFeatureDomains.size >= 2);
   const distinctFlowCount = flowsFound.size;
-  const distinctFeatureCount = Math.max(affectedFeatureDomains.size, distinctFlowCount);
+  const distinctFeatureCount = Math.max(
+    affectedFeatureDomains.size,
+    distinctFlowCount,
+    stepFeatures.size
+  );
 
   if (isAmbiguous) {
     return {
@@ -619,6 +746,33 @@ export function analyzeTypeScriptImpact({
     return {
       gate: "C",
       reasonCodes: ["GLOBAL_LAYOUT_OR_PROVIDER"],
+      consumerCount: allConsumers.size,
+      affectedFeatures: distinctFeatureCount,
+      confidence: "high",
+    };
+  }
+
+  if (isSharedStepDependency) {
+    const reasonCodes = ["SHARED_STEP_DEPENDENCY_CONSUMERS"];
+    if (hasDeletedFiles) {
+      reasonCodes.push("DELETED_SHARED_DEPENDENCY");
+    }
+    if (distinctFlowCount >= 2) {
+      reasonCodes.push("MULTIPLE_FLOW_CONSUMERS");
+    }
+    return {
+      gate: "C",
+      reasonCodes,
+      consumerCount: allConsumers.size,
+      affectedFeatures: distinctFeatureCount,
+      confidence: "high",
+    };
+  }
+
+  if (hasDeletedFiles && distinctFlowCount >= 2) {
+    return {
+      gate: "C",
+      reasonCodes: ["DELETED_SHARED_DEPENDENCY"],
       consumerCount: allConsumers.size,
       affectedFeatures: distinctFeatureCount,
       confidence: "high",

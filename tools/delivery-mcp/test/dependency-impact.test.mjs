@@ -309,3 +309,165 @@ test("dependency-impact: validación de caché e invalidación automática", asy
   assert.ok(isTypeScriptCacheValid({ repoRoot, cachedIndex: index2 }));
   assert.notStrictEqual(index1.fileHashes["domain/item/item.ts"], index2.fileHashes["domain/item/item.ts"]);
 });
+
+test("dependency-impact: eliminación de archivo compartido de TypeScript -> Gate C (DELETED_SHARED_DEPENDENCY)", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+
+  // Shared component
+  await fs.mkdir(path.join(repoRoot, "components", "shared"), { recursive: true });
+  const badgePath = path.join(repoRoot, "components", "shared", "badge.tsx");
+  await fs.writeFile(badgePath, `export function Badge() { return <span>Badge</span>; }\n`, "utf8");
+
+  // Route 1: app/consumidor/home/page.tsx
+  await fs.mkdir(path.join(repoRoot, "app", "consumidor", "home"), { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, "app", "consumidor", "home", "page.tsx"),
+    `import { Badge } from "@/components/shared/badge";\nexport default function Page() { return <Badge />; }\n`,
+    "utf8"
+  );
+
+  // Route 2: app/prestador/home/page.tsx
+  await fs.mkdir(path.join(repoRoot, "app", "prestador", "home"), { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, "app", "prestador", "home", "page.tsx"),
+    `import { Badge } from "@/components/shared/badge";\nexport default function Page() { return <Badge />; }\n`,
+    "utf8"
+  );
+
+  // Build base index with badge.tsx present
+  const baseIndex = buildTypeScriptImpactIndex({ repoRoot });
+
+  // Delete badge.tsx from disk
+  await fs.unlink(badgePath);
+
+  const result = analyzeTypeScriptImpact({
+    repoRoot,
+    files: ["components/shared/badge.tsx"],
+    baseIndex,
+  });
+
+  assert.strictEqual(result.gate, "C");
+  assert.ok(result.reasonCodes.includes("DELETED_SHARED_DEPENDENCY"));
+  assert.strictEqual(result.confidence, "high");
+});
+
+test("dependency-impact: require(...) con variable dinámica -> Gate C (AMBIGUOUS_DEPENDENCY_IMPACT, confidence: low)", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+
+  await fs.mkdir(path.join(repoRoot, "components", "dynamic"), { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, "components", "dynamic", "require-var.tsx"),
+    `const modName = "foo";\nconst mod = require(modName);\nexport function Comp() { return <div>{mod}</div>; }\n`,
+    "utf8"
+  );
+
+  const result = analyzeTypeScriptImpact({
+    repoRoot,
+    files: ["components/dynamic/require-var.tsx"],
+  });
+
+  assert.strictEqual(result.gate, "C");
+  assert.ok(result.reasonCodes.includes("AMBIGUOUS_DEPENDENCY_IMPACT"));
+  assert.strictEqual(result.confidence, "low");
+});
+
+test("dependency-impact: import(...) con variable dinámica -> Gate C (AMBIGUOUS_DEPENDENCY_IMPACT, confidence: low)", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+
+  await fs.mkdir(path.join(repoRoot, "components", "dynamic"), { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, "components", "dynamic", "import-var.tsx"),
+    `const modName = "./widget";\nexport async function load() { return import(modName); }\n`,
+    "utf8"
+  );
+
+  const result = analyzeTypeScriptImpact({
+    repoRoot,
+    files: ["components/dynamic/import-var.tsx"],
+  });
+
+  assert.strictEqual(result.gate, "C");
+  assert.ok(result.reasonCodes.includes("AMBIGUOUS_DEPENDENCY_IMPACT"));
+  assert.strictEqual(result.confidence, "low");
+});
+
+test("dependency-impact: barrel ambiguo con múltiples re-exports estrella -> Gate C (AMBIGUOUS_DEPENDENCY_IMPACT, confidence: low)", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+
+  await fs.mkdir(path.join(repoRoot, "components", "ambiguous-barrel"), { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, "components", "ambiguous-barrel", "a.ts"),
+    `export const a = 1;\n`,
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(repoRoot, "components", "ambiguous-barrel", "b.ts"),
+    `export const b = 2;\n`,
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(repoRoot, "components", "ambiguous-barrel", "index.ts"),
+    `export * from "./a";\nexport * from "./b";\n`,
+    "utf8"
+  );
+
+  const result = analyzeTypeScriptImpact({
+    repoRoot,
+    files: ["components/ambiguous-barrel/index.ts"],
+  });
+
+  assert.strictEqual(result.gate, "C");
+  assert.ok(result.reasonCodes.includes("AMBIGUOUS_DEPENDENCY_IMPACT"));
+  assert.strictEqual(result.confidence, "low");
+});
+
+test("dependency-impact: factorear stepConsumers importando un módulo desde múltiples features -> Gate C (SHARED_STEP_DEPENDENCY_CONSUMERS)", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+
+  // Helper module
+  await fs.mkdir(path.join(repoRoot, "domain", "calculator"), { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, "domain", "calculator", "calc.ts"),
+    `export function calculate() { return 42; }\n`,
+    "utf8"
+  );
+
+  // Step 1 in features/auth/
+  await fs.mkdir(path.join(repoRoot, "features", "auth"), { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, "features", "auth", "auth_steps.ts"),
+    `import { calculate } from "@/domain/calculator/calc";\nexport const val = calculate();\n`,
+    "utf8"
+  );
+
+  // Step 2 in features/orders/
+  await fs.mkdir(path.join(repoRoot, "features", "orders"), { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, "features", "orders", "checkout_steps.ts"),
+    `import { calculate } from "@/domain/calculator/calc";\nexport const val2 = calculate();\n`,
+    "utf8"
+  );
+
+  const result = analyzeTypeScriptImpact({
+    repoRoot,
+    files: ["domain/calculator/calc.ts"],
+  });
+
+  assert.strictEqual(result.gate, "C");
+  assert.ok(result.reasonCodes.includes("SHARED_STEP_DEPENDENCY_CONSUMERS"));
+  assert.strictEqual(result.confidence, "high");
+});
+
+test("dependency-impact: índice base corrupto eleva a Gate C (AMBIGUOUS_DEPENDENCY_IMPACT, confidence: low)", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+
+  const result = analyzeTypeScriptImpact({
+    repoRoot,
+    files: ["domain/user/user.ts"],
+    baseIndex: { corrupt: true },
+  });
+
+  assert.strictEqual(result.gate, "C");
+  assert.ok(result.reasonCodes.includes("AMBIGUOUS_DEPENDENCY_IMPACT"));
+  assert.strictEqual(result.confidence, "low");
+});

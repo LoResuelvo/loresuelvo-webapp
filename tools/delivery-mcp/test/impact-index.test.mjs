@@ -301,3 +301,139 @@ test("impact-index: analyzeCucumberImpact clasifica correctamente soporte, compa
   assert.strictEqual(impactOnlyFeature.gate, "NONE");
   assert.strictEqual(impactOnlyFeature.affectedFeatures, 1);
 });
+
+test("impact-index: eliminación de step consumido por una feature -> Gate B (DELETED_STEP_SINGLE_FEATURE_CONSUMER)", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+  const baseIndex = buildCucumberImpactIndex({ repoRoot });
+
+  // Delete definition "procedo al checkout" from checkout_steps.ts (consumed only by checkout.feature)
+  await fs.writeFile(
+    path.join(repoRoot, "features", "orders", "checkout_steps.ts"),
+    `import { Then } from "@cucumber/cucumber";\nThen("veo la confirmación", async function () {});\n`,
+    "utf8"
+  );
+
+  const impact = analyzeCucumberImpact({
+    repoRoot,
+    files: ["features/orders/checkout_steps.ts"],
+    baseIndex,
+  });
+
+  assert.strictEqual(impact.gate, "B");
+  assert.deepStrictEqual(impact.reasonCodes, ["DELETED_STEP_SINGLE_FEATURE_CONSUMER"]);
+  assert.strictEqual(impact.affectedFeatures, 1);
+  assert.strictEqual(impact.parameters?.featureFile, "features/orders/checkout.feature");
+  assert.strictEqual(impact.confidence, "high");
+});
+
+test("impact-index: eliminación de step consumido por múltiples features -> Gate C (DELETED_SHARED_STEP_CONSUMERS)", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+  const baseIndex = buildCucumberImpactIndex({ repoRoot });
+
+  // Delete shared definition "que no inicié sesión en Auth0" (consumed by login.feature AND checkout.feature)
+  await fs.writeFile(
+    path.join(repoRoot, "features", "auth", "auth_steps.ts"),
+    `import { When, Then } from "@cucumber/cucumber";\nWhen("hago clic en el botón {string}", async function (btn: string) {});\nThen("veo mi nombre {string} en el encabezado", async function (name: string) {});\n`,
+    "utf8"
+  );
+
+  const impact = analyzeCucumberImpact({
+    repoRoot,
+    files: ["features/auth/auth_steps.ts"],
+    baseIndex,
+  });
+
+  assert.strictEqual(impact.gate, "C");
+  assert.deepStrictEqual(impact.reasonCodes, ["DELETED_SHARED_STEP_CONSUMERS"]);
+  assert.strictEqual(impact.affectedFeatures, 2);
+  assert.strictEqual(impact.confidence, "high");
+});
+
+test("impact-index: eliminación de archivo de steps consumido por una feature -> Gate B", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+  const baseIndex = buildCucumberImpactIndex({ repoRoot });
+
+  // Delete entire file checkout_steps.ts
+  await fs.unlink(path.join(repoRoot, "features", "orders", "checkout_steps.ts"));
+
+  const impact = analyzeCucumberImpact({
+    repoRoot,
+    files: ["features/orders/checkout_steps.ts"],
+    baseIndex,
+  });
+
+  assert.strictEqual(impact.gate, "B");
+  assert.deepStrictEqual(impact.reasonCodes, ["DELETED_STEP_SINGLE_FEATURE_CONSUMER"]);
+  assert.strictEqual(impact.affectedFeatures, 1);
+  assert.strictEqual(impact.parameters?.featureFile, "features/orders/checkout.feature");
+});
+
+test("impact-index: eliminación de archivo de steps consumido por múltiples features -> Gate C", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+  const baseIndex = buildCucumberImpactIndex({ repoRoot });
+
+  // Delete entire file auth_steps.ts
+  await fs.unlink(path.join(repoRoot, "features", "auth", "auth_steps.ts"));
+
+  const impact = analyzeCucumberImpact({
+    repoRoot,
+    files: ["features/auth/auth_steps.ts"],
+    baseIndex,
+  });
+
+  assert.strictEqual(impact.gate, "C");
+  assert.deepStrictEqual(impact.reasonCodes, ["DELETED_SHARED_STEP_CONSUMERS"]);
+  assert.strictEqual(impact.affectedFeatures, 2);
+});
+
+test("impact-index: reemplazo de regex/texto evalúa impacto de definición anterior y nueva", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+  const baseIndex = buildCucumberImpactIndex({ repoRoot });
+
+  // Replace step in checkout_steps.ts with a new pattern
+  await fs.writeFile(
+    path.join(repoRoot, "features", "orders", "checkout_steps.ts"),
+    `import { When, Then } from "@cucumber/cucumber";\nWhen("procedo al checkout", async function () {});\nThen("veo la confirmación modificada", async function () {});\n`,
+    "utf8"
+  );
+
+  const impact = analyzeCucumberImpact({
+    repoRoot,
+    files: ["features/orders/checkout_steps.ts"],
+    baseIndex,
+  });
+
+  assert.strictEqual(impact.gate, "B");
+  assert.strictEqual(impact.parameters?.featureFile, "features/orders/checkout.feature");
+});
+
+test("impact-index: archivo de steps eliminado con índice base no reconstruible -> Gate C (AMBIGUOUS_STEP_IMPACT)", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+
+  // Delete step file without base index
+  await fs.unlink(path.join(repoRoot, "features", "orders", "checkout_steps.ts"));
+
+  const impact = analyzeCucumberImpact({
+    repoRoot,
+    files: ["features/orders/checkout_steps.ts"],
+    baseIndex: null,
+  });
+
+  assert.strictEqual(impact.gate, "C");
+  assert.deepStrictEqual(impact.reasonCodes, ["AMBIGUOUS_STEP_IMPACT"]);
+  assert.strictEqual(impact.confidence, "low");
+});
+
+test("impact-index: índice base corrupto -> Gate C (AMBIGUOUS_STEP_IMPACT)", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+
+  const impact = analyzeCucumberImpact({
+    repoRoot,
+    files: ["features/orders/checkout_steps.ts"],
+    baseIndex: { corrupt: true },
+  });
+
+  assert.strictEqual(impact.gate, "C");
+  assert.deepStrictEqual(impact.reasonCodes, ["AMBIGUOUS_STEP_IMPACT"]);
+  assert.strictEqual(impact.confidence, "low");
+});

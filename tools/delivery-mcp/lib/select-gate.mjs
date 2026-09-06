@@ -248,22 +248,38 @@ export function selectGate({
 
   // Impact analysis: Cucumber and TypeScript dependencies
   let tsImpact = typeScriptImpact || dependencyImpact;
-  if (!tsImpact && stagedFiles.length > 0) {
+  let cImpact = cucumberImpact;
+  const root = repoRoot || findRepoRoot();
+
+  if (!cImpact && stagedFiles.length > 0) {
     try {
-      const root = repoRoot || findRepoRoot();
-      tsImpact = analyzeTypeScriptImpact({ repoRoot: root, files: stagedFiles });
+      cImpact = analyzeCucumberImpact({ repoRoot: root, files: stagedFiles });
     } catch {
-      tsImpact = null;
+      cImpact = {
+        gate: "C",
+        reasonCodes: ["AMBIGUOUS_STEP_IMPACT"],
+        consumerCount: 0,
+        affectedFeatures: 0,
+        confidence: "low",
+      };
     }
   }
 
-  let cImpact = cucumberImpact;
-  if (!cImpact && stagedFiles.length > 0) {
+  if (!tsImpact && stagedFiles.length > 0) {
     try {
-      const root = repoRoot || findRepoRoot();
-      cImpact = analyzeCucumberImpact({ repoRoot: root, files: stagedFiles });
+      tsImpact = analyzeTypeScriptImpact({
+        repoRoot: root,
+        files: stagedFiles,
+        cucumberIndex: cImpact?._index || null,
+      });
     } catch {
-      cImpact = null;
+      tsImpact = {
+        gate: "C",
+        reasonCodes: ["AMBIGUOUS_DEPENDENCY_IMPACT"],
+        consumerCount: 0,
+        affectedFeatures: 0,
+        confidence: "low",
+      };
     }
   }
 
@@ -273,24 +289,59 @@ export function selectGate({
     const tsPriority = policy.gates[tsImpact.gate]?.priority ?? -1;
     const cPriority = policy.gates[cImpact.gate]?.priority ?? -1;
 
-    if (tsPriority > cPriority) {
+    const isTsUncertain =
+      tsImpact.confidence === "low" ||
+      tsImpact.reasonCodes?.includes("AMBIGUOUS_DEPENDENCY_IMPACT");
+    const isCUncertain =
+      cImpact.confidence === "low" ||
+      cImpact.reasonCodes?.includes("AMBIGUOUS_STEP_IMPACT");
+
+    if (isTsUncertain || isCUncertain) {
+      const reasonCodes = [];
+      if (isCUncertain) reasonCodes.push(...(cImpact.reasonCodes || ["AMBIGUOUS_STEP_IMPACT"]));
+      if (isTsUncertain) reasonCodes.push(...(tsImpact.reasonCodes || ["AMBIGUOUS_DEPENDENCY_IMPACT"]));
+      combinedImpact = {
+        gate: "C",
+        reasonCodes: [...new Set(reasonCodes)],
+        consumerCount: Math.max(cImpact.consumerCount || 0, tsImpact.consumerCount || 0),
+        affectedFeatures: Math.max(cImpact.affectedFeatures || 0, tsImpact.affectedFeatures || 0),
+        confidence: "low",
+        parameters: { ...(cImpact.parameters || {}), ...(tsImpact.parameters || {}) },
+      };
+    } else if (tsPriority > cPriority) {
       combinedImpact = tsImpact;
     } else if (cPriority > tsPriority) {
       combinedImpact = cImpact;
     } else if (tsPriority > 0) {
-      const isLow = tsImpact.confidence === "low" || cImpact.confidence === "low";
-      const isMedium = tsImpact.confidence === "medium" || cImpact.confidence === "medium";
       combinedImpact = {
         gate: tsImpact.gate,
         reasonCodes: [...new Set([...(cImpact.reasonCodes || []), ...(tsImpact.reasonCodes || [])])],
         consumerCount: Math.max(cImpact.consumerCount || 0, tsImpact.consumerCount || 0),
         affectedFeatures: Math.max(cImpact.affectedFeatures || 0, tsImpact.affectedFeatures || 0),
-        confidence: isLow ? "low" : isMedium ? "medium" : "high",
+        confidence: "high",
         parameters: { ...(cImpact.parameters || {}), ...(tsImpact.parameters || {}) },
       };
     } else {
       combinedImpact = tsImpact || cImpact;
     }
+  } else if (
+    tsImpact?.confidence === "low" ||
+    tsImpact?.reasonCodes?.includes("AMBIGUOUS_DEPENDENCY_IMPACT")
+  ) {
+    combinedImpact = {
+      ...tsImpact,
+      gate: "C",
+      confidence: "low",
+    };
+  } else if (
+    cImpact?.confidence === "low" ||
+    cImpact?.reasonCodes?.includes("AMBIGUOUS_STEP_IMPACT")
+  ) {
+    combinedImpact = {
+      ...cImpact,
+      gate: "C",
+      confidence: "low",
+    };
   } else {
     combinedImpact = tsImpact || cImpact || null;
   }

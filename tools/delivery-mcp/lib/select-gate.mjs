@@ -4,6 +4,7 @@ import {
   normalizePath,
 } from "./classify-files.mjs";
 import { analyzeCucumberImpact } from "./impact-index.mjs";
+import { analyzeTypeScriptImpact } from "./dependency-impact.mjs";
 import { findRepoRoot } from "./repo-root.mjs";
 
 function policyGate(policy, gateId) {
@@ -146,6 +147,8 @@ export function selectGate({
   policy,
   maintainability = { status: "not_applicable", signalCount: 0, signals: [] },
   cucumberImpact = null,
+  typeScriptImpact = null,
+  dependencyImpact = null,
   repoRoot = null,
 } = {}) {
   const diagnostics = [];
@@ -243,18 +246,56 @@ export function selectGate({
     gate = buildGate(policy, "NONE", ["NON_FUNCTIONAL_CHANGES"]);
   }
 
-  // Cucumber impact analysis and elevation
-  let impact = cucumberImpact;
-  if (!impact && stagedFiles.length > 0) {
+  // Impact analysis: Cucumber and TypeScript dependencies
+  let tsImpact = typeScriptImpact || dependencyImpact;
+  if (!tsImpact && stagedFiles.length > 0) {
     try {
       const root = repoRoot || findRepoRoot();
-      impact = analyzeCucumberImpact({ repoRoot: root, files: stagedFiles });
+      tsImpact = analyzeTypeScriptImpact({ repoRoot: root, files: stagedFiles });
     } catch {
-      impact = null;
+      tsImpact = null;
     }
   }
 
-  const effectiveImpact = impact || {
+  let cImpact = cucumberImpact;
+  if (!cImpact && stagedFiles.length > 0) {
+    try {
+      const root = repoRoot || findRepoRoot();
+      cImpact = analyzeCucumberImpact({ repoRoot: root, files: stagedFiles });
+    } catch {
+      cImpact = null;
+    }
+  }
+
+  // Combine impacts (highest priority gate wins, or merge if equal priority)
+  let combinedImpact = null;
+  if (tsImpact && cImpact) {
+    const tsPriority = policy.gates[tsImpact.gate]?.priority ?? -1;
+    const cPriority = policy.gates[cImpact.gate]?.priority ?? -1;
+
+    if (tsPriority > cPriority) {
+      combinedImpact = tsImpact;
+    } else if (cPriority > tsPriority) {
+      combinedImpact = cImpact;
+    } else if (tsPriority > 0) {
+      const isLow = tsImpact.confidence === "low" || cImpact.confidence === "low";
+      const isMedium = tsImpact.confidence === "medium" || cImpact.confidence === "medium";
+      combinedImpact = {
+        gate: tsImpact.gate,
+        reasonCodes: [...new Set([...(cImpact.reasonCodes || []), ...(tsImpact.reasonCodes || [])])],
+        consumerCount: Math.max(cImpact.consumerCount || 0, tsImpact.consumerCount || 0),
+        affectedFeatures: Math.max(cImpact.affectedFeatures || 0, tsImpact.affectedFeatures || 0),
+        confidence: isLow ? "low" : isMedium ? "medium" : "high",
+        parameters: { ...(cImpact.parameters || {}), ...(tsImpact.parameters || {}) },
+      };
+    } else {
+      combinedImpact = tsImpact || cImpact;
+    }
+  } else {
+    combinedImpact = tsImpact || cImpact || null;
+  }
+
+  const effectiveImpact = combinedImpact || {
     gate: "NONE",
     reasonCodes: [],
     consumerCount: 0,
@@ -262,14 +303,14 @@ export function selectGate({
     confidence: "high",
   };
 
-  if (impact && impact.gate && impact.gate !== "NONE") {
+  if (effectiveImpact && effectiveImpact.gate && effectiveImpact.gate !== "NONE") {
     const currentPriority = policy.gates[gate.id]?.priority ?? 0;
-    const impactPriority = policy.gates[impact.gate]?.priority ?? 0;
+    const impactPriority = policy.gates[effectiveImpact.gate]?.priority ?? 0;
 
     if (impactPriority > currentPriority) {
-      if (impact.gate === "B") {
-        const targetFeature = impact.parameters?.featureFile || featureFile;
-        gate = buildGate(policy, "B", impact.reasonCodes, { featureFile: targetFeature });
+      if (effectiveImpact.gate === "B") {
+        const targetFeature = effectiveImpact.parameters?.featureFile || featureFile;
+        gate = buildGate(policy, "B", effectiveImpact.reasonCodes, { featureFile: targetFeature });
         if (!targetFeature && status !== "blocked") {
           status = "needs_input";
           pushDiagnostic(
@@ -278,20 +319,23 @@ export function selectGate({
             "Gate B requires exactly one feature path, inferred or explicitly declared"
           );
         }
-      } else if (impact.gate === "C") {
-        gate = buildGate(policy, "C", impact.reasonCodes, gate.parameters);
-      } else if (impact.gate === "D") {
-        gate = buildGate(policy, "D", impact.reasonCodes, gate.parameters);
-      } else if (impact.gate === "0") {
-        gate = buildGate(policy, "0", impact.reasonCodes);
+      } else if (effectiveImpact.gate === "C") {
+        gate = buildGate(policy, "C", effectiveImpact.reasonCodes, gate.parameters);
+      } else if (effectiveImpact.gate === "D") {
+        gate = buildGate(policy, "D", effectiveImpact.reasonCodes, gate.parameters);
+      } else if (effectiveImpact.gate === "A") {
+        gate = buildGate(policy, "A", effectiveImpact.reasonCodes, gate.parameters, ["unit", "typecheck_app"]);
+      } else if (effectiveImpact.gate === "0") {
+        gate = buildGate(policy, "0", effectiveImpact.reasonCodes);
       }
-    } else if (impactPriority === currentPriority && impact.gate === gate.id) {
-      if (impact.reasonCodes?.length > 0) {
+    } else if (impactPriority === currentPriority && effectiveImpact.gate === gate.id) {
+      if (effectiveImpact.reasonCodes?.length > 0) {
         gate = buildGate(
           policy,
           gate.id,
-          [...new Set([...impact.reasonCodes, ...gate.reasonCodes])],
-          { ...gate.parameters, ...(impact.parameters || {}) }
+          [...new Set([...effectiveImpact.reasonCodes, ...gate.reasonCodes])],
+          { ...gate.parameters, ...(effectiveImpact.parameters || {}) },
+          gate.checkIds
         );
       }
     }

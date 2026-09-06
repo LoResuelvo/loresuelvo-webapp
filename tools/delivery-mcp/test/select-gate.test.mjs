@@ -492,3 +492,171 @@ test("selectGate: step definition ambiguo o no resoluble selecciona Gate C conse
   assert.strictEqual(result.impact.confidence, "low");
 });
 
+test("selectGate: elevación a Gate C por múltiples flujos consumidores de TypeScript", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["components/onboarding/wizard.tsx"],
+    },
+    typeScriptImpact: {
+      gate: "C",
+      reasonCodes: ["MULTIPLE_FLOW_CONSUMERS"],
+      consumerCount: 4,
+      affectedFeatures: 2,
+      confidence: "high",
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "C");
+  assert.strictEqual(result.status, "ready");
+  assert.ok(result.gate.reasonCodes.includes("MULTIPLE_FLOW_CONSUMERS"));
+  assert.strictEqual(result.impact.gate, "C");
+  assert.deepStrictEqual(result.impact.reasonCodes, ["MULTIPLE_FLOW_CONSUMERS"]);
+  assert.strictEqual(result.impact.confidence, "high");
+  assert.strictEqual(result.impact.consumerCount, 4);
+  assert.strictEqual(result.impact.affectedFeatures, 2);
+  assert.ok(result.gate.checks.includes("make test-e2e-managed"));
+});
+
+test("selectGate: elevación a Gate C por layout o provider global de TypeScript", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["components/navigation/global-nav.tsx"],
+    },
+    dependencyImpact: {
+      gate: "C",
+      reasonCodes: ["GLOBAL_LAYOUT_OR_PROVIDER"],
+      consumerCount: 1,
+      affectedFeatures: 1,
+      confidence: "high",
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "C");
+  assert.strictEqual(result.status, "ready");
+  assert.ok(result.gate.reasonCodes.includes("GLOBAL_LAYOUT_OR_PROVIDER"));
+  assert.strictEqual(result.impact.gate, "C");
+  assert.deepStrictEqual(result.impact.reasonCodes, ["GLOBAL_LAYOUT_OR_PROVIDER"]);
+  assert.strictEqual(result.impact.confidence, "high");
+});
+
+test("selectGate: elevación a Gate C por dependencias ambiguas o no resolubles (confidence: low)", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["components/dynamic/widget.tsx"],
+    },
+    typeScriptImpact: {
+      gate: "C",
+      reasonCodes: ["AMBIGUOUS_DEPENDENCY_IMPACT"],
+      consumerCount: 1,
+      affectedFeatures: 1,
+      confidence: "low",
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "C");
+  assert.strictEqual(result.status, "ready");
+  assert.ok(result.gate.reasonCodes.includes("AMBIGUOUS_DEPENDENCY_IMPACT"));
+  assert.strictEqual(result.impact.gate, "C");
+  assert.strictEqual(result.impact.confidence, "low");
+});
+
+test("selectGate: componente en carpeta desconocida clasificado por dependencias reales sin agregar a la política", () => {
+  // Single flow consumer -> Gate A
+  const singleResult = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["widgets/single-toast.tsx"],
+    },
+    typeScriptImpact: {
+      gate: "A",
+      reasonCodes: ["SINGLE_FLOW_CONSUMER"],
+      consumerCount: 1,
+      affectedFeatures: 1,
+      confidence: "high",
+    },
+  });
+
+  assert.strictEqual(singleResult.gate.id, "A");
+  assert.strictEqual(singleResult.status, "ready");
+  assert.ok(singleResult.gate.reasonCodes.includes("SINGLE_FLOW_CONSUMER"));
+  assert.strictEqual(singleResult.impact.gate, "A");
+
+  // Multiple flow consumers -> Gate C
+  const multiResult = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["widgets/shared-toast.tsx"],
+    },
+    typeScriptImpact: {
+      gate: "C",
+      reasonCodes: ["MULTIPLE_FLOW_CONSUMERS"],
+      consumerCount: 3,
+      affectedFeatures: 2,
+      confidence: "high",
+    },
+  });
+
+  assert.strictEqual(multiResult.gate.id, "C");
+  assert.strictEqual(multiResult.status, "ready");
+  assert.ok(multiResult.gate.reasonCodes.includes("MULTIPLE_FLOW_CONSUMERS"));
+  assert.strictEqual(multiResult.impact.gate, "C");
+});
+
+test("selectGate: combina cucumberImpact y typeScriptImpact prevaleciendo el gate de mayor prioridad", () => {
+  // TS Impact is C, Cucumber Impact is B -> Gate C wins
+  const mixTsWins = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["components/shared/card.tsx", "features/auth/login_steps.ts"],
+    },
+    typeScriptImpact: {
+      gate: "C",
+      reasonCodes: ["MULTIPLE_FLOW_CONSUMERS"],
+      consumerCount: 3,
+      affectedFeatures: 2,
+      confidence: "high",
+    },
+    cucumberImpact: {
+      gate: "B",
+      reasonCodes: ["SINGLE_FEATURE_STEP_CONSUMER"],
+      consumerCount: 1,
+      affectedFeatures: 1,
+      confidence: "high",
+      parameters: { featureFile: "features/auth/login.feature" },
+    },
+  });
+
+  assert.strictEqual(mixTsWins.gate.id, "C");
+  assert.strictEqual(mixTsWins.impact.gate, "C");
+  assert.deepStrictEqual(mixTsWins.impact.reasonCodes, ["MULTIPLE_FLOW_CONSUMERS"]);
+
+  // Cucumber Impact is C, TS Impact is A -> Gate C wins
+  const mixCucumberWins = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: ["domain/user/user.ts", "features/support/hooks.ts"],
+    },
+    typeScriptImpact: {
+      gate: "A",
+      reasonCodes: ["ISOLATED_PRODUCTION_CODE"],
+      consumerCount: 1,
+      affectedFeatures: 0,
+      confidence: "high",
+    },
+    cucumberImpact: {
+      gate: "C",
+      reasonCodes: ["GLOBAL_CUCUMBER_SUPPORT_CHANGED"],
+      consumerCount: 10,
+      affectedFeatures: 5,
+      confidence: "high",
+    },
+  });
+
+  assert.strictEqual(mixCucumberWins.gate.id, "C");
+  assert.strictEqual(mixCucumberWins.impact.gate, "C");
+  assert.deepStrictEqual(mixCucumberWins.impact.reasonCodes, ["GLOBAL_CUCUMBER_SUPPORT_CHANGED"]);
+});
+

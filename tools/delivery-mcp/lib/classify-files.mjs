@@ -64,6 +64,14 @@ export function classifyFile(filePath, policy) {
   const rule = classification.rules.find((candidate) =>
     matchesRule(normalized, candidate.match)
   );
+  if (!rule && isProductionSourceFile(normalized)) {
+    return {
+      category: "isolated_production",
+      isGateCTrigger: false,
+      isGate0Trigger: false,
+      isProductSource: true,
+    };
+  }
   return materializeClassification(rule || classification.fallback, normalized);
 }
 

@@ -22,6 +22,7 @@ import {
   listCommitEvidence,
   rebuildLedgerFromIndividualRecords,
   getLedgerState,
+  getActiveCiIncidents,
   LEDGER_STATES,
   LEDGER_DIR,
   LEDGER_FILE,
@@ -1278,4 +1279,120 @@ test("rebuildLedgerFromIndividualRecords: reconstrucción concurrente segura med
   const finalState = await getLedgerState({ repoRoot });
   assert.strictEqual(finalState.state, LEDGER_STATES.VALID_LEDGER);
 });
+
+test("getActiveCiIncidents: rastrea estados y ciclo completo de incidentes (failed -> repair_submitted -> repair_failed -> superseded)", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+
+  // Commit A (fallará en CI)
+  await fs.writeFile(path.join(repoRoot, "a.txt"), "a", "utf8");
+  execFileSync("git", ["add", "a.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "chore[01]: commit A"], { cwd: repoRoot });
+  const shaA = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  const identityA = getCommitIdentity(repoRoot, shaA);
+  const mockA = await createMockEvidenceRecord(repoRoot, shaA, "A");
+  await recordCommitEvidence({
+    repoRoot,
+    commitSha: shaA,
+    verificationStatus: "passed",
+    snapshotHash: mockA.snapshotHash,
+    runKey: mockA.runKey,
+    recordPath: mockA.recordPath,
+    recordDigest: mockA.recordDigest,
+    branch: "main",
+    parentSha: identityA.parents[0] || null,
+    treeSha: identityA.treeSha,
+    stagedFiles: ["a.txt"],
+    gateId: "A",
+    policyHash: mockA.policyHash,
+    usId: "01",
+  });
+
+  const ciProvider = new MockCiProvider({
+    [shaA]: { status: "failed" },
+  });
+
+  // Estado inicial de A: repair_required
+  let incidents = await getActiveCiIncidents({ repoRoot, ciProvider });
+  assert.strictEqual(incidents.length, 1);
+  assert.strictEqual(incidents[0].failedSha, shaA);
+  assert.strictEqual(incidents[0].status, "repair_required");
+  assert.strictEqual(incidents[0].repairSha, null);
+
+  // Commit B (reparación de A, en progreso)
+  await fs.writeFile(path.join(repoRoot, "b.txt"), "b", "utf8");
+  execFileSync("git", ["add", "b.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix[01]: repair A with B"], { cwd: repoRoot });
+  const shaB = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  const identityB = getCommitIdentity(repoRoot, shaB);
+  const mockB = await createMockEvidenceRecord(repoRoot, shaB, "R");
+  await recordCommitEvidence({
+    repoRoot,
+    commitSha: shaB,
+    verificationStatus: "passed",
+    snapshotHash: mockB.snapshotHash,
+    runKey: mockB.runKey,
+    recordPath: mockB.recordPath,
+    recordDigest: mockB.recordDigest,
+    branch: "main",
+    parentSha: identityB.parents[0] || null,
+    treeSha: identityB.treeSha,
+    stagedFiles: ["b.txt"],
+    gateId: "R",
+    policyHash: mockB.policyHash,
+    usId: "01",
+    repairsSha: shaA,
+    intent: "repair_ci",
+  });
+
+  ciProvider.setFixture(shaB, { status: "in_progress" });
+  incidents = await getActiveCiIncidents({ repoRoot, ciProvider });
+  assert.strictEqual(incidents.length, 1);
+  assert.strictEqual(incidents[0].failedSha, shaA);
+  assert.strictEqual(incidents[0].status, "repair_submitted");
+  assert.strictEqual(incidents[0].repairSha, shaB);
+
+  // Commit B falla en CI: pasa a repair_failed
+  ciProvider.setFixture(shaB, { status: "failed" });
+  incidents = await getActiveCiIncidents({ repoRoot, ciProvider });
+  assert.strictEqual(incidents.length, 2);
+  const incA = incidents.find((i) => i.failedSha === shaA);
+  assert.strictEqual(incA.status, "repair_failed");
+  assert.strictEqual(incA.repairSha, shaB);
+
+  // Commit C (reparación verde que subsana)
+  await fs.writeFile(path.join(repoRoot, "c.txt"), "c", "utf8");
+  execFileSync("git", ["add", "c.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix[01]: repair B with C"], { cwd: repoRoot });
+  const shaC = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  const identityC = getCommitIdentity(repoRoot, shaC);
+  const mockC = await createMockEvidenceRecord(repoRoot, shaC, "R");
+  await recordCommitEvidence({
+    repoRoot,
+    commitSha: shaC,
+    verificationStatus: "passed",
+    snapshotHash: mockC.snapshotHash,
+    runKey: mockC.runKey,
+    recordPath: mockC.recordPath,
+    recordDigest: mockC.recordDigest,
+    branch: "main",
+    parentSha: identityC.parents[0] || null,
+    treeSha: identityC.treeSha,
+    stagedFiles: ["c.txt"],
+    gateId: "R",
+    policyHash: mockC.policyHash,
+    usId: "01",
+    repairsSha: shaB,
+    intent: "repair_ci",
+  });
+
+  ciProvider.setFixture(shaC, { status: "passed" });
+  incidents = await getActiveCiIncidents({ repoRoot, ciProvider });
+  assert.strictEqual(incidents.length, 0);
+
+  // Archivo materializado existe y está limpio
+  const materializedPath = path.join(repoRoot, ".delivery/runtime/active-incidents.json");
+  const materialized = JSON.parse(await fs.readFile(materializedPath, "utf8"));
+  assert.deepStrictEqual(materialized.activeCiIncidents, []);
+});
+
 

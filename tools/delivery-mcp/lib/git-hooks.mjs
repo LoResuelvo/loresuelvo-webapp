@@ -20,6 +20,8 @@ import {
   validateRepairLineage,
   acquireRepairLock,
   authorizeRepairPush,
+  getActiveCiIncidents,
+  matchesTarget,
 } from "./delivery-ledger.mjs";
 import { inspectCi } from "./ci-provider.mjs";
 import { loadDeliveryPolicy } from "./policy-loader.mjs";
@@ -526,8 +528,8 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
 
     // Check CI of prior commits registered in the ledger
     let priorShas = [];
+    const currentSet = new Set(commits);
     try {
-      const currentSet = new Set(commits);
       const entries = await listCommitEvidence({ repoRoot: root });
       priorShas = entries.map((entry) => entry.commitSha).filter((s) => !currentSet.has(s));
     } catch (error) {
@@ -545,15 +547,12 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
       throw error;
     }
 
-    // Inspect one commit beyond the allowed window so an already-overflowed
-    // ledger cannot hide the oldest pending or failed run.
-    const recentPriorShas = priorShas.slice(-(maxInFlightCommits + 1)).reverse();
-    let pendingCount = 0;
-
+    let activeIncidents = [];
     let supersededSet = new Set();
     try {
       const repairResolution = await resolveRepairChain({ repoRoot: root, ciProvider });
       supersededSet = new Set((repairResolution.supersededFailures || []).map((s) => s.toLowerCase()));
+      activeIncidents = await getActiveCiIncidents({ repoRoot: root, ciProvider, excludeShas: currentSet });
     } catch (error) {
       if (
         error?.code === "LEDGER_CORRUPT" ||
@@ -566,161 +565,131 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
           message: "Pre-push blocked: delivery ledger is corrupt and cannot be safely recovered.",
         };
       }
-      supersededSet = new Set();
-    }
-
-    const localEntry = localEvidence?.entry;
-
-    for (const priorSha of recentPriorShas) {
-      let ci;
-      try {
-        ci = await inspectCi({ sha: priorSha, repoRoot: root, provider: ciProvider });
-      } catch {
-        return {
-          passed: false,
-          reason: "CI_INSPECTION_FAILED",
-          message: "Pre-push blocked: could not inspect remote CI.",
-        };
-      }
-
-      if (["failed", "timed_out", "cancelled"].includes(ci.status)) {
-        if (supersededSet.has(priorSha.toLowerCase())) {
-          // Historical failure formally superseded by a validated repair; does not block
-          continue;
-        }
-
-        const normalizedPrior = priorSha.toLowerCase();
-        const normalizedRepairs = localEntry?.repairsSha ? String(localEntry.repairsSha).toLowerCase() : "";
-        const shaMatches =
-          Boolean(normalizedRepairs) &&
-          (normalizedRepairs === normalizedPrior ||
-            normalizedPrior.startsWith(normalizedRepairs) ||
-            normalizedRepairs.startsWith(normalizedPrior));
-
-        const isRepairCandidate =
-          localEntry?.intent === "repair_ci" ||
-          localEntry?.gateId === "R" ||
-          Boolean(localEntry?.repairsSha);
-
-        if (isRepairCandidate) {
-          if (!shaMatches) {
-            return {
-              passed: false,
-              reason: "PRIOR_COMMIT_CI_FAILED",
-              message: `Pre-push blocked: prior commit ${priorSha.slice(0, 8)} failed CI in GitHub Actions. Fix the failure before pushing new commits.`,
-              sha: priorSha,
-            };
-          }
-
-          let targetValidation;
-          try {
-            targetValidation = await validateRepairLineage({
-              repoRoot: root,
-              repairSha: localSha,
-              targetSha: priorSha,
-              ciProvider,
-              supersededSet,
-            });
-          } catch (error) {
-            if (
-              error?.code === "LEDGER_CORRUPT" ||
-              error?.code === "LEDGER_INCONSISTENT" ||
-              error?.message?.includes("LEDGER_CORRUPT")
-            ) {
-              return {
-                passed: false,
-                reason: "LEDGER_CORRUPT",
-                message: "Pre-push blocked: delivery ledger is corrupt and cannot be safely recovered.",
-              };
-            }
-            throw error;
-          }
-          if (!targetValidation.valid) {
-            return {
-              passed: false,
-              reason: targetValidation.reason,
-              message: targetValidation.message,
-              sha: localSha,
-            };
-          }
-
-          let releaseRepairLock = null;
-          try {
-            releaseRepairLock = await acquireRepairLock({ repoRoot: root, targetSha: priorSha });
-          } catch (lockError) {
-            return {
-              passed: false,
-              reason: "CONCURRENT_PUSH_IN_PROGRESS",
-              message: `Pre-push blocked: concurrent push in progress for repair of commit ${priorSha.slice(0, 8)}.`,
-              sha: localSha,
-            };
-          }
-
-          try {
-            const authResult = await authorizeRepairPush({
-              repoRoot: root,
-              targetSha: priorSha,
-              commitSha: localSha,
-              ciProvider,
-            });
-
-            if (!authResult.authorized) {
-              return {
-                passed: false,
-                reason: authResult.reason || "REPAIR_RECEIPT_ALREADY_CONSUMED",
-                message: authResult.message || `Pre-push blocked: repair authorization for commit ${priorSha.slice(0, 8)} has already been consumed for a push.`,
-                sha: localSha,
-              };
-            }
-
-            localEntry.repairAuthState = authResult.state;
-            localEntry.repairPushConsumed = true;
-          } finally {
-            if (releaseRepairLock) {
-              await releaseRepairLock();
-            }
-          }
-          continue;
-        }
-
-        return {
-          passed: false,
-          reason: "PRIOR_COMMIT_CI_FAILED",
-          message: `Pre-push blocked: prior commit ${priorSha.slice(0, 8)} failed CI in GitHub Actions. Fix the failure before pushing new commits.`,
-          sha: priorSha,
-        };
-      }
-
-      if (ci.status === "provider_error") {
-        return {
-          passed: false,
-          reason: "CI_PROVIDER_ERROR",
-          message: "Pre-push blocked: CI provider returned an error. Cannot determine remote CI safely.",
-        };
-      }
-
-      if (["in_progress", "queued", "not_found"].includes(ci.status)) {
-        pendingCount += 1;
-      }
-    }
-
-    const inFlightCount = pendingCount + commits.length;
-    if (inFlightCount > maxInFlightCommits) {
       return {
         passed: false,
-        reason: "CI_PENDING_WINDOW_EXCEEDED",
-        message: `Pre-push blocked: this push would create ${inFlightCount} commits in flight (maximum ${maxInFlightCommits}). Wait for CI to complete.`,
-        pendingCount,
-        inFlightCount,
-        maxInFlightCommits,
+        reason: "CI_INSPECTION_FAILED",
+        message: "Pre-push blocked: could not inspect remote CI.",
       };
     }
 
+    const providerErrorIncident =
+      activeIncidents.find((inc) => inc.status === "provider_error") ||
+      (activeIncidents.allIncidents && activeIncidents.allIncidents.find((inc) => inc.status === "provider_error"));
+    if (providerErrorIncident) {
+      return {
+        passed: false,
+        reason: "CI_PROVIDER_ERROR",
+        message: "Pre-push blocked: CI provider returned an error. Cannot determine remote CI safely.",
+      };
+    }
+
+    const localEntry = localEvidence?.entry;
     const isRepair =
       localEntry?.intent === "repair_ci" ||
       localEntry?.gateId === "R" ||
       Boolean(localEntry?.repairsSha);
 
+    // Filter active unresolved incidents (repair_required, repair_failed, repair_prepared, repair_submitted)
+    const unresolvedIncidents = activeIncidents.filter((inc) =>
+      ["repair_required", "repair_failed", "repair_prepared", "repair_submitted"].includes(inc.status) &&
+      !supersededSet.has(inc.failedSha.toLowerCase())
+    );
+
+    // Step 1: Active incidents check (no window limit)
+    if (unresolvedIncidents.length > 0) {
+      const matchingIncident = isRepair && localEntry?.repairsSha
+        ? unresolvedIncidents.find((inc) => matchesTarget(localEntry.repairsSha, inc.failedSha))
+        : null;
+
+      if (!matchingIncident) {
+        const targetIncident = unresolvedIncidents[0];
+        return {
+          passed: false,
+          reason: "PRIOR_COMMIT_CI_FAILED",
+          message: `Pre-push blocked: prior commit ${targetIncident.failedSha.slice(0, 8)} failed CI in GitHub Actions. Fix the failure before pushing new commits.`,
+          sha: targetIncident.failedSha,
+          activeIncident: targetIncident,
+        };
+      }
+
+      // Commit being pushed is a valid repair candidate for an active incident
+      const targetSha = matchingIncident.failedSha;
+      let targetValidation;
+      try {
+        targetValidation = await validateRepairLineage({
+          repoRoot: root,
+          repairSha: localSha,
+          targetSha,
+          ciProvider,
+          supersededSet,
+        });
+      } catch (error) {
+        if (
+          error?.code === "LEDGER_CORRUPT" ||
+          error?.code === "LEDGER_INCONSISTENT" ||
+          error?.message?.includes("LEDGER_CORRUPT")
+        ) {
+          return {
+            passed: false,
+            reason: "LEDGER_CORRUPT",
+            message: "Pre-push blocked: delivery ledger is corrupt and cannot be safely recovered.",
+          };
+        }
+        throw error;
+      }
+      if (!targetValidation.valid) {
+        return {
+          passed: false,
+          reason: targetValidation.reason,
+          message: targetValidation.message,
+          sha: localSha,
+        };
+      }
+
+      let releaseRepairLock = null;
+      try {
+        releaseRepairLock = await acquireRepairLock({ repoRoot: root, targetSha });
+      } catch (lockError) {
+        return {
+          passed: false,
+          reason: "CONCURRENT_PUSH_IN_PROGRESS",
+          message: `Pre-push blocked: concurrent push in progress for repair of commit ${targetSha.slice(0, 8)}.`,
+          sha: localSha,
+        };
+      }
+
+      try {
+        const authResult = await authorizeRepairPush({
+          repoRoot: root,
+          targetSha,
+          commitSha: localSha,
+          ciProvider,
+        });
+
+        if (!authResult.authorized) {
+          return {
+            passed: false,
+            reason: authResult.reason || "REPAIR_RECEIPT_ALREADY_CONSUMED",
+            message:
+              authResult.message ||
+              `Pre-push blocked: repair authorization for commit ${targetSha.slice(0, 8)} has already been consumed for a push.`,
+            sha: localSha,
+          };
+        }
+
+        localEntry.repairAuthState = authResult.state;
+        localEntry.repairPushConsumed = true;
+      } finally {
+        if (releaseRepairLock) {
+          await releaseRepairLock();
+        }
+      }
+
+      // Repair push authorized, proceed (does not count against ordinary pending window)
+      continue;
+    }
+
+    // If local commit claims to be a repair but there were no active incidents:
     if (isRepair) {
       const selfValidation = await validateRepairLineage({
         repoRoot: root,
@@ -762,7 +731,9 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
             return {
               passed: false,
               reason: authResult.reason || "REPAIR_RECEIPT_ALREADY_CONSUMED",
-              message: authResult.message || `Pre-push blocked: repair authorization for commit ${String(localEntry.repairsSha).slice(0, 8)} has already been consumed for a push.`,
+              message:
+                authResult.message ||
+                `Pre-push blocked: repair authorization for commit ${String(localEntry.repairsSha).slice(0, 8)} has already been consumed for a push.`,
               sha: localSha,
             };
           }
@@ -775,6 +746,47 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
           }
         }
       }
+    }
+
+    // Step 2: Continuous window control for pending commits (only if no active incidents)
+    const recentPriorShas = priorShas.slice(-(maxInFlightCommits + 1)).reverse();
+    let pendingCount = 0;
+
+    for (const priorSha of recentPriorShas) {
+      let ci;
+      try {
+        ci = await inspectCi({ sha: priorSha, repoRoot: root, provider: ciProvider });
+      } catch {
+        return {
+          passed: false,
+          reason: "CI_INSPECTION_FAILED",
+          message: "Pre-push blocked: could not inspect remote CI.",
+        };
+      }
+
+      if (ci.status === "provider_error") {
+        return {
+          passed: false,
+          reason: "CI_PROVIDER_ERROR",
+          message: "Pre-push blocked: CI provider returned an error. Cannot determine remote CI safely.",
+        };
+      }
+
+      if (["in_progress", "queued", "not_found"].includes(ci.status)) {
+        pendingCount += 1;
+      }
+    }
+
+    const inFlightCount = pendingCount + commits.length;
+    if (inFlightCount > maxInFlightCommits) {
+      return {
+        passed: false,
+        reason: "CI_PENDING_WINDOW_EXCEEDED",
+        message: `Pre-push blocked: this push would create ${inFlightCount} commits in flight (maximum ${maxInFlightCommits}). Wait for CI to complete.`,
+        pendingCount,
+        inFlightCount,
+        maxInFlightCommits,
+      };
     }
   }
 

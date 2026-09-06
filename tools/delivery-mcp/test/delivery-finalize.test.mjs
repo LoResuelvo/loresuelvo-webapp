@@ -1598,3 +1598,128 @@ test("finalizeDelivery: bloquea fail-closed con LEDGER_CORRUPT si el ledger estÃ
     "Cannot finalize: delivery ledger is corrupt and cannot be safely recovered."
   );
 });
+
+test("finalizeDelivery: close_batch con CI pendiente dentro de la ventana permitido con passed_pending_ci si no hay incidentes activos", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+
+  const sha1 = await commitFile(repoRoot, "src/worker.txt", "work", "chore[90]: worker logic");
+  await attachEvidence({ repoRoot, sha: sha1, gateId: "A", usId: "90" });
+
+  const featurePath = "features/batch-pending.feature";
+  const head = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: Batch\n  Scenario: S1\n    Given ok\n",
+    "test[90]: batch close"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha: head,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "90",
+    intent: "close_batch",
+  });
+
+  const ciProvider = new MockCiProvider({
+    [sha1]: { status: "in_progress" },
+    [head]: { status: "in_progress" },
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_batch",
+    usId: "90",
+    scopeFiles: [featurePath],
+    ciProvider,
+    waitForCi: false,
+  });
+
+  assert.strictEqual(res.finalized, true);
+  assert.strictEqual(res.status, "passed_pending_ci");
+  assert.strictEqual(res.pendingCi.length, 2);
+});
+
+test("finalizeDelivery: close_us con incidente activo no subsanado es bloqueado con ACTIVE_CI_INCIDENT", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+
+  const sha1 = await commitFile(repoRoot, "src/fail.txt", "fail", "chore[91]: failing logic");
+  await attachEvidence({ repoRoot, sha: sha1, gateId: "A", usId: "91" });
+
+  const featurePath = "features/us-incident.feature";
+  const head = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US Incident\n  Scenario: S1\n    Given ok\n",
+    "test[91]: close us with prior incident"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha: head,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "91",
+    intent: "close_us",
+  });
+
+  const ciProvider = new MockCiProvider({
+    [sha1]: { status: "failed", failure: { message: "CI broke on sha1" } },
+    [head]: { status: "passed" },
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_us",
+    usId: "91",
+    scopeFiles: [featurePath],
+    ciProvider,
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.status, "blocked");
+  assert.ok(["ACTIVE_CI_INCIDENT", "CI_NOT_GREEN"].includes(res.reason));
+  assert.strictEqual(res.sha, sha1);
+});
+
+test("finalizeDelivery: close_batch con incidente activo no subsanado es bloqueado con ACTIVE_CI_INCIDENT", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+
+  const sha1 = await commitFile(repoRoot, "src/fail.txt", "fail", "chore[92]: failing logic");
+  await attachEvidence({ repoRoot, sha: sha1, gateId: "A", usId: "92" });
+
+  const featurePath = "features/batch-incident.feature";
+  const head = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: Batch Incident\n  Scenario: S1\n    Given ok\n",
+    "test[92]: close batch with prior incident"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha: head,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "92",
+    intent: "close_batch",
+  });
+
+  const ciProvider = new MockCiProvider({
+    [sha1]: { status: "failed", failure: { message: "CI broke on sha1" } },
+    [head]: { status: "in_progress" },
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    intent: "close_batch",
+    usId: "92",
+    scopeFiles: [featurePath],
+    ciProvider,
+    waitForCi: false,
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.status, "blocked");
+  assert.ok(["ACTIVE_CI_INCIDENT", "CI_NOT_GREEN"].includes(res.reason));
+  assert.strictEqual(res.sha, sha1);
+});
+

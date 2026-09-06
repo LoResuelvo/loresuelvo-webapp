@@ -1640,3 +1640,242 @@ test("runPrePushHook: bloquea fail-closed con LEDGER_CORRUPT si el ledger está 
     "Pre-push blocked: delivery ledger is corrupt and cannot be safely recovered."
   );
 });
+
+test("pre-push hook: ventana continua permite 4 commits pendientes y bloquea el 5to con CI_PENDING_WINDOW_EXCEEDED, liberando lugar cuando uno pasa a verde", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+  const baseSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+
+  // Crear 4 commits en vuelo
+  const shas = [];
+  let prev = baseSha;
+  for (let i = 1; i <= 4; i++) {
+    await fs.writeFile(path.join(repoRoot, `f${i}.txt`), `${i}`, "utf8");
+    execFileSync("git", ["add", `f${i}.txt`], { cwd: repoRoot });
+    execFileSync("git", ["commit", "-m", `chore: commit ${i}`], { cwd: repoRoot });
+    const post = await runPostCommitHook({ repoRoot });
+    shas.push(post.commitSha);
+    execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+    prev = post.commitSha;
+  }
+
+  // Los 4 commits están pendientes en CI (in_progress)
+  const mockCi = new MockCiProvider({
+    [shas[0]]: { status: "in_progress" },
+    [shas[1]]: { status: "in_progress" },
+    [shas[2]]: { status: "in_progress" },
+    [shas[3]]: { status: "in_progress" },
+  });
+
+  // Commit 5 local
+  await fs.writeFile(path.join(repoRoot, "f5.txt"), "5", "utf8");
+  execFileSync("git", ["add", "f5.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "chore: commit 5"], { cwd: repoRoot });
+  const post5 = await runPostCommitHook({ repoRoot });
+
+  const pushLine5 = `refs/heads/main ${post5.commitSha} refs/heads/main ${prev}`;
+  const res5 = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine5],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(res5.passed, false);
+  assert.strictEqual(res5.reason, "CI_PENDING_WINDOW_EXCEEDED");
+  assert.strictEqual(res5.pendingCount, 4);
+  assert.strictEqual(res5.inFlightCount, 5);
+
+  // Commit 1 pasa a verde -> libera una posición en la ventana continua
+  mockCi.setFixture(shas[0], { status: "passed" });
+
+  const res5Retry = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine5],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(res5Retry.passed, true);
+});
+
+test("pre-push hook: un fallo que ocurrió hace más de 5 commits (fuera de la ventana reciente) sigue bloqueando pushes ordinarios como incidente activo", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+  const baseSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+
+  // Commit 1 que fallará
+  await fs.writeFile(path.join(repoRoot, "fail.txt"), "fail", "utf8");
+  execFileSync("git", ["add", "fail.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "chore: bad commit 1"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  // 6 commits posteriores que pasaron CI (total 7 commits previos)
+  const intermediateShas = [];
+  for (let i = 2; i <= 7; i++) {
+    await fs.writeFile(path.join(repoRoot, `f${i}.txt`), `${i}`, "utf8");
+    execFileSync("git", ["add", `f${i}.txt`], { cwd: repoRoot });
+    execFileSync("git", ["commit", "-m", `chore: commit ${i}`], { cwd: repoRoot });
+    const post = await runPostCommitHook({ repoRoot });
+    intermediateShas.push(post.commitSha);
+    execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+  }
+
+  const mockCi = new MockCiProvider({
+    [post1.commitSha]: { status: "failed", failure: { message: "Pipeline failed on commit 1" } },
+  });
+  for (const s of intermediateShas) {
+    mockCi.setFixture(s, { status: "passed" });
+  }
+
+  // Commit 8 ordinario intenta pushearse
+  await fs.writeFile(path.join(repoRoot, "f8.txt"), "8", "utf8");
+  execFileSync("git", ["add", "f8.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "chore: ordinary commit 8"], { cwd: repoRoot });
+  const post8 = await runPostCommitHook({ repoRoot });
+
+  const pushLine8 = `refs/heads/main ${post8.commitSha} refs/heads/main ${intermediateShas[intermediateShas.length - 1]}`;
+  const res8 = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine8],
+    ciProvider: mockCi,
+  });
+
+  // Debe bloquear por el fallo antiguo de commit 1 (más de 5 commits en el pasado)
+  assert.strictEqual(res8.passed, false);
+  assert.strictEqual(res8.reason, "PRIOR_COMMIT_CI_FAILED");
+  assert.strictEqual(res8.sha, post1.commitSha);
+});
+
+test("pre-push hook: ciclo de incidente activo (bloqueo ordinario, repair_ci permitido, repair_failed mantiene bloqueo, repair verde reabre ventana)", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  // 1. Commit que falla en CI
+  await fs.writeFile(path.join(repoRoot, "src.txt"), "v1", "utf8");
+  execFileSync("git", ["add", "src.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "chore: bad commit"], { cwd: repoRoot });
+  const postBad = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider({
+    [postBad.commitSha]: { status: "failed", failure: { message: "CI failed" } },
+  });
+
+  // 2. Commit ordinario es bloqueado por incidente activo
+  await fs.writeFile(path.join(repoRoot, "ord.txt"), "ordinary", "utf8");
+  execFileSync("git", ["add", "ord.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "chore: ordinary commit blocked"], { cwd: repoRoot });
+  const postOrd = await runPostCommitHook({ repoRoot });
+
+  const pushLineOrd = `refs/heads/main ${postOrd.commitSha} refs/heads/main ${postBad.commitSha}`;
+  const resOrd = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLineOrd],
+    ciProvider: mockCi,
+  });
+  assert.strictEqual(resOrd.passed, false);
+  assert.strictEqual(resOrd.reason, "PRIOR_COMMIT_CI_FAILED");
+
+  // Revertir el commit ordinario para preparar la reparación
+  execFileSync("git", ["reset", "--hard", postBad.commitSha], { cwd: repoRoot });
+
+  // 3. Commit de reparación R1 con repair_ci y Gate R es permitido
+  await fs.writeFile(path.join(repoRoot, "src.txt"), "v2-repair-1", "utf8");
+  execFileSync("git", ["add", "src.txt"], { cwd: repoRoot });
+  const fakeExecute = async ({ check }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 1,
+    exitCode: 0,
+    summaryLines: [],
+    diagnostic: null,
+  });
+  await prepareDelivery({
+    repoRoot,
+    intent: "repair_ci",
+    repairsSha: postBad.commitSha,
+    ciProvider: mockCi,
+    executeCheck: fakeExecute,
+  });
+  execFileSync("git", ["commit", "-m", "fix: repair 1 bad commit"], { cwd: repoRoot });
+  const postR1 = await runPostCommitHook({ repoRoot });
+
+  const pushLineR1 = `refs/heads/main ${postR1.commitSha} refs/heads/main ${postBad.commitSha}`;
+  const resR1 = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLineR1],
+    ciProvider: mockCi,
+  });
+  assert.strictEqual(resR1.passed, true);
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  // 4. Reparación R1 falla en CI -> mantiene el incidente activo
+  mockCi.setFixture(postR1.commitSha, { status: "failed" });
+
+  // Commit ordinario posterior intenta pushearse -> sigue bloqueado
+  await fs.writeFile(path.join(repoRoot, "ord2.txt"), "ord2", "utf8");
+  execFileSync("git", ["add", "ord2.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "chore: ordinary after failed repair"], { cwd: repoRoot });
+  const postOrd2 = await runPostCommitHook({ repoRoot });
+
+  const pushLineOrd2 = `refs/heads/main ${postOrd2.commitSha} refs/heads/main ${postR1.commitSha}`;
+  const resOrd2 = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLineOrd2],
+    ciProvider: mockCi,
+  });
+  assert.strictEqual(resOrd2.passed, false);
+  assert.strictEqual(resOrd2.reason, "PRIOR_COMMIT_CI_FAILED");
+
+  // Revertir y crear reparación R2
+  execFileSync("git", ["reset", "--hard", postR1.commitSha], { cwd: repoRoot });
+  await fs.writeFile(path.join(repoRoot, "src.txt"), "v3-repair-2", "utf8");
+  execFileSync("git", ["add", "src.txt"], { cwd: repoRoot });
+  await prepareDelivery({
+    repoRoot,
+    intent: "repair_ci",
+    repairsSha: postR1.commitSha,
+    ciProvider: mockCi,
+    executeCheck: fakeExecute,
+  });
+  execFileSync("git", ["commit", "-m", "fix: repair 2 bad commit"], { cwd: repoRoot });
+  const postR2 = await runPostCommitHook({ repoRoot });
+
+  const pushLineR2 = `refs/heads/main ${postR2.commitSha} refs/heads/main ${postR1.commitSha}`;
+  const resR2 = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLineR2],
+    ciProvider: mockCi,
+  });
+  assert.strictEqual(resR2.passed, true);
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  // 5. Reparación R2 pasa en CI -> subsana el incidente y reabre la ventana a pushes ordinarios
+  mockCi.setFixture(postR2.commitSha, { status: "passed" });
+
+  await fs.writeFile(path.join(repoRoot, "ord3.txt"), "ord3", "utf8");
+  execFileSync("git", ["add", "ord3.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "chore: ordinary after successful repair"], { cwd: repoRoot });
+  const postOrd3 = await runPostCommitHook({ repoRoot });
+
+  const pushLineOrd3 = `refs/heads/main ${postOrd3.commitSha} refs/heads/main ${postR2.commitSha}`;
+  const resOrd3 = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLineOrd3],
+    ciProvider: mockCi,
+  });
+  assert.strictEqual(resOrd3.passed, true);
+});
+

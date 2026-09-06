@@ -1863,3 +1863,212 @@ export async function resolveRepairChain({
     validatedRepairs: [...new Set(validatedRepairs)],
   };
 }
+
+export function matchesTarget(left, right) {
+  if (!left || !right) return false;
+  const l = String(left).trim().toLowerCase();
+  const r = String(right).trim().toLowerCase();
+  return l === r || l.startsWith(r) || r.startsWith(l);
+}
+
+export async function getActiveCiIncidents({
+  repoRoot,
+  ciProvider = null,
+  excludeShas = [],
+} = {}) {
+  const root = findRepoRoot(repoRoot);
+  const rawEntries = await listCommitEvidence({ repoRoot: root });
+  const excludeSet = new Set(
+    Array.from(excludeShas || []).map((s) => String(s).trim().toLowerCase())
+  );
+  const entries = (rawEntries || []).filter(
+    (e) => !excludeSet.has(String(e.commitSha).trim().toLowerCase())
+  );
+  if (!entries || entries.length === 0) {
+    const empty = [];
+    empty.activeCiIncidents = empty;
+    empty.allIncidents = [];
+    return empty;
+  }
+
+  const repairResolution = await resolveRepairChain({ repoRoot: root, ciProvider });
+  const supersededFailures = new Set(
+    (repairResolution.supersededFailures || []).map((s) => s.toLowerCase())
+  );
+
+  // Mark historical failures in completed user stories whose close_us commit passed CI as superseded
+  for (const entry of rawEntries || []) {
+    if (entry.intent === "close_us" && entry.usId) {
+      const closeSha = entry.commitSha.toLowerCase();
+      let closeCi;
+      try {
+        closeCi = await inspectCi({ sha: closeSha, repoRoot: root, provider: ciProvider });
+      } catch {
+        closeCi = null;
+      }
+      if (closeCi?.status === "passed") {
+        const usId = String(entry.usId).trim().toLowerCase();
+        for (const candidate of rawEntries || []) {
+          if (
+            candidate.usId &&
+            String(candidate.usId).trim().toLowerCase() === usId &&
+            candidate.commitSha.toLowerCase() !== closeSha
+          ) {
+            const candSha = candidate.commitSha.toLowerCase();
+            let isAnc = false;
+            try {
+              execFileSync("git", ["merge-base", "--is-ancestor", candSha, closeSha], {
+                cwd: root,
+                stdio: ["ignore", "ignore", "ignore"],
+              });
+              isAnc = true;
+            } catch {
+              isAnc = false;
+            }
+            if (isAnc) {
+              supersededFailures.add(candSha);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const repairsByTarget = new Map();
+  for (const entry of entries) {
+    if (entry.repairsSha) {
+      const rawTarget = String(entry.repairsSha).trim().toLowerCase();
+      if (!repairsByTarget.has(rawTarget)) {
+        repairsByTarget.set(rawTarget, []);
+      }
+      repairsByTarget.get(rawTarget).push(entry);
+    }
+  }
+
+  function findRepairsForSha(sha) {
+    const matching = [];
+    for (const [targetKey, list] of repairsByTarget.entries()) {
+      if (matchesTarget(targetKey, sha)) {
+        matching.push(...list);
+      }
+    }
+    return matching;
+  }
+
+  const allIncidents = [];
+  const activeCiIncidents = [];
+
+  for (const entry of entries) {
+    const sha = entry.commitSha.toLowerCase();
+    const usId = entry.usId || null;
+    const branch = entry.branch || null;
+
+    let status = "pending";
+    let repairSha = null;
+
+    if (supersededFailures.has(sha)) {
+      status = "superseded";
+    } else {
+      let ci;
+      try {
+        ci = await inspectCi({ sha, repoRoot: root, provider: ciProvider });
+      } catch (err) {
+        throw err;
+      }
+
+      if (ci.status === "passed") {
+        status = "passed";
+      } else if (ci.status === "provider_error") {
+        status = "provider_error";
+      } else if (["in_progress", "queued", "not_found"].includes(ci.status)) {
+        status = "pending";
+      } else if (["failed", "cancelled", "timed_out"].includes(ci.status)) {
+        const repairs = findRepairsForSha(sha);
+        if (repairs.length > 0) {
+          const latestRepair = repairs[repairs.length - 1];
+          const rSha = latestRepair.commitSha.toLowerCase();
+          repairSha = rSha;
+
+          let rCi;
+          try {
+            rCi = await inspectCi({ sha: rSha, repoRoot: root, provider: ciProvider });
+          } catch (err) {
+            throw err;
+          }
+
+          if (rCi.status === "passed") {
+            status = supersededFailures.has(sha) ? "superseded" : "passed";
+          } else if (["in_progress", "queued"].includes(rCi.status)) {
+            status = "repair_submitted";
+          } else if (["failed", "cancelled", "timed_out"].includes(rCi.status)) {
+            status = "repair_failed";
+          } else if (rCi.status === "provider_error") {
+            status = "provider_error";
+          } else {
+            if (latestRepair.repairPushConsumed || isCommitInRemote(root, rSha)) {
+              status = "repair_submitted";
+            } else {
+              status = "repair_prepared";
+            }
+          }
+        } else {
+          let auth = null;
+          try {
+            auth = await getRepairAuthorization({ repoRoot: root, targetSha: sha });
+          } catch {
+            auth = null;
+          }
+          let lastPrepared = null;
+          try {
+            lastPrepared = await getLastPreparedEvidence({ repoRoot: root });
+          } catch {
+            lastPrepared = null;
+          }
+
+          if (auth && (auth.state === "prepared" || auth.state === "bound_to_commit")) {
+            status = "repair_prepared";
+            repairSha = auth.commitSha || null;
+          } else if (
+            lastPrepared?.repairsSha &&
+            matchesTarget(lastPrepared.repairsSha, sha) &&
+            !lastPrepared.consumedByCommitSha
+          ) {
+            status = "repair_prepared";
+            repairSha = null;
+          } else {
+            status = "repair_required";
+            repairSha = null;
+          }
+        }
+      }
+    }
+
+    const incidentRecord = {
+      failedSha: sha,
+      usId,
+      branch,
+      status,
+      repairSha,
+    };
+
+    allIncidents.push(incidentRecord);
+
+    if (["repair_required", "repair_failed", "repair_prepared", "repair_submitted"].includes(status)) {
+      activeCiIncidents.push(incidentRecord);
+    }
+  }
+
+  try {
+    await writeJsonAtomic(root, ".delivery/runtime/active-incidents.json", {
+      updatedAt: new Date().toISOString(),
+      activeCiIncidents,
+    });
+  } catch {
+    // best-effort
+  }
+
+  activeCiIncidents.activeCiIncidents = activeCiIncidents;
+  activeCiIncidents.allIncidents = allIncidents;
+  return activeCiIncidents;
+}
+

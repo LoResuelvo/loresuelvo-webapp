@@ -6,6 +6,7 @@ import {
   resolveRepairChain,
   getCommitEvidence,
   listCommitEvidence,
+  getActiveCiIncidents,
 } from "./delivery-ledger.mjs";
 import { extractUsId } from "./git-snapshot.mjs";
 import { inspectCi } from "./ci-provider.mjs";
@@ -314,12 +315,14 @@ export async function finalizeDelivery({
 
   while (true) {
     let repairResolution;
+    let activeIncidents = [];
     try {
       repairResolution = await resolveRepairChain({
         repoRoot: root,
         commits: shas,
         ciProvider,
       });
+      activeIncidents = await getActiveCiIncidents({ repoRoot: root, ciProvider });
     } catch (error) {
       if (
         error?.code === "LEDGER_CORRUPT" ||
@@ -340,6 +343,11 @@ export async function finalizeDelivery({
     const invalidRepairs = repairResolution.invalidRepairs || [];
     const supersededSet = new Set(supersededFailures.map((s) => s.toLowerCase()));
 
+    const unresolvedIncidents = activeIncidents.filter((inc) =>
+      ["repair_required", "repair_failed", "repair_prepared", "repair_submitted"].includes(inc.status) &&
+      !supersededSet.has(inc.failedSha.toLowerCase())
+    );
+
     if (invalidRepairs.length > 0) {
       return {
         finalized: false,
@@ -350,6 +358,7 @@ export async function finalizeDelivery({
         pendingFailures: [],
         failedRepairs,
         invalidRepairs,
+        activeCiIncidents: unresolvedIncidents,
       };
     }
 
@@ -406,6 +415,26 @@ export async function finalizeDelivery({
         pendingFailures,
         failedRepairs,
         invalidRepairs,
+        activeCiIncidents: unresolvedIncidents,
+      };
+    }
+
+    // Bloqueo si existen incidentes activos no subsanados
+    if (unresolvedIncidents.length > 0) {
+      const targetInc = unresolvedIncidents[0];
+      const deliveryLabel = intent === "close_batch" ? "batch" : "User Story";
+      return {
+        finalized: false,
+        status: "blocked",
+        reason: "ACTIVE_CI_INCIDENT",
+        message: `Cannot finalize ${deliveryLabel}: active CI incident on commit ${targetInc.failedSha.slice(0, 8)} (${targetInc.status}) has not been resolved.`,
+        sha: targetInc.failedSha,
+        activeIncident: targetInc,
+        activeCiIncidents: unresolvedIncidents,
+        supersededFailures,
+        pendingFailures,
+        failedRepairs,
+        invalidRepairs,
       };
     }
 
@@ -429,6 +458,7 @@ export async function finalizeDelivery({
         pendingFailures: [],
         failedRepairs,
         invalidRepairs,
+        activeCiIncidents: [],
       };
     }
 

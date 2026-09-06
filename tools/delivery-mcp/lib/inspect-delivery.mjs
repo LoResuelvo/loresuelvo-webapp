@@ -145,6 +145,18 @@ export async function inspectDelivery({
               message: "CI provider error blocks repair validation",
               retryable: false,
             });
+          } else if (
+            (ci.failedJobs || []).some((job) =>
+              (typeof job === "string" ? job : job?.name || job?.id || "").toLowerCase().includes("docker")
+            ) ||
+            String(ci.failure?.message || "").toLowerCase().includes("docker")
+          ) {
+            gateResult.status = "blocked";
+            gateResult.diagnostics.push({
+              code: "HUMAN_ONLY_CI_FAILURE",
+              message: "Remote CI failed in Docker job; Docker remediation is reserved for human developers. Escalate to STOP_USER.",
+              retryable: false,
+            });
           } else if (!["failed", "cancelled", "timed_out"].includes(ci.status)) {
             gateResult.status = "blocked";
             gateResult.diagnostics.push({

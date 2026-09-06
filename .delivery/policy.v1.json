@@ -25,6 +25,22 @@
   "classification": {
     "rules": [
       {
+        "id": "human_only",
+        "category": "human_only",
+        "match": {
+          "exact": [".dockerignore"],
+          "prefixes": ["docker/"],
+          "patterns": [
+            "^Dockerfile(?:\\..*)?$",
+            "^(?:docker-)?compose.*\\.ya?ml$",
+            "^\\.github/workflows/.*docker.*\\.ya?ml$"
+          ]
+        },
+        "isGateCTrigger": false,
+        "isGate0Trigger": false,
+        "productSource": false
+      },
+      {
         "id": "delivery_tooling",
         "category": "delivery_tooling",
         "match": {
@@ -102,7 +118,7 @@
         "id": "known_non_functional",
         "category": "non_code_docs_tests_config",
         "match": {
-          "exact": [".gitignore", ".dockerignore", ".editorconfig", "AGENTS.md", "CLAUDE.md", "LICENSE"],
+          "exact": [".gitignore", ".editorconfig", "AGENTS.md", "CLAUDE.md", "LICENSE"],
           "prefixes": ["docs/", "public/", ".agents/skills/"],
           "extensions": [".md", ".mdx", ".txt", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".css", ".scss", ".sass", ".less"]
         },

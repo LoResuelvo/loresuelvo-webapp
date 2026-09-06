@@ -29,6 +29,24 @@ export function isProductionSourceFile(normalizedPath) {
   return true;
 }
 
+const HUMAN_ONLY_PATTERNS = [
+  /^Dockerfile(?:\..*)?$/i,
+  /^\.dockerignore$/i,
+  /^docker\//i,
+  /^(?:docker-)?compose.*\.ya?ml$/i,
+  /^\.github\/workflows\/.*docker.*\.ya?ml$/i,
+  /(?:^|\/)docker[-_].*\.(?:sh|bash|mjs|js|ts)$/i,
+  /(?:^|\/)build[-_]image.*\.(?:sh|bash|mjs|js|ts)$/i,
+];
+
+export function isHumanOnlyPath(filePath) {
+  const normalized = normalizePath(filePath);
+  const base = path.basename(normalized);
+  return (
+    HUMAN_ONLY_PATTERNS.some((pat) => pat.test(normalized) || pat.test(base))
+  );
+}
+
 function matchesRule(normalized, match = {}) {
   if ((match.exact || []).includes(normalized)) return true;
   if ((match.prefixes || []).some((prefix) => normalized.startsWith(prefix))) return true;
@@ -43,10 +61,12 @@ function matchesRule(normalized, match = {}) {
 }
 
 function materializeClassification(definition, normalized) {
+  const isHumanOnly = definition.category === "human_only" || isHumanOnlyPath(normalized);
   return {
-    category: definition.category,
+    category: isHumanOnly ? "human_only" : definition.category,
     isGateCTrigger: definition.isGateCTrigger,
     isGate0Trigger: definition.isGate0Trigger,
+    isHumanOnly,
     isProductSource:
       definition.productSource === "auto"
         ? isProductionSourceFile(normalized)
@@ -86,6 +106,7 @@ export function classifyFiles(files = [], policy) {
     hasGate0Trigger: false,
     hasIsolatedProduction: false,
     hasDeliveryTooling: false,
+    hasHumanOnly: false,
     hasOnlyGate0: false,
     hasOnlyDocsOrConfig: false,
     productFiles: [],
@@ -102,6 +123,7 @@ export function classifyFiles(files = [], policy) {
     const classification = classifyFile(file, policy);
     result.all.push({ file, ...classification });
 
+    if (classification.isHumanOnly) result.hasHumanOnly = true;
     if (classification.isGateCTrigger) result.hasGateCTrigger = true;
     if (classification.isGate0Trigger) {
       result.hasGate0Trigger = true;

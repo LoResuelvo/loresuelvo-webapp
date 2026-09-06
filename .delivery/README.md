@@ -83,7 +83,13 @@ El runner selecciona el gate evaluando el impacto real del snapshot staged:
 - **Gate B**: integración de bajo riesgo del escenario activo sobre una feature unívoca (suite de Vitest y suite E2E de esa feature específica). Seleccionado si un step es consumido exclusivamente por una sola feature.
 - **Gate C**: cambio compartido o de riesgo transversal (routing, layouts, Server Actions, providers globales, API, hooks globales de soporte `features/support/hooks.ts`, steps compartidos por múltiples features o componentes importados por múltiples flujos según el AST de TypeScript). Ejecuta lint, typechecks (app y cucumber), unit tests y suite E2E integral gestionada.
 - **Gate D**: cierre de batch (`close_batch`), cierre de User Story (`close_us`) o escenario de alto riesgo. Ejecuta la batería de Gate C y verifica de forma estricta la ausencia total de `@wip` en el alcance declarado.
-- **Gate R**: reproducción exhaustiva local del pipeline de CI (lint, typecheck de aplicación, typecheck de cucumber, unit tests y E2E gestionado) para reparación auditable de un solo uso ante fallas remotas de CI (`intent: "repair_ci"` con `--repairs-sha <sha>`).
+- **Gate R**: reproducción exhaustiva local de los checks de CI asignados a agentes (`delivery_unit`, `lint`, `typecheck_app`, `typecheck_cucumber`, `unit`, `e2e_full` y `build`; excluyendo Docker build, reservado para GitHub Actions y humanos) para reparación auditable de un solo uso ante fallas remotas de CI (`intent: "repair_ci"` con `--repairs-sha <sha>`).
+
+### Superficie Docker reservada a humanos (HUMAN_ONLY)
+
+Los archivos y scripts relacionados con Docker y la construcción de imágenes de contenedores (`Dockerfile`, `Dockerfile.*`, `.dockerignore`, `docker/**`, `compose*.yml`, `compose*.yaml`, workflows de Docker en `.github/workflows/**` y scripts exclusivos de construcción de imágenes) están reservados exclusivamente a desarrolladores humanos (`HUMAN_ONLY`).
+- Si un agente modifica estas rutas, `delivery_inspect` y `delivery_prepare` bloquean la ejecución con diagnóstico `HUMAN_ONLY_CHANGE`, requiriendo escalación a `STOP_USER`.
+- Si el fallo remoto en CI ocurre en un job de Docker, `repair_ci` bloquea con `HUMAN_ONLY_CI_FAILURE`, escalando igualmente a `STOP_USER`. Los agentes no reparan incidencias de contenedores ni ejecutan Docker build localmente.
 
 ## Flujo de reparación de CI (`repair_ci`)
 

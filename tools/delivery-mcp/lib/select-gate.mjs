@@ -171,6 +171,14 @@ export function selectGate({
 
   let status = initialStatus({ snapshot, diagnostics, policy });
   const classified = classifyFiles(stagedFiles, policy);
+  if (classified.hasHumanOnly) {
+    status = "blocked";
+    pushDiagnostic(
+      diagnostics,
+      "HUMAN_ONLY_CHANGE",
+      "Docker and container image files are reserved exclusively for human developers (HUMAN_ONLY). Escalate to STOP_USER."
+    );
+  }
   let gate;
 
   const closesHighRiskScenario = intent === "close_scenario" && classified.hasGateCTrigger;

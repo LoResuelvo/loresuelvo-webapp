@@ -254,3 +254,43 @@ test("prepareDelivery: commit fallido valido es aceptado para Gate R", async (t)
   assert.ok(executedChecks.includes("build"));
   assert.ok(executedChecks.includes("delivery_unit"));
 });
+
+test("prepareDelivery: modificacion de Dockerfile bloquea con HUMAN_ONLY_CHANGE", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.writeFile(path.join(repoRoot, "Dockerfile"), "FROM node:20\n", "utf8");
+  execFileSync("git", ["add", "Dockerfile"], { cwd: repoRoot });
+
+  const result = await prepareDelivery({
+    repoRoot,
+    intent: "prepare_commit",
+  });
+
+  assert.strictEqual(result.status, "blocked");
+  assert.ok(result.diagnostics.some((d) => d.code === "HUMAN_ONLY_CHANGE"));
+});
+
+test("prepareDelivery: fallo de CI en job de Docker bloquea reparacion con HUMAN_ONLY_CI_FAILURE", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const failedSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+
+  await fs.writeFile(path.join(repoRoot, "fix.txt"), "fix content", "utf8");
+  execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider({
+    [failedSha]: {
+      status: "failed",
+      failedJobs: ["build-docker-image"],
+      failure: { message: "Docker build failed" },
+    },
+  });
+
+  const result = await prepareDelivery({
+    repoRoot,
+    intent: "repair_ci",
+    repairsSha: failedSha,
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(result.status, "blocked");
+  assert.ok(result.diagnostics.some((d) => d.code === "HUMAN_ONLY_CI_FAILURE"));
+});

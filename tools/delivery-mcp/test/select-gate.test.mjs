@@ -770,3 +770,36 @@ test("selectGate: factorear stepConsumers que afectan varias features eleva a Ga
   assert.ok(result.gate.reasonCodes.includes("SHARED_STEP_DEPENDENCY_CONSUMERS"));
 });
 
+test("selectGate: modificar Dockerfile bloquea con HUMAN_ONLY_CHANGE", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: { stagedFiles: ["Dockerfile"] },
+  });
+
+  assert.strictEqual(result.status, "blocked");
+  assert.ok(result.diagnostics.some((d) => d.code === "HUMAN_ONLY_CHANGE"));
+});
+
+test("selectGate: modificar .dockerignore o compose*.yml bloquea con HUMAN_ONLY_CHANGE", () => {
+  const dockerignoreResult = selectGate({
+    intent: "prepare_commit",
+    snapshot: { stagedFiles: [".dockerignore"] },
+  });
+  assert.strictEqual(dockerignoreResult.status, "blocked");
+  assert.ok(dockerignoreResult.diagnostics.some((d) => d.code === "HUMAN_ONLY_CHANGE"));
+
+  const composeResult = selectGate({
+    intent: "prepare_commit",
+    snapshot: { stagedFiles: ["compose.dev.yml"] },
+  });
+  assert.strictEqual(composeResult.status, "blocked");
+  assert.ok(composeResult.diagnostics.some((d) => d.code === "HUMAN_ONLY_CHANGE"));
+
+  const workflowResult = selectGate({
+    intent: "prepare_commit",
+    snapshot: { stagedFiles: [".github/workflows/docker-publish.yml"] },
+  });
+  assert.strictEqual(workflowResult.status, "blocked");
+  assert.ok(workflowResult.diagnostics.some((d) => d.code === "HUMAN_ONLY_CHANGE"));
+});
+

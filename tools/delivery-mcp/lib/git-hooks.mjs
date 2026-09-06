@@ -16,6 +16,7 @@ import {
   verifyPreparedEvidence,
   queryCommitEvidence,
   markRepairPushConsumed,
+  resolveRepairChain,
 } from "./delivery-ledger.mjs";
 import { inspectCi } from "./ci-provider.mjs";
 import { loadDeliveryPolicy } from "./policy-loader.mjs";
@@ -518,6 +519,14 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
     const recentPriorShas = priorShas.slice(-(maxInFlightCommits + 1)).reverse();
     let pendingCount = 0;
 
+    let supersededSet = new Set();
+    try {
+      const repairResolution = await resolveRepairChain({ repoRoot: root, ciProvider });
+      supersededSet = new Set((repairResolution.supersededFailures || []).map((s) => s.toLowerCase()));
+    } catch {
+      supersededSet = new Set();
+    }
+
     for (const priorSha of recentPriorShas) {
       let ci;
       try {
@@ -531,6 +540,11 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
       }
 
       if (["failed", "timed_out", "cancelled"].includes(ci.status)) {
+        if (supersededSet.has(priorSha.toLowerCase())) {
+          // Historical failure formally superseded by a validated repair; does not block
+          continue;
+        }
+
         const localEntry = localEvidence?.entry;
         const normalizedPrior = priorSha.toLowerCase();
         const normalizedRepairs = localEntry?.repairsSha ? String(localEntry.repairsSha).toLowerCase() : "";

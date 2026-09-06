@@ -66,7 +66,10 @@ async function attachEvidence({
   gateId = "A",
   scopeFeatures = [],
   usId = null,
-  intent = gateId === "D" ? "close_us" : "prepare_commit",
+  intent = gateId === "D" ? "close_us" : gateId === "R" ? "repair_ci" : "prepare_commit",
+  repairsSha = null,
+  supersedes = [],
+  repairStatus = null,
 }) {
   const parentsLine = execFileSync("git", ["rev-list", "--parents", "-n", "1", sha], {
     cwd: repoRoot,
@@ -125,6 +128,9 @@ async function attachEvidence({
     intent,
     usId,
     scopeFiles: scopeFeatures,
+    repairsSha,
+    supersedes,
+    repairStatus,
   });
 }
 
@@ -691,4 +697,195 @@ test("finalizeDelivery: deniega cierre si un commit de la US tiene evidencia cor
   assert.strictEqual(res.finalized, false);
   assert.strictEqual(res.reason, "CORRUPT_COMMIT_EVIDENCE");
   assert.strictEqual(res.sha, sha1);
+});
+
+test("finalizeDelivery: reparación válida aprueba close_us y reporta supersededFailures", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const sha1 = await commitFile(repoRoot, "src/f1.txt", "1", "feat[30]: failing commit");
+  await attachEvidence({ repoRoot, sha: sha1, gateId: "A", usId: "30" });
+
+  const sha2 = await commitFile(repoRoot, "src/f2.txt", "2", "fix[30]: repair commit");
+  await attachEvidence({ repoRoot, sha: sha2, gateId: "R", usId: "30", repairsSha: sha1 });
+
+  const featurePath = "features/us30.feature";
+  const sha3 = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US30\n  Scenario: Done\n    Given ok\n",
+    "test[30]: finalize us30"
+  );
+  await attachEvidence({ repoRoot, sha: sha3, gateId: "D", scopeFeatures: [featurePath], usId: "30" });
+
+  const mockCi = new MockCiProvider({
+    [sha1]: { status: "failed", failure: { message: "Build failed" } },
+    [sha2]: { status: "passed" },
+    [sha3]: { status: "passed" },
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    usId: "30",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(res.finalized, true);
+  assert.strictEqual(res.status, "passed");
+  assert.ok(res.supersededFailures.includes(sha1));
+  assert.deepStrictEqual(res.pendingFailures, []);
+  assert.deepStrictEqual(res.invalidRepairs, []);
+});
+
+test("finalizeDelivery: reparación fuera de la rama (no ancestro) es rechazada en invalidRepairs y bloquea close_us", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const initialSha = headSha(repoRoot);
+  const sha1 = await commitFile(repoRoot, "src/f1.txt", "1", "feat[31]: failing commit");
+  await attachEvidence({ repoRoot, sha: sha1, gateId: "A", usId: "31" });
+
+  execFileSync("git", ["checkout", "-b", "isolated-branch", initialSha], { cwd: repoRoot });
+  const featurePath = "features/us31.feature";
+  const sha2 = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US31\n  Scenario: Done\n    Given ok\n",
+    "test[31]: repair and finalize outside branch"
+  );
+  await attachEvidence({
+    repoRoot,
+    sha: sha2,
+    gateId: "D",
+    scopeFeatures: [featurePath],
+    usId: "31",
+    repairsSha: sha1,
+  });
+
+  const mockCi = new MockCiProvider({
+    [sha1]: { status: "failed" },
+    [sha2]: { status: "passed" },
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    usId: "31",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.ok(res.invalidRepairs.length > 0);
+  assert.strictEqual(res.invalidRepairs[0].reason, "NOT_ANCESTOR");
+  assert.strictEqual(res.supersededFailures.length, 0);
+});
+
+test("finalizeDelivery: cadena de dos reparaciones (A falla -> B falla -> C pasa) subsana A y B, y close_us pasa", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const sha1 = await commitFile(repoRoot, "src/f1.txt", "1", "feat[32]: fail A");
+  await attachEvidence({ repoRoot, sha: sha1, gateId: "A", usId: "32" });
+
+  const sha2 = await commitFile(repoRoot, "src/f2.txt", "2", "fix[32]: repair B fails");
+  await attachEvidence({ repoRoot, sha: sha2, gateId: "R", usId: "32", repairsSha: sha1 });
+
+  const sha3 = await commitFile(repoRoot, "src/f3.txt", "3", "fix[32]: repair C passes");
+  await attachEvidence({ repoRoot, sha: sha3, gateId: "R", usId: "32", repairsSha: sha2 });
+
+  const featurePath = "features/us32.feature";
+  const sha4 = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US32\n  Scenario: Done\n    Given ok\n",
+    "test[32]: finalize us32"
+  );
+  await attachEvidence({ repoRoot, sha: sha4, gateId: "D", scopeFeatures: [featurePath], usId: "32" });
+
+  const mockCi = new MockCiProvider({
+    [sha1]: { status: "failed" },
+    [sha2]: { status: "failed" },
+    [sha3]: { status: "passed" },
+    [sha4]: { status: "passed" },
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    usId: "32",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(res.finalized, true);
+  assert.strictEqual(res.status, "passed");
+  assert.ok(res.supersededFailures.includes(sha1));
+  assert.ok(res.supersededFailures.includes(sha2));
+  assert.deepStrictEqual(res.pendingFailures, []);
+});
+
+test("finalizeDelivery: reparación cuyo CI también falla bloquea close_us y reporta failedRepairs", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const sha1 = await commitFile(repoRoot, "src/f1.txt", "1", "feat[33]: fail A");
+  await attachEvidence({ repoRoot, sha: sha1, gateId: "A", usId: "33" });
+
+  const sha2 = await commitFile(repoRoot, "src/f2.txt", "2", "fix[33]: repair B also fails");
+  await attachEvidence({ repoRoot, sha: sha2, gateId: "R", usId: "33", repairsSha: sha1 });
+
+  const featurePath = "features/us33.feature";
+  const sha3 = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US33\n  Scenario: Done\n    Given ok\n",
+    "test[33]: finalize us33"
+  );
+  await attachEvidence({ repoRoot, sha: sha3, gateId: "D", scopeFeatures: [featurePath], usId: "33" });
+
+  const mockCi = new MockCiProvider({
+    [sha1]: { status: "failed" },
+    [sha2]: { status: "failed" },
+    [sha3]: { status: "passed" },
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    usId: "33",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.reason, "CI_NOT_GREEN");
+  assert.ok(res.failedRepairs.includes(sha2));
+  assert.ok(res.pendingFailures.includes(sha2));
+});
+
+test("finalizeDelivery: fallo histórico sin relación de reparación explícita continúa bloqueando close_us", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const sha1 = await commitFile(repoRoot, "src/f1.txt", "1", "feat[34]: fail A");
+  await attachEvidence({ repoRoot, sha: sha1, gateId: "A", usId: "34" });
+
+  const sha2 = await commitFile(repoRoot, "src/f2.txt", "2", "chore[34]: normal subsequent commit");
+  await attachEvidence({ repoRoot, sha: sha2, gateId: "A", usId: "34" });
+
+  const featurePath = "features/us34.feature";
+  const sha3 = await commitFile(
+    repoRoot,
+    featurePath,
+    "Feature: US34\n  Scenario: Done\n    Given ok\n",
+    "test[34]: finalize us34"
+  );
+  await attachEvidence({ repoRoot, sha: sha3, gateId: "D", scopeFeatures: [featurePath], usId: "34" });
+
+  const mockCi = new MockCiProvider({
+    [sha1]: { status: "failed" },
+    [sha2]: { status: "passed" },
+    [sha3]: { status: "passed" },
+  });
+
+  const res = await finalizeInIsolatedRepo({
+    repoRoot,
+    usId: "34",
+    scopeFiles: [featurePath],
+    ciProvider: mockCi,
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.reason, "CI_NOT_GREEN");
+  assert.strictEqual(res.supersededFailures.length, 0);
+  assert.ok(res.pendingFailures.includes(sha1));
 });

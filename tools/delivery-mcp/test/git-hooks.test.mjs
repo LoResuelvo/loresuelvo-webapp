@@ -828,3 +828,74 @@ test("pre-push hook: un repair receipt para SHA A no puede autorizar el push de 
   assert.strictEqual(pushRes.reason, "PRIOR_COMMIT_CI_FAILED");
   assert.strictEqual(pushRes.sha, post1.commitSha);
 });
+
+test("pre-push hook: fallo previo subsanado por reparación verde no bloquea pushes posteriores", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  // 1. Commit 1 que falló en CI
+  await fs.writeFile(path.join(repoRoot, "src.txt"), "v1\n", "utf8");
+  execFileSync("git", ["add", "src.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "chore: bad commit"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider();
+  mockCi.setFixture(post1.commitSha, {
+    status: "failed",
+    failure: { message: "CI failed for post1" },
+  });
+
+  // 2. Commit 2 de reparación Gate R
+  await fs.writeFile(path.join(repoRoot, "fix.txt"), "fixed\n", "utf8");
+  execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
+  const fakeExecute = async ({ check }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 1,
+    exitCode: 0,
+    summaryLines: [],
+    diagnostic: null,
+  });
+  await prepareDelivery({
+    repoRoot,
+    intent: "repair_ci",
+    repairsSha: post1.commitSha,
+    ciProvider: mockCi,
+    executeCheck: fakeExecute,
+  });
+  execFileSync("git", ["commit", "-m", "fix: repair bad commit"], { cwd: repoRoot });
+  const post2 = await runPostCommitHook({ repoRoot });
+
+  // Pushear la reparación (válido)
+  const pushLine1 = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
+  const pushRes1 = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine1],
+    ciProvider: mockCi,
+  });
+  assert.strictEqual(pushRes1.passed, true);
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  // 3. El CI de la reparación pasa a verde
+  mockCi.setFixture(post2.commitSha, { status: "passed" });
+
+  // 4. Commit 3 normal posterior (sin Gate R)
+  await fs.writeFile(path.join(repoRoot, "subsequent.txt"), "next\n", "utf8");
+  execFileSync("git", ["add", "subsequent.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "docs: subsequent normal commit"], { cwd: repoRoot });
+  const post3 = await runPostCommitHook({ repoRoot });
+
+  // Pre-push para commit 3 debe permitir el push porque post1 fue formalmente subsanado
+  const pushLine2 = `refs/heads/main ${post3.commitSha} refs/heads/main ${post2.commitSha}`;
+  const pushRes2 = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine2],
+    ciProvider: mockCi,
+  });
+  assert.strictEqual(pushRes2.passed, true);
+});

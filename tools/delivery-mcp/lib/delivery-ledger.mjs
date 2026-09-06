@@ -4,6 +4,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { assertSafeRepoPath, findRepoRoot } from "./repo-root.mjs";
 import { validateExecutionResult } from "./validate-schema.mjs";
+import { inspectCi } from "./ci-provider.mjs";
 
 export const LEDGER_DIR = ".delivery/runtime/ledger";
 export const LEDGER_FILE = ".delivery/runtime/ledger.json";
@@ -86,7 +87,13 @@ export async function recordPreparedEvidence({
   }
 
   const effectivePolicyHash = inspection?.policy?.hash || null;
-  const effectiveRepairsSha = repairsSha || inspection?.repairsSha || null;
+  const rawRepairsSha = repairsSha || inspection?.repairsSha || null;
+  const effectiveRepairsSha = rawRepairsSha ? rawRepairsSha.trim().toLowerCase() : null;
+  const isRepair = Boolean(effectiveRepairsSha) || inspection?.gate?.id === "R" || intent === "repair_ci";
+  const effectiveSupersedes = Array.isArray(supersedes) && supersedes.length > 0
+    ? sortedUnique(supersedes.map((s) => String(s).toLowerCase()))
+    : (effectiveRepairsSha ? [effectiveRepairsSha] : []);
+  const effectiveRepairStatus = repairStatus || (isRepair ? "unverified" : null);
 
   const data = {
     schemaVersion: 2,
@@ -108,8 +115,8 @@ export async function recordPreparedEvidence({
     scenarioName: scenarioName || null,
     scopeFiles: [...new Set(scopeFiles || [])].sort(),
     repairsSha: effectiveRepairsSha,
-    supersedes: Array.isArray(supersedes) ? supersedes : [],
-    repairStatus: repairStatus || null,
+    supersedes: effectiveSupersedes,
+    repairStatus: effectiveRepairStatus,
     repairedFailure: repairedFailure || null,
     consumedByCommitSha: null,
     consumedAt: null,
@@ -260,6 +267,14 @@ export async function recordCommitEvidence({
     throw new Error(`Invalid commit verification status: ${effectiveStatus}`);
   }
 
+  const rawRepairsSha = repairsSha || null;
+  const effectiveRepairsSha = rawRepairsSha ? rawRepairsSha.trim().toLowerCase() : null;
+  const isRepair = Boolean(effectiveRepairsSha) || gateId === "R" || intent === "repair_ci";
+  const effectiveSupersedes = Array.isArray(supersedes) && supersedes.length > 0
+    ? sortedUnique(supersedes.map((s) => String(s).toLowerCase()))
+    : (effectiveRepairsSha ? [effectiveRepairsSha] : []);
+  const effectiveRepairStatus = repairStatus || (isRepair ? "unverified" : null);
+
   const isNotRun = effectiveStatus === "not_run";
   const entry = {
     schemaVersion: 2,
@@ -309,9 +324,9 @@ export async function recordCommitEvidence({
           featureFile,
           scenarioName,
           scopeFiles: sortedUnique(scopeFiles),
-          repairsSha: repairsSha || null,
-          supersedes: Array.isArray(supersedes) ? supersedes : [],
-          repairStatus: repairStatus || null,
+          repairsSha: effectiveRepairsSha,
+          supersedes: effectiveSupersedes,
+          repairStatus: effectiveRepairStatus,
           repairedFailure: repairedFailure || null,
           repairPushConsumed: Boolean(repairPushConsumed),
           repairPushConsumedAt: repairPushConsumedAt || null,
@@ -558,4 +573,303 @@ export async function verifyCommitEvidence({ repoRoot, commitSha } = {}) {
 export async function hasCommitEvidence({ repoRoot, commitSha } = {}) {
   const evidence = await getCommitEvidence({ repoRoot, commitSha });
   return Boolean(evidence);
+}
+
+export async function updateCommitRepairStatus({
+  repoRoot,
+  commitSha,
+  repairStatus,
+  supersedes = null,
+} = {}) {
+  const root = findRepoRoot(repoRoot);
+  const cleanSha = assertCommitSha(commitSha);
+  const entry = await getCommitEvidence({ repoRoot: root, commitSha: cleanSha });
+  if (!entry) return null;
+
+  entry.repairStatus = repairStatus;
+  if (Array.isArray(supersedes) && supersedes.length > 0) {
+    entry.supersedes = sortedUnique([...(entry.supersedes || []), ...supersedes.map((s) => String(s).toLowerCase())]);
+  }
+
+  try {
+    await writeJsonAtomic(root, path.join(LEDGER_DIR, `${cleanSha}.json`), entry);
+    const absLedgerFile = path.resolve(root, LEDGER_FILE);
+    let ledgerMap = {};
+    try {
+      ledgerMap = JSON.parse(await fs.readFile(absLedgerFile, "utf8"));
+    } catch {
+      ledgerMap = {};
+    }
+    ledgerMap[cleanSha] = entry;
+    await writeJsonAtomic(root, LEDGER_FILE, ledgerMap);
+  } catch {
+    // Best-effort in constrained environments
+  }
+  return entry;
+}
+
+export function sortCommitsTopologically(root, shas) {
+  if (!shas || shas.length <= 1) return shas ? [...shas] : [];
+  try {
+    const list = execFileSync("git", ["rev-list", "--topo-order", "--reverse", ...shas], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    const shaSet = new Set(shas.map((s) => s.toLowerCase()));
+    const result = [];
+    for (const sha of list) {
+      const lower = sha.toLowerCase();
+      if (shaSet.has(lower) && !result.includes(lower)) {
+        result.push(lower);
+      }
+    }
+    for (const s of shas) {
+      const lower = s.toLowerCase();
+      if (!result.includes(lower)) result.push(lower);
+    }
+    return result;
+  } catch {
+    return [...shas];
+  }
+}
+
+export async function resolveRepairChain({
+  repoRoot,
+  commits = null,
+  ciProvider = null,
+} = {}) {
+  const root = findRepoRoot(repoRoot);
+
+  let candidateShas = [];
+  if (Array.isArray(commits) && commits.length > 0) {
+    candidateShas = commits
+      .map((c) =>
+        typeof c === "string"
+          ? c.trim().toLowerCase()
+          : c?.commitSha
+          ? String(c.commitSha).trim().toLowerCase()
+          : null
+      )
+      .filter(Boolean);
+  } else {
+    const allEvidence = await listCommitEvidence({ repoRoot: root });
+    candidateShas = allEvidence.map((e) => e.commitSha.toLowerCase());
+  }
+
+  candidateShas = [...new Set(candidateShas)];
+
+  const entriesBySha = new Map();
+  for (const sha of candidateShas) {
+    try {
+      const entry = await getCommitEvidence({ repoRoot: root, commitSha: sha });
+      if (entry) {
+        entriesBySha.set(sha, entry);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const repairShas = [];
+  for (const sha of candidateShas) {
+    const entry = entriesBySha.get(sha);
+    if (entry?.repairsSha) {
+      repairShas.push(sha);
+    }
+  }
+
+  const sortedRepairShas = sortCommitsTopologically(root, repairShas);
+
+  const supersededFailures = new Set();
+  const failedRepairs = [];
+  const invalidRepairs = [];
+  const validatedRepairs = [];
+  const repairChainMap = new Map();
+
+  for (const repairSha of sortedRepairShas) {
+    const entry = entriesBySha.get(repairSha);
+    const rawRepairsSha = String(entry.repairsSha).trim();
+    const normalizedRepairsSha = rawRepairsSha.toLowerCase();
+
+    // 1. Verify repairsSha exists
+    let fullRepairsSha = null;
+    let targetInGit = false;
+    try {
+      fullRepairsSha = execFileSync("git", ["rev-parse", `${rawRepairsSha}^{commit}`], {
+        cwd: root,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      })
+        .trim()
+        .toLowerCase();
+      targetInGit = true;
+    } catch {
+      const targetEvidence = await getCommitEvidence({ repoRoot: root, commitSha: rawRepairsSha });
+      if (targetEvidence) {
+        fullRepairsSha = targetEvidence.commitSha.toLowerCase();
+      } else {
+        try {
+          const ci = await inspectCi({ sha: rawRepairsSha, repoRoot: root, provider: ciProvider });
+          if (ci && ci.status !== "provider_error" && ci.status !== "not_found") {
+            fullRepairsSha = normalizedRepairsSha;
+          }
+        } catch {
+          // not found
+        }
+      }
+    }
+
+    if (!fullRepairsSha) {
+      invalidRepairs.push({
+        repairSha,
+        repairsSha: rawRepairsSha,
+        reason: "TARGET_NOT_FOUND",
+      });
+      continue;
+    }
+
+    // 2. Verify repair commit is a descendant of repairsSha
+    if (!targetInGit) {
+      invalidRepairs.push({
+        repairSha,
+        repairsSha: fullRepairsSha,
+        reason: "NOT_ANCESTOR",
+      });
+      continue;
+    }
+
+    let isAncestor = false;
+    try {
+      execFileSync("git", ["merge-base", "--is-ancestor", fullRepairsSha, repairSha], {
+        cwd: root,
+        stdio: ["ignore", "ignore", "ignore"],
+      });
+      isAncestor = fullRepairsSha !== repairSha;
+    } catch {
+      isAncestor = false;
+    }
+
+    if (!isAncestor) {
+      invalidRepairs.push({
+        repairSha,
+        repairsSha: fullRepairsSha,
+        reason: "NOT_ANCESTOR",
+      });
+      continue;
+    }
+
+    // 3. Verify CI of repairsSha was failed (failed, cancelled, timed_out)
+    let targetCi;
+    try {
+      targetCi = await inspectCi({ sha: fullRepairsSha, repoRoot: root, provider: ciProvider });
+      if (targetCi.status === "not_found" && rawRepairsSha !== fullRepairsSha) {
+        targetCi = await inspectCi({ sha: rawRepairsSha, repoRoot: root, provider: ciProvider });
+      }
+    } catch {
+      invalidRepairs.push({
+        repairSha,
+        repairsSha: fullRepairsSha,
+        reason: "TARGET_CI_ERROR",
+      });
+      continue;
+    }
+
+    if (targetCi.status === "passed") {
+      invalidRepairs.push({
+        repairSha,
+        repairsSha: fullRepairsSha,
+        reason: "TARGET_CI_PASSED",
+      });
+      continue;
+    }
+
+    if (!["failed", "cancelled", "timed_out"].includes(targetCi.status)) {
+      invalidRepairs.push({
+        repairSha,
+        repairsSha: fullRepairsSha,
+        reason: "TARGET_CI_NOT_FAILED",
+      });
+      continue;
+    }
+
+    // 4. Verify repair commit passed Gate R
+    const repairEvidence = await queryCommitEvidence({ repoRoot: root, commitSha: repairSha });
+    const passedGateR =
+      repairEvidence.valid &&
+      repairEvidence.state === "verified" &&
+      repairEvidence.entry?.gateId === "R" &&
+      (repairEvidence.entry?.status === "passed" || repairEvidence.record?.status === "passed");
+
+    if (!passedGateR) {
+      invalidRepairs.push({
+        repairSha,
+        repairsSha: fullRepairsSha,
+        reason: "GATE_R_REQUIRED",
+      });
+      continue;
+    }
+
+    // 5. Inspect CI of the repair commit itself
+    let repairCi;
+    try {
+      repairCi = await inspectCi({ sha: repairSha, repoRoot: root, provider: ciProvider });
+    } catch {
+      repairCi = { status: "provider_error" };
+    }
+
+    if (repairCi.status === "passed") {
+      validatedRepairs.push(repairSha);
+
+      const supersedesForThis = new Set([fullRepairsSha]);
+      if (repairChainMap.has(fullRepairsSha)) {
+        for (const s of repairChainMap.get(fullRepairsSha)) {
+          supersedesForThis.add(s);
+        }
+      }
+      if (Array.isArray(entry.supersedes)) {
+        for (const s of entry.supersedes) {
+          if (s && typeof s === "string") supersedesForThis.add(s.toLowerCase());
+        }
+      }
+
+      repairChainMap.set(repairSha, supersedesForThis);
+      for (const s of supersedesForThis) {
+        supersededFailures.add(s);
+      }
+
+      await updateCommitRepairStatus({
+        repoRoot: root,
+        commitSha: repairSha,
+        repairStatus: "validated",
+        supersedes: [...supersedesForThis],
+      });
+    } else if (["failed", "cancelled", "timed_out"].includes(repairCi.status)) {
+      failedRepairs.push(repairSha);
+
+      const supersedesForThis = new Set([fullRepairsSha]);
+      if (repairChainMap.has(fullRepairsSha)) {
+        for (const s of repairChainMap.get(fullRepairsSha)) {
+          supersedesForThis.add(s);
+        }
+      }
+      repairChainMap.set(repairSha, supersedesForThis);
+
+      await updateCommitRepairStatus({
+        repoRoot: root,
+        commitSha: repairSha,
+        repairStatus: "failed",
+      });
+    }
+  }
+
+  return {
+    supersededFailures: [...supersededFailures],
+    failedRepairs: [...new Set(failedRepairs)],
+    invalidRepairs,
+    validatedRepairs: [...new Set(validatedRepairs)],
+  };
 }

@@ -11,9 +11,12 @@ import {
   queryCommitEvidence,
   verifyCommitEvidence,
   hasCommitEvidence,
+  resolveRepairChain,
+  updateCommitRepairStatus,
   LEDGER_DIR,
   LEDGER_FILE,
 } from "../lib/delivery-ledger.mjs";
+import { MockCiProvider } from "../lib/ci-provider.mjs";
 
 async function createTempGitRepo(t) {
   const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-ledger-test-"));
@@ -26,7 +29,12 @@ async function createTempGitRepo(t) {
 
   await fs.mkdir(path.join(repoRoot, ".delivery", "runtime", "records"), { recursive: true });
   await fs.mkdir(path.join(repoRoot, ".delivery", "schemas"), { recursive: true });
-  for (const schema of ["execution-result.schema.json", "policy.schema.json"]) {
+  for (const schema of [
+    "ci-inspection-result.schema.json",
+    "delivery-context.schema.json",
+    "execution-result.schema.json",
+    "policy.schema.json",
+  ]) {
     await fs.copyFile(
       path.join(".delivery", "schemas", schema),
       path.join(repoRoot, ".delivery", "schemas", schema)
@@ -379,4 +387,222 @@ test("queryCommitEvidence: compatibilidad con entradas históricas schemaVersion
   const queryCorrupt = await queryCommitEvidence({ repoRoot, commitSha: sha });
   assert.strictEqual(queryCorrupt.valid, false);
   assert.strictEqual(queryCorrupt.state, "corrupt");
+});
+
+async function commitFile(repoRoot, relativePath, content, message) {
+  await fs.mkdir(path.dirname(path.join(repoRoot, relativePath)), { recursive: true });
+  await fs.writeFile(path.join(repoRoot, relativePath), content, "utf8");
+  execFileSync("git", ["add", relativePath], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", message], { cwd: repoRoot });
+  return execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+}
+
+async function attachCommitEvidence({
+  repoRoot,
+  sha,
+  gateId = "A",
+  repairsSha = null,
+  supersedes = [],
+  repairStatus = null,
+  intent = gateId === "R" ? "repair_ci" : "prepare_commit",
+}) {
+  const identity = getCommitIdentity(repoRoot, sha);
+  const mockEvidence = await createMockEvidenceRecord(repoRoot, sha, gateId);
+
+  return recordCommitEvidence({
+    repoRoot,
+    commitSha: sha,
+    verificationStatus: "passed",
+    snapshotHash: mockEvidence.snapshotHash,
+    runKey: mockEvidence.runKey,
+    recordPath: mockEvidence.recordPath,
+    recordDigest: mockEvidence.recordDigest,
+    branch: "main",
+    parentSha: identity.parents[0] || null,
+    treeSha: identity.treeSha,
+    stagedFiles: ["file.txt"],
+    gateId,
+    policyHash: mockEvidence.policyHash,
+    intent,
+    repairsSha,
+    supersedes,
+    repairStatus,
+  });
+}
+
+test("resolveRepairChain: reparación válida pasa a validated y marca target en supersededFailures", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const shaA = await commitFile(repoRoot, "a.txt", "a", "chore: fail commit");
+  await attachCommitEvidence({ repoRoot, sha: shaA, gateId: "A" });
+
+  const shaB = await commitFile(repoRoot, "b.txt", "b", "fix: repair commit");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: shaB,
+    gateId: "R",
+    repairsSha: shaA,
+  });
+
+  const ciProvider = new MockCiProvider({
+    [shaA]: { status: "failed" },
+    [shaB]: { status: "passed" },
+  });
+
+  const res = await resolveRepairChain({
+    repoRoot,
+    commits: [shaA, shaB],
+    ciProvider,
+  });
+
+  assert.deepStrictEqual(res.supersededFailures, [shaA]);
+  assert.deepStrictEqual(res.validatedRepairs, [shaB]);
+  assert.deepStrictEqual(res.failedRepairs, []);
+  assert.deepStrictEqual(res.invalidRepairs, []);
+
+  const entryB = await getCommitEvidence({ repoRoot, commitSha: shaB });
+  assert.strictEqual(entryB.repairStatus, "validated");
+  assert.deepStrictEqual(entryB.supersedes, [shaA]);
+});
+
+test("resolveRepairChain: rechaza reparación fuera de rama o no ancestro en invalidRepairs", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const shaA = await commitFile(repoRoot, "a.txt", "a", "chore: fail commit");
+  await attachCommitEvidence({ repoRoot, sha: shaA, gateId: "A" });
+
+  // Crear commit shaB en rama huérfana / no descendiente de shaA
+  execFileSync("git", ["checkout", "--orphan", "isolated-branch"], { cwd: repoRoot });
+  execFileSync("git", ["rm", "-rf", "."], { cwd: repoRoot });
+  const shaB = await commitFile(repoRoot, "isolated.txt", "isolated", "fix: repair outside branch");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: shaB,
+    gateId: "R",
+    repairsSha: shaA,
+  });
+
+  const ciProvider = new MockCiProvider({
+    [shaA]: { status: "failed" },
+    [shaB]: { status: "passed" },
+  });
+
+  const res = await resolveRepairChain({
+    repoRoot,
+    commits: [shaA, shaB],
+    ciProvider,
+  });
+
+  assert.strictEqual(res.supersededFailures.length, 0);
+  assert.strictEqual(res.invalidRepairs.length, 1);
+  assert.strictEqual(res.invalidRepairs[0].repairSha, shaB);
+  assert.strictEqual(res.invalidRepairs[0].repairsSha, shaA);
+  assert.strictEqual(res.invalidRepairs[0].reason, "NOT_ANCESTOR");
+});
+
+test("resolveRepairChain: rechaza reparación si el target CI era verde (passed)", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const shaA = await commitFile(repoRoot, "a.txt", "a", "chore: green commit");
+  await attachCommitEvidence({ repoRoot, sha: shaA, gateId: "A" });
+
+  const shaB = await commitFile(repoRoot, "b.txt", "b", "fix: invalid repair of green commit");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: shaB,
+    gateId: "R",
+    repairsSha: shaA,
+  });
+
+  const ciProvider = new MockCiProvider({
+    [shaA]: { status: "passed" },
+    [shaB]: { status: "passed" },
+  });
+
+  const res = await resolveRepairChain({
+    repoRoot,
+    commits: [shaA, shaB],
+    ciProvider,
+  });
+
+  assert.strictEqual(res.supersededFailures.length, 0);
+  assert.strictEqual(res.invalidRepairs.length, 1);
+  assert.strictEqual(res.invalidRepairs[0].reason, "TARGET_CI_PASSED");
+});
+
+test("resolveRepairChain: soporta cadena de dos reparaciones (A falla -> B falla -> C pasa)", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const shaA = await commitFile(repoRoot, "a.txt", "a", "chore: fail A");
+  await attachCommitEvidence({ repoRoot, sha: shaA, gateId: "A" });
+
+  const shaB = await commitFile(repoRoot, "b.txt", "b", "fix: repair B fails");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: shaB,
+    gateId: "R",
+    repairsSha: shaA,
+  });
+
+  const shaC = await commitFile(repoRoot, "c.txt", "c", "fix: repair C passes");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: shaC,
+    gateId: "R",
+    repairsSha: shaB,
+  });
+
+  const ciProvider = new MockCiProvider({
+    [shaA]: { status: "failed" },
+    [shaB]: { status: "failed" },
+    [shaC]: { status: "passed" },
+  });
+
+  const res = await resolveRepairChain({
+    repoRoot,
+    commits: [shaA, shaB, shaC],
+    ciProvider,
+  });
+
+  assert.ok(res.supersededFailures.includes(shaA));
+  assert.ok(res.supersededFailures.includes(shaB));
+  assert.deepStrictEqual(res.validatedRepairs, [shaC]);
+  assert.deepStrictEqual(res.failedRepairs, [shaB]);
+  assert.deepStrictEqual(res.invalidRepairs, []);
+
+  const entryB = await getCommitEvidence({ repoRoot, commitSha: shaB });
+  assert.strictEqual(entryB.repairStatus, "failed");
+
+  const entryC = await getCommitEvidence({ repoRoot, commitSha: shaC });
+  assert.strictEqual(entryC.repairStatus, "validated");
+  assert.ok(entryC.supersedes.includes(shaA));
+  assert.ok(entryC.supersedes.includes(shaB));
+});
+
+test("resolveRepairChain: reparación cuyo CI falla es registrada en failedRepairs", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const shaA = await commitFile(repoRoot, "a.txt", "a", "chore: fail A");
+  await attachCommitEvidence({ repoRoot, sha: shaA, gateId: "A" });
+
+  const shaB = await commitFile(repoRoot, "b.txt", "b", "fix: repair B fails");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: shaB,
+    gateId: "R",
+    repairsSha: shaA,
+  });
+
+  const ciProvider = new MockCiProvider({
+    [shaA]: { status: "failed" },
+    [shaB]: { status: "failed" },
+  });
+
+  const res = await resolveRepairChain({
+    repoRoot,
+    commits: [shaA, shaB],
+    ciProvider,
+  });
+
+  assert.strictEqual(res.supersededFailures.length, 0);
+  assert.deepStrictEqual(res.failedRepairs, [shaB]);
+  assert.deepStrictEqual(res.invalidRepairs, []);
+
+  const entryB = await getCommitEvidence({ repoRoot, commitSha: shaB });
+  assert.strictEqual(entryB.repairStatus, "failed");
 });

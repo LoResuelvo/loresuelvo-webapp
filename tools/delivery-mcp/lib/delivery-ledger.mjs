@@ -10,6 +10,16 @@ import { extractUsId } from "./git-snapshot.mjs";
 export const LEDGER_DIR = ".delivery/runtime/ledger";
 export const LEDGER_FILE = ".delivery/runtime/ledger.json";
 export const LAST_PREPARED_FILE = ".delivery/runtime/last-prepared.json";
+export const REPAIR_AUTH_DIR = ".delivery/runtime/repair-auth";
+export const REPAIR_LOCKS_DIR = ".delivery/runtime/locks";
+export const REPAIR_AUTH_STATES = Object.freeze([
+  "prepared",
+  "bound_to_commit",
+  "submitted",
+  "ci_pending",
+  "validated",
+  "ci_failed",
+]);
 
 function assertCommitSha(commitSha) {
   if (!commitSha || typeof commitSha !== "string" || !/^[a-f0-9]{7,40}$/i.test(commitSha.trim())) {
@@ -31,7 +41,7 @@ function isJsonObject(value) {
 async function writeJsonAtomic(root, relativePath, value) {
   assertSafeRepoPath(root, relativePath, "Delivery ledger path");
   const targetPath = path.resolve(root, relativePath);
-  const tempPath = `${targetPath}.${process.pid}.${Date.now()}.tmp`;
+  const tempPath = `${targetPath}.${process.pid}.${Date.now()}.${crypto.randomBytes(4).toString("hex")}.tmp`;
   await fs.mkdir(path.dirname(targetPath), { recursive: true, mode: 0o700 });
   await fs.writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
   await fs.rename(tempPath, targetPath);
@@ -95,6 +105,7 @@ export async function recordPreparedEvidence({
     ? sortedUnique(supersedes.map((s) => String(s).toLowerCase()))
     : (effectiveRepairsSha ? [effectiveRepairsSha] : []);
   const effectiveRepairStatus = repairStatus || (isRepair ? "unverified" : null);
+  const effectiveRepairAuthState = isRepair ? "prepared" : null;
 
   const data = {
     schemaVersion: 2,
@@ -119,11 +130,35 @@ export async function recordPreparedEvidence({
     supersedes: effectiveSupersedes,
     repairStatus: effectiveRepairStatus,
     repairedFailure: repairedFailure || null,
+    repairAuthState: effectiveRepairAuthState,
+    repairAuthSha: null,
     consumedByCommitSha: null,
     consumedAt: null,
   };
 
   await writeJsonAtomic(root, LAST_PREPARED_FILE, data);
+
+  if (isRepair && effectiveRepairsSha) {
+    try {
+      await saveRepairAuthorization({
+        repoRoot: root,
+        authorization: {
+          targetSha: effectiveRepairsSha,
+          state: "prepared",
+          commitSha: null,
+          snapshotHash: snapshot?.snapshotHash || null,
+          intent,
+          gateId: inspection?.gate?.id || null,
+          policyHash: effectivePolicyHash,
+          preparedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      });
+    } catch {
+      // Best-effort
+    }
+  }
+
   return data;
 }
 
@@ -223,10 +258,18 @@ export async function consumePreparedEvidence({ repoRoot, commitSha } = {}) {
   const root = findRepoRoot(repoRoot);
   const prepared = await getLastPreparedEvidence({ repoRoot: root });
   if (!prepared) return null;
+  const cleanSha = assertCommitSha(commitSha);
+  const isRepair = Boolean(prepared.repairsSha) || prepared.gateId === "R" || prepared.intent === "repair_ci";
   const updated = {
     ...prepared,
-    consumedByCommitSha: assertCommitSha(commitSha),
+    consumedByCommitSha: cleanSha,
     consumedAt: new Date().toISOString(),
+    ...(isRepair
+      ? {
+          repairAuthState: "bound_to_commit",
+          repairAuthSha: cleanSha,
+        }
+      : {}),
   };
   await writeJsonAtomic(root, LAST_PREPARED_FILE, updated);
   return updated;
@@ -259,6 +302,8 @@ export async function recordCommitEvidence({
   repairedFailure = null,
   repairPushConsumed = false,
   repairPushConsumedAt = null,
+  repairAuthState = null,
+  repairAuthSha = null,
 } = {}) {
   const root = findRepoRoot(repoRoot);
   const cleanSha = assertCommitSha(commitSha);
@@ -275,6 +320,10 @@ export async function recordCommitEvidence({
     ? sortedUnique(supersedes.map((s) => String(s).toLowerCase()))
     : (effectiveRepairsSha ? [effectiveRepairsSha] : []);
   const effectiveRepairStatus = repairStatus || (isRepair ? "unverified" : null);
+  const effectiveRepairAuthState = isRepair
+    ? (repairAuthState || (repairPushConsumed ? "submitted" : "bound_to_commit"))
+    : null;
+  const effectiveRepairAuthSha = isRepair ? (repairAuthSha || cleanSha) : null;
 
   const isNotRun = effectiveStatus === "not_run";
   const entry = {
@@ -305,6 +354,8 @@ export async function recordCommitEvidence({
           supersedes: [],
           repairStatus: null,
           repairedFailure: null,
+          repairAuthState: null,
+          repairAuthSha: null,
           repairPushConsumed: false,
           repairPushConsumedAt: null,
         }
@@ -329,7 +380,9 @@ export async function recordCommitEvidence({
           supersedes: effectiveSupersedes,
           repairStatus: effectiveRepairStatus,
           repairedFailure: repairedFailure || null,
-          repairPushConsumed: Boolean(repairPushConsumed),
+          repairAuthState: effectiveRepairAuthState,
+          repairAuthSha: effectiveRepairAuthSha,
+          repairPushConsumed: Boolean(repairPushConsumed || ["submitted", "ci_pending", "validated", "ci_failed"].includes(effectiveRepairAuthState)),
           repairPushConsumedAt: repairPushConsumedAt || null,
           recordedAt: new Date().toISOString(),
         }),
@@ -347,6 +400,27 @@ export async function recordCommitEvidence({
   ledgerMap[cleanSha] = entry;
   await writeJsonAtomic(root, LEDGER_FILE, ledgerMap);
 
+  if (isRepair && effectiveRepairsSha && !isNotRun) {
+    try {
+      await saveRepairAuthorization({
+        repoRoot: root,
+        authorization: {
+          targetSha: effectiveRepairsSha,
+          commitSha: cleanSha,
+          state: effectiveRepairAuthState || "bound_to_commit",
+          snapshotHash: snapshotHash || null,
+          intent,
+          gateId,
+          policyHash,
+          boundAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      });
+    } catch {
+      // best-effort
+    }
+  }
+
   return entry;
 }
 
@@ -357,6 +431,10 @@ export async function markRepairPushConsumed({ repoRoot, commitSha } = {}) {
   if (!entry) return null;
   entry.repairPushConsumed = true;
   entry.repairPushConsumedAt = new Date().toISOString();
+  if (!entry.repairAuthState || entry.repairAuthState === "bound_to_commit" || entry.repairAuthState === "prepared") {
+    entry.repairAuthState = "submitted";
+  }
+  entry.repairAuthSha = cleanSha;
   await writeJsonAtomic(root, path.join(LEDGER_DIR, `${cleanSha}.json`), entry);
 
   const absLedgerFile = path.resolve(root, LEDGER_FILE);
@@ -368,7 +446,348 @@ export async function markRepairPushConsumed({ repoRoot, commitSha } = {}) {
   }
   ledgerMap[cleanSha] = entry;
   await writeJsonAtomic(root, LEDGER_FILE, ledgerMap);
+
+  if (entry.repairsSha) {
+    try {
+      const existingAuth = await getRepairAuthorization({ repoRoot: root, targetSha: entry.repairsSha });
+      await saveRepairAuthorization({
+        repoRoot: root,
+        authorization: {
+          ...(existingAuth || {}),
+          targetSha: entry.repairsSha.toLowerCase(),
+          commitSha: cleanSha,
+          state: entry.repairAuthState,
+          attemptCount: (existingAuth?.attemptCount || 0) + 1,
+          lastAttemptAt: entry.repairPushConsumedAt,
+          updatedAt: entry.repairPushConsumedAt,
+        },
+      });
+    } catch {
+      // best-effort
+    }
+  }
   return entry;
+}
+
+export function isCommitInRemote(root, commitSha) {
+  if (!commitSha || typeof commitSha !== "string") return false;
+  let cleanSha;
+  try {
+    cleanSha = assertCommitSha(commitSha);
+  } catch {
+    return false;
+  }
+  try {
+    const stdout = execFileSync("git", ["branch", "-r", "--contains", cleanSha], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return stdout.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+export async function acquireRepairLock({
+  repoRoot,
+  targetSha = null,
+  repairSha = null,
+  timeoutMs = 5000,
+  retryIntervalMs = 25,
+  staleLockMs = 30000,
+} = {}) {
+  const root = findRepoRoot(repoRoot);
+  const lockKey = targetSha
+    ? assertCommitSha(targetSha)
+    : (repairSha ? assertCommitSha(repairSha) : "repair-global");
+  const lockDir = path.resolve(root, REPAIR_LOCKS_DIR);
+  await fs.mkdir(lockDir, { recursive: true, mode: 0o700 });
+  const lockPath = path.join(lockDir, `repair-${lockKey}.lock`);
+
+  const startTime = Date.now();
+
+  while (true) {
+    let handle = null;
+    try {
+      handle = await fs.open(lockPath, "wx", 0o600);
+      await handle.writeFile(JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() }) + "\n");
+      await handle.close();
+
+      return async () => {
+        try {
+          await fs.unlink(lockPath);
+        } catch (err) {
+          if (err.code !== "ENOENT") throw err;
+        }
+      };
+    } catch (err) {
+      if (handle) {
+        try { await handle.close(); } catch {}
+      }
+      if (err.code !== "EEXIST") throw err;
+
+      try {
+        const stat = await fs.stat(lockPath);
+        if (Date.now() - stat.mtimeMs > staleLockMs) {
+          try {
+            await fs.unlink(lockPath);
+            continue;
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      if (Date.now() - startTime >= timeoutMs) {
+        const lockError = new Error(`Concurrent repair operation in progress for target ${lockKey.slice(0, 8)}`);
+        lockError.code = "REPAIR_LOCK_TIMEOUT";
+        throw lockError;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, retryIntervalMs));
+    }
+  }
+}
+
+export async function getRepairAuthorization({ repoRoot, targetSha } = {}) {
+  const root = findRepoRoot(repoRoot);
+  if (!targetSha) return null;
+  const cleanTarget = assertCommitSha(targetSha);
+
+  const authFile = path.resolve(root, REPAIR_AUTH_DIR, `${cleanTarget}.json`);
+  try {
+    const raw = await fs.readFile(authFile, "utf8");
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      return parsed;
+    }
+  } catch (error) {
+    if (error.code !== "ENOENT" && !(error instanceof SyntaxError)) {
+      throw error;
+    }
+  }
+
+  // Fallback 1: inspect commit ledger
+  const allEntries = await listCommitEvidence({ repoRoot: root });
+  for (const entry of allEntries) {
+    if (entry.repairsSha && entry.repairsSha.toLowerCase() === cleanTarget) {
+      const state = entry.repairAuthState || (entry.repairPushConsumed ? "submitted" : "bound_to_commit");
+      return {
+        targetSha: cleanTarget,
+        commitSha: entry.commitSha,
+        state,
+        snapshotHash: entry.snapshotHash || null,
+        attemptCount: entry.repairPushConsumed ? 1 : 0,
+        updatedAt: entry.repairPushConsumedAt || entry.recordedAt || new Date().toISOString(),
+      };
+    }
+  }
+
+  // Fallback 2: inspect LAST_PREPARED_FILE
+  try {
+    const prepared = await getLastPreparedEvidence({ repoRoot: root });
+    if (prepared?.repairsSha && prepared.repairsSha.toLowerCase() === cleanTarget) {
+      const commitSha = prepared.consumedByCommitSha || null;
+      const state = prepared.repairAuthState || (commitSha ? "bound_to_commit" : "prepared");
+      return {
+        targetSha: cleanTarget,
+        commitSha,
+        state,
+        snapshotHash: prepared.snapshotHash || null,
+        attemptCount: 0,
+        updatedAt: prepared.recordedAt || new Date().toISOString(),
+      };
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
+
+export async function saveRepairAuthorization({ repoRoot, authorization } = {}) {
+  const root = findRepoRoot(repoRoot);
+  if (!authorization || !authorization.targetSha) {
+    throw new Error("Invalid repair authorization: missing targetSha");
+  }
+  const cleanTarget = assertCommitSha(authorization.targetSha);
+  const cleanCommit = authorization.commitSha ? assertCommitSha(authorization.commitSha) : null;
+  const state = authorization.state || "prepared";
+  if (!REPAIR_AUTH_STATES.includes(state)) {
+    throw new Error(`Invalid repair authorization state: ${state}`);
+  }
+
+  // Enforce single-use commit binding: cannot overwrite an authorization bound to another commit
+  const existing = await getRepairAuthorization({ repoRoot: root, targetSha: cleanTarget });
+  if (existing?.commitSha && (!cleanCommit || existing.commitSha.toLowerCase() !== cleanCommit)) {
+    const conflictError = new Error(
+      `Repair authorization for commit ${cleanTarget.slice(0, 8)} is already bound to commit ${existing.commitSha.slice(0, 8)}`
+    );
+    conflictError.code = "REPAIR_RECEIPT_ALREADY_CONSUMED";
+    conflictError.existing = existing;
+    throw conflictError;
+  }
+
+  const record = {
+    schemaVersion: 1,
+    targetSha: cleanTarget,
+    commitSha: cleanCommit,
+    state,
+    snapshotHash: authorization.snapshotHash || null,
+    attemptCount: typeof authorization.attemptCount === "number" ? authorization.attemptCount : 0,
+    lastAttemptAt: authorization.lastAttemptAt || null,
+    updatedAt: new Date().toISOString(),
+    ...(authorization.preparedAt ? { preparedAt: authorization.preparedAt } : {}),
+    ...(authorization.boundAt ? { boundAt: authorization.boundAt } : {}),
+  };
+
+  const relativePath = path.join(REPAIR_AUTH_DIR, `${cleanTarget}.json`);
+  await writeJsonAtomic(root, relativePath, record);
+  return record;
+}
+
+export async function determineRepairCommitState({
+  repoRoot,
+  targetSha,
+  commitSha,
+  ciProvider = null,
+  existingAuth = null,
+} = {}) {
+  const root = findRepoRoot(repoRoot);
+  const cleanTarget = assertCommitSha(targetSha);
+  const cleanCommit = assertCommitSha(commitSha);
+
+  const inRemote = isCommitInRemote(root, cleanCommit);
+  let ciStatus = null;
+  let ciRecognized = false;
+
+  try {
+    const ci = await inspectCi({ sha: cleanCommit, repoRoot: root, provider: ciProvider });
+    if (ci && ci.status !== "not_found" && ci.status !== "provider_error") {
+      ciRecognized = true;
+      ciStatus = ci.status;
+    }
+  } catch {
+    // ignore
+  }
+
+  let derivedState = existingAuth?.state || "bound_to_commit";
+
+  if (ciStatus === "passed") {
+    derivedState = "validated";
+  } else if (["failed", "cancelled", "timed_out"].includes(ciStatus)) {
+    derivedState = "ci_failed";
+  } else if (["queued", "in_progress"].includes(ciStatus)) {
+    derivedState = "ci_pending";
+  } else if (inRemote || ciRecognized) {
+    derivedState = "submitted";
+  } else if (existingAuth?.state === "submitted") {
+    derivedState = "submitted";
+  } else {
+    derivedState = "bound_to_commit";
+  }
+
+  return {
+    targetSha: cleanTarget,
+    commitSha: cleanCommit,
+    state: derivedState,
+    inRemote,
+    ciRecognized,
+    ciStatus,
+  };
+}
+
+export async function authorizeRepairPush({
+  repoRoot,
+  targetSha,
+  commitSha,
+  ciProvider = null,
+} = {}) {
+  const root = findRepoRoot(repoRoot);
+  const cleanTarget = assertCommitSha(targetSha);
+  const cleanCommit = assertCommitSha(commitSha);
+
+  // 1. Get current authorization
+  const auth = await getRepairAuthorization({ repoRoot: root, targetSha: cleanTarget });
+
+  // 2. If already bound or consumed by another commit SHA, reject!
+  if (auth?.commitSha && auth.commitSha.toLowerCase() !== cleanCommit) {
+    return {
+      authorized: false,
+      reason: "REPAIR_RECEIPT_ALREADY_CONSUMED",
+      message: `Pre-push blocked: repair authorization for commit ${cleanTarget.slice(0, 8)} has already been consumed for a push.`,
+      authorization: auth,
+    };
+  }
+
+  // Check snapshot hash consistency if available
+  const commitEvidence = await getCommitEvidence({ repoRoot: root, commitSha: cleanCommit });
+  if (auth?.snapshotHash && commitEvidence?.snapshotHash && auth.snapshotHash !== commitEvidence.snapshotHash) {
+    return {
+      authorized: false,
+      reason: "REPAIR_AUTHORIZATION_MISMATCH",
+      message: `Pre-push blocked: repair commit snapshot hash does not match authorized receipt for ${cleanTarget.slice(0, 8)}.`,
+      authorization: auth,
+    };
+  }
+
+  // 3. Determine current live state
+  const live = await determineRepairCommitState({
+    repoRoot: root,
+    targetSha: cleanTarget,
+    commitSha: cleanCommit,
+    ciProvider,
+    existingAuth: auth,
+  });
+
+  // 4. If CI for this commit has already failed:
+  if (live.state === "ci_failed") {
+    return {
+      authorized: false,
+      reason: "PRIOR_COMMIT_CI_FAILED",
+      message: `Pre-push blocked: repair commit ${cleanCommit.slice(0, 8)} already failed CI in remote. A new repair cycle is required.`,
+      authorization: live,
+    };
+  }
+
+  // 5. Allowed states for this commit: "bound_to_commit", "submitted", "ci_pending", "validated"
+  const allowed = ["bound_to_commit", "submitted", "ci_pending", "validated"];
+  if (!allowed.includes(live.state) && auth?.state !== "prepared") {
+    return {
+      authorized: false,
+      reason: "REPAIR_RECEIPT_ALREADY_CONSUMED",
+      message: `Pre-push blocked: repair authorization for commit ${cleanTarget.slice(0, 8)} is in invalid state: ${live.state}.`,
+      authorization: live,
+    };
+  }
+
+  const nextState = (live.state === "ci_pending" || live.state === "validated")
+    ? live.state
+    : "submitted";
+
+  const updatedAuth = {
+    targetSha: cleanTarget,
+    commitSha: cleanCommit,
+    state: nextState,
+    snapshotHash: auth?.snapshotHash || commitEvidence?.snapshotHash || null,
+    attemptCount: (auth?.attemptCount || 0) + 1,
+    lastAttemptAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    preparedAt: auth?.preparedAt || null,
+    boundAt: auth?.boundAt || null,
+  };
+
+  await saveRepairAuthorization({ repoRoot: root, authorization: updatedAuth });
+  await markRepairPushConsumed({ repoRoot: root, commitSha: cleanCommit });
+
+  return {
+    authorized: true,
+    state: nextState,
+    authorization: updatedAuth,
+  };
 }
 
 export async function getCommitEvidence({ repoRoot, commitSha } = {}) {
@@ -588,6 +1007,11 @@ export async function updateCommitRepairStatus({
   if (!entry) return null;
 
   entry.repairStatus = repairStatus;
+  if (repairStatus === "validated") {
+    entry.repairAuthState = "validated";
+  } else if (repairStatus === "failed") {
+    entry.repairAuthState = "ci_failed";
+  }
   if (Array.isArray(supersedes) && supersedes.length > 0) {
     entry.supersedes = sortedUnique([...(entry.supersedes || []), ...supersedes.map((s) => String(s).toLowerCase())]);
   }
@@ -603,6 +1027,19 @@ export async function updateCommitRepairStatus({
     }
     ledgerMap[cleanSha] = entry;
     await writeJsonAtomic(root, LEDGER_FILE, ledgerMap);
+
+    if (entry.repairsSha) {
+      try {
+        const auth = await getRepairAuthorization({ repoRoot: root, targetSha: entry.repairsSha });
+        if (auth && auth.commitSha && auth.commitSha.toLowerCase() === cleanSha) {
+          auth.state = entry.repairAuthState;
+          auth.updatedAt = new Date().toISOString();
+          await saveRepairAuthorization({ repoRoot: root, authorization: auth });
+        }
+      } catch {
+        // Best-effort
+      }
+    }
   } catch {
     // Best-effort in constrained environments
   }

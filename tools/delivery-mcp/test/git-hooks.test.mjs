@@ -716,7 +716,7 @@ test("pre-push hook: un commit con receipt valido de Gate R para el SHA fallido 
   assert.strictEqual(pushRes.passed, true);
 });
 
-test("pre-push hook: la autorizacion de reparacion no puede reutilizarse para un segundo push (REPAIR_RECEIPT_ALREADY_CONSUMED)", async (t) => {
+test("pre-push hook: reintento de red del mismo commit de reparación es permitido sin error (retry-safe)", async (t) => {
   const repoRoot = await createTempGitRepo(t);
   const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
   t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
@@ -757,7 +757,7 @@ test("pre-push hook: la autorizacion de reparacion no puede reutilizarse para un
   const post2 = await runPostCommitHook({ repoRoot });
 
   const pushLine = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
-  // Primer push consume la autorización
+  // Primer intento de push autoriza el commit
   const pushRes1 = await runPrePushHook({
     repoRoot,
     stdinLines: [pushLine],
@@ -765,14 +765,201 @@ test("pre-push hook: la autorizacion de reparacion no puede reutilizarse para un
   });
   assert.strictEqual(pushRes1.passed, true);
 
-  // Segundo push con el mismo commit intenta reutilizar la autorización
+  // Fallo de red simulado: git push no llegó al remoto, el remoto no tiene post2.commitSha.
+  // Segundo intento de push con el MISMO commit SHA es permitido (retry-safe)
   const pushRes2 = await runPrePushHook({
     repoRoot,
     stdinLines: [pushLine],
     ciProvider: mockCi,
   });
-  assert.strictEqual(pushRes2.passed, false);
-  assert.strictEqual(pushRes2.reason, "REPAIR_RECEIPT_ALREADY_CONSUMED");
+  assert.strictEqual(pushRes2.passed, true);
+});
+
+test("pre-push hook: un segundo commit distinto intentando usar la misma reparación es bloqueado con REPAIR_RECEIPT_ALREADY_CONSUMED", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  // Commit 1 registrado en ledger y pusheado
+  await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
+  execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider();
+  mockCi.setFixture(post1.commitSha, { status: "failed" });
+
+  // Commit 2: reparación con Gate R para post1
+  await fs.writeFile(path.join(repoRoot, "fix.txt"), "fixed", "utf8");
+  execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
+  const fakeExecute = async ({ check }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 2,
+    exitCode: 0,
+    summaryLines: [],
+    diagnostic: null,
+  });
+  await prepareDelivery({
+    repoRoot,
+    intent: "repair_ci",
+    repairsSha: post1.commitSha,
+    ciProvider: mockCi,
+    executeCheck: fakeExecute,
+  });
+  execFileSync("git", ["commit", "-m", "fix: repair commit 1"], { cwd: repoRoot });
+  const post2 = await runPostCommitHook({ repoRoot });
+
+  const pushLine2 = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
+  const pushRes1 = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine2],
+    ciProvider: mockCi,
+  });
+  assert.strictEqual(pushRes1.passed, true);
+
+  // Commit 3: commit con diferente mensaje pero mismo árbol válido, intentando reutilizar la autorización de post1
+  execFileSync("git", ["reset", "--hard", post1.commitSha], { cwd: repoRoot });
+  await fs.writeFile(path.join(repoRoot, "fix.txt"), "fixed", "utf8");
+  execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix: second repair attempt different sha"], { cwd: repoRoot });
+  const post3Sha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+
+  const entry2 = post2.ledgerEntry;
+  await recordCommitEvidence({
+    repoRoot,
+    commitSha: post3Sha,
+    verificationStatus: "passed",
+    snapshotHash: entry2.snapshotHash,
+    runKey: entry2.runKey,
+    recordPath: entry2.recordPath,
+    recordDigest: entry2.recordDigest,
+    branch: "main",
+    parentSha: post1.commitSha,
+    treeSha: entry2.treeSha,
+    stagedFiles: entry2.stagedFiles,
+    gateId: "R",
+    policyHash: entry2.policyHash,
+    intent: "repair_ci",
+    repairsSha: post1.commitSha,
+    supersedes: entry2.supersedes,
+  });
+
+  const pushLine3 = `refs/heads/main ${post3Sha} refs/heads/main ${post1.commitSha}`;
+  const pushRes3 = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine3],
+    ciProvider: mockCi,
+  });
+  assert.strictEqual(pushRes3.passed, false);
+  assert.strictEqual(pushRes3.reason, "REPAIR_RECEIPT_ALREADY_CONSUMED");
+});
+
+test("pre-push hook: concurrencia de dos invocaciones simultáneas para el mismo receipt se resuelven de forma segura mediante lock", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
+  execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider();
+  mockCi.setFixture(post1.commitSha, { status: "failed" });
+
+  await fs.writeFile(path.join(repoRoot, "fix.txt"), "fixed", "utf8");
+  execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
+  const fakeExecute = async ({ check }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 2,
+    exitCode: 0,
+    summaryLines: [],
+    diagnostic: null,
+  });
+  await prepareDelivery({
+    repoRoot,
+    intent: "repair_ci",
+    repairsSha: post1.commitSha,
+    ciProvider: mockCi,
+    executeCheck: fakeExecute,
+  });
+  execFileSync("git", ["commit", "-m", "fix: repair commit 1"], { cwd: repoRoot });
+  const post2 = await runPostCommitHook({ repoRoot });
+
+  const pushLine = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
+
+  // Dos ejecuciones concurrentes de pre-push
+  const [resA, resB] = await Promise.all([
+    runPrePushHook({ repoRoot, stdinLines: [pushLine], ciProvider: mockCi }),
+    runPrePushHook({ repoRoot, stdinLines: [pushLine], ciProvider: mockCi }),
+  ]);
+
+  assert.strictEqual(resA.passed, true);
+  assert.strictEqual(resB.passed, true);
+});
+
+test("pre-push hook: commit de reparación ya presente en remoto o con CI pendiente se reconoce correctamente", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  await fs.writeFile(path.join(repoRoot, "file1.txt"), "1", "utf8");
+  execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
+  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
+  const post1 = await runPostCommitHook({ repoRoot });
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider();
+  mockCi.setFixture(post1.commitSha, { status: "failed" });
+
+  await fs.writeFile(path.join(repoRoot, "fix.txt"), "fixed", "utf8");
+  execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
+  const fakeExecute = async ({ check }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 2,
+    exitCode: 0,
+    summaryLines: [],
+    diagnostic: null,
+  });
+  await prepareDelivery({
+    repoRoot,
+    intent: "repair_ci",
+    repairsSha: post1.commitSha,
+    ciProvider: mockCi,
+    executeCheck: fakeExecute,
+  });
+  execFileSync("git", ["commit", "-m", "fix: repair commit 1"], { cwd: repoRoot });
+  const post2 = await runPostCommitHook({ repoRoot });
+
+  // Push inicial a remoto
+  const pushLine = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
+  const pushRes = await runPrePushHook({ repoRoot, stdinLines: [pushLine], ciProvider: mockCi });
+  assert.strictEqual(pushRes.passed, true);
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  // CI remoto ahora reconoce post2 con status in_progress
+  mockCi.setFixture(post2.commitSha, { status: "in_progress" });
+
+  // Reintento o push subsecuente del mismo commit es reconocido como ci_pending / submitted
+  const pushRes2 = await runPrePushHook({ repoRoot, stdinLines: [pushLine], ciProvider: mockCi });
+  assert.strictEqual(pushRes2.passed, true);
 });
 
 test("pre-push hook: un repair receipt para SHA A no puede autorizar el push de un fix para SHA B", async (t) => {

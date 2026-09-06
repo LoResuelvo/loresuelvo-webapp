@@ -14,6 +14,11 @@ import {
   resolveRepairChain,
   updateCommitRepairStatus,
   validateRepairLineage,
+  acquireRepairLock,
+  getRepairAuthorization,
+  saveRepairAuthorization,
+  determineRepairCommitState,
+  authorizeRepairPush,
   LEDGER_DIR,
   LEDGER_FILE,
 } from "../lib/delivery-ledger.mjs";
@@ -851,3 +856,167 @@ test("validateRepairLineage: rechaza reparación con snapshot alterado con REPAI
   assert.strictEqual(validation.valid, false);
   assert.strictEqual(validation.reason, "REPAIR_SNAPSHOT_MISMATCH");
 });
+
+test("máquina de estados de reparación: transitions from prepared -> bound_to_commit -> submitted -> ci_pending -> validated", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const targetSha = "1111111111111111111111111111111111111111";
+  const repairSha = "2222222222222222222222222222222222222222";
+
+  // 1. Prepared
+  await saveRepairAuthorization({
+    repoRoot,
+    authorization: {
+      targetSha,
+      state: "prepared",
+      commitSha: null,
+    },
+  });
+  let auth = await getRepairAuthorization({ repoRoot, targetSha });
+  assert.strictEqual(auth.state, "prepared");
+  assert.strictEqual(auth.commitSha, null);
+
+  // 2. Bound to commit
+  await saveRepairAuthorization({
+    repoRoot,
+    authorization: {
+      ...auth,
+      commitSha: repairSha,
+      state: "bound_to_commit",
+    },
+  });
+  auth = await getRepairAuthorization({ repoRoot, targetSha });
+  assert.strictEqual(auth.state, "bound_to_commit");
+  assert.strictEqual(auth.commitSha, repairSha);
+
+  // 3. Submitted
+  await saveRepairAuthorization({
+    repoRoot,
+    authorization: {
+      ...auth,
+      state: "submitted",
+    },
+  });
+  auth = await getRepairAuthorization({ repoRoot, targetSha });
+  assert.strictEqual(auth.state, "submitted");
+
+  // 4. CI pending
+  const mockCi = new MockCiProvider({
+    [repairSha]: { status: "in_progress" },
+  });
+  const liveStatePending = await determineRepairCommitState({
+    repoRoot,
+    targetSha,
+    commitSha: repairSha,
+    ciProvider: mockCi,
+    existingAuth: auth,
+  });
+  assert.strictEqual(liveStatePending.state, "ci_pending");
+
+  // 5. Validated
+  mockCi.setFixture(repairSha, { status: "passed" });
+  const liveStateValidated = await determineRepairCommitState({
+    repoRoot,
+    targetSha,
+    commitSha: repairSha,
+    ciProvider: mockCi,
+    existingAuth: auth,
+  });
+  assert.strictEqual(liveStateValidated.state, "validated");
+
+  // 6. CI failed
+  mockCi.setFixture(repairSha, { status: "failed" });
+  const liveStateFailed = await determineRepairCommitState({
+    repoRoot,
+    targetSha,
+    commitSha: repairSha,
+    ciProvider: mockCi,
+    existingAuth: auth,
+  });
+  assert.strictEqual(liveStateFailed.state, "ci_failed");
+});
+
+test("acquireRepairLock: previene operaciones concurrentes en conflicto y respeta timeout", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const targetSha = "1111111111111111111111111111111111111111";
+
+  const release1 = await acquireRepairLock({ repoRoot, targetSha, timeoutMs: 500 });
+  assert.ok(typeof release1 === "function");
+
+  // Segundo intento mientras el lock está retenido debe fallar con REPAIR_LOCK_TIMEOUT
+  await assert.rejects(
+    async () => {
+      await acquireRepairLock({ repoRoot, targetSha, timeoutMs: 100, retryIntervalMs: 20 });
+    },
+    (err) => {
+      assert.strictEqual(err.code, "REPAIR_LOCK_TIMEOUT");
+      return true;
+    }
+  );
+
+  // Liberar el lock
+  await release1();
+
+  // Ahora el segundo intento debe adquirir el lock exitosamente
+  const release2 = await acquireRepairLock({ repoRoot, targetSha, timeoutMs: 200 });
+  assert.ok(typeof release2 === "function");
+  await release2();
+});
+
+test("authorizeRepairPush: rechaza un commit SHA diferente para la misma autorización con REPAIR_RECEIPT_ALREADY_CONSUMED", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const targetSha = "1111111111111111111111111111111111111111";
+  const commitA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const commitB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+  await saveRepairAuthorization({
+    repoRoot,
+    authorization: {
+      targetSha,
+      commitSha: commitA,
+      state: "bound_to_commit",
+    },
+  });
+
+  const resA = await authorizeRepairPush({
+    repoRoot,
+    targetSha,
+    commitSha: commitA,
+  });
+  assert.strictEqual(resA.authorized, true);
+  assert.strictEqual(resA.state, "submitted");
+
+  // Commit B intenta usar la misma autorización
+  const resB = await authorizeRepairPush({
+    repoRoot,
+    targetSha,
+    commitSha: commitB,
+  });
+  assert.strictEqual(resB.authorized, false);
+  assert.strictEqual(resB.reason, "REPAIR_RECEIPT_ALREADY_CONSUMED");
+});
+
+test("authorizeRepairPush: reintento del mismo SHA es permitido y cuenta intentos", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const targetSha = "1111111111111111111111111111111111111111";
+  const commitA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+  await saveRepairAuthorization({
+    repoRoot,
+    authorization: {
+      targetSha,
+      commitSha: commitA,
+      state: "bound_to_commit",
+    },
+  });
+
+  const res1 = await authorizeRepairPush({ repoRoot, targetSha, commitSha: commitA });
+  assert.strictEqual(res1.authorized, true);
+  assert.strictEqual(res1.authorization.attemptCount, 1);
+
+  // Segundo intento (mismo commitSha)
+  const res2 = await authorizeRepairPush({ repoRoot, targetSha, commitSha: commitA });
+  assert.strictEqual(res2.authorized, true);
+  assert.strictEqual(res2.authorization.attemptCount, 2);
+  assert.strictEqual(res2.state, "submitted");
+});
+

@@ -18,6 +18,8 @@ import {
   markRepairPushConsumed,
   resolveRepairChain,
   validateRepairLineage,
+  acquireRepairLock,
+  authorizeRepairPush,
 } from "./delivery-ledger.mjs";
 import { inspectCi } from "./ci-provider.mjs";
 import { loadDeliveryPolicy } from "./policy-loader.mjs";
@@ -587,16 +589,42 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
             };
           }
 
-          if (localEntry.repairPushConsumed) {
+          let releaseRepairLock = null;
+          try {
+            releaseRepairLock = await acquireRepairLock({ repoRoot: root, targetSha: priorSha });
+          } catch (lockError) {
             return {
               passed: false,
-              reason: "REPAIR_RECEIPT_ALREADY_CONSUMED",
-              message: `Pre-push blocked: repair authorization for commit ${priorSha.slice(0, 8)} has already been consumed for a push.`,
+              reason: "CONCURRENT_PUSH_IN_PROGRESS",
+              message: `Pre-push blocked: concurrent push in progress for repair of commit ${priorSha.slice(0, 8)}.`,
               sha: localSha,
             };
           }
-          await markRepairPushConsumed({ repoRoot: root, commitSha: localSha });
-          localEntry.repairPushConsumed = true;
+
+          try {
+            const authResult = await authorizeRepairPush({
+              repoRoot: root,
+              targetSha: priorSha,
+              commitSha: localSha,
+              ciProvider,
+            });
+
+            if (!authResult.authorized) {
+              return {
+                passed: false,
+                reason: authResult.reason || "REPAIR_RECEIPT_ALREADY_CONSUMED",
+                message: authResult.message || `Pre-push blocked: repair authorization for commit ${priorSha.slice(0, 8)} has already been consumed for a push.`,
+                sha: localSha,
+              };
+            }
+
+            localEntry.repairAuthState = authResult.state;
+            localEntry.repairPushConsumed = true;
+          } finally {
+            if (releaseRepairLock) {
+              await releaseRepairLock();
+            }
+          }
           continue;
         }
 
@@ -652,6 +680,45 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
           message: selfValidation.message,
           sha: localSha,
         };
+      }
+
+      if (localEntry?.repairsSha && !localEntry.repairPushConsumed) {
+        let releaseRepairLock = null;
+        try {
+          releaseRepairLock = await acquireRepairLock({ repoRoot: root, targetSha: String(localEntry.repairsSha) });
+        } catch (lockError) {
+          return {
+            passed: false,
+            reason: "CONCURRENT_PUSH_IN_PROGRESS",
+            message: `Pre-push blocked: concurrent push in progress for repair of commit ${String(localEntry.repairsSha).slice(0, 8)}.`,
+            sha: localSha,
+          };
+        }
+
+        try {
+          const authResult = await authorizeRepairPush({
+            repoRoot: root,
+            targetSha: String(localEntry.repairsSha),
+            commitSha: localSha,
+            ciProvider,
+          });
+
+          if (!authResult.authorized) {
+            return {
+              passed: false,
+              reason: authResult.reason || "REPAIR_RECEIPT_ALREADY_CONSUMED",
+              message: authResult.message || `Pre-push blocked: repair authorization for commit ${String(localEntry.repairsSha).slice(0, 8)} has already been consumed for a push.`,
+              sha: localSha,
+            };
+          }
+
+          localEntry.repairAuthState = authResult.state;
+          localEntry.repairPushConsumed = true;
+        } finally {
+          if (releaseRepairLock) {
+            await releaseRepairLock();
+          }
+        }
       }
     }
   }

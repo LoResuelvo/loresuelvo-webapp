@@ -20,6 +20,20 @@ export const REPAIR_AUTH_STATES = Object.freeze([
   "validated",
   "ci_failed",
 ]);
+export const LEDGER_STATES = Object.freeze({
+  VALID_LEDGER: "VALID_LEDGER",
+  EMPTY_LEDGER: "EMPTY_LEDGER",
+  LEDGER_NOT_INITIALIZED: "LEDGER_NOT_INITIALIZED",
+  LEDGER_CORRUPT: "LEDGER_CORRUPT",
+  LEDGER_INCONSISTENT: "LEDGER_INCONSISTENT",
+});
+
+export function ledgerError(code, message, details = {}) {
+  const error = new Error(message || code);
+  error.code = code;
+  Object.assign(error, details);
+  return error;
+}
 
 function assertCommitSha(commitSha) {
   if (!commitSha || typeof commitSha !== "string" || !/^[a-f0-9]{7,40}$/i.test(commitSha.trim())) {
@@ -838,17 +852,314 @@ export async function getCommitEvidence({ repoRoot, commitSha } = {}) {
   return parsedLedger[cleanSha];
 }
 
+export async function validateCommitEvidenceEntryShape(entry, root = null, fileSha = null) {
+  if (!isJsonObject(entry)) {
+    throw ledgerError("LEDGER_CORRUPT", "Individual ledger record is not a valid JSON object", { fileSha });
+  }
+  if (entry.schemaVersion !== 2) {
+    throw ledgerError(
+      "LEDGER_CORRUPT",
+      `Individual ledger record has unsupported schema version: ${entry.schemaVersion}`,
+      { fileSha }
+    );
+  }
+  if (!entry.commitSha || typeof entry.commitSha !== "string") {
+    throw ledgerError("LEDGER_CORRUPT", "Individual ledger record missing commitSha", { fileSha });
+  }
+  let cleanSha;
+  try {
+    cleanSha = assertCommitSha(entry.commitSha);
+  } catch {
+    throw ledgerError("LEDGER_CORRUPT", `Individual ledger record has invalid commitSha: ${entry.commitSha}`, { fileSha });
+  }
+  if (fileSha && cleanSha !== fileSha.trim().toLowerCase()) {
+    throw ledgerError(
+      "LEDGER_CORRUPT",
+      `Individual ledger record commitSha mismatch: ${entry.commitSha} vs filename ${fileSha}`,
+      { fileSha }
+    );
+  }
+  const effectiveStatus = entry.verificationStatus || entry.status || "passed";
+  if (effectiveStatus !== "passed" && effectiveStatus !== "not_run") {
+    throw ledgerError("LEDGER_CORRUPT", `Individual ledger record has invalid status: ${effectiveStatus}`, { fileSha });
+  }
+  if (entry.status && entry.verificationStatus && entry.verificationStatus !== entry.status) {
+    throw ledgerError(
+      "LEDGER_CORRUPT",
+      `Individual ledger record has inconsistent verificationStatus: ${entry.verificationStatus} vs ${entry.status}`,
+      { fileSha }
+    );
+  }
+  if (effectiveStatus === "not_run") {
+    if (!entry.notRunReason || typeof entry.notRunReason !== "string") {
+      throw ledgerError("LEDGER_CORRUPT", "Individual ledger record with status not_run requires notRunReason", { fileSha });
+    }
+  }
+  if (effectiveStatus === "passed") {
+    if (!entry.recordPath || typeof entry.recordPath !== "string") {
+      throw ledgerError("LEDGER_CORRUPT", "Individual ledger record with status passed requires recordPath", { fileSha });
+    }
+    if (!entry.recordDigest || typeof entry.recordDigest !== "string") {
+      throw ledgerError("LEDGER_CORRUPT", "Individual ledger record with status passed requires recordDigest", { fileSha });
+    }
+    if (root && entry.recordPath) {
+      let raw;
+      try {
+        raw = await fs.readFile(path.resolve(root, entry.recordPath), "utf8");
+        const digest = crypto.createHash("sha256").update(raw).digest("hex");
+        if (digest !== entry.recordDigest) {
+          throw ledgerError(
+            "LEDGER_CORRUPT",
+            `Individual ledger record digest mismatch for ${fileSha || cleanSha}`,
+            { fileSha, expectedDigest: entry.recordDigest, actualDigest: digest }
+          );
+        }
+      } catch (err) {
+        if (err.code === "LEDGER_CORRUPT") throw err;
+        if (err.code !== "ENOENT") {
+          throw ledgerError(
+            "LEDGER_CORRUPT",
+            `Individual ledger record execution file unreadable for ${fileSha || cleanSha}: ${err.message}`,
+            { fileSha, recordPath: entry.recordPath }
+          );
+        }
+      }
+    }
+  }
+  return true;
+}
+
+export async function rebuildLedgerFromIndividualRecords({ repoRoot } = {}) {
+  const root = findRepoRoot(repoRoot);
+  const ledgerDir = path.resolve(root, LEDGER_DIR);
+
+  let files;
+  try {
+    files = await fs.readdir(ledgerDir);
+  } catch (err) {
+    if (err.code === "ENOENT") {
+      throw ledgerError("LEDGER_CORRUPT", "Cannot rebuild delivery ledger: ledger directory does not exist");
+    }
+    throw ledgerError("LEDGER_CORRUPT", `Cannot read individual ledger directory: ${err.message}`);
+  }
+
+  const jsonFiles = files.filter((f) => f.endsWith(".json") && !f.endsWith(".tmp"));
+  if (jsonFiles.length === 0) {
+    throw ledgerError("LEDGER_CORRUPT", "Cannot rebuild delivery ledger: no individual records found");
+  }
+
+  const reconstructedMap = {};
+  for (const file of jsonFiles) {
+    const fileSha = path.basename(file, ".json");
+    if (!/^[a-f0-9]{7,40}$/i.test(fileSha)) {
+      throw ledgerError("LEDGER_CORRUPT", `Invalid individual ledger record filename: ${file}`, { fileSha });
+    }
+    let raw;
+    try {
+      raw = await fs.readFile(path.join(ledgerDir, file), "utf8");
+    } catch (err) {
+      throw ledgerError("LEDGER_CORRUPT", `Cannot read individual ledger record ${file}: ${err.message}`, { fileSha });
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (err) {
+      throw ledgerError("LEDGER_CORRUPT", `Individual ledger record ${file} has invalid JSON: ${err.message}`, { fileSha });
+    }
+
+    await validateCommitEvidenceEntryShape(parsed, root, fileSha);
+    reconstructedMap[parsed.commitSha.toLowerCase()] = parsed;
+  }
+
+  await writeJsonAtomic(root, LEDGER_FILE, reconstructedMap);
+
+  return Object.values(reconstructedMap).sort((left, right) =>
+    String(left.recordedAt || "").localeCompare(String(right.recordedAt || ""))
+  );
+}
+
 export async function listCommitEvidence({ repoRoot } = {}) {
   const root = findRepoRoot(repoRoot);
+  const ledgerPath = path.resolve(root, LEDGER_FILE);
+  const ledgerDir = path.resolve(root, LEDGER_DIR);
+
+  let rawLedger;
   try {
-    const parsed = JSON.parse(await fs.readFile(path.resolve(root, LEDGER_FILE), "utf8"));
-    return Object.values(parsed).sort((left, right) =>
-      String(left.recordedAt || "").localeCompare(String(right.recordedAt || ""))
+    rawLedger = await fs.readFile(ledgerPath, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      let individualFiles = [];
+      try {
+        individualFiles = (await fs.readdir(ledgerDir)).filter(
+          (f) => f.endsWith(".json") && !f.endsWith(".tmp")
+        );
+      } catch {
+        individualFiles = [];
+      }
+      if (individualFiles.length === 0) {
+        return [];
+      }
+      return await rebuildLedgerFromIndividualRecords({ repoRoot: root });
+    }
+    return await rebuildLedgerFromIndividualRecords({ repoRoot: root });
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(rawLedger);
+  } catch {
+    return await rebuildLedgerFromIndividualRecords({ repoRoot: root });
+  }
+
+  if (!isJsonObject(parsed)) {
+    return await rebuildLedgerFromIndividualRecords({ repoRoot: root });
+  }
+
+  const entries = Object.values(parsed);
+  if (entries.length === 0) {
+    let individualFiles = [];
+    try {
+      individualFiles = (await fs.readdir(ledgerDir)).filter(
+        (f) => f.endsWith(".json") && !f.endsWith(".tmp")
+      );
+    } catch {
+      individualFiles = [];
+    }
+    if (individualFiles.length === 0) {
+      return [];
+    }
+    return await rebuildLedgerFromIndividualRecords({ repoRoot: root });
+  }
+
+  for (const entry of entries) {
+    if (
+      !isJsonObject(entry) ||
+      entry.schemaVersion !== 2 ||
+      !entry.commitSha ||
+      (entry.status !== "passed" && entry.status !== "not_run") ||
+      entry.verificationStatus !== entry.status
+    ) {
+      return await rebuildLedgerFromIndividualRecords({ repoRoot: root });
+    }
+  }
+
+  return entries.sort((left, right) =>
+    String(left.recordedAt || "").localeCompare(String(right.recordedAt || ""))
+  );
+}
+
+export async function getLedgerState({ repoRoot } = {}) {
+  const root = findRepoRoot(repoRoot);
+  const ledgerPath = path.resolve(root, LEDGER_FILE);
+  const ledgerDir = path.resolve(root, LEDGER_DIR);
+
+  let ledgerExists = false;
+  let rawLedger = null;
+  try {
+    rawLedger = await fs.readFile(ledgerPath, "utf8");
+    ledgerExists = true;
+  } catch (err) {
+    if (err.code !== "ENOENT") {
+      return { state: "LEDGER_CORRUPT", reason: "LEDGER_FILE_UNREADABLE", message: err.message };
+    }
+  }
+
+  let individualFiles = [];
+  try {
+    individualFiles = (await fs.readdir(ledgerDir)).filter(
+      (f) => f.endsWith(".json") && !f.endsWith(".tmp")
     );
   } catch {
-    return [];
+    individualFiles = [];
   }
+
+  if (!ledgerExists) {
+    if (individualFiles.length === 0) {
+      return { state: "LEDGER_NOT_INITIALIZED", reason: "ENOENT" };
+    }
+    return { state: "LEDGER_CORRUPT", reason: "CONSOLIDATED_FILE_MISSING_INDIVIDUALS_EXIST" };
+  }
+
+  let parsedLedger;
+  try {
+    parsedLedger = JSON.parse(rawLedger);
+  } catch (err) {
+    return { state: "LEDGER_CORRUPT", reason: "INVALID_JSON", message: err.message };
+  }
+
+  if (!isJsonObject(parsedLedger)) {
+    return { state: "LEDGER_CORRUPT", reason: "NOT_AN_OBJECT" };
+  }
+
+  const consolidatedKeys = Object.keys(parsedLedger);
+  if (consolidatedKeys.length === 0) {
+    if (individualFiles.length === 0) {
+      return { state: "EMPTY_LEDGER" };
+    }
+    return { state: "LEDGER_INCONSISTENT", reason: "CONSOLIDATED_EMPTY_INDIVIDUALS_EXIST" };
+  }
+
+  for (const [sha, entry] of Object.entries(parsedLedger)) {
+    try {
+      await validateCommitEvidenceEntryShape(entry, root, sha);
+    } catch (err) {
+      return { state: "LEDGER_CORRUPT", reason: "INVALID_ENTRY_SCHEMA", commitSha: sha, message: err.message };
+    }
+  }
+
+  const individualShas = new Set(individualFiles.map((f) => path.basename(f, ".json").toLowerCase()));
+  const consolidatedShas = new Set(consolidatedKeys.map((k) => k.toLowerCase()));
+
+  for (const sha of consolidatedShas) {
+    if (!individualShas.has(sha)) {
+      return { state: "LEDGER_INCONSISTENT", reason: "MISSING_INDIVIDUAL_RECORD", commitSha: sha };
+    }
+  }
+  for (const sha of individualShas) {
+    if (!consolidatedShas.has(sha)) {
+      return { state: "LEDGER_INCONSISTENT", reason: "UNCONSOLIDATED_INDIVIDUAL_RECORD", commitSha: sha };
+    }
+  }
+
+  for (const file of individualFiles) {
+    const fileSha = path.basename(file, ".json").toLowerCase();
+    let rawInd;
+    try {
+      rawInd = await fs.readFile(path.join(ledgerDir, file), "utf8");
+    } catch (err) {
+      return { state: "LEDGER_CORRUPT", reason: "INDIVIDUAL_RECORD_UNREADABLE", commitSha: fileSha };
+    }
+    let parsedInd;
+    try {
+      parsedInd = JSON.parse(rawInd);
+    } catch {
+      return { state: "LEDGER_CORRUPT", reason: "INDIVIDUAL_RECORD_INVALID_JSON", commitSha: fileSha };
+    }
+
+    try {
+      await validateCommitEvidenceEntryShape(parsedInd, root, fileSha);
+    } catch (err) {
+      return { state: "LEDGER_CORRUPT", reason: err.message, commitSha: fileSha };
+    }
+
+    const consolidatedEntry = parsedLedger[fileSha] || parsedLedger[parsedInd.commitSha];
+    if (
+      consolidatedEntry.status !== parsedInd.status ||
+      consolidatedEntry.verificationStatus !== parsedInd.verificationStatus ||
+      (consolidatedEntry.treeSha || null) !== (parsedInd.treeSha || null) ||
+      (consolidatedEntry.parentSha || null) !== (parsedInd.parentSha || null) ||
+      (consolidatedEntry.repairsSha || null) !== (parsedInd.repairsSha || null) ||
+      (consolidatedEntry.repairStatus || null) !== (parsedInd.repairStatus || null)
+    ) {
+      return { state: "LEDGER_INCONSISTENT", reason: "ENTRY_MISMATCH", commitSha: fileSha };
+    }
+  }
+
+  return { state: "VALID_LEDGER", entriesCount: consolidatedKeys.length };
 }
+
+export const inspectLedgerState = getLedgerState;
 
 function resolveCommitIdentity(root, commitSha) {
   const parentsLine = execFileSync("git", ["rev-list", "--parents", "-n", "1", commitSha], {

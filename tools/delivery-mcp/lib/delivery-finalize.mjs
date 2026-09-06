@@ -1,6 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { findRepoRoot, assertSafeRepoPath } from "./repo-root.mjs";
-import { queryCommitEvidence, verifyCommitEvidence, resolveRepairChain, getCommitEvidence } from "./delivery-ledger.mjs";
+import {
+  queryCommitEvidence,
+  verifyCommitEvidence,
+  resolveRepairChain,
+  getCommitEvidence,
+  listCommitEvidence,
+} from "./delivery-ledger.mjs";
 import { extractUsId } from "./git-snapshot.mjs";
 import { inspectCi } from "./ci-provider.mjs";
 import { loadDeliveryPolicy } from "./policy-loader.mjs";
@@ -119,6 +125,23 @@ export async function finalizeDelivery({
   sleepFn = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 } = {}) {
   const root = findRepoRoot(repoRoot);
+  try {
+    await listCommitEvidence({ repoRoot: root });
+  } catch (error) {
+    if (
+      error?.code === "LEDGER_CORRUPT" ||
+      error?.code === "LEDGER_INCONSISTENT" ||
+      error?.message?.includes("LEDGER_CORRUPT")
+    ) {
+      return {
+        finalized: false,
+        status: "blocked",
+        reason: "LEDGER_CORRUPT",
+        message: "Cannot finalize: delivery ledger is corrupt and cannot be safely recovered.",
+      };
+    }
+    throw error;
+  }
   const policy = await loadDeliveryPolicy({ repoRoot: root });
 
   let headSha;
@@ -290,11 +313,28 @@ export async function finalizeDelivery({
   const startTime = Date.now();
 
   while (true) {
-    const repairResolution = await resolveRepairChain({
-      repoRoot: root,
-      commits: shas,
-      ciProvider,
-    });
+    let repairResolution;
+    try {
+      repairResolution = await resolveRepairChain({
+        repoRoot: root,
+        commits: shas,
+        ciProvider,
+      });
+    } catch (error) {
+      if (
+        error?.code === "LEDGER_CORRUPT" ||
+        error?.code === "LEDGER_INCONSISTENT" ||
+        error?.message?.includes("LEDGER_CORRUPT")
+      ) {
+        return {
+          finalized: false,
+          status: "blocked",
+          reason: "LEDGER_CORRUPT",
+          message: "Cannot finalize: delivery ledger is corrupt and cannot be safely recovered.",
+        };
+      }
+      throw error;
+    }
     const supersededFailures = repairResolution.supersededFailures || [];
     const failedRepairs = repairResolution.failedRepairs || [];
     const invalidRepairs = repairResolution.invalidRepairs || [];

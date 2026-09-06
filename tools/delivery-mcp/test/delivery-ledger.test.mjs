@@ -19,6 +19,10 @@ import {
   saveRepairAuthorization,
   determineRepairCommitState,
   authorizeRepairPush,
+  listCommitEvidence,
+  rebuildLedgerFromIndividualRecords,
+  getLedgerState,
+  LEDGER_STATES,
   LEDGER_DIR,
   LEDGER_FILE,
 } from "../lib/delivery-ledger.mjs";
@@ -1018,5 +1022,260 @@ test("authorizeRepairPush: reintento del mismo SHA es permitido y cuenta intento
   assert.strictEqual(res2.authorized, true);
   assert.strictEqual(res2.authorization.attemptCount, 2);
   assert.strictEqual(res2.state, "submitted");
+});
+
+test("listCommitEvidence y getLedgerState: ledger no inicializado (ENOENT) devuelve [] y LEDGER_NOT_INITIALIZED", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.rm(path.join(repoRoot, LEDGER_FILE), { force: true });
+  await fs.rm(path.join(repoRoot, LEDGER_DIR), { recursive: true, force: true });
+
+  const entries = await listCommitEvidence({ repoRoot });
+  assert.deepStrictEqual(entries, []);
+
+  const ledgerState = await getLedgerState({ repoRoot });
+  assert.strictEqual(ledgerState.state, LEDGER_STATES.LEDGER_NOT_INITIALIZED);
+});
+
+test("listCommitEvidence y getLedgerState: ledger realmente vacío devuelve [] y EMPTY_LEDGER", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.mkdir(path.join(repoRoot, path.dirname(LEDGER_FILE)), { recursive: true });
+  await fs.writeFile(path.join(repoRoot, LEDGER_FILE), "{}\n", "utf8");
+  await fs.rm(path.join(repoRoot, LEDGER_DIR), { recursive: true, force: true });
+
+  const entries = await listCommitEvidence({ repoRoot });
+  assert.deepStrictEqual(entries, []);
+
+  const ledgerState = await getLedgerState({ repoRoot });
+  assert.strictEqual(ledgerState.state, LEDGER_STATES.EMPTY_LEDGER);
+});
+
+test("listCommitEvidence: reconstruye exitosamente cuando el consolidado fue eliminado pero existen entradas individuales válidas", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.writeFile(path.join(repoRoot, "test1.txt"), "1", "utf8");
+  execFileSync("git", ["add", "test1.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "docs: test commit 1"], { cwd: repoRoot });
+  const sha1 = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  const identity1 = getCommitIdentity(repoRoot, sha1);
+  const mock1 = await createMockEvidenceRecord(repoRoot, sha1, "A");
+
+  await recordCommitEvidence({
+    repoRoot,
+    commitSha: sha1,
+    verificationStatus: "passed",
+    snapshotHash: mock1.snapshotHash,
+    runKey: mock1.runKey,
+    recordPath: mock1.recordPath,
+    recordDigest: mock1.recordDigest,
+    branch: "main",
+    parentSha: identity1.parents[0] || null,
+    treeSha: identity1.treeSha,
+    stagedFiles: ["test1.txt"],
+    gateId: "A",
+    policyHash: mock1.policyHash,
+  });
+
+  // Eliminar LEDGER_FILE
+  await fs.rm(path.join(repoRoot, LEDGER_FILE));
+
+  // listCommitEvidence debe reconstruir atómicamente y devolver las entradas
+  const entries = await listCommitEvidence({ repoRoot });
+  assert.strictEqual(entries.length, 1);
+  assert.strictEqual(entries[0].commitSha, sha1);
+
+  // LEDGER_FILE debe existir nuevamente y ser válido
+  const rawRebuilt = await fs.readFile(path.join(repoRoot, LEDGER_FILE), "utf8");
+  const parsed = JSON.parse(rawRebuilt);
+  assert.ok(parsed[sha1]);
+  assert.strictEqual(parsed[sha1].commitSha, sha1);
+
+  const state = await getLedgerState({ repoRoot });
+  assert.strictEqual(state.state, LEDGER_STATES.VALID_LEDGER);
+});
+
+test("listCommitEvidence: reconstruye exitosamente cuando el consolidado tiene JSON corrupto pero existen entradas individuales válidas", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.writeFile(path.join(repoRoot, "test2.txt"), "2", "utf8");
+  execFileSync("git", ["add", "test2.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "docs: test commit 2"], { cwd: repoRoot });
+  const sha2 = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  const identity2 = getCommitIdentity(repoRoot, sha2);
+  const mock2 = await createMockEvidenceRecord(repoRoot, sha2, "A");
+
+  await recordCommitEvidence({
+    repoRoot,
+    commitSha: sha2,
+    verificationStatus: "passed",
+    snapshotHash: mock2.snapshotHash,
+    runKey: mock2.runKey,
+    recordPath: mock2.recordPath,
+    recordDigest: mock2.recordDigest,
+    branch: "main",
+    parentSha: identity2.parents[0] || null,
+    treeSha: identity2.treeSha,
+    stagedFiles: ["test2.txt"],
+    gateId: "A",
+    policyHash: mock2.policyHash,
+  });
+
+  // Corromper LEDGER_FILE con JSON inválido
+  await fs.writeFile(path.join(repoRoot, LEDGER_FILE), "{\n  corrupt json here", "utf8");
+
+  // Debe reconstruir
+  const entries = await listCommitEvidence({ repoRoot });
+  assert.strictEqual(entries.length, 1);
+  assert.strictEqual(entries[0].commitSha, sha2);
+
+  const state = await getLedgerState({ repoRoot });
+  assert.strictEqual(state.state, LEDGER_STATES.VALID_LEDGER);
+});
+
+test("listCommitEvidence: lanza LEDGER_CORRUPT si el consolidado está corrupto y no existen entradas individuales", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.mkdir(path.join(repoRoot, path.dirname(LEDGER_FILE)), { recursive: true });
+  await fs.writeFile(path.join(repoRoot, LEDGER_FILE), "{invalid-json", "utf8");
+  await fs.rm(path.join(repoRoot, LEDGER_DIR), { recursive: true, force: true });
+
+  await assert.rejects(
+    async () => await listCommitEvidence({ repoRoot }),
+    (err) => {
+      assert.strictEqual(err.code, "LEDGER_CORRUPT");
+      return true;
+    }
+  );
+});
+
+test("listCommitEvidence: lanza LEDGER_CORRUPT si el consolidado está corrupto y una entrada individual tiene JSON inválido", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const fakeSha = "1234567890abcdef1234567890abcdef12345678";
+  await fs.mkdir(path.join(repoRoot, LEDGER_DIR), { recursive: true });
+  await fs.writeFile(path.join(repoRoot, LEDGER_DIR, `${fakeSha}.json`), "broken json content", "utf8");
+  await fs.writeFile(path.join(repoRoot, LEDGER_FILE), "{corrupt", "utf8");
+
+  await assert.rejects(
+    async () => await listCommitEvidence({ repoRoot }),
+    (err) => {
+      assert.strictEqual(err.code, "LEDGER_CORRUPT");
+      return true;
+    }
+  );
+});
+
+test("rebuildLedgerFromIndividualRecords: lanza LEDGER_CORRUPT si una entrada individual tiene digest inválido", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.writeFile(path.join(repoRoot, "test3.txt"), "3", "utf8");
+  execFileSync("git", ["add", "test3.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "docs: test commit 3"], { cwd: repoRoot });
+  const sha3 = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  const identity3 = getCommitIdentity(repoRoot, sha3);
+  const mock3 = await createMockEvidenceRecord(repoRoot, sha3, "A");
+
+  await recordCommitEvidence({
+    repoRoot,
+    commitSha: sha3,
+    verificationStatus: "passed",
+    snapshotHash: mock3.snapshotHash,
+    runKey: mock3.runKey,
+    recordPath: mock3.recordPath,
+    recordDigest: mock3.recordDigest,
+    branch: "main",
+    parentSha: identity3.parents[0] || null,
+    treeSha: identity3.treeSha,
+    stagedFiles: ["test3.txt"],
+    gateId: "A",
+    policyHash: mock3.policyHash,
+  });
+
+  // Alterar el archivo de record en el disco para que no coincida con recordDigest
+  await fs.appendFile(path.join(repoRoot, mock3.recordPath), "\n// tampered content");
+
+  await assert.rejects(
+    async () => await rebuildLedgerFromIndividualRecords({ repoRoot }),
+    (err) => {
+      assert.strictEqual(err.code, "LEDGER_CORRUPT");
+      return true;
+    }
+  );
+});
+
+test("getLedgerState: detecta LEDGER_INCONSISTENT ante divergencia entre consolidado e individuales", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.writeFile(path.join(repoRoot, "test4.txt"), "4", "utf8");
+  execFileSync("git", ["add", "test4.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "docs: test commit 4"], { cwd: repoRoot });
+  const sha4 = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  const identity4 = getCommitIdentity(repoRoot, sha4);
+  const mock4 = await createMockEvidenceRecord(repoRoot, sha4, "A");
+
+  await recordCommitEvidence({
+    repoRoot,
+    commitSha: sha4,
+    verificationStatus: "passed",
+    snapshotHash: mock4.snapshotHash,
+    runKey: mock4.runKey,
+    recordPath: mock4.recordPath,
+    recordDigest: mock4.recordDigest,
+    branch: "main",
+    parentSha: identity4.parents[0] || null,
+    treeSha: identity4.treeSha,
+    stagedFiles: ["test4.txt"],
+    gateId: "A",
+    policyHash: mock4.policyHash,
+  });
+
+  // Alterar el archivo individual cambiando el status a not_run, creando inconsistencia con consolidado
+  const indPath = path.join(repoRoot, LEDGER_DIR, `${sha4}.json`);
+  const indContent = JSON.parse(await fs.readFile(indPath, "utf8"));
+  indContent.status = "not_run";
+  indContent.verificationStatus = "not_run";
+  indContent.notRunReason = "DIVERGENT";
+  await fs.writeFile(indPath, JSON.stringify(indContent, null, 2), "utf8");
+
+  const state = await getLedgerState({ repoRoot });
+  assert.strictEqual(state.state, LEDGER_STATES.LEDGER_INCONSISTENT);
+  assert.strictEqual(state.reason, "ENTRY_MISMATCH");
+});
+
+test("rebuildLedgerFromIndividualRecords: reconstrucción concurrente segura mediante writeJsonAtomic", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.writeFile(path.join(repoRoot, "test5.txt"), "5", "utf8");
+  execFileSync("git", ["add", "test5.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "docs: test commit 5"], { cwd: repoRoot });
+  const sha5 = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  const identity5 = getCommitIdentity(repoRoot, sha5);
+  const mock5 = await createMockEvidenceRecord(repoRoot, sha5, "A");
+
+  await recordCommitEvidence({
+    repoRoot,
+    commitSha: sha5,
+    verificationStatus: "passed",
+    snapshotHash: mock5.snapshotHash,
+    runKey: mock5.runKey,
+    recordPath: mock5.recordPath,
+    recordDigest: mock5.recordDigest,
+    branch: "main",
+    parentSha: identity5.parents[0] || null,
+    treeSha: identity5.treeSha,
+    stagedFiles: ["test5.txt"],
+    gateId: "A",
+    policyHash: mock5.policyHash,
+  });
+
+  // Corromper el archivo consolidado
+  await fs.writeFile(path.join(repoRoot, LEDGER_FILE), "{invalid", "utf8");
+
+  // Reconstrucciones concurrentes
+  const results = await Promise.all([
+    rebuildLedgerFromIndividualRecords({ repoRoot }),
+    rebuildLedgerFromIndividualRecords({ repoRoot }),
+    rebuildLedgerFromIndividualRecords({ repoRoot }),
+  ]);
+
+  for (const res of results) {
+    assert.strictEqual(res.length, 1);
+    assert.strictEqual(res[0].commitSha, sha5);
+  }
+
+  const finalState = await getLedgerState({ repoRoot });
+  assert.strictEqual(finalState.state, LEDGER_STATES.VALID_LEDGER);
 });
 

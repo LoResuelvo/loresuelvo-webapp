@@ -1569,3 +1569,32 @@ test("finalizeDelivery (waitForCi): compact diagnostic asegura resumen limpio si
   const jsonSize = Buffer.byteLength(JSON.stringify(res.ci), "utf8");
   assert.ok(jsonSize < 1000, `El JSON de CI debe ser compacto (< 1000 bytes, obtenido: ${jsonSize})`);
 });
+
+test("finalizeDelivery: bloquea fail-closed con LEDGER_CORRUPT si el ledger está corrupto irreparablemente", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us46.feature";
+  await fs.mkdir(path.join(repoRoot, "features"), { recursive: true });
+  await fs.writeFile(path.join(repoRoot, featurePath), "Feature: US46\n  Scenario: S1\n    Given ok\n", "utf8");
+  execFileSync("git", ["add", featurePath], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "chore[46]: setup feature"], { cwd: repoRoot });
+
+  // Corromper el ledger consolidado y eliminar directorio individual
+  await fs.mkdir(path.join(repoRoot, ".delivery/runtime"), { recursive: true });
+  await fs.writeFile(path.join(repoRoot, ".delivery/runtime/ledger.json"), "{invalid-json", "utf8");
+  await fs.rm(path.join(repoRoot, ".delivery/runtime/ledger"), { recursive: true, force: true });
+
+  const res = await finalizeDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "46",
+    scopeFiles: [featurePath],
+  });
+
+  assert.strictEqual(res.finalized, false);
+  assert.strictEqual(res.status, "blocked");
+  assert.strictEqual(res.reason, "LEDGER_CORRUPT");
+  assert.strictEqual(
+    res.message,
+    "Cannot finalize: delivery ledger is corrupt and cannot be safely recovered."
+  );
+});

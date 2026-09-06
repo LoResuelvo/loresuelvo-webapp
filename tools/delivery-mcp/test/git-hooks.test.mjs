@@ -1604,3 +1604,39 @@ test("paridad entre pre-push y finalizeDelivery en el rechazo de relaciones inv�
   assert.strictEqual(finalizeRes.invalidRepairs.length, 1);
   assert.strictEqual(finalizeRes.invalidRepairs[0].reason, pushRes.reason);
 });
+
+test("runPrePushHook: bloquea fail-closed con LEDGER_CORRUPT si el ledger está corrupto irreparablemente", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  // Crear un commit válido
+  await fs.writeFile(path.join(repoRoot, "file1.txt"), "hello", "utf8");
+  execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
+  const prep = await prepareDelivery({ repoRoot, usId: "42" });
+  assert.strictEqual(prep.status, "passed");
+  execFileSync("git", ["commit", "-m", "chore[42]: valid commit"], { cwd: repoRoot });
+  const post = await runPostCommitHook({ repoRoot });
+  assert.strictEqual(post.recorded, true);
+
+  // Corromper irreparablemente el ledger
+  await fs.writeFile(path.join(repoRoot, ".delivery/runtime/ledger.json"), "{corrupt-json", "utf8");
+  await fs.rm(path.join(repoRoot, ".delivery/runtime/ledger"), { recursive: true, force: true });
+
+  const parentSha = execFileSync("git", ["rev-parse", "HEAD~1"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  const pushLine = `refs/heads/main ${post.commitSha} refs/heads/main ${parentSha}`;
+  const pushRes = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine],
+  });
+
+  assert.strictEqual(pushRes.passed, false);
+  assert.strictEqual(pushRes.reason, "LEDGER_CORRUPT");
+  assert.strictEqual(
+    pushRes.message,
+    "Pre-push blocked: delivery ledger is corrupt and cannot be safely recovered."
+  );
+});

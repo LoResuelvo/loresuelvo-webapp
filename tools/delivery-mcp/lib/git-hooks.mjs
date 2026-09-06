@@ -421,6 +421,23 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
     };
   }
 
+  try {
+    await listCommitEvidence({ repoRoot: root });
+  } catch (error) {
+    if (
+      error?.code === "LEDGER_CORRUPT" ||
+      error?.code === "LEDGER_INCONSISTENT" ||
+      error?.message?.includes("LEDGER_CORRUPT")
+    ) {
+      return {
+        passed: false,
+        reason: "LEDGER_CORRUPT",
+        message: "Pre-push blocked: delivery ledger is corrupt and cannot be safely recovered.",
+      };
+    }
+    throw error;
+  }
+
   for (const line of stdinLines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
@@ -513,8 +530,19 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
       const currentSet = new Set(commits);
       const entries = await listCommitEvidence({ repoRoot: root });
       priorShas = entries.map((entry) => entry.commitSha).filter((s) => !currentSet.has(s));
-    } catch {
-      priorShas = [];
+    } catch (error) {
+      if (
+        error?.code === "LEDGER_CORRUPT" ||
+        error?.code === "LEDGER_INCONSISTENT" ||
+        error?.message?.includes("LEDGER_CORRUPT")
+      ) {
+        return {
+          passed: false,
+          reason: "LEDGER_CORRUPT",
+          message: "Pre-push blocked: delivery ledger is corrupt and cannot be safely recovered.",
+        };
+      }
+      throw error;
     }
 
     // Inspect one commit beyond the allowed window so an already-overflowed
@@ -526,7 +554,18 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
     try {
       const repairResolution = await resolveRepairChain({ repoRoot: root, ciProvider });
       supersededSet = new Set((repairResolution.supersededFailures || []).map((s) => s.toLowerCase()));
-    } catch {
+    } catch (error) {
+      if (
+        error?.code === "LEDGER_CORRUPT" ||
+        error?.code === "LEDGER_INCONSISTENT" ||
+        error?.message?.includes("LEDGER_CORRUPT")
+      ) {
+        return {
+          passed: false,
+          reason: "LEDGER_CORRUPT",
+          message: "Pre-push blocked: delivery ledger is corrupt and cannot be safely recovered.",
+        };
+      }
       supersededSet = new Set();
     }
 
@@ -573,13 +612,29 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
             };
           }
 
-          const targetValidation = await validateRepairLineage({
-            repoRoot: root,
-            repairSha: localSha,
-            targetSha: priorSha,
-            ciProvider,
-            supersededSet,
-          });
+          let targetValidation;
+          try {
+            targetValidation = await validateRepairLineage({
+              repoRoot: root,
+              repairSha: localSha,
+              targetSha: priorSha,
+              ciProvider,
+              supersededSet,
+            });
+          } catch (error) {
+            if (
+              error?.code === "LEDGER_CORRUPT" ||
+              error?.code === "LEDGER_INCONSISTENT" ||
+              error?.message?.includes("LEDGER_CORRUPT")
+            ) {
+              return {
+                passed: false,
+                reason: "LEDGER_CORRUPT",
+                message: "Pre-push blocked: delivery ledger is corrupt and cannot be safely recovered.",
+              };
+            }
+            throw error;
+          }
           if (!targetValidation.valid) {
             return {
               passed: false,

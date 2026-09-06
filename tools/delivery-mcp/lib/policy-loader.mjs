@@ -6,12 +6,13 @@ import { validateAgainstSchema } from "./validate-schema.mjs";
 
 export const DELIVERY_POLICY_PATH = ".delivery/policy.v1.json";
 
-const REQUIRED_GATES = ["NONE", "0", "A", "B", "C", "D"];
+const REQUIRED_GATES = ["NONE", "0", "A", "B", "C", "D", "R"];
 export const SAFE_COMMANDS = new Set([
   JSON.stringify(["make", "test-e2e-steps-compatible"]),
   JSON.stringify(["npm", "run", "test"]),
   JSON.stringify(["npm", "run", "delivery:test"]),
   JSON.stringify(["npm", "run", "lint"]),
+  JSON.stringify(["npm", "run", "build"]),
   JSON.stringify(["npx", "--no-install", "tsc", "--noEmit"]),
   JSON.stringify(["npx", "--no-install", "tsc", "--project", "tsconfig.cucumber.json", "--noEmit"]),
   JSON.stringify(["make", "test-e2e-managed"]),

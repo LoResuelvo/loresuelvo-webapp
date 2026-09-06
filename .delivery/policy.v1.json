@@ -190,6 +190,14 @@
       "handler": "no_wip_in_scope",
       "display": "verify no @wip tags in completed feature scope",
       "requires": ["scopeFeatures"]
+    },
+    "build": {
+      "kind": "command",
+      "label": "Next.js build",
+      "command": "npm",
+      "args": ["run", "build"],
+      "display": "npm run build",
+      "timeoutMs": 300000
     }
   },
   "gates": {
@@ -233,6 +241,13 @@
       "description": "Batch or User Story closure full regression",
       "priority": 5,
       "checkIds": ["no_wip_in_scope", "lint", "typecheck_app", "typecheck_cucumber", "unit", "e2e_full"],
+      "postPushChecks": ["ci_green"]
+    },
+    "R": {
+      "id": "R",
+      "description": "Exhaustive local reproduction of CI pipeline checks for single-use repair",
+      "priority": 6,
+      "checkIds": ["delivery_unit", "lint", "typecheck_app", "typecheck_cucumber", "unit", "e2e_full", "build"],
       "postPushChecks": ["ci_green"]
     }
   }

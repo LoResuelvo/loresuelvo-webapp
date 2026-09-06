@@ -15,6 +15,7 @@ import {
   listCommitEvidence,
   verifyPreparedEvidence,
   queryCommitEvidence,
+  markRepairPushConsumed,
 } from "./delivery-ledger.mjs";
 import { inspectCi } from "./ci-provider.mjs";
 import { loadDeliveryPolicy } from "./policy-loader.mjs";
@@ -453,8 +454,10 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
       };
     }
 
+    let localEvidence = null;
     for (const sha of commits) {
       const evidence = await queryCommitEvidence({ repoRoot: root, commitSha: sha });
+      localEvidence = evidence;
 
       if (evidence.state === "corrupt") {
         return {
@@ -528,6 +531,36 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
       }
 
       if (["failed", "timed_out", "cancelled"].includes(ci.status)) {
+        const localEntry = localEvidence?.entry;
+        const normalizedPrior = priorSha.toLowerCase();
+        const normalizedRepairs = localEntry?.repairsSha ? String(localEntry.repairsSha).toLowerCase() : "";
+        const shaMatches =
+          Boolean(normalizedRepairs) &&
+          (normalizedRepairs === normalizedPrior ||
+            normalizedPrior.startsWith(normalizedRepairs) ||
+            normalizedRepairs.startsWith(normalizedPrior));
+
+        const isValidRepair =
+          localEvidence?.valid &&
+          localEvidence?.state === "verified" &&
+          localEntry?.intent === "repair_ci" &&
+          localEntry?.gateId === "R" &&
+          shaMatches;
+
+        if (isValidRepair) {
+          if (localEntry.repairPushConsumed) {
+            return {
+              passed: false,
+              reason: "REPAIR_RECEIPT_ALREADY_CONSUMED",
+              message: `Pre-push blocked: repair authorization for commit ${priorSha.slice(0, 8)} has already been consumed for a push.`,
+              sha: localSha,
+            };
+          }
+          await markRepairPushConsumed({ repoRoot: root, commitSha: localSha });
+          localEntry.repairPushConsumed = true;
+          continue;
+        }
+
         return {
           passed: false,
           reason: "PRIOR_COMMIT_CI_FAILED",

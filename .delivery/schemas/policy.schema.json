@@ -115,14 +115,14 @@
     "gates": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["NONE", "0", "A", "B", "C", "D"],
+      "required": ["NONE", "0", "A", "B", "C", "D", "R"],
       "patternProperties": {
-        "^(NONE|0|A|B|C|D)$": {
+        "^(NONE|0|A|B|C|D|R)$": {
           "type": "object",
           "additionalProperties": false,
           "required": ["id", "description", "priority", "checkIds", "postPushChecks"],
           "properties": {
-            "id": { "type": "string", "enum": ["NONE", "0", "A", "B", "C", "D"] },
+            "id": { "type": "string", "enum": ["NONE", "0", "A", "B", "C", "D", "R"] },
             "description": { "type": "string", "minLength": 1 },
             "priority": { "type": "integer", "minimum": 0 },
             "checkIds": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },

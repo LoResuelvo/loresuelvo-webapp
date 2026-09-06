@@ -41,10 +41,11 @@ function usage() {
   npm run delivery:hooks:status
 
 Options for delivery:inspect / delivery:prepare:
-  --intent <prepare_commit|close_scenario|close_batch|close_us>
+  --intent <prepare_commit|close_scenario|close_batch|close_us|repair_ci>
   --message <commit message>
   --feature <features/...feature>
   --scenario <scenario name>
+  --repairs-sha <commit-sha>                     Failed commit SHA required when intent is repair_ci
   --scope <features/...feature>                  Repeat for a batch or US scope
   --acknowledge-snapshot <sha256>                Required to accept maintainability signals
   --acknowledge-decision <signalId>=<reason>     Per-signal decision (repeatable)
@@ -55,9 +56,10 @@ Options for delivery:inspect / delivery:prepare:
   --help
 
 Options for delivery:context:
-  --intent <close_scenario|close_batch|close_us|prepare_commit>
+  --intent <close_scenario|close_batch|close_us|prepare_commit|repair_ci>
   --feature <features/...feature>
   --scenario <scenario name>
+  --repairs-sha <commit-sha>
   --scope-files <comma-separated feature files>
   --scope <feature file>                         (repeatable)
   --us-id <US-XX>
@@ -68,6 +70,7 @@ Options for delivery:context:
 Options for delivery:finalize:
   --intent <close_us|close_batch>
   --us-id <US-XX>
+  --repairs-sha <commit-sha>
   --scope <features/...feature>                  Repeat for the completed scope`;
 }
 
@@ -134,6 +137,7 @@ function parseArguments(argv) {
     else if (option === "--scenario") input.scenarioName = value;
     else if (option === "--us-id") input.usId = value;
     else if (option === "--sha") input.sha = value;
+    else if (option === "--repairs-sha") input.repairsSha = value;
     else if (option === "--scope") input.scopeFiles.push(value);
     else if (option === "--scope-files") {
       const files = value.split(",").map((f) => f.trim()).filter(Boolean);

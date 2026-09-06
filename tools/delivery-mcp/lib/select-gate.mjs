@@ -139,6 +139,7 @@ export function selectGate({
   intent = "prepare_commit",
   featureFile = "",
   scopeFiles = [],
+  repairsSha = "",
   snapshot,
   policy,
   maintainability = { status: "not_applicable", signalCount: 0, signals: [] },
@@ -159,7 +160,17 @@ export function selectGate({
   let gate;
 
   const closesHighRiskScenario = intent === "close_scenario" && classified.hasGateCTrigger;
-  if (intent === "close_batch" || intent === "close_us" || closesHighRiskScenario) {
+  if (intent === "repair_ci") {
+    gate = buildGate(policy, "R", ["INTENT_REPAIR_CI"]);
+    if (!repairsSha) {
+      if (status !== "blocked") status = "needs_input";
+      pushDiagnostic(
+        diagnostics,
+        "MISSING_REPAIRS_SHA",
+        "intent 'repair_ci' requires repairsSha to be specified"
+      );
+    }
+  } else if (intent === "close_batch" || intent === "close_us" || closesHighRiskScenario) {
     const scopeFeatures = resolveFeatureScope({ featureFile, scopeFiles, snapshot });
     const reasonCode = closesHighRiskScenario
       ? "INTENT_CLOSE_HIGH_RISK_SCENARIO"

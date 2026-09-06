@@ -249,6 +249,8 @@ export async function recordCommitEvidence({
   supersedes = [],
   repairStatus = null,
   repairedFailure = null,
+  repairPushConsumed = false,
+  repairPushConsumedAt = null,
 } = {}) {
   const root = findRepoRoot(repoRoot);
   const cleanSha = assertCommitSha(commitSha);
@@ -287,6 +289,8 @@ export async function recordCommitEvidence({
           supersedes: [],
           repairStatus: null,
           repairedFailure: null,
+          repairPushConsumed: false,
+          repairPushConsumedAt: null,
         }
       : {
           notRunReason: null,
@@ -309,6 +313,8 @@ export async function recordCommitEvidence({
           supersedes: Array.isArray(supersedes) ? supersedes : [],
           repairStatus: repairStatus || null,
           repairedFailure: repairedFailure || null,
+          repairPushConsumed: Boolean(repairPushConsumed),
+          repairPushConsumedAt: repairPushConsumedAt || null,
           recordedAt: new Date().toISOString(),
         }),
   };
@@ -325,6 +331,27 @@ export async function recordCommitEvidence({
   ledgerMap[cleanSha] = entry;
   await writeJsonAtomic(root, LEDGER_FILE, ledgerMap);
 
+  return entry;
+}
+
+export async function markRepairPushConsumed({ repoRoot, commitSha } = {}) {
+  const root = findRepoRoot(repoRoot);
+  const cleanSha = assertCommitSha(commitSha);
+  const entry = await getCommitEvidence({ repoRoot: root, commitSha: cleanSha });
+  if (!entry) return null;
+  entry.repairPushConsumed = true;
+  entry.repairPushConsumedAt = new Date().toISOString();
+  await writeJsonAtomic(root, path.join(LEDGER_DIR, `${cleanSha}.json`), entry);
+
+  const absLedgerFile = path.resolve(root, LEDGER_FILE);
+  let ledgerMap = {};
+  try {
+    ledgerMap = JSON.parse(await fs.readFile(absLedgerFile, "utf8"));
+  } catch {
+    ledgerMap = {};
+  }
+  ledgerMap[cleanSha] = entry;
+  await writeJsonAtomic(root, LEDGER_FILE, ledgerMap);
   return entry;
 }
 

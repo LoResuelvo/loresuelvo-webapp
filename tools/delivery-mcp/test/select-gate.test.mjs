@@ -354,3 +354,36 @@ test("selectGate: diff > 2MB o > 500 archivos -> blocked", () => {
   assert.strictEqual(countResult.status, "blocked");
   assert.ok(countResult.diagnostics.some((d) => d.code === "TOO_MANY_FILES"));
 });
+
+test("selectGate: intent repair_ci con repairsSha -> Gate R", () => {
+  const result = selectGate({
+    intent: "repair_ci",
+    repairsSha: "1234567890abcdef",
+    snapshot: { stagedFiles: ["lib/routes.ts"] },
+  });
+
+  assert.strictEqual(result.gate.id, "R");
+  assert.strictEqual(result.status, "ready");
+  assert.deepStrictEqual(result.gate.reasonCodes, ["INTENT_REPAIR_CI"]);
+  assert.deepStrictEqual(result.gate.checkIds, [
+    "delivery_unit",
+    "lint",
+    "typecheck_app",
+    "typecheck_cucumber",
+    "unit",
+    "e2e_full",
+    "build",
+  ]);
+  assert.deepStrictEqual(result.gate.postPushChecks, ["ci_green"]);
+});
+
+test("selectGate: intent repair_ci sin repairsSha -> Gate R y diagnostic MISSING_REPAIRS_SHA", () => {
+  const result = selectGate({
+    intent: "repair_ci",
+    snapshot: { stagedFiles: ["lib/routes.ts"] },
+  });
+
+  assert.strictEqual(result.gate.id, "R");
+  assert.strictEqual(result.status, "needs_input");
+  assert.ok(result.diagnostics.some((d) => d.code === "MISSING_REPAIRS_SHA"));
+});

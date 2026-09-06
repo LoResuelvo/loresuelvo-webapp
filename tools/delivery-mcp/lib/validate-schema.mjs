@@ -5,14 +5,22 @@ import { findRepoRoot } from "./repo-root.mjs";
 const schemaCache = new Map();
 
 function loadSchema(repoRoot, schemaFileName) {
-  const cacheKey = `${path.resolve(repoRoot)}:${schemaFileName}`;
-  const cached = schemaCache.get(cacheKey);
-  if (cached) return cached;
   const absolutePath = path.resolve(repoRoot, ".delivery", "schemas", schemaFileName);
-  const content = fs.readFileSync(absolutePath, "utf8");
-  const parsed = JSON.parse(content);
-  schemaCache.set(cacheKey, parsed);
-  return parsed;
+  const cacheKey = `${path.resolve(repoRoot)}:${schemaFileName}`;
+  try {
+    const stat = fs.statSync(absolutePath);
+    const cached = schemaCache.get(cacheKey);
+    if (cached && cached.mtimeMs === stat.mtimeMs) return cached.parsed;
+    const content = fs.readFileSync(absolutePath, "utf8");
+    const parsed = JSON.parse(content);
+    schemaCache.set(cacheKey, { mtimeMs: stat.mtimeMs, parsed });
+    return parsed;
+  } catch {
+    const content = fs.readFileSync(absolutePath, "utf8");
+    const parsed = JSON.parse(content);
+    schemaCache.set(cacheKey, { mtimeMs: 0, parsed });
+    return parsed;
+  }
 }
 
 function checkType(value, expectedType) {

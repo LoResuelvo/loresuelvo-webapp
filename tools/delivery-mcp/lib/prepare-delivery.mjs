@@ -157,10 +157,19 @@ export async function prepareDelivery({
   repoRoot,
   acknowledgement,
   force = false,
+  ciProvider = null,
+  provider = null,
+  executeCheck = null,
   ...inspectionInput
 } = {}) {
   const root = findRepoRoot(repoRoot);
-  const context = await inspectDelivery({ repoRoot: root, ...inspectionInput });
+  const effectiveProvider = provider || ciProvider || null;
+  const context = await inspectDelivery({
+    repoRoot: root,
+    ciProvider: effectiveProvider,
+    provider: effectiveProvider,
+    ...inspectionInput,
+  });
   const { result: inspection, snapshot, policy, resolvedInput } = context;
 
   if (inspection.status === "no_changes") {
@@ -193,6 +202,7 @@ export async function prepareDelivery({
     repoRoot: root,
     review: review.review,
     force,
+    ...(executeCheck ? { executeCheck } : {}),
   });
 
   if (outcome.status === "passed" && resolvedInput.intent !== "prepare_commit") {
@@ -221,6 +231,7 @@ export async function prepareDelivery({
     status: outcome.status,
     recordPath: outcome.evidence?.recordPath,
     repairsSha: resolvedInput.repairsSha,
+    repairStatus: resolvedInput.intent === "repair_ci" ? "unverified" : null,
   });
 
   return outcome;

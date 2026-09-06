@@ -9,7 +9,8 @@ export class ApiUserRepository implements UserRepository {
   async registerProvider(
     data: RegisterUserData,
     categoryId: number,
-    profilePhotoId?: string
+    profilePhotoId?: string,
+    coverageZoneIds?: number[]
   ): Promise<{ profilePhotoUrl?: string }> {
     const res = await api.post<{ profile_photo_url?: string }>("/providers", {
       email: data.email,
@@ -17,7 +18,7 @@ export class ApiUserRepository implements UserRepository {
       surname: data.surname,
       category_id: categoryId,
       profile_photo_file_id: profilePhotoId,
-      coverage_zone_ids: [1], // Mock temporal
+      coverage_zone_ids: coverageZoneIds || [],
     });
     return { profilePhotoUrl: res.profile_photo_url };
   }

@@ -14,10 +14,18 @@ export async function submitRegistration(formData: FormData) {
   let categoryId: number | undefined = undefined;
   let profilePhotoId: string | undefined = undefined;
   let profilePhotoUrl: string | undefined = undefined;
+  let coverageZoneIds: number[] | undefined = undefined;
 
   if (role === "provider") {
     const rawCategoryId = formData.get("categoryId") as string;
     categoryId = rawCategoryId ? parseInt(rawCategoryId, 10) : 0;
+    const rawZoneIds = formData.getAll("coverageZoneIds");
+    const rawZones = rawZoneIds.length > 0 ? rawZoneIds : formData.getAll("coverageZones");
+    if (rawZones.length > 0) {
+      coverageZoneIds = rawZones
+        .map((z) => parseInt(z.toString(), 10))
+        .filter((id) => !isNaN(id));
+    }
   }
 
   profilePhotoId = (formData.get("profilePhotoId") as string) || undefined;
@@ -33,6 +41,7 @@ export async function submitRegistration(formData: FormData) {
     categoryId,
     profilePhotoId,
     profilePhotoUrl,
+    coverageZoneIds,
   });
 }
 

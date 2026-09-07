@@ -12,6 +12,7 @@ import { AvatarUploader } from "./AvatarUploader";
 import { useCoverageZones } from "./useCoverageZones";
 import { t } from "@/infrastructure/i18n/translations";
 import { validateProfileForm, validateProfilePhoto, ValidationErrors } from "@/domain/onboarding/validation";
+import { ProfileAddressFields } from "./ProfileAddressFields";
 import { cn } from "@/lib/utils";
 
 interface ProfileFormStepProps {
@@ -126,6 +127,8 @@ function useProfileFormValidation() {
   return {
     firstNameError: errors.firstName || null,
     lastNameError: errors.lastName || null,
+    streetError: errors.street || null,
+    streetNumberError: errors.streetNumber || null,
     categoryError: errors.categoryId || null,
     profilePhotoError: errors.profilePhoto || null,
     coverageZonesError: errors.coverageZones || null,
@@ -177,13 +180,7 @@ function ProfileProviderFields({
 }
 
 export function ProfileFormStep({
-  onBack,
-  onSubmit,
-  isLoading,
-  error,
-  role,
-  categories,
-  className,
+  onBack, onSubmit, isLoading, error, role, categories, className,
 }: ProfileFormStepProps) {
   const validation = useProfileFormValidation();
   const coverage = useCoverageZones(role);
@@ -215,6 +212,14 @@ export function ProfileFormStep({
           onClearFirstName={() => validation.clearFieldError("firstName")}
           onClearLastName={() => validation.clearFieldError("lastName")}
         />
+        {role === "consumer" && (
+          <ProfileAddressFields
+            streetError={validation.streetError}
+            streetNumberError={validation.streetNumberError}
+            onClearStreet={() => validation.clearFieldError("street")}
+            onClearStreetNumber={() => validation.clearFieldError("streetNumber")}
+          />
+        )}
         {role === "provider" && (
           <ProfileProviderFields
             categories={categories}

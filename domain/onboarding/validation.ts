@@ -7,6 +7,8 @@ export interface ValidationErrors {
   categoryId?: string;
   profilePhoto?: string;
   coverageZones?: string;
+  street?: string;
+  streetNumber?: string;
 }
 
 export interface ProfileFormMessages {

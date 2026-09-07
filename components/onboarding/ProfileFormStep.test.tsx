@@ -148,5 +148,55 @@ describe("ProfileFormStep", () => {
 
     expect(mockOnSubmit).not.toHaveBeenCalled();
   });
+
+  it("renders address fields for consumer role with required and optional attributes", () => {
+    render(
+      <ProfileFormStep
+        onBack={mockOnBack}
+        onSubmit={mockOnSubmit}
+        isLoading={false}
+        error={null}
+        role="consumer"
+        categories={[]}
+      />
+    );
+
+    const streetInput = screen.getByLabelText(t.onboarding.profileForm.street);
+    const streetNumberInput = screen.getByLabelText(t.onboarding.profileForm.streetNumber);
+    const floorInput = screen.getByLabelText(t.onboarding.profileForm.floor);
+    const apartmentInput = screen.getByLabelText(t.onboarding.profileForm.apartment);
+
+    expect(streetInput).toBeInTheDocument();
+    expect(streetInput).toBeRequired();
+    expect(streetInput).toHaveAttribute("aria-required", "true");
+
+    expect(streetNumberInput).toBeInTheDocument();
+    expect(streetNumberInput).toBeRequired();
+    expect(streetNumberInput).toHaveAttribute("aria-required", "true");
+
+    expect(floorInput).toBeInTheDocument();
+    expect(floorInput).not.toBeRequired();
+
+    expect(apartmentInput).toBeInTheDocument();
+    expect(apartmentInput).not.toBeRequired();
+  });
+
+  it("does not render address fields when role is provider", () => {
+    render(
+      <ProfileFormStep
+        onBack={mockOnBack}
+        onSubmit={mockOnSubmit}
+        isLoading={false}
+        error={null}
+        role="provider"
+        categories={mockCategories}
+      />
+    );
+
+    expect(screen.queryByLabelText(t.onboarding.profileForm.street)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(t.onboarding.profileForm.streetNumber)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(t.onboarding.profileForm.floor)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(t.onboarding.profileForm.apartment)).not.toBeInTheDocument();
+  });
 });
 

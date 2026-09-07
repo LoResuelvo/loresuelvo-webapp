@@ -6,11 +6,13 @@ import { server } from "../server.mjs";
 import { inspectDelivery } from "../lib/inspect-delivery.mjs";
 import { prepareDelivery } from "../lib/prepare-delivery.mjs";
 import { finalizeDelivery, verifyHeadDelivery } from "../lib/delivery-finalize.mjs";
+import { testDelivery } from "../lib/test-delivery.mjs";
 import {
   DeliveryInspectInputSchema,
   DeliveryPrepareInputSchema,
   DeliveryFinalizeInputSchema,
   DeliveryVerifyHeadInputSchema,
+  DeliveryTestInputSchema,
 } from "../lib/input-schema.mjs";
 
 test("paridad CLI / MCP: inspect, prepare, finalize y verify_head producen el mismo resultado semantico", async () => {
@@ -115,6 +117,25 @@ test("paridad CLI / MCP: inspect, prepare, finalize y verify_head producen el mi
     assert.strictEqual(mcpVerifyHeadResult.verified, cliVerifyHeadResult.verified);
     assert.strictEqual(mcpVerifyHeadResult.status, cliVerifyHeadResult.status);
     assert.strictEqual(mcpVerifyHeadResult.reason, cliVerifyHeadResult.reason);
+
+    // 5. Test tool parity test (mode: affected)
+    const testInput = {
+      mode: "affected",
+      force: true,
+    };
+    const parsedTest = DeliveryTestInputSchema.parse(testInput);
+    const cliTestResult = await testDelivery(parsedTest);
+    const mcpTestCall = await client.callTool({
+      name: "delivery_test",
+      arguments: testInput,
+    });
+    const mcpTestResult = JSON.parse(mcpTestCall.content[0].text);
+
+    assert.strictEqual(mcpTestResult.status, cliTestResult.status);
+    assert.strictEqual(mcpTestResult.mode, cliTestResult.mode);
+    assert.strictEqual(mcpTestResult.cached, cliTestResult.cached);
+    assert.deepStrictEqual(mcpTestResult.counts, cliTestResult.counts);
+    assert.deepStrictEqual(mcpTestResult.diagnostics, cliTestResult.diagnostics);
   } finally {
     await client.close();
   }

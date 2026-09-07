@@ -14,10 +14,27 @@ async function runSmokeTest() {
     const prepareTool = toolsResult.tools.find((tool) => tool.name === "delivery_prepare");
     const ciTool = toolsResult.tools.find((tool) => tool.name === "delivery_ci_inspect");
     const finalizeTool = toolsResult.tools.find((tool) => tool.name === "delivery_finalize");
+    const testTool = toolsResult.tools.find((tool) => tool.name === "delivery_test");
     assert.ok(inspectTool, "delivery_inspect tool is registered");
     assert.ok(prepareTool, "delivery_prepare tool is registered");
     assert.ok(ciTool, "delivery_ci_inspect tool is registered");
     assert.ok(finalizeTool, "delivery_finalize tool is registered");
+    assert.ok(testTool, "delivery_test tool is registered");
+
+    const testCallResult = await client.callTool({
+      name: "delivery_test",
+      arguments: { mode: "affected" },
+    });
+    assert.ok(testCallResult.content?.[0]?.text, "delivery_test result text present");
+    const parsedTest = JSON.parse(testCallResult.content[0].text);
+    assert.ok(
+      ["passed", "failed", "error"].includes(parsedTest.status),
+      `Invalid test status: ${parsedTest.status}`
+    );
+    assert.strictEqual(parsedTest.mode, "affected");
+    assert.strictEqual(typeof parsedTest.cached, "boolean");
+    assert.strictEqual(typeof parsedTest.durationMs, "number");
+    assert.ok(parsedTest.counts && typeof parsedTest.counts.passed === "number");
 
     const callResult = await client.callTool({
       name: "delivery_inspect",

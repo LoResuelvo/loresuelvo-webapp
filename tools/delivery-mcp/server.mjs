@@ -13,10 +13,12 @@ import {
   DeliveryCiInputSchema,
   DeliveryFinalizeInputSchema,
   DeliveryVerifyHeadInputSchema,
+  DeliveryTestInputSchema,
   formatInputIssues,
 } from "./lib/input-schema.mjs";
 import { inspectCi } from "./lib/ci-provider.mjs";
 import { finalizeDelivery, verifyHeadDelivery } from "./lib/delivery-finalize.mjs";
+import { testDelivery } from "./lib/test-delivery.mjs";
 import { redactSecrets } from "./lib/redact-secrets.mjs";
 
 const intentProperty = {
@@ -203,6 +205,48 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         openWorldHint: false,
       },
     },
+    {
+      name: "delivery_test",
+      description:
+        "Executes focused TDD validation (affected, unit, scenario, or diagnostic check) over the working tree without running raw internal commands.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          mode: {
+            type: "string",
+            enum: ["affected", "unit", "scenario", "diagnostic"],
+            description: "Validation mode; defaults to 'affected'",
+          },
+          testFiles: {
+            type: "array",
+            items: { type: "string" },
+            description: "Array of test files for mode: unit",
+          },
+          featureFile: {
+            type: "string",
+            description: "Feature file path for mode: scenario",
+          },
+          scenarioName: {
+            type: "string",
+            description: "Optional scenario name filter for mode: scenario",
+          },
+          checkId: {
+            type: "string",
+            description: "Check identifier from policy catalog for mode: diagnostic",
+          },
+          force: {
+            type: "boolean",
+            description: "Re-run checks instead of using cache",
+          },
+        },
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
   ],
 }));
 
@@ -336,6 +380,53 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     } catch (error) {
       const message = redactSecrets(String(error.message || "CI inspection error")).split("\n")[0];
       return toolResponse({ error: message }, true);
+    }
+  }
+
+  if (name === "delivery_test") {
+    const parsed = DeliveryTestInputSchema.safeParse(request.params.arguments || {});
+    if (!parsed.success) {
+      return toolResponse(
+        {
+          status: "error",
+          mode: request.params.arguments?.mode || "affected",
+          cached: false,
+          durationMs: 0,
+          counts: { passed: 0, failed: 0, skipped: 0 },
+          diagnostics: [
+            {
+              code: "INVALID_ARGUMENTS",
+              message: formatInputIssues(parsed.error),
+              retryable: false,
+            },
+          ],
+        },
+        true
+      );
+    }
+    try {
+      const result = await testDelivery(parsed.data);
+      const isError = result.status === "error" || result.status === "failed";
+      return toolResponse(result, isError);
+    } catch (error) {
+      const message = redactSecrets(String(error.message || "Delivery test error")).split("\n")[0];
+      return toolResponse(
+        {
+          status: "error",
+          mode: parsed.data.mode || "affected",
+          cached: false,
+          durationMs: 0,
+          counts: { passed: 0, failed: 0, skipped: 0 },
+          diagnostics: [
+            {
+              code: "INTERNAL_ERROR",
+              message,
+              retryable: false,
+            },
+          ],
+        },
+        true
+      );
     }
   }
 

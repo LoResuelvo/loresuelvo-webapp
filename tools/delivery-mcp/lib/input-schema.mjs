@@ -67,6 +67,15 @@ export const DeliveryVerifyHeadInputSchema = z.object({
   force: z.boolean().default(false),
 });
 
+export const DeliveryTestInputSchema = z.object({
+  mode: z.enum(["affected", "unit", "scenario", "diagnostic"]).default("affected"),
+  testFiles: z.array(z.string().max(500)).optional(),
+  featureFile: z.string().max(500).optional(),
+  scenarioName: z.string().max(500).optional(),
+  checkId: z.string().max(100).optional(),
+  force: z.boolean().default(false),
+});
+
 export function formatInputIssues(error) {
   return error.issues
     .slice(0, 5)

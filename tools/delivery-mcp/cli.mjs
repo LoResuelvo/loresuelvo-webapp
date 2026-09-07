@@ -8,10 +8,12 @@ import {
   DeliveryCiInputSchema,
   DeliveryFinalizeInputSchema,
   DeliveryVerifyHeadInputSchema,
+  DeliveryTestInputSchema,
   formatInputIssues,
 } from "./lib/input-schema.mjs";
 import { inspectCi } from "./lib/ci-provider.mjs";
 import { finalizeDelivery, verifyHeadDelivery } from "./lib/delivery-finalize.mjs";
+import { testDelivery } from "./lib/test-delivery.mjs";
 import {
   loadDeliveryContext,
   saveDeliveryContext,
@@ -39,6 +41,7 @@ function usage() {
   npm run delivery:ci -- --sha <commit-sha>
   npm run delivery:finalize -- --intent <close_us|close_batch> [options]
   npm run delivery:verify-head -- [--intent close_us] [--us-id US] [--scope-files ...]
+  node tools/delivery-mcp/cli.mjs test -- [options]
   npm run delivery:hooks:install
   npm run delivery:hooks:status
 
@@ -56,6 +59,16 @@ Options for delivery:inspect / delivery:prepare:
   --force                                        Re-run checks instead of reusing cached evidence
   --pretty                                       Pretty-print JSON instead of compact JSON
   --help
+
+Options for test:
+  --mode <affected|unit|scenario|diagnostic>     Validation mode (default: affected)
+  --test-file <path>                             Unit test file (repeatable)
+  --test-files <comma-separated paths>           Comma-separated test files
+  --feature <features/...feature>                Feature file path
+  --scenario <scenario name>                     Scenario name filter
+  --check <checkId>                              Catalog check identifier
+  --check-id <checkId>                           Alias for --check
+  --force                                        Re-run checks instead of reusing cached evidence
 
 Options for delivery:context:
   --intent <close_scenario|close_batch|close_us|prepare_commit|repair_ci>
@@ -98,7 +111,7 @@ function parseArguments(argv) {
   let subAction = "";
   let hookArgs = [];
 
-  if (["inspect", "prepare", "context", "hooks", "hook", "ci", "finalize", "verify-head", "verify_head"].includes(args[0])) {
+  if (["inspect", "prepare", "context", "hooks", "hook", "ci", "finalize", "verify-head", "verify_head", "test"].includes(args[0])) {
     command = args.shift();
     if (command === "verify_head") command = "verify-head";
   }
@@ -148,7 +161,16 @@ function parseArguments(argv) {
 
     const value = takeValue(args, index, option);
     index += 1;
-    if (option === "--intent") input.intent = value;
+    if (option === "--mode") input.mode = value;
+    else if (option === "--test-file") {
+      input.testFiles = input.testFiles || [];
+      input.testFiles.push(value);
+    } else if (option === "--test-files") {
+      input.testFiles = input.testFiles || [];
+      const files = value.split(",").map((f) => f.trim()).filter(Boolean);
+      input.testFiles.push(...files);
+    } else if (option === "--check" || option === "--check-id") input.checkId = value;
+    else if (option === "--intent") input.intent = value;
     else if (option === "--message") input.proposedCommitMessage = value;
     else if (option === "--feature") input.featureFile = value;
     else if (option === "--scenario") input.scenarioName = value;
@@ -373,6 +395,16 @@ async function main() {
     const res = await verifyHeadDelivery({ repoRoot: root, ...parsed.data });
     writeJson(res, options.pretty);
     process.exitCode = res.verified ? 0 : 2;
+    return;
+  }
+
+  // 5.8. Test delivery (delivery_test)
+  if (options.command === "test") {
+    const parsed = DeliveryTestInputSchema.safeParse(options.input);
+    if (!parsed.success) throw new Error(formatInputIssues(parsed.error));
+    const res = await testDelivery({ repoRoot: root, ...parsed.data });
+    writeJson(res, options.pretty);
+    process.exitCode = res.status === "passed" ? 0 : res.status === "failed" ? 3 : 2;
     return;
   }
 

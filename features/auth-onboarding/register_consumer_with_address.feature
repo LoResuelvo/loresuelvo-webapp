@@ -1,4 +1,3 @@
-@wip
 Feature: US-1.2 Registrar consumidor con dirección
   Como consumidor
   Quiero registrar obligatoriamente mi dirección durante el registro
@@ -8,7 +7,6 @@ Feature: US-1.2 Registrar consumidor con dirección
   Background:
     Given que me registré exitosamente en Auth0 con email "consumidor@example.com"
 
-  @wip
   Scenario: 01-RCA Ver campos de dirección al registrar como consumidor
     Given elegí la opción de consumidor en la pagina de registro
     When avanzo al paso de datos de perfil

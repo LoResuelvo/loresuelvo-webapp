@@ -9,7 +9,7 @@ Usar para implementar una User Story o feature completa. Esta skill define el ci
 
 ## Preparación
 
-Al crear o retomar un plan de implementación, aplicar la convención local si está configurada. El orquestador conserva el plan completo y entrega al developer únicamente el contrato completo o delta del batch activo.
+Al crear o retomar un plan de implementación, aplicar la convención local si está configurada. El orquestador conserva el plan completo y el estado global de la US, y asigna cada batch a un developer limpio provisto del contrato de bootstrap autosuficiente (o delta intra-grupo si continúa el mismo developer en un `SCENARIO_GROUP`).
 
 1. Confirmar `git status --short --branch`, alcance funcional, rol y rutas afectadas.
 2. Escribir todos los escenarios Gherkin de aceptación antes de cambiar código. Cada escenario tiene exactamente un `When`.
@@ -25,11 +25,12 @@ Al crear o retomar un plan de implementación, aplicar la convención local si e
 5. Revisar el código productivo no trivial con `frontend-maintainability-governance` y resolver sus señales sin introducir alcance ajeno.
 6. Realizar stage exacto de la frontera atómica y ejecutar `delivery_prepare` (el runner selecciona y ejecuta el gate automáticamente); con `status: passed`, commitear y pushear según la granularidad de delegación declarada.
 7. Retirar `@wip` solo cuando el E2E del escenario esté en GREEN.
-8. Continuar con el siguiente escenario solo si pertenece al batch aprobado y se cumplen sus condiciones de continuación; de lo contrario, cerrar el batch y reportar.
+8. Continuar con el siguiente escenario solo si pertenece al batch aprobado dentro de un `SCENARIO_GROUP` y se cumplen sus condiciones de continuación; de lo contrario, cerrar el batch emitiendo el handoff de cierre compacto y terminar el turno del developer (rotando a un nuevo subagente limpio para el siguiente batch).
 
 ## Cierre
 
 - Formalizar `close_batch` solo cuando todos los feature files declarados para ese batch estén completos y sin `@wip`. Si una feature conserva escenarios futuros, reportar el batch tras cerrar sus escenarios y reservar Gate D para una frontera cuyo scope esté completo.
+- Ningún developer permanece inactivo esperando CI ni realiza polling tras pushear; cada subagente concluye su turno tras el handoff compacto.
 - Cerrar la User Story mediante MCP `delivery_finalize(close_us)`. Solo `finalized: true` con `status: passed` demuestra cierre: Gate D aprobado en `HEAD`, scope sin `@wip`, commits pusheados, ledger íntegro y CI passed en todos los commits relevantes.
 - Informar alcance entregado, validaciones, señales de mantenibilidad, decisiones y riesgos residuales.
 

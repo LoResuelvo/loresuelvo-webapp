@@ -2,71 +2,86 @@
 
 Leer al preparar o revisar un handoff entre orquestador y developer. El contrato debe ser compacto pero suficiente para ejecutar el batch sin redescubrir su contexto. No copiar reglas generales que el developer ya recibe desde `AGENTS.md` y las skills obligatorias.
 
+## Modelo de lifecycle de subagentes por batch
+
+Para evitar la acumulación excesiva de contexto en sesiones prolongadas, una User Story no mantiene un único subagente durante toda su ejecución:
+
+```text
+Orquestador conserva plan completo y estado compacto de la US
+             |
+             +-> Developer A: Batch 1 -> GREEN -> reporte compacto -> termina
+             +-> Developer B: Batch 2 -> GREEN -> reporte compacto -> termina
+             +-> Developer C: Batch 3 -> GREEN -> reporte compacto -> termina
+```
+
+Reglas del lifecycle:
+1. **Un subagente limpio por batch**: cada batch inicia con un developer nuevo dotado del contrato de bootstrap autosuficiente y concluye con un handoff de cierre compacto que termina la intervención de ese agente.
+2. **Persistencia acotada intra-grupo**: un developer puede persistir durante 2–3 escenarios consecutivos dentro de un `SCENARIO_GROUP` aprobado o a través de microcommits de la misma frontera funcional.
+3. **Fronteras seguras de rotación**: la rotación ocurre exclusivamente en fronteras estables (escenario o batch en GREEN, commit desplegable o escalación). Jamás se rota a mitad de un gate ni para evadir o reiniciar un diagnóstico causal.
+4. **Continuidad causal de CI**: un incidente remoto de CI no se "resetea" rotando de subagente. La firma causal, los SHAs afectados y la evidencia diagnóstica pasan en el contrato al siguiente subagente.
+5. **Sin esperas ni polling de CI**: ningún subagente permanece inactivo esperando CI ni realiza loops de polling. Implementa, valida vía MCP (`delivery_test`, `delivery_prepare`), commitea, pushea inmediatamente y entrega el handoff.
+
 ## Cómo construir el contrato
 
-1. Elegir contrato completo o delta.
-2. Declarar conducción y granularidad como ejes independientes.
+1. Usar el **contrato de bootstrap autosuficiente** para cada nuevo batch o developer nuevo. Usar el **contrato delta** únicamente cuando el mismo developer persista entre escenarios dentro de un `SCENARIO_GROUP`.
+2. Declarar conducción (`USER_GUIDED` | `AGENT_ORCHESTRATED`) y granularidad (`MICROSTEP` | `SCENARIO` | `SCENARIO_GROUP`) como ejes independientes.
 3. Incluir hechos específicos del batch y la próxima frontera segura.
 4. Agregar únicamente los anexos técnicos que aplican.
 5. Confirmar acceso del developer al MCP de delivery (`delivery_test`, `delivery_prepare`, `delivery_job_wait`) antes de autorizar ediciones.
 
 El contrato define resultados, límites, invariantes y ownership. No calcula gates, prescribe comandos crudos de test ni fija archivos o líneas salvo que una restricción de seguridad, una evidencia ya confirmada o una frontera prohibida lo requiera.
 
-## Contrato completo
+## Contrato de bootstrap autosuficiente por batch
 
-Usar para el primer batch, un developer nuevo, contexto perdido o una dependencia arquitectónica nueva:
+Usar al iniciar cada batch con un developer nuevo, al rotar subagente, al recuperar contexto o ante una dependencia arquitectónica nueva:
 
 ```text
-Conducción: USER_GUIDED | AGENT_ORCHESTRATED
-Granularidad: MICROSTEP | SCENARIO | SCENARIO_GROUP
-US / batch / escenarios ordenados:
+Identificación y modo:
+- US y batch:
+- Conducción: USER_GUIDED | AGENT_ORCHESTRATED
+- Granularidad: MICROSTEP | SCENARIO | SCENARIO_GROUP
 
-Estado inicial:
+Estado base y plataforma:
 - HEAD y rama:
-- Estado del árbol:
-- Escenarios ya cerrados:
-- CI pendiente o fallida:
+- Estado del working tree:
+- CI conocido devuelto por la plataforma:
+- Receipts y SHAs relevantes (sin volcados de logs):
 
-Objetivo observable y criterios de aceptación:
+Escenarios:
+- Escenarios activos (criterios observables completos):
+- Escenarios ya cerrados (solo lista/títulos, sin historiales pesados):
 
-Contexto funcional y técnico:
-- Flujo existente que se extiende:
-- Contratos y tipos relevantes:
-- Invariantes y decisiones aprobadas:
+Contexto funcional y contratos:
+- Decisiones e invariantes materiales:
+- Contratos/tipos y rutas o símbolos relevantes:
+- Evidencia procesada de Codebase Memory y cobertura confirmada:
 
-Alcance permitido:
-Prohibido:
-Ampliaciones que requieren escalación:
+Fronteras y gobernanza:
+- Alcance permitido:
+- Prohibiciones estrictas:
+- Condiciones de escalación:
+- Skills obligatorias y adicionales aplicables:
 
-Skills obligatorias:
-
-Handoff estructural: <anexo Codebase Memory | no aplica>
-Otros anexos técnicos: <API | UI/accesibilidad | mantenibilidad | concurrencia | ninguno>
-
-Próxima frontera atómica:
-- Comportamiento:
+Próxima frontera funcional:
+- Comportamiento observable:
+- Intent de delivery y mensaje de commit tentativo:
 - Artefactos mínimos esperados:
-- Intent de delivery:
-- Mensaje de commit tentativo:
 
-Owners:
-- Implementación y validación (TDD con delivery_test):
-- Staging / commit / push (delivery_prepare):
+Ownership y cierre:
+- Owners de edición, staging, commit y push:
 - Exclusividad del worktree:
-
-Condiciones para continuar:
-Condiciones para escalar o detenerse:
-Condición de cierre del batch:
+- Riesgos abiertos:
+- Condición de cierre del batch:
 ```
 
 Los “artefactos mínimos esperados” orientan la frontera; no convierten una lista provisional de archivos en permiso para ignorar dependencias cohesionadas ni en obligación de modificar todo lo enumerado.
 
-## Contrato delta
+## Contrato delta (intra-batch o intra-grupo persistente)
 
-Usar con el mismo developer persistente cuando el contexto general continúa vigente:
+Usar exclusivamente con el mismo developer persistente cuando continúa entre 2–3 escenarios consecutivos dentro de un `SCENARIO_GROUP` aprobado y el contexto general sigue vigente:
 
 ```text
-Estado heredado: HEAD / árbol / CI
+Estado heredado: HEAD / árbol / CI conocido
 Escenarios cerrados desde el último handoff:
 Batch y escenarios activos:
 Granularidad actual:
@@ -84,7 +99,7 @@ Cambios de owners o worktree:
 Condiciones nuevas de continuación, escalamiento y cierre:
 ```
 
-Enviar nuevamente el contrato completo si se reemplaza al developer, se perdió contexto o el delta ya no permite comprender el batch por sí mismo.
+Si se rota el subagente para el siguiente batch o se pierde contexto, enviar obligatoriamente el contrato de bootstrap autosuficiente.
 
 ## Anexos condicionales
 
@@ -181,19 +196,25 @@ La US solo puede declararse terminada cuando `delivery_finalize(close_us)` devue
 
 Ante una falla persistente, usar el [protocolo de diagnóstico](../../frontend-testing-gates/references/failure-diagnostics.md). El contrato solo agrega sus condiciones específicas de escalamiento; no copia el protocolo completo ni fija una cuota universal de intentos.
 
-## Reporte de cierre
+## Handoff de cierre compacto
+
+Al culminar el batch (o detenerse por escalación o incidente de CI), el developer emite un reporte estructurado y compacto, finalizando su ejecución:
 
 ```text
 Escenarios GREEN:
-Commits / SHAs:
-Gates y receipts:
-Ventana de CI / incidentes:
-Cambios de contratos o tipos:
-Archivos productivos materiales:
-Mantenibilidad y decisiones:
-Escalaciones / riesgos residuales:
+SHAs y receipts relevantes:
+Contratos o decisiones que cambiaron:
+Archivos productivos materiales modificados:
+Riesgos o diagnóstico causal todavía activo (si existe incidente CI):
 Estado del árbol:
+Estado de CI conocido devuelto por la plataforma:
 Siguiente acción permitida:
 ```
 
-No reproducir logs verdes ni detalles que ya estén en el ledger. Una estimación de commits es únicamente una señal de coordinación y nunca una cuota, mínimo o máximo.
+### Prohibiciones estrictas del handoff
+- **Cero logs verdes o de ejecución**: prohibido incluir salidas de pruebas, logs de build ni transcripciones de comandos exitosos.
+- **Cero tracebacks crudos**: los fallos se reportan por su firma causal y ubicación exacta, sin volcar pantallas ni stacktraces extensos.
+- **Cero diffs completos**: enumerar únicamente rutas modificadas materiales y cambios de contrato; el árbol y Git ya contienen el diff.
+- **Cero transcripts MCP**: omitir payloads crudos, tool calls de depuración o respuestas JSON voluminosas.
+- El ledger y `.delivery/runtime/` preservan la evidencia histórica detallada; el handoff comunica únicamente la señal indispensable para la continuidad del orquestador o del siguiente developer.
+- Una estimación de commits es únicamente una señal de coordinación y nunca una cuota, mínimo o máximo.

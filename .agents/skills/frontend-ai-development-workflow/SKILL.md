@@ -24,29 +24,41 @@ Y una granularidad por batch:
 
 Usar `MICROSTEP` ante ambigüedad o riesgo alto, `SCENARIO` como opción ordinaria y `SCENARIO_GROUP` solo cuando dependencias, alcance y condiciones de continuación sean previsibles. Recalibrar únicamente en una frontera segura: commit desplegable, escenario GREEN o detención previa a alcance nuevo.
 
-## Responsabilidades
+## Responsabilidades y ciclo de vida de subagentes por batch
 
-- El orquestador conserva el contrato funcional, el plan de batches, las decisiones de alcance y la comunicación con el usuario.
-- Antes de delegar trabajo estructural, consulta Codebase Memory, verifica cobertura y entrega la evidencia relevante sin pedir al developer que repita la exploración.
-- El developer persistente trabaja únicamente sobre el batch activo, no vuelve a delegar la implementación salvo autorización expresa, decide la solución cohesionada dentro del alcance y escala antes de cambiar comportamiento aprobado o cruzar una prohibición.
-- En `SCENARIO` y `SCENARIO_GROUP`, el developer valida mediante `delivery_test`, commitea y pushea. La ventana de CI y los incidentes se evalúan automáticamente en `delivery_prepare` y `pre-push`; no se asigna al developer el monitoreo periódico de CI por SHA tras cada push. En `MICROSTEP`, esos owners pertenecen al orquestador salvo contrato explícito distinto.
-- La granularidad no determina el número de commits. Cada commit representa una frontera lógica completa según `frontend-commit-governance`.
-- Después del reporte, el orquestador revisa trazabilidad, diff y riesgos en proporción al cambio sin volver a ejecutar gates verdes ni reconstruir logs.
+Para evitar la acumulación excesiva de contexto en sesiones prolongadas, una User Story no mantiene un único subagente durante toda su ejecución:
+
+```text
+Orquestador conserva plan completo y estado compacto de la US
+             |
+             +-> Developer A: Batch 1 -> GREEN -> reporte compacto -> termina
+             +-> Developer B: Batch 2 -> GREEN -> reporte compacto -> termina
+             +-> Developer C: Batch 3 -> GREEN -> reporte compacto -> termina
+```
+
+- **Orquestador**: conserva el contrato funcional global, el plan maestro de batches, las decisiones de alcance, el estado agregado compacto y la interlocución con el usuario. Crea un subagente developer nuevo por batch con su bootstrap autosuficiente.
+- **Developer por batch**: trabaja exclusivamente sobre su batch activo. Decide la solución cohesionada dentro del alcance, no vuelve a delegar sin autorización y escala antes de cambiar comportamiento aprobado o cruzar prohibiciones.
+- **Rotación en fronteras seguras**: el developer puede persistir durante 2–3 escenarios consecutivos dentro de un `SCENARIO_GROUP` aprobado o a través de microcommits de la misma frontera, pero se rota al cerrar el batch en GREEN o ante escalación. Queda prohibido rotar a mitad de un gate o para evadir un diagnóstico causal.
+- **Continuidad causal de CI**: un incidente de CI remoto no se "resetea" rotando developer; la firma causal y la evidencia pasan al siguiente contrato de delegación.
+- **Owners en ejecución**: en `SCENARIO` y `SCENARIO_GROUP`, el developer valida mediante `delivery_test`, prepara con `delivery_prepare`, commitea y pushea inmediatamente a `main`. La ventana de CI y los incidentes se evalúan automáticamente por el core y hooks; queda estrictamente prohibida la retención de developers inactivos esperando CI o realizando polling manual. Al completar su batch, emite el handoff de cierre compacto y termina su turno. En `MICROSTEP`, esos owners pertenecen al orquestador salvo contrato explícito distinto.
+- **La granularidad no determina el número de commits**: cada commit representa una frontera lógica completa según `frontend-commit-governance`.
+- **Revisión sin re-ejecución**: tras recibir el handoff, el orquestador revisa trazabilidad, diff y riesgos en proporción al cambio sin volver a ejecutar gates verdes ni reconstruir logs.
 
 Antes de delegar, comprobar que el developer tenga habilitado el MCP de delivery con acceso completo a `delivery_test`, `delivery_prepare` y `delivery_job_wait`. Los adaptadores y la propagación de herramientas son responsabilidad del cliente local, no del contrato compartido. Un agente autónomo sin el MCP requerido debe detenerse; la CLI neutral queda para humanos o para un entorno sin MCP aprobado explícitamente.
 
-## Handoff suficiente
+## Handoff suficiente y contratos
 
 El contrato transmite hechos específicos del batch, no vuelve a copiar reglas estables ni incluye comandos crudos ni cálculo manual de gates. Debe permitir que el developer conozca:
 
-- estado inicial, escenarios activos y objetivo observable;
-- contratos, tipos, invariantes y decisiones ya confirmadas;
-- alcance permitido, prohibiciones y condiciones de ampliación;
-- evidencia estructural disponible y preguntas abiertas;
-- próxima frontera atómica, intent de delivery y owners;
-- condiciones de continuación, escalamiento y cierre.
+- identificación, US, batch, conducción y granularidad;
+- estado base: HEAD, rama, working tree, CI conocido y receipts relevantes (sin logs);
+- escenarios activos con criterios observables completos y lista de escenarios ya cerrados;
+- decisiones e invariantes materiales, contratos/tipos y rutas o símbolos relevantes;
+- alcance permitido, prohibiciones estrictas y condiciones de escalación;
+- evidencia estructural procesada de Codebase Memory y cobertura confirmada;
+- próxima frontera funcional, intent de delivery, owners y condición de cierre del batch.
 
-Usar el contrato completo para el primer batch, un developer nuevo, contexto perdido o una dependencia arquitectónica nueva. Con el mismo developer persistente, usar un contrato delta que incluya solo cambios materiales. Los templates y anexos condicionales viven en [contratos de delegación](references/delegation-modes.md); leer esa referencia solamente al preparar o revisar un handoff.
+Usar el **contrato de bootstrap autosuficiente** para cada nuevo batch o subagente nuevo. Con el mismo developer persistente dentro de un `SCENARIO_GROUP`, usar el **contrato delta** que incluye únicamente cambios materiales. Al concluir, el developer emite el **handoff de cierre compacto** (prohibiendo logs verdes, tracebacks, diffs completos y transcripts MCP). Los templates y anexos condicionales viven en [contratos de delegación](references/delegation-modes.md); leer esa referencia solamente al preparar o revisar un handoff.
 
 ## Ejecución del batch
 
@@ -103,9 +115,9 @@ Una US termina únicamente cuando se verifican todos los escenarios, gates y CI:
 - `SCENARIO_GROUP`: reportar al cerrar el grupo, sin checkpoints ordinarios entre escenarios.
 - Una escalación siempre se reporta inmediatamente.
 
-El cierre resume escenarios, commits/SHAs, gates devueltos por MCP, CI, cambios de contratos, archivos productivos materiales, mantenibilidad y riesgos. No reproducir logs verdes ni reconstruir información ya registrada por el runner.
+El cierre resume escenarios, commits/SHAs, receipts devueltos por MCP, CI conocido, cambios de contratos, archivos productivos materiales, mantenibilidad y riesgos, bajo la estructura del **handoff de cierre compacto** (con estricta prohibición de logs verdes, tracebacks, diffs completos y transcripts MCP). Al emitir el handoff, el developer finaliza inmediatamente su ejecución y no queda en espera inactiva.
 
-El orquestador espera sin polling narrado. Si necesita comprobar avance, realiza una consulta read-only del estado, `HEAD` y árbol; un developer `running` puede estar implementando o validando. Una estimación de commits o duración sirve para coordinar, nunca como cuota ni autorización para interrumpir un gate.
+El orquestador espera sin polling narrado ni retiene subagentes inactivos. Si necesita comprobar avance mientras una ejecución corre, realiza una consulta read-only del estado, `HEAD` y árbol; un developer `running` puede estar implementando o validando. Una estimación de commits o duración sirve para coordinar, nunca como cuota ni autorización para interrumpir un gate.
 
 ## Routing de capacidad
 

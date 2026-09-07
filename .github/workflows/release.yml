@@ -7,99 +7,19 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write
 
 jobs:
+  run-test:
+    uses: ./.github/workflows/ci.yml
+
   build-and-push:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    needs: run-test
+    uses: ./.github/workflows/packaging.yml
 
-      - name: Login a GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build y Push de la imagen
-        run: |
-          OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          IMAGE_NAME="ghcr.io/${OWNER_LC}/loresuelvo:${{ github.ref_name }}"
-
-          docker build -t $IMAGE_NAME .
-          docker push $IMAGE_NAME
-
-  deploy-staging:
+  deploy:
     needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy via SSH a Staging
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.DROPLET_STAGING_IP }}
-          username: ${{ secrets.DROPLET_USER }}
-          key: ${{ secrets.DROPLET_STAGING_SSH_KEY }}
-          script: |
-            set -e
-            cd ~/loresuelvo-webapp
-            git fetch --tags --force
-            git checkout ${{ github.ref_name }}
-
-            printf '%s\n' \
-              'NODE_ENV=production' \
-              'APP_ENV=staging' \
-              'APP_URL=https://test.loresuelvo.com.ar' \
-              'API_URL=https://api-test.loresuelvo.com.ar' \
-              "AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN_STAGING }}" \
-              "AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID_STAGING }}" \
-              "AUTH0_CLIENT_SECRET=${{ secrets.AUTH0_CLIENT_SECRET_STAGING }}" \
-              "AUTH0_SECRET=${{ secrets.AUTH0_SECRET }}" \
-              "AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE_STAGING }}" \
-              "NEXT_PUBLIC_PUBLIC_MEDIA_BASE_URL=${{ secrets.NEXT_PUBLIC_PUBLIC_MEDIA_BASE_URL_STAGING }}" > .env
-
-            export IMAGE_TAG=${{ github.ref_name }}
-            export GITHUB_REPOSITORY_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USER }}" --password-stdin
-
-            docker compose -f compose.prod.yml pull
-            docker compose -f compose.prod.yml up -d
-            docker image prune -f
-
-  deploy-prod:
-    needs: deploy-staging
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - name: Deploy via SSH a Producción
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.DROPLET_PROD_IP }}
-          username: ${{ secrets.DROPLET_USER }}
-          key: ${{ secrets.DROPLET_PROD_SSH_KEY }}
-          script: |
-            set -e
-            cd ~/loresuelvo-webapp
-            git fetch --tags --force
-            git checkout ${{ github.ref_name }}
-
-            printf '%s\n' \
-              'NODE_ENV=production' \
-              'APP_ENV=production' \
-              'APP_URL=https://loresuelvo.com.ar' \
-              'API_URL=https://api.loresuelvo.com.ar' \
-              "AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN_PROD }}" \
-              "AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID_PROD }}" \
-              "AUTH0_CLIENT_SECRET=${{ secrets.AUTH0_CLIENT_SECRET_PROD }}" \
-              "AUTH0_SECRET=${{ secrets.AUTH0_SECRET }}" \
-              "AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE_PROD }}" \
-              "NEXT_PUBLIC_PUBLIC_MEDIA_BASE_URL=${{ secrets.NEXT_PUBLIC_PUBLIC_MEDIA_BASE_URL_PROD }}" > .env
-
-            export IMAGE_TAG=${{ github.ref_name }}
-            export GITHUB_REPOSITORY_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USER }}" --password-stdin
-
-            docker compose -f compose.prod.yml pull
-            docker compose -f compose.prod.yml up -d
-            docker image prune -f
+    uses: LoResuelvo/infra-devops/.github/workflows/deploy-webapp.yml@main
+    with:
+      image-ref: ${{ needs.build-and-push.outputs.image-ref }}
+      release-tag: ${{ github.ref_name }}

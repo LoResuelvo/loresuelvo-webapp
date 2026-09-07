@@ -1,0 +1,44 @@
+name: Packaging
+
+on:
+  workflow_call:
+    outputs:
+      image-ref:
+        description: Immutable image reference published to GHCR
+        value: ${{ jobs.build-and-push.outputs.image-ref }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image-ref: ${{ steps.result.outputs.image-ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login a GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image repository
+        id: image
+        env:
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: echo "repository=ghcr.io/${REPOSITORY_OWNER,,}/webapp" >> "$GITHUB_OUTPUT"
+
+      - name: Build y Push de la imagen
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.image.outputs.repository }}:${{ github.ref_name }}
+
+      - name: Expose immutable image reference
+        id: result
+        env:
+          IMAGE_REPOSITORY: ${{ steps.image.outputs.repository }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: echo "image-ref=${IMAGE_REPOSITORY}@${IMAGE_DIGEST}" >> "$GITHUB_OUTPUT"

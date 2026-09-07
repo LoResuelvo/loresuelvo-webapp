@@ -410,17 +410,25 @@ export async function recordCommitEvidence({
         }),
   };
 
-  await writeJsonAtomic(root, path.join(LEDGER_DIR, `${cleanSha}.json`), entry);
-
-  const absLedgerFile = path.resolve(root, LEDGER_FILE);
-  let ledgerMap = {};
+  // The consolidated ledger is a read/merge/write document.  Serialize the
+  // whole transaction so concurrent post-commit/verify-head hooks cannot
+  // overwrite one another's entries with a stale snapshot.
+  const releaseLedgerLock = await acquireLedgerLock({ repoRoot: root });
   try {
-    ledgerMap = JSON.parse(await fs.readFile(absLedgerFile, "utf8"));
-  } catch {
-    ledgerMap = {};
+    await writeJsonAtomic(root, path.join(LEDGER_DIR, `${cleanSha}.json`), entry);
+
+    const absLedgerFile = path.resolve(root, LEDGER_FILE);
+    let ledgerMap = {};
+    try {
+      ledgerMap = JSON.parse(await fs.readFile(absLedgerFile, "utf8"));
+    } catch {
+      ledgerMap = {};
+    }
+    ledgerMap[cleanSha] = entry;
+    await writeJsonAtomic(root, LEDGER_FILE, ledgerMap);
+  } finally {
+    await releaseLedgerLock();
   }
-  ledgerMap[cleanSha] = entry;
-  await writeJsonAtomic(root, LEDGER_FILE, ledgerMap);
 
   if (isRepair && effectiveRepairsSha && !isNotRun) {
     try {
@@ -449,25 +457,33 @@ export async function recordCommitEvidence({
 export async function markRepairPushConsumed({ repoRoot, commitSha, lockHeld = false } = {}) {
   const root = findRepoRoot(repoRoot);
   const cleanSha = assertCommitSha(commitSha);
-  const entry = await getCommitEvidence({ repoRoot: root, commitSha: cleanSha });
-  if (!entry) return null;
-  entry.repairPushConsumed = true;
-  entry.repairPushConsumedAt = new Date().toISOString();
-  if (!entry.repairAuthState || entry.repairAuthState === "bound_to_commit" || entry.repairAuthState === "prepared") {
-    entry.repairAuthState = "submitted";
-  }
-  entry.repairAuthSha = cleanSha;
-  await writeJsonAtomic(root, path.join(LEDGER_DIR, `${cleanSha}.json`), entry);
-
-  const absLedgerFile = path.resolve(root, LEDGER_FILE);
-  let ledgerMap = {};
+  let entry;
+  const releaseLedgerLock = await acquireLedgerLock({ repoRoot: root });
   try {
-    ledgerMap = JSON.parse(await fs.readFile(absLedgerFile, "utf8"));
-  } catch {
-    ledgerMap = {};
+    // Re-read while holding the lock; otherwise a concurrent repair-status
+    // transition could be silently discarded by this update.
+    entry = await getCommitEvidence({ repoRoot: root, commitSha: cleanSha });
+    if (!entry) return null;
+    entry.repairPushConsumed = true;
+    entry.repairPushConsumedAt = new Date().toISOString();
+    if (!entry.repairAuthState || entry.repairAuthState === "bound_to_commit" || entry.repairAuthState === "prepared") {
+      entry.repairAuthState = "submitted";
+    }
+    entry.repairAuthSha = cleanSha;
+    await writeJsonAtomic(root, path.join(LEDGER_DIR, `${cleanSha}.json`), entry);
+
+    const absLedgerFile = path.resolve(root, LEDGER_FILE);
+    let ledgerMap = {};
+    try {
+      ledgerMap = JSON.parse(await fs.readFile(absLedgerFile, "utf8"));
+    } catch {
+      ledgerMap = {};
+    }
+    ledgerMap[cleanSha] = entry;
+    await writeJsonAtomic(root, LEDGER_FILE, ledgerMap);
+  } finally {
+    await releaseLedgerLock();
   }
-  ledgerMap[cleanSha] = entry;
-  await writeJsonAtomic(root, LEDGER_FILE, ledgerMap);
 
   if (entry.repairsSha) {
     try {
@@ -570,6 +586,7 @@ export async function acquireRepairLock({
   repoRoot,
   targetSha = null,
   repairSha = null,
+  lockName = null,
   timeoutMs = 5000,
   retryIntervalMs = 25,
   staleLockMs = 30000,
@@ -578,9 +595,12 @@ export async function acquireRepairLock({
   const lockKey = targetSha
     ? assertCommitSha(targetSha)
     : (repairSha ? assertCommitSha(repairSha) : "repair-global");
+  if (lockName !== null && (!/^[A-Za-z0-9_-]+$/.test(String(lockName)) || String(lockName).length > 100)) {
+    throw new Error(`Invalid lock name: ${String(lockName).slice(0, 100)}`);
+  }
   const lockDir = path.resolve(root, REPAIR_LOCKS_DIR);
   await fs.mkdir(lockDir, { recursive: true, mode: 0o700 });
-  const lockPath = path.join(lockDir, `repair-${lockKey}.lock`);
+  const lockPath = path.join(lockDir, `${lockName ? String(lockName) : `repair-${lockKey}`}.lock`);
   const ownerToken = crypto.randomBytes(16).toString("hex");
   const leaseMs = Math.max(1000, Number(staleLockMs) || 30000);
 
@@ -741,6 +761,22 @@ export async function acquireRepairLock({
       await new Promise((resolve) => setTimeout(resolve, retryIntervalMs));
     }
   }
+}
+
+/** Serialize read/merge/write updates to the consolidated ledger. */
+export async function acquireLedgerLock({
+  repoRoot,
+  timeoutMs = 5000,
+  retryIntervalMs = 25,
+  staleLockMs = 30000,
+} = {}) {
+  return acquireRepairLock({
+    repoRoot,
+    lockName: "ledger",
+    timeoutMs,
+    retryIntervalMs,
+    staleLockMs,
+  });
 }
 
 export async function getRepairAuthorization({ repoRoot, targetSha } = {}) {
@@ -1171,6 +1207,15 @@ export async function validateCommitEvidenceEntryShape(entry, root = null, fileS
 
 export async function rebuildLedgerFromIndividualRecords({ repoRoot } = {}) {
   const root = findRepoRoot(repoRoot);
+  const releaseLedgerLock = await acquireLedgerLock({ repoRoot: root });
+  try {
+    return await rebuildLedgerFromIndividualRecordsUnlocked({ root });
+  } finally {
+    await releaseLedgerLock();
+  }
+}
+
+async function rebuildLedgerFromIndividualRecordsUnlocked({ root }) {
   const ledgerDir = path.resolve(root, LEDGER_DIR);
 
   let files;
@@ -1221,6 +1266,21 @@ export async function rebuildLedgerFromIndividualRecords({ repoRoot } = {}) {
 
 export async function listCommitEvidence({ repoRoot } = {}) {
   const root = findRepoRoot(repoRoot);
+
+  // Writers update the individual record and the consolidated document as a
+  // single locked transaction.  Readers must take the same lock before
+  // comparing both representations; otherwise they can observe the short
+  // interval between those two atomic renames and report a false
+  // LEDGER_INCONSISTENT result.
+  const releaseLedgerLock = await acquireLedgerLock({ repoRoot: root });
+  try {
+    return await listCommitEvidenceUnlocked({ root });
+  } finally {
+    await releaseLedgerLock();
+  }
+}
+
+async function listCommitEvidenceUnlocked({ root }) {
   const ledgerPath = path.resolve(root, LEDGER_FILE);
   const ledgerDir = path.resolve(root, LEDGER_DIR);
 
@@ -1238,7 +1298,7 @@ export async function listCommitEvidence({ repoRoot } = {}) {
     if (files.length === 0) {
       throw ledgerError("LEDGER_CORRUPT", "Delivery ledger has no valid consolidated or individual records");
     }
-    return rebuildLedgerFromIndividualRecords({ repoRoot: root });
+    return rebuildLedgerFromIndividualRecordsUnlocked({ root });
   };
 
   let rawLedger;
@@ -1250,7 +1310,7 @@ export async function listCommitEvidence({ repoRoot } = {}) {
       if (individualFiles.length === 0) {
         return [];
       }
-      return await rebuildLedgerFromIndividualRecords({ repoRoot: root });
+      return await rebuildLedgerFromIndividualRecordsUnlocked({ root });
     }
     throw ledgerError("LEDGER_CORRUPT", `Cannot read consolidated delivery ledger: ${error.message}`);
   }
@@ -1272,7 +1332,7 @@ export async function listCommitEvidence({ repoRoot } = {}) {
     if (individualFiles.length === 0) {
       return [];
     }
-    return await rebuildLedgerFromIndividualRecords({ repoRoot: root });
+    return await rebuildLedgerFromIndividualRecordsUnlocked({ root });
   }
 
   for (const [key, entry] of Object.entries(parsed)) {
@@ -1326,6 +1386,15 @@ export async function listCommitEvidence({ repoRoot } = {}) {
 
 export async function getLedgerState({ repoRoot } = {}) {
   const root = findRepoRoot(repoRoot);
+  const releaseLedgerLock = await acquireLedgerLock({ repoRoot: root });
+  try {
+    return await getLedgerStateUnlocked({ root });
+  } finally {
+    await releaseLedgerLock();
+  }
+}
+
+async function getLedgerStateUnlocked({ root }) {
   const ledgerPath = path.resolve(root, LEDGER_FILE);
   const ledgerDir = path.resolve(root, LEDGER_DIR);
 
@@ -1589,32 +1658,40 @@ export async function updateCommitRepairStatus({
 } = {}) {
   const root = findRepoRoot(repoRoot);
   const cleanSha = assertCommitSha(commitSha);
-  const entry = await getCommitEvidence({ repoRoot: root, commitSha: cleanSha });
-  if (!entry) return null;
-
-  entry.repairStatus = repairStatus;
-  if (repairStatus === "validated") {
-    entry.repairAuthState = "validated";
-  } else if (repairStatus === "failed") {
-    entry.repairAuthState = "ci_failed";
-  }
-  if (Array.isArray(supersedes) && supersedes.length > 0) {
-    entry.supersedes = sortedUnique([...(entry.supersedes || []), ...supersedes.map((s) => String(s).toLowerCase())]);
-  }
-
+  let entry = null;
   try {
-    await writeJsonAtomic(root, path.join(LEDGER_DIR, `${cleanSha}.json`), entry);
-    const absLedgerFile = path.resolve(root, LEDGER_FILE);
-    let ledgerMap = {};
+    const releaseLedgerLock = await acquireLedgerLock({ repoRoot: root });
     try {
-      ledgerMap = JSON.parse(await fs.readFile(absLedgerFile, "utf8"));
-    } catch {
-      ledgerMap = {};
-    }
-    ledgerMap[cleanSha] = entry;
-    await writeJsonAtomic(root, LEDGER_FILE, ledgerMap);
+      // Read under the same lock as the merge/write to preserve concurrent
+      // repair transitions.
+      entry = await getCommitEvidence({ repoRoot: root, commitSha: cleanSha });
+      if (!entry) return null;
 
-    if (entry.repairsSha) {
+      entry.repairStatus = repairStatus;
+      if (repairStatus === "validated") {
+        entry.repairAuthState = "validated";
+      } else if (repairStatus === "failed") {
+        entry.repairAuthState = "ci_failed";
+      }
+      if (Array.isArray(supersedes) && supersedes.length > 0) {
+        entry.supersedes = sortedUnique([...(entry.supersedes || []), ...supersedes.map((s) => String(s).toLowerCase())]);
+      }
+
+      await writeJsonAtomic(root, path.join(LEDGER_DIR, `${cleanSha}.json`), entry);
+      const absLedgerFile = path.resolve(root, LEDGER_FILE);
+      let ledgerMap = {};
+      try {
+        ledgerMap = JSON.parse(await fs.readFile(absLedgerFile, "utf8"));
+      } catch {
+        ledgerMap = {};
+      }
+      ledgerMap[cleanSha] = entry;
+      await writeJsonAtomic(root, LEDGER_FILE, ledgerMap);
+    } finally {
+      await releaseLedgerLock();
+    }
+
+    if (entry?.repairsSha) {
       try {
         const auth = await getRepairAuthorization({ repoRoot: root, targetSha: entry.repairsSha });
         if (auth && auth.commitSha && auth.commitSha.toLowerCase() === cleanSha) {
@@ -2630,4 +2707,3 @@ export async function evaluateCiWindow({
     repairResolution,
   };
 }
-

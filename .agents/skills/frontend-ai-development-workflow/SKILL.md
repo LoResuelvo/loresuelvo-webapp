@@ -44,7 +44,7 @@ Orquestador conserva plan completo y estado compacto de la US
 - **La granularidad no determina el número de commits**: cada commit representa una frontera lógica completa según `frontend-commit-governance`.
 - **Revisión sin re-ejecución**: tras recibir el handoff, el orquestador revisa trazabilidad, diff y riesgos en proporción al cambio sin volver a ejecutar gates verdes ni reconstruir logs.
 
-Antes de delegar, comprobar que el developer tenga habilitado el MCP de delivery con acceso completo a `delivery_test`, `delivery_prepare` y `delivery_job_wait`. Los adaptadores y la propagación de herramientas son responsabilidad del cliente local, no del contrato compartido. Un agente autónomo sin el MCP requerido debe detenerse; la CLI neutral queda para humanos o para un entorno sin MCP aprobado explícitamente.
+Antes de delegar, comprobar que el developer tenga habilitada la superficie completa del MCP de delivery: `delivery_test`, `delivery_inspect`, `delivery_prepare`, `delivery_job_wait`, `delivery_job_cancel`, `delivery_verify_head`, `delivery_ci_inspect` y `delivery_finalize`. Los adaptadores y la propagación de herramientas son responsabilidad del cliente local, no del contrato compartido. Un agente autónomo sin las herramientas requeridas para su batch debe detenerse; la CLI neutral queda para humanos o para un entorno sin MCP aprobado explícitamente.
 
 ## Handoff suficiente y contratos
 
@@ -64,7 +64,7 @@ Usar el **contrato de bootstrap autosuficiente** para cada nuevo batch o subagen
 
 En `SCENARIO` y `SCENARIO_GROUP`, el developer recorre cada escenario Outside-In y trabaja una frontera atómica por vez:
 
-1. implementar el comportamiento mínimo del escenario activo usando el ciclo TDD focalizado con `delivery_test` (sin ejecutar el gate completo ni comandos de test crudos como bucle interactivo);
+1. implementar el comportamiento mínimo del escenario activo usando el ciclo TDD focalizado con `delivery_test`; su ejecución `auto` devuelve un `jobId` para escenarios, afectados o diagnósticos largos, que se aguarda con `delivery_job_wait` (sin comandos de test crudos como bucle interactivo);
 2. aplicar las skills técnicas que correspondan (resolviendo señales de mantenibilidad con acknowledgement estructurado si aplica);
 3. retirar el tag `@wip` en el mismo cambio funcional que deja el escenario GREEN y realizar stage exacto;
 4. invocar MCP `delivery_prepare` con el intent y mensaje propuesto (aguardando con `delivery_job_wait` si la ejecución es asíncrona en modo job);
@@ -105,7 +105,7 @@ Una vez declarado `STOP_USER`, se detienen reparaciones, cambios, commits y push
 ### Protocolo de cierre de User Story
 Una US termina únicamente cuando se verifican todos los escenarios, gates y CI:
 1. **Último escenario completado**: El último commit atómico que retira `@wip` del feature file se prepara con `delivery_prepare`, se commitea y se pushea a `main`.
-2. **Verificación sobre HEAD**: Con el árbol limpio y posicionado en `HEAD`, invocar MCP `delivery_verify_head({ intent: "close_us", scopeFiles: ["features/<feature>.feature"] })` (o CLI `npm run delivery:verify-head -- --intent close_us --scope features/<feature>.feature`). Esto ejecuta Gate D sobre el commit HEAD y asocia la evidencia al ledger sin requerir commits artificiales ni vacíos.
+2. **Verificación sobre HEAD**: Con el árbol limpio y posicionado en `HEAD`, invocar MCP `delivery_verify_head({ intent: "close_us", scopeFiles: ["features/<feature>.feature"], mode: "job" })` y aguardar el `jobId` con `delivery_job_wait`. Esto ejecuta Gate D sobre el commit HEAD y asocia la evidencia al ledger sin requerir commits artificiales ni vacíos. Para un cierre de batch, usar `intent: "close_batch"`; el intent debe coincidir con el `delivery_finalize` posterior.
 3. **Finalización formal**: Invocar MCP `delivery_finalize({ intent: "close_us", scopeFiles: ["features/<feature>.feature"], waitForCi: true })`. `waitForCi: true` aguarda de forma acotada a que los runs de CI en vuelo completen en verde. La US queda formalizada cuando devuelve `finalized: true` y `status: passed`.
 
 ## Reportes y monitoreo

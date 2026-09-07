@@ -27,7 +27,7 @@ Reglas del lifecycle:
 2. Declarar conducción (`USER_GUIDED` | `AGENT_ORCHESTRATED`) y granularidad (`MICROSTEP` | `SCENARIO` | `SCENARIO_GROUP`) como ejes independientes.
 3. Incluir hechos específicos del batch y la próxima frontera segura.
 4. Agregar únicamente los anexos técnicos que aplican.
-5. Confirmar acceso del developer al MCP de delivery (`delivery_test`, `delivery_prepare`, `delivery_job_wait`) antes de autorizar ediciones.
+5. Confirmar acceso del developer a las herramientas MCP requeridas por el batch. La superficie completa es `delivery_test`, `delivery_inspect`, `delivery_prepare`, `delivery_job_wait`, `delivery_job_cancel`, `delivery_verify_head`, `delivery_ci_inspect` y `delivery_finalize`.
 
 El contrato define resultados, límites, invariantes y ownership. No calcula gates, prescribe comandos crudos de test ni fija archivos o líneas salvo que una restricción de seguridad, una evidencia ya confirmada o una frontera prohibida lo requiera.
 
@@ -186,7 +186,7 @@ volver a inspeccionar y regenerar delivery_prepare antes del commit.
 
 Durante el ciclo RED/GREEN se utiliza exclusivamente `delivery_test`. En cada frontera atómica con commit, el developer realiza stage exacto e invoca `delivery_prepare` (con soporte de jobs `delivery_job_wait` ante gates largos); el MCP selecciona el gate. No incluir listas de comandos, scripts crudos ni gates “esperados” en el contrato.
 
-Al completar el último escenario de una US y encontrarse el árbol limpio en HEAD, invocar `delivery_verify_head({ intent: "close_us", scopeFiles })` para validar Gate D sobre HEAD sin crear commits artificiales ni vacíos.
+Al completar el último escenario de una US y encontrarse el árbol limpio en HEAD, invocar `delivery_verify_head({ intent: "close_us", scopeFiles, mode: "job" })` y aguardar el `jobId` con `delivery_job_wait`, sin crear commits artificiales ni vacíos. Para cerrar un batch completo, usar `intent: "close_batch"`; el intent debe coincidir con el cierre posterior.
 
 `delivery_finalize(close_batch)` se usa solo si los feature files declarados para ese batch están completos y sin `@wip`. Cuando una feature conserva escenarios futuros con `@wip`, cerrar los escenarios implementados, emitir el reporte del batch y continuar sin formalizar `close_batch` sobre esa feature.
 

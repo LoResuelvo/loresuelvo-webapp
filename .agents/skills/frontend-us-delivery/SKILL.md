@@ -23,8 +23,8 @@ Al crear o retomar un plan de implementación, aplicar la convención local si e
 3. Cada micro-paso agrega un único comportamiento observable. No conectar la presentación a rutas, fetch, repositorios o Server Actions antes del paso de integración correspondiente.
 4. Agregar solamente el código requerido por el escenario actual dentro del batch. No preparar capas completas para escenarios futuros ni saltar al siguiente antes de cerrar el actual en GREEN.
 5. Revisar el código productivo no trivial con `frontend-maintainability-governance` y resolver sus señales sin introducir alcance ajeno.
-6. Realizar stage exacto de la frontera atómica y ejecutar `delivery_prepare` (el runner selecciona y ejecuta el gate automáticamente); con `status: passed`, commitear y pushear según la granularidad de delegación declarada.
-7. Retirar `@wip` solo cuando el E2E del escenario esté en GREEN.
+6. Cuando el E2E del escenario esté en GREEN, retirar `@wip` dentro del mismo cambio funcional.
+7. Realizar stage exacto de toda la frontera —incluida esa remoción— y ejecutar `delivery_prepare` (el runner selecciona y ejecuta el gate automáticamente); con `status: passed`, commitear y pushear según la granularidad declarada.
 8. Continuar con el siguiente escenario solo si pertenece al batch aprobado dentro de un `SCENARIO_GROUP` y se cumplen sus condiciones de continuación; de lo contrario, cerrar el batch emitiendo el handoff de cierre compacto y terminar el turno del developer (rotando a un nuevo subagente limpio para el siguiente batch).
 
 ## Cierre

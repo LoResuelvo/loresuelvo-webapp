@@ -425,7 +425,7 @@ export async function spawnJobWorker({ repoRoot, jobId, spawnFn = spawn }) {
     cwd: root,
     env: {
       ...process.env,
-      NODE_ENV: process.env.NODE_ENV || "development",
+      NODE_ENV: process.env.NODE_ENV || "",
       DELIVERY_JOB_ID: jobId,
       ...(job.workerToken ? { DELIVERY_JOB_TOKEN: job.workerToken } : {}),
     },

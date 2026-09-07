@@ -121,6 +121,7 @@ test("paridad CLI / MCP: inspect, prepare, finalize y verify_head producen el mi
     // 5. Test tool parity test (mode: affected)
     const testInput = {
       mode: "affected",
+      executionMode: "sync",
       force: true,
     };
     const parsedTest = DeliveryTestInputSchema.parse(testInput);

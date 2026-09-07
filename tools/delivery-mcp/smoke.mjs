@@ -14,12 +14,20 @@ async function runSmokeTest() {
     const prepareTool = toolsResult.tools.find((tool) => tool.name === "delivery_prepare");
     const ciTool = toolsResult.tools.find((tool) => tool.name === "delivery_ci_inspect");
     const finalizeTool = toolsResult.tools.find((tool) => tool.name === "delivery_finalize");
+    const waitTool = toolsResult.tools.find((tool) => tool.name === "delivery_job_wait");
+    const cancelTool = toolsResult.tools.find((tool) => tool.name === "delivery_job_cancel");
+    const verifyHeadTool = toolsResult.tools.find((tool) => tool.name === "delivery_verify_head");
     const testTool = toolsResult.tools.find((tool) => tool.name === "delivery_test");
     assert.ok(inspectTool, "delivery_inspect tool is registered");
     assert.ok(prepareTool, "delivery_prepare tool is registered");
     assert.ok(ciTool, "delivery_ci_inspect tool is registered");
     assert.ok(finalizeTool, "delivery_finalize tool is registered");
+    assert.ok(waitTool, "delivery_job_wait tool is registered");
+    assert.ok(cancelTool, "delivery_job_cancel tool is registered");
+    assert.ok(verifyHeadTool, "delivery_verify_head tool is registered");
     assert.ok(testTool, "delivery_test tool is registered");
+    assert.deepStrictEqual(testTool.inputSchema.properties.executionMode.enum, ["sync", "job", "auto"]);
+    assert.strictEqual(testTool.inputSchema.properties.async.type, "boolean");
 
     const testCallResult = await client.callTool({
       name: "delivery_test",

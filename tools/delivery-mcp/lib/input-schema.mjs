@@ -85,13 +85,22 @@ export const DeliveryJobCancelInputSchema = z.object({
 export const DeliveryVerifyHeadInputSchema = z.object({
   intent: z.enum(["close_us", "close_batch"]).default("close_us"),
   usId: z.string().max(500).optional(),
-  scopeFiles: z.array(z.string().max(500)).default([]),
+  scopeFiles: z.array(z.string().max(500)).max(100).default([]),
   force: z.boolean().default(false),
+  mode: z.enum(["sync", "job", "auto"]).default("sync"),
+  async: z.boolean().optional(),
 });
 
 export const DeliveryTestInputSchema = z.object({
   mode: z.enum(["affected", "unit", "scenario", "diagnostic"]).default("affected"),
-  testFiles: z.array(z.string().max(500)).optional(),
+  // `mode` selects the functional test operation. Keep job execution as a
+  // separate field so callers can request a recoverable worker without
+  // colliding with the existing affected/unit/scenario/diagnostic contract.
+  executionMode: z.enum(["sync", "job", "auto"]).default("auto"),
+  async: z.boolean().optional(),
+  // Keep focused-test input bounded so an accidental request cannot expand
+  // into an unreviewable command line/context payload.
+  testFiles: z.array(z.string().max(500)).max(20).optional(),
   featureFile: z.string().max(500).optional(),
   scenarioName: z.string().max(500).optional(),
   checkId: z.string().max(100).optional(),

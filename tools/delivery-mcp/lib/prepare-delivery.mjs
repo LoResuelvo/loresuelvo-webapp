@@ -187,6 +187,9 @@ export async function prepareDelivery({
   executeCheck = null,
   mode = "sync",
   async: isAsync = false,
+  // Internal marker used by job-runner. The worker already owns the job, so
+  // it must not discover and deduplicate against its own running record.
+  workerJobId = null,
   ...inspectionInput
 } = {}) {
   const root = findRepoRoot(repoRoot);
@@ -254,7 +257,9 @@ export async function prepareDelivery({
   const runKey = computeRunKey({ inspection, snapshot });
 
   // 1. Re-use existing active job for the exact snapshot if running
-  const activeJob = await findActiveDeliveryJob({ repoRoot: root, runKey });
+  const activeJob = workerJobId
+    ? null
+    : await findActiveDeliveryJob({ repoRoot: root, runKey });
   if (activeJob) {
     return {
       schemaVersion: 1,

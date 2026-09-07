@@ -403,8 +403,9 @@ export async function finalizeDelivery({
     }
 
     const shouldRunAsJob =
-      waitForCi &&
-      (isAsync || mode === "job" || (mode === "auto" && !ciProvider && timeoutMs > 60000));
+      isAsync ||
+      mode === "job" ||
+      (waitForCi && mode === "auto" && !ciProvider && timeoutMs > 60000);
 
     if (shouldRunAsJob) {
       const jobRunKey = `finalize-${headSha}-${intent}`;

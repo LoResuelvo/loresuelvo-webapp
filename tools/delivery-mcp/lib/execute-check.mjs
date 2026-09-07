@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import fs from "node:fs";
 import fsPromises from "node:fs/promises";
 import path from "node:path";
 import { redactSecrets } from "./redact-secrets.mjs";
@@ -22,6 +23,19 @@ function safeFeaturePath(repoRoot, value) {
   const normalized = String(value || "").replaceAll("\\", "/").replace(/^\.\//, "");
   if (!FEATURE_PATH.test(normalized)) {
     throw new Error(`Invalid feature path: ${value || "<empty>"}`);
+  }
+  const absolutePath = path.resolve(repoRoot, normalized);
+  if (!fs.existsSync(absolutePath)) {
+    throw new Error(`Feature path not found: ${normalized}`);
+  }
+  const realRepoRoot = fs.realpathSync(repoRoot);
+  const realFeaturePath = fs.realpathSync(absolutePath);
+  const relative = path.relative(realRepoRoot, realFeaturePath);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error(`Feature path resolves outside repository: ${normalized}`);
+  }
+  if (!fs.statSync(realFeaturePath).isFile()) {
+    throw new Error(`Feature path is not a regular file: ${normalized}`);
   }
   return normalized;
 }
@@ -115,6 +129,19 @@ async function executeCommandCheck({ check, repoRoot, logPath, limits = {} }) {
 
   const absoluteLogPath = path.resolve(repoRoot, logPath);
   await fsPromises.mkdir(path.dirname(absoluteLogPath), { recursive: true });
+  const realRepoRoot = fs.realpathSync(repoRoot);
+  const realLogDirectory = fs.realpathSync(path.dirname(absoluteLogPath));
+  const directoryRelative = path.relative(realRepoRoot, realLogDirectory);
+  if (directoryRelative.startsWith("..") || path.isAbsolute(directoryRelative)) {
+    throw new Error(`Log directory resolves outside repository: ${logPath}`);
+  }
+  if (fs.existsSync(absoluteLogPath)) {
+    const realExistingLog = fs.realpathSync(absoluteLogPath);
+    const logRelative = path.relative(realRepoRoot, realExistingLog);
+    if (logRelative.startsWith("..") || path.isAbsolute(logRelative)) {
+      throw new Error(`Log path resolves outside repository: ${logPath}`);
+    }
+  }
   const capturedChunks = [];
   let capturedBytes = 0;
   let outputTail = Buffer.alloc(0);
@@ -191,8 +218,13 @@ async function executeCommandCheck({ check, repoRoot, logPath, limits = {} }) {
   if (timedOut) signalProcessTree("SIGKILL");
   if (forceKillTimeout) clearTimeout(forceKillTimeout);
 
-  let safeLog = redactSecrets(Buffer.concat(capturedChunks).toString("utf8"));
-  if (outputTruncated) safeLog += "\n[delivery runner truncated this log]\n";
+  const capturedOutput = Buffer.concat(capturedChunks).toString("utf8");
+  const outputTailText = outputTail.toString("utf8");
+  const safeCapturedOutput = redactSecrets(capturedOutput);
+  const safeOutputTail = redactSecrets(outputTailText);
+  const safeLog = outputTruncated
+    ? `${safeCapturedOutput}\n[delivery runner truncated this log]\n[delivery runner output tail]\n${safeOutputTail}`
+    : safeCapturedOutput;
   await fsPromises.writeFile(absoluteLogPath, safeLog, { flag: "wx", mode: 0o600 });
 
   const durationMs = Date.now() - startedAt;
@@ -202,7 +234,9 @@ async function executeCommandCheck({ check, repoRoot, logPath, limits = {} }) {
     check,
     command: check.command,
     args: check.args,
-    output: safeLog,
+    output: safeCapturedOutput,
+    outputTail: safeOutputTail,
+    outputTruncated,
     exitCode: outcome.exitCode,
     signal: outcome.signal,
     timedOut,
@@ -239,6 +273,11 @@ async function executeCommandCheck({ check, repoRoot, logPath, limits = {} }) {
     locations,
     counts,
     logPath,
+    rawOutput: outputTruncated ? `${capturedOutput}\n${outputTailText}` : capturedOutput,
+    outputTail: outputTailText,
+    outputTruncated,
+    code,
+    message,
     diagnostic: passed
       ? null
       : {
@@ -259,6 +298,27 @@ async function executeNoWipCheck({ check, repoRoot }) {
   for (const featureFile of check.parameters.scopeFeatures) {
     assertSafeRepoPath(repoRoot, featureFile, "Feature scope file");
     const absolute = path.resolve(repoRoot, featureFile);
+    const realRepoRoot = fs.realpathSync(repoRoot);
+    const realFeature = fs.realpathSync(absolute);
+    const relative = path.relative(realRepoRoot, realFeature);
+    if (relative.startsWith("..") || path.isAbsolute(relative)) {
+      return {
+        id: check.id,
+        status: "failed",
+        durationMs: Date.now() - startedAt,
+        exitCode: null,
+        summaryLines: [`Feature scope file resolves outside repository: ${featureFile}`],
+        locations: [featureFile],
+        counts: { passed: 0, failed: 1, skipped: 0 },
+        diagnostic: {
+          code: "SCOPE_FILE_OUTSIDE_REPO",
+          checkId: check.id,
+          message: `Feature scope file resolves outside repository: ${featureFile}`,
+          file: featureFile,
+          retryable: false,
+        },
+      };
+    }
     let source;
     try {
       source = await fsPromises.readFile(absolute, "utf8");

@@ -15,13 +15,14 @@ import {
   DeliveryVerifyHeadInputSchema,
   DeliveryTestInputSchema,
   DeliveryJobWaitInputSchema,
+  DeliveryJobCancelInputSchema,
   formatInputIssues,
 } from "./lib/input-schema.mjs";
 import { inspectCi } from "./lib/ci-provider.mjs";
 import { finalizeDelivery, verifyHeadDelivery } from "./lib/delivery-finalize.mjs";
 import { testDelivery } from "./lib/test-delivery.mjs";
 import { redactSecrets } from "./lib/redact-secrets.mjs";
-import { waitForJob } from "./lib/jobs.mjs";
+import { waitForJob, cancelDeliveryJob } from "./lib/jobs.mjs";
 
 const intentProperty = {
   type: "string",
@@ -46,6 +47,7 @@ const commonProperties = {
   scopeFiles: {
     type: "array",
     items: { type: "string" },
+    maxItems: 100,
     description: "Completed feature paths that define Gate D @wip scope",
   },
   repairsSha: {
@@ -101,15 +103,26 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
                   "Optional global reason or context for the maintainability decisions",
               },
               decisions: {
-                type: "object",
                 description:
-                  "Map of signalId -> justification (min 12 characters each)",
-                additionalProperties: {
-                  type: "string",
-                  minLength: 12,
-                  description:
-                    "Justification for this maintainability signal (at least 12 characters)",
-                },
+                  "Decisions as a signalId-to-justification map or as structured decision entries",
+                oneOf: [
+                  {
+                    type: "object",
+                    additionalProperties: { type: "string", minLength: 12 },
+                  },
+                  {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: { type: "string" },
+                        signalId: { type: "string" },
+                        reason: { type: "string" },
+                        justification: { type: "string" },
+                      },
+                    },
+                  },
+                ],
               },
             },
             required: ["snapshotHash"],
@@ -121,7 +134,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           mode: {
             type: "string",
             enum: ["sync", "job", "auto"],
-            description: "Execution mode: 'sync' waits for completion, 'job' returns immediately with a jobId, 'auto' runs as job for gates exceeding safe client deadlines (Gate D/R). Default is 'auto'.",
+            description: "Execution mode: 'sync' waits for completion, 'job' returns immediately with a jobId, 'auto' runs Gate C/D/R as a recoverable job. Default is 'auto'.",
           },
           async: {
             type: "boolean",
@@ -176,6 +189,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           scopeFiles: {
             type: "array",
             items: { type: "string" },
+            maxItems: 100,
             description: "Feature files whose completed scope must match Gate D evidence",
           },
           waitForCi: {
@@ -202,7 +216,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
       },
       annotations: {
-        readOnlyHint: true,
+        readOnlyHint: false,
         destructiveHint: false,
         idempotentHint: true,
         openWorldHint: true,
@@ -234,6 +248,35 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: "delivery_job_cancel",
+      description:
+        "Cancels a queued or running recoverable delivery job after verifying its worker identity, and releases its delivery lock.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          jobId: {
+            type: "string",
+            minLength: 1,
+            maxLength: 100,
+            pattern: "^[a-zA-Z0-9_-]+$",
+            description: "The unique identifier of the background delivery job to cancel",
+          },
+          reason: {
+            type: "string",
+            maxLength: 500,
+            description: "Optional cancellation reason",
+          },
+        },
+        required: ["jobId"],
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    {
       name: "delivery_verify_head",
       description:
         "Verifica Gate D sobre el commit HEAD actual y registra la evidencia directamente sin requerir un commit adicional",
@@ -252,11 +295,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           scopeFiles: {
             type: "array",
             items: { type: "string" },
+            maxItems: 100,
             description: "Completed feature paths to verify with Gate D",
           },
           force: {
             type: "boolean",
             description: "Re-run checks instead of reusing cached evidence",
+          },
+          mode: {
+            type: "string",
+            enum: ["sync", "job", "auto"],
+            description: "Execution mode: 'sync' waits for Gate D, 'job' returns a recoverable jobId, and 'auto' chooses a job when no focused executor is supplied. Default is 'sync'.",
+          },
+          async: {
+            type: "boolean",
+            description: "Run Gate D as an asynchronous job; alias for mode: 'job'.",
           },
         },
       },
@@ -277,11 +330,22 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           mode: {
             type: "string",
             enum: ["affected", "unit", "scenario", "diagnostic"],
-            description: "Validation mode; defaults to 'affected'",
+            description: "Functional validation mode; defaults to 'affected'",
+          },
+          executionMode: {
+            type: "string",
+            enum: ["sync", "job", "auto"],
+            description:
+              "Execution mode independent from the functional mode: 'sync' waits, 'job' returns a recoverable jobId, and 'auto' backgrounds affected/scenario or long diagnostic checks. Focused unit tests remain synchronous in auto; defaults to 'auto'.",
+          },
+          async: {
+            type: "boolean",
+            description: "Alias for executionMode: 'job'.",
           },
           testFiles: {
             type: "array",
             items: { type: "string" },
+            maxItems: 20,
             description: "Array of test files for mode: unit",
           },
           featureFile: {
@@ -303,7 +367,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
       },
       annotations: {
-        readOnlyHint: true,
+        readOnlyHint: false,
         destructiveHint: false,
         idempotentHint: true,
         openWorldHint: false,
@@ -401,6 +465,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
   }
 
+  if (name === "delivery_job_cancel") {
+    const parsed = DeliveryJobCancelInputSchema.safeParse(request.params.arguments || {});
+    if (!parsed.success) {
+      return toolResponse(
+        {
+          status: "blocked",
+          code: "INVALID_ARGUMENTS",
+          message: formatInputIssues(parsed.error),
+        },
+        true
+      );
+    }
+    try {
+      const result = await cancelDeliveryJob(parsed.data);
+      return toolResponse(result, result.status === "cancelled" && result.error?.code !== "JOB_CANCELLED");
+    } catch (error) {
+      const message = redactSecrets(String(error.message || "Job cancellation error")).split("\n")[0];
+      return toolResponse({ status: "blocked", code: "INTERNAL_ERROR", message }, true);
+    }
+  }
+
   if (name === "delivery_finalize") {
     const parsed = DeliveryFinalizeInputSchema.safeParse(request.params.arguments || {});
     if (!parsed.success) {
@@ -436,7 +521,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     try {
       const result = await verifyHeadDelivery(parsed.data);
-      return toolResponse(result, !result.verified);
+      const isError = !result.verified && !["job_started", "running"].includes(result.status);
+      return toolResponse(result, isError);
     } catch (error) {
       const message = redactSecrets(String(error.message || "Delivery verify head error")).split(
         "\n"

@@ -301,9 +301,13 @@ test("server.mjs publica schema canónico de acknowledgement y valida payload", 
     assert.strictEqual(ackSchema.type, "object");
     assert.deepStrictEqual(ackSchema.required, ["snapshotHash"]);
     assert.strictEqual(ackSchema.properties.snapshotHash.type, "string");
-    assert.strictEqual(ackSchema.properties.decisions.type, "object");
-    assert.strictEqual(ackSchema.properties.decisions.additionalProperties.type, "string");
-    assert.strictEqual(ackSchema.properties.decisions.additionalProperties.minLength, 12);
+    const decisionSchemas = ackSchema.properties.decisions.oneOf;
+    assert.ok(Array.isArray(decisionSchemas));
+    const decisionMapSchema = decisionSchemas.find((schema) => schema.type === "object");
+    const decisionArraySchema = decisionSchemas.find((schema) => schema.type === "array");
+    assert.strictEqual(decisionMapSchema.additionalProperties.type, "string");
+    assert.strictEqual(decisionMapSchema.additionalProperties.minLength, 12);
+    assert.strictEqual(decisionArraySchema.items.type, "object");
 
     // Call tool with invalid acknowledgement (justification < 12 chars in decisions)
     const badCall = await client.callTool({

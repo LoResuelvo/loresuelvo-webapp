@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { findRepoRoot, assertSafeRepoPath } from "./repo-root.mjs";
 import { loadDeliveryPolicy } from "./policy-loader.mjs";
@@ -9,6 +10,7 @@ import {
   loadEvidenceRecord,
 } from "./delivery-ledger.mjs";
 import { saveDeliveryContext } from "./delivery-context.mjs";
+import { createDeliveryJob, spawnJobWorker, findActiveDeliveryJob } from "./jobs.mjs";
 
 function normalizeUsId(usId) {
   if (!usId || typeof usId !== "string") return null;
@@ -28,6 +30,11 @@ export async function verifyHeadDelivery({
   scopeFiles = [],
   force = false,
   executeCheck = null,
+  mode = "sync",
+  async: isAsync = false,
+  // Internal marker used by job-runner. The worker already owns its job and
+  // must execute Gate D instead of discovering that same job as active.
+  workerJobId = null,
 } = {}) {
   const root = findRepoRoot(repoRoot);
   const policy = await loadDeliveryPolicy({ repoRoot: root });
@@ -200,6 +207,57 @@ export async function verifyHeadDelivery({
         message: `Scope feature file is unavailable at HEAD: ${feature}`,
       };
     }
+  }
+
+  // Gate D can exceed an MCP client's request deadline.  A verify-head job
+  // keeps the exact HEAD/scope identity in a recoverable record while the
+  // worker runs the same synchronous implementation below.
+  const shouldRunAsJob =
+    !workerJobId &&
+    (isAsync || mode === "job" || (mode === "auto" && !executeCheck));
+  if (shouldRunAsJob) {
+    const scopeKey = resolvedScope.join("\n");
+    const runKey = `verify-head-${crypto
+      .createHash("sha256")
+      .update(`${headSha}|${intent}|${policyHash}|${scopeKey}`)
+      .digest("hex")}`;
+    const activeJob = await findActiveDeliveryJob({ repoRoot: root, runKey });
+    if (activeJob) {
+      return {
+        verified: false,
+        status: "running",
+        jobId: activeJob.jobId,
+        headSha,
+        gate: "D",
+        scopeFiles: resolvedScope,
+        message: `Gate D verification job '${activeJob.jobId}' is already running. Use delivery_job_wait to await completion.`,
+      };
+    }
+
+    const job = await createDeliveryJob({
+      repoRoot: root,
+      type: "verify_head",
+      params: {
+        intent,
+        usId,
+        scopeFiles: resolvedScope,
+        force,
+        mode: "sync",
+      },
+      runKey,
+      snapshotHash: snapshot.snapshotHash,
+      gateId: "D",
+    });
+    await spawnJobWorker({ repoRoot: root, jobId: job.jobId });
+    return {
+      verified: false,
+      status: "job_started",
+      jobId: job.jobId,
+      headSha,
+      gate: "D",
+      scopeFiles: resolvedScope,
+      message: `Gate D verification started as recoverable background job '${job.jobId}'. Use delivery_job_wait to await completion.`,
+    };
   }
 
   let inferredUsId = null;

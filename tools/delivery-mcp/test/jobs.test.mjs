@@ -320,6 +320,86 @@ test("jobs: deduplicación de job activo para el mismo snapshot", async (t) => {
   assert.ok(secondCall.message.includes("already running"));
 });
 
+test("jobs: el worker ejecuta su snapshot sin deduplicarse contra sí mismo", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.mkdir(path.join(repoRoot, "features"), { recursive: true });
+  await fs.writeFile(path.join(repoRoot, "features/test.feature"), "Feature: Test\n", "utf8");
+  execFileSync("git", ["add", "features/test.feature"], { cwd: repoRoot });
+
+  const snapshot = await captureGitSnapshot({ cwd: repoRoot });
+  const inspection = (await inspectDelivery({ repoRoot, intent: "prepare_commit" })).result;
+  const runKey = computeRunKey({ inspection, snapshot });
+  const job = await createDeliveryJob({
+    repoRoot,
+    type: "prepare",
+    params: { intent: "prepare_commit" },
+    runKey,
+    snapshotHash: inspection.snapshotHash,
+    gateId: inspection.gate.id,
+  });
+  await updateDeliveryJob({
+    repoRoot,
+    jobId: job.jobId,
+    updates: { status: "running", pid: process.pid, startedAt: new Date().toISOString() },
+  });
+
+  let executions = 0;
+  const result = await prepareDelivery({
+    repoRoot,
+    intent: "prepare_commit",
+    mode: "sync",
+    workerJobId: job.jobId,
+    executeCheck: async ({ check }) => {
+      executions += 1;
+      return {
+        id: check.id,
+        status: "passed",
+        durationMs: 1,
+        exitCode: 0,
+        summaryLines: [],
+        diagnostic: null,
+      };
+    },
+  });
+
+  assert.strictEqual(result.status, "passed");
+  assert.ok(executions > 0, "the worker must execute the selected gate");
+});
+
+test("jobs: un queued sin worker se libera al vencer su lease", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const job = await createDeliveryJob({ repoRoot, type: "prepare", runKey: "expired-queue" });
+  await updateDeliveryJob({
+    repoRoot,
+    jobId: job.jobId,
+    updates: { queueLeaseUntil: new Date(Date.now() - 1_000).toISOString() },
+  });
+
+  assert.strictEqual(await findActiveDeliveryJob({ repoRoot, runKey: "expired-queue" }), null);
+  const persisted = await getDeliveryJob({ repoRoot, jobId: job.jobId });
+  assert.strictEqual(persisted.status, "failed");
+  assert.strictEqual(persisted.error.code, "JOB_QUEUE_EXPIRED");
+});
+
+test("jobs: un timeout terminal no se presenta como job todavía en progreso", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const job = await createDeliveryJob({ repoRoot, type: "finalize" });
+  await updateDeliveryJob({
+    repoRoot,
+    jobId: job.jobId,
+    updates: {
+      status: "timed_out",
+      finishedAt: new Date().toISOString(),
+      result: { finalized: false, status: "in_progress", reason: "CI_TIMEOUT" },
+    },
+  });
+
+  const result = await waitForJob({ repoRoot, jobId: job.jobId, timeoutMs: 100 });
+  assert.strictEqual(result.status, "timed_out");
+  assert.strictEqual(result.reason, "CI_TIMEOUT");
+  assert.ok(result.diagnostics.length > 0);
+});
+
 test("jobs: job completado emite receipt idéntico y verificable", async (t) => {
   const repoRoot = await createTempGitRepo(t);
 

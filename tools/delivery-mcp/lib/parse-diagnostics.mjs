@@ -664,6 +664,8 @@ export function parseDiagnostics({
   command,
   args,
   output,
+  outputTail = "",
+  outputTruncated = false,
   exitCode = 0,
   signal = null,
   timedOut = false,
@@ -671,7 +673,16 @@ export function parseDiagnostics({
   maxSummaryLines = 6,
   maxLocations = 6,
 } = {}) {
-  const cleanOutput = stripAnsi(output || "");
+  const mainOutput = Buffer.isBuffer(output) ? output.toString("utf8") : String(output || "");
+  const tailOutput = Buffer.isBuffer(outputTail) ? outputTail.toString("utf8") : String(outputTail || "");
+  // The bounded log keeps its head, while the tail contains the final summary
+  // and often the causal error. Include it in parsing whenever truncation
+  // occurred so diagnostics do not silently report a generic failure merely
+  // because the useful line was beyond maxCheckLogBytes.
+  const diagnosticOutput = outputTruncated && tailOutput
+    ? `${mainOutput}\n${tailOutput}`
+    : mainOutput;
+  const cleanOutput = stripAnsi(diagnosticOutput);
   const passed = !timedOut && !error && exitCode === 0 && !signal;
 
   // On success: compact response without raw output

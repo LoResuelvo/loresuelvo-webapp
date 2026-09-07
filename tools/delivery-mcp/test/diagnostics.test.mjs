@@ -123,6 +123,29 @@ test("Fallback executeCheck: timeout produce CHECK_TIMEOUT", () => {
   assert.strictEqual(parsed.summaryLines[0], "Unit tests timed out");
 });
 
+test("Parser usa el output tail cuando el log fue truncado", () => {
+  const parsed = parseDiagnostics({
+    check: { id: "unit", label: "Unit tests" },
+    command: "npm",
+    args: ["run", "test"],
+    output: "early output\n[delivery runner truncated this log]",
+    outputTail: [
+      "FAIL domain/billing/invoice.test.ts > Invoice > calculateTotal",
+      "AssertionError: expected 1500 to be 1000",
+      " ❯ domain/billing/invoice.test.ts:78:20",
+      "Tests  1 failed | 49 passed (50)",
+    ].join("\n"),
+    outputTruncated: true,
+    exitCode: 1,
+  });
+
+  assert.strictEqual(parsed.passed, false);
+  assert.strictEqual(parsed.code, "CHECK_FAILED");
+  assert.ok(parsed.message.includes("Invoice > calculateTotal"));
+  assert.ok(parsed.locations.includes("domain/billing/invoice.test.ts:78"));
+  assert.deepStrictEqual(parsed.counts, { passed: 49, failed: 1, skipped: 0 });
+});
+
 test("Proceso con salida solo en stderr captura y extrae diagnóstico adecuadamente", async (t) => {
   const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-diag-stderr-"));
   t.after(() => fs.rm(repoRoot, { recursive: true, force: true }));

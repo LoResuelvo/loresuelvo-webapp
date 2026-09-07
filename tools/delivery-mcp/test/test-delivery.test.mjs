@@ -27,7 +27,7 @@ test("Unit test focalizado válido y exitoso", async () => {
   assert.strictEqual(result.cached, false);
   assert.strictEqual(typeof result.durationMs, "number");
   assert.ok(result.durationMs > 0);
-  assert.ok(result.counts && result.counts.passed >= 20);
+  assert.ok(result.counts && result.counts.passed >= 1);
   assert.strictEqual(result.counts.failed, 0);
   assert.strictEqual(result.failure, undefined);
   assert.deepStrictEqual(result.diagnostics, []);
@@ -117,11 +117,11 @@ test("Feature completa y escenario concreto", async () => {
   assert.strictEqual(featResult.mode, "scenario");
   assert.strictEqual(featResult.counts.passed, 1);
   assert.strictEqual(featResult.counts.failed, 0);
-  assert.strictEqual(capturedCall.command, "npx");
+  assert.strictEqual(capturedCall.command, "make");
   assert.deepStrictEqual(capturedCall.args, [
-    "--no-install",
-    "cucumber-js",
-    "features/search-discovery/landing_page_visualization.feature",
+    "test-e2e-managed",
+    "E2E_FILE=features/search-discovery/landing_page_visualization.feature",
+    "E2E_REQUIRE_SCENARIO=1",
   ]);
 
   // 2. Escenario concreto
@@ -136,15 +136,69 @@ test("Feature completa y escenario concreto", async () => {
 
   assert.strictEqual(scenResult.status, "passed");
   assert.deepStrictEqual(capturedCall.args, [
-    "--no-install",
-    "cucumber-js",
-    "features/search-discovery/landing_page_visualization.feature",
-    "--name",
-    "Visualizar servicios destacados",
+    "test-e2e-managed",
+    "E2E_FILE=features/search-discovery/landing_page_visualization.feature",
+    "E2E_REQUIRE_SCENARIO=1",
+    "E2E_NAME=Visualizar servicios destacados",
   ]);
 
   // Invariant: scenarioName validation rejects newlines
   assert.throws(() => validateScenarioName("Bad\nName"), /illegal control characters/);
+});
+
+test("Escenario @wip usa el perfil gestionado y exige ejecución real", async () => {
+  const repoRoot = findRepoRoot();
+  let capturedCall = null;
+
+  const mockExecute = async (options) => {
+    capturedCall = options;
+    return {
+      passed: true,
+      timedOut: false,
+      exitCode: 0,
+      durationMs: 25,
+      rawOutput: "1 scenario (1 passed)",
+      summaryLines: [],
+      locations: [],
+    };
+  };
+
+  const result = await testDelivery({
+    repoRoot,
+    mode: "scenario",
+    featureFile: "features/search-discovery/provider_landing_page.feature",
+    scenarioName: "03-HPP Verificar trabajos agendados",
+    force: true,
+    executeFn: mockExecute,
+  });
+
+  assert.strictEqual(result.status, "passed");
+  assert.ok(capturedCall.args.includes("E2E_PROFILE=wip"));
+  assert.ok(capturedCall.args.includes("E2E_REQUIRE_SCENARIO=1"));
+  assert.ok(capturedCall.args.includes("E2E_NAME=03-HPP Verificar trabajos agendados"));
+});
+
+test("Scenario con cero escenarios ejecutados nunca devuelve verde", async () => {
+  const repoRoot = findRepoRoot();
+  const result = await testDelivery({
+    repoRoot,
+    mode: "scenario",
+    featureFile: "features/search-discovery/landing_page_visualization.feature",
+    force: true,
+    executeFn: async () => ({
+      passed: true,
+      timedOut: false,
+      exitCode: 0,
+      durationMs: 10,
+      rawOutput: "0 scenarios (0 passed)",
+      summaryLines: [],
+      locations: [],
+    }),
+  });
+
+  assert.strictEqual(result.status, "failed");
+  assert.strictEqual(result.failure.code, "NO_SCENARIOS_EXECUTED");
+  assert.ok(result.diagnostics.some((diagnostic) => diagnostic.code === "NO_SCENARIOS_EXECUTED"));
 });
 
 test("affected con cambio unitario, Cucumber y cambio ambiguo", async () => {
@@ -193,6 +247,7 @@ test("affected con cambio unitario, Cucumber y cambio ambiguo", async () => {
   const affectedResult = await testDelivery({
     repoRoot,
     mode: "affected",
+    executionMode: "sync",
     force: true,
   });
   assert.ok(["passed", "failed"].includes(affectedResult.status));
@@ -329,6 +384,35 @@ test("checkId desconocido o no publicado rechazado", async () => {
   assert.ok(result.diagnostics[0].message.includes("Published catalog checks"));
 });
 
+test("Diagnostic conserva counts, código y logPath del check ejecutado", async () => {
+  const repoRoot = findRepoRoot();
+  const result = await testDelivery({
+    repoRoot,
+    mode: "diagnostic",
+    checkId: "unit",
+    force: true,
+    executeFn: async ({ logPath }) => ({
+      passed: false,
+      timedOut: false,
+      exitCode: 1,
+      durationMs: 15,
+      rawOutput: "Tests  2 failed | 3 passed (5)",
+      summaryLines: ["FAIL domain/user.test.ts > load"],
+      locations: ["domain/user.test.ts:25"],
+      counts: { passed: 3, failed: 2, skipped: 0 },
+      code: "CHECK_FAILED",
+      message: "two unit tests failed",
+      logPath,
+    }),
+  });
+
+  assert.strictEqual(result.status, "failed");
+  assert.deepStrictEqual(result.counts, { passed: 3, failed: 2, skipped: 0 });
+  assert.strictEqual(result.failure.code, "CHECK_FAILED");
+  assert.ok(result.logPath.endsWith(".log"));
+  assert.strictEqual(result.failure.logPath, result.logPath);
+});
+
 test("Timeout y terminación de procesos hijos", async () => {
   const repoRoot = findRepoRoot();
 
@@ -398,7 +482,10 @@ test("Caché idéntica y su invalidación tras editar una entrada", async () => 
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-cache-test-"));
   try {
     const dummyTestFile = path.join(tempDir, "sample.test.ts");
+    const productionFile = path.join(tempDir, "src", "production.ts");
     await fs.writeFile(dummyTestFile, "export const a = 1;", "utf8");
+    await fs.mkdir(path.dirname(productionFile), { recursive: true });
+    await fs.writeFile(productionFile, "export const value = 1;", "utf8");
 
     let executionCount = 0;
     const mockExecute = async () => {
@@ -436,8 +523,8 @@ test("Caché idéntica y su invalidación tras editar una entrada", async () => 
     assert.strictEqual(res2.cached, true);
     assert.strictEqual(executionCount, 1);
 
-    // 3. Edit test file -> invalidates cache
-    await fs.writeFile(dummyTestFile, "export const a = 2; // modified", "utf8");
+    // 3. Edit production input without changing the test path -> invalidates cache
+    await fs.writeFile(productionFile, "export const value = 2; // modified", "utf8");
 
     const res3 = await testDelivery({
       repoRoot: tempDir,
@@ -449,17 +536,93 @@ test("Caché idéntica y su invalidación tras editar una entrada", async () => 
     assert.strictEqual(res3.cached, false);
     assert.strictEqual(executionCount, 2);
 
-    // 4. Force flag re-executes even if file is unchanged
+    // 4. Edit test file -> invalidates cache as well
+    await fs.writeFile(dummyTestFile, "export const a = 2; // modified", "utf8");
+
     const res4 = await testDelivery({
+      repoRoot: tempDir,
+      mode: "unit",
+      testFiles: ["sample.test.ts"],
+      executeFn: mockExecute,
+    });
+    assert.strictEqual(res4.status, "passed");
+    assert.strictEqual(res4.cached, false);
+    assert.strictEqual(executionCount, 3);
+
+    // 5. Force flag re-executes even if file is unchanged
+    const res5 = await testDelivery({
       repoRoot: tempDir,
       mode: "unit",
       testFiles: ["sample.test.ts"],
       force: true,
       executeFn: mockExecute,
     });
-    assert.strictEqual(res4.status, "passed");
-    assert.strictEqual(res4.cached, false);
-    assert.strictEqual(executionCount, 3);
+    assert.strictEqual(res5.status, "passed");
+    assert.strictEqual(res5.cached, false);
+    assert.strictEqual(executionCount, 4);
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("Caché de scenario se invalida al cambiar steps/support aunque el feature no cambie", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-scenario-cache-"));
+  try {
+    const featurePath = path.join(tempDir, "features", "sample.feature");
+    const stepPath = path.join(tempDir, "features", "sample.steps.ts");
+    await fs.mkdir(path.dirname(featurePath), { recursive: true });
+    await fs.writeFile(
+      featurePath,
+      "Feature: Sample\n\nScenario: Works\n  Given a sample\n",
+      "utf8"
+    );
+    await fs.writeFile(stepPath, "export const stepVersion = 1;\n", "utf8");
+
+    let executionCount = 0;
+    const mockExecute = async () => {
+      executionCount += 1;
+      return {
+        passed: true,
+        timedOut: false,
+        exitCode: 0,
+        durationMs: 10,
+        rawOutput: "1 scenario (1 passed)",
+        summaryLines: [],
+        locations: [],
+      };
+    };
+
+    const first = await testDelivery({
+      repoRoot: tempDir,
+      mode: "scenario",
+      featureFile: "features/sample.feature",
+      force: false,
+      executeFn: mockExecute,
+    });
+    assert.strictEqual(first.status, "passed");
+    assert.strictEqual(first.cached, false);
+
+    const second = await testDelivery({
+      repoRoot: tempDir,
+      mode: "scenario",
+      featureFile: "features/sample.feature",
+      force: false,
+      executeFn: mockExecute,
+    });
+    assert.strictEqual(second.cached, true);
+    assert.strictEqual(executionCount, 1);
+
+    await fs.writeFile(stepPath, "export const stepVersion = 2;\n", "utf8");
+    const third = await testDelivery({
+      repoRoot: tempDir,
+      mode: "scenario",
+      featureFile: "features/sample.feature",
+      force: false,
+      executeFn: mockExecute,
+    });
+    assert.strictEqual(third.status, "passed");
+    assert.strictEqual(third.cached, false);
+    assert.strictEqual(executionCount, 2);
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }

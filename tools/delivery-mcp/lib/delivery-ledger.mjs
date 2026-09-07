@@ -1827,7 +1827,7 @@ export async function validateRepairLineage({
   const repairBranch = repairEntry?.branch ? String(repairEntry.branch).trim().toLowerCase() : null;
   const targetUs = targetEntry?.usId ? String(targetEntry.usId).trim().toLowerCase() : null;
   const repairUs = repairEntry?.usId ? String(repairEntry.usId).trim().toLowerCase() : null;
-  if (!targetBranch || !repairBranch || !targetUs || !repairUs) {
+  if (!targetBranch || !repairBranch || (targetUs && !repairUs) || (!targetUs && repairUs)) {
     return {
       valid: false,
       reason: "REPAIR_CONTEXT_UNKNOWN",

@@ -79,6 +79,13 @@ test("decisiones de mantenibilidad incompletas bloquean: falta acknowledgement",
   assert.strictEqual(result.accepted, false);
   assert.strictEqual(result.status, "review_required");
   assert.strictEqual(result.diagnostic.code, "MAINTAINABILITY_ACK_REQUIRED");
+  assert.ok(result.requiredAcknowledgement);
+  assert.strictEqual(result.requiredAcknowledgement.snapshotHash, sampleInspection.snapshotHash);
+  assert.strictEqual(result.requiredAcknowledgement.signals.length, 2);
+  assert.strictEqual(
+    result.requiredAcknowledgement.template.decisions["functionLines:domain/proposal/proposal.ts:1"],
+    "Justificación de al menos 12 caracteres"
+  );
 });
 
 test("decisiones de mantenibilidad incompletas bloquean: snapshotHash diferente", () => {

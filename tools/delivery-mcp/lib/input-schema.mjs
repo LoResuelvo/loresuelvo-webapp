@@ -21,7 +21,7 @@ export const DeliveryPrepareInputSchema = DeliveryInspectInputSchema.extend({
       reason: z.string().max(1000).optional(),
       decisions: z
         .union([
-          z.record(z.string(), z.string()),
+          z.record(z.string(), z.string().min(12)),
           z.array(
             z.object({
               id: z.string().optional(),

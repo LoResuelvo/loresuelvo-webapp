@@ -87,12 +87,29 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           ...commonProperties,
           acknowledgement: {
             type: "object",
+            description:
+              "Explicit acknowledgement of maintainability signals for the exact staged snapshot",
             properties: {
-              snapshotHash: { type: "string" },
-              reason: { type: "string" },
+              snapshotHash: {
+                type: "string",
+                description:
+                  "64-character SHA-256 hash of the exact staged snapshot being acknowledged",
+              },
+              reason: {
+                type: "string",
+                description:
+                  "Optional global reason or context for the maintainability decisions",
+              },
               decisions: {
                 type: "object",
-                description: "Map of signalId -> justification (min 12 chars each)",
+                description:
+                  "Map of signalId -> justification (min 12 characters each)",
+                additionalProperties: {
+                  type: "string",
+                  minLength: 12,
+                  description:
+                    "Justification for this maintainability signal (at least 12 characters)",
+                },
               },
             },
             required: ["snapshotHash"],

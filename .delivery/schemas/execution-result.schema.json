@@ -116,6 +116,38 @@
         "reason": { "type": "string" },
         "decisions": { "type": "object" }
       }
+    },
+    "requiredAcknowledgement": {
+      "type": "object",
+      "required": ["snapshotHash", "signals", "template"],
+      "properties": {
+        "snapshotHash": { "type": "string" },
+        "signals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "rule", "file", "line", "message"],
+            "properties": {
+              "id": { "type": "string" },
+              "rule": { "type": "string" },
+              "file": { "type": "string" },
+              "line": { "type": "integer" },
+              "message": { "type": "string" }
+            }
+          }
+        },
+        "template": {
+          "type": "object",
+          "required": ["snapshotHash", "decisions"],
+          "properties": {
+            "snapshotHash": { "type": "string" },
+            "decisions": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          }
+        }
+      }
     }
   }
 }

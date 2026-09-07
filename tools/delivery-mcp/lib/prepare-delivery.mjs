@@ -6,7 +6,9 @@ import { recordPreparedEvidence, verifyPreparedEvidence, evaluateCiWindow } from
 import { saveDeliveryContext } from "./delivery-context.mjs";
 import { computeRunKey } from "./delivery-evidence.mjs";
 import { createDeliveryJob, spawnJobWorker, findActiveDeliveryJob } from "./jobs.mjs";
+import { buildRequiredAcknowledgement } from "./format-result.mjs";
 
+export { buildRequiredAcknowledgement } from "./format-result.mjs";
 
 function stoppedResult(inspection, status, extraDiagnostic, repoRoot) {
   const diagnostics = [
@@ -32,6 +34,14 @@ function stoppedResult(inspection, status, extraDiagnostic, repoRoot) {
     diagnostics,
     evidence: { recordPath: null },
   };
+  if (status === "review_required") {
+    res.requiredAcknowledgement =
+      inspection?.requiredAcknowledgement ||
+      buildRequiredAcknowledgement({
+        snapshotHash: inspection?.snapshotHash,
+        maintainability: inspection?.maintainability,
+      });
+  }
   validateExecutionResult(res, repoRoot);
   return res;
 }
@@ -52,6 +62,12 @@ export function resolveReview(inspection, acknowledgement) {
           "Review each maintainability signal, then acknowledge this exact snapshot with per-signal decisions",
         retryable: false,
       },
+      requiredAcknowledgement:
+        inspection?.requiredAcknowledgement ||
+        buildRequiredAcknowledgement({
+          snapshotHash: inspection?.snapshotHash,
+          maintainability: inspection?.maintainability,
+        }),
     };
   }
 
@@ -91,13 +107,18 @@ export function resolveReview(inspection, acknowledgement) {
   if (acknowledgement.decisions) {
     if (Array.isArray(acknowledgement.decisions)) {
       for (const item of acknowledgement.decisions) {
+        if (!item || typeof item !== "object") continue;
         const id = item.id || item.signalId;
         const reason = item.reason || item.justification;
-        if (id && reason) decisionsMap.set(String(id).trim(), String(reason).trim());
+        if (id !== undefined && id !== null && reason !== undefined && reason !== null) {
+          decisionsMap.set(String(id).trim(), String(reason).trim());
+        }
       }
     } else if (typeof acknowledgement.decisions === "object") {
       for (const [id, reason] of Object.entries(acknowledgement.decisions)) {
-        if (id && reason) decisionsMap.set(String(id).trim(), String(reason).trim());
+        if (id !== undefined && id !== null && reason !== undefined && reason !== null) {
+          decisionsMap.set(String(id).trim(), String(reason).trim());
+        }
       }
     }
   }
@@ -120,12 +141,14 @@ export function resolveReview(inspection, acknowledgement) {
   const invalidSignals = [];
 
   for (const signal of signals) {
-    const signalId = signal.id || `${signal.rule}:${signal.file}:${signal.line}`;
-    const justification = decisionsMap.get(signalId);
+    const primaryId = signal.id ? String(signal.id).trim() : null;
+    const fallbackId = `${signal.rule}:${signal.file}:${signal.line}`.trim();
+    const targetId = primaryId || fallbackId;
+    const justification = (primaryId && decisionsMap.get(primaryId)) || decisionsMap.get(fallbackId);
     if (!justification) {
-      missingSignals.push(signalId);
+      missingSignals.push(targetId);
     } else if (justification.length < 12) {
-      invalidSignals.push(signalId);
+      invalidSignals.push(targetId);
     }
   }
 

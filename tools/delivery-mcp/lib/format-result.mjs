@@ -78,7 +78,37 @@ export function formatInspectionResult({
     diagnostics: sanitizedDiagnostics,
   };
 
+  if (result.status === "review_required") {
+    result.requiredAcknowledgement = buildRequiredAcknowledgement({
+      snapshotHash: result.snapshotHash,
+      maintainability: result.maintainability,
+    });
+  }
+
   validateInspectionResult(result, repoRoot);
 
   return result;
+}
+
+export function buildRequiredAcknowledgement({ snapshotHash = "", maintainability } = {}) {
+  const hash = snapshotHash || "";
+  const rawSignals = maintainability?.signals || [];
+  const signals = rawSignals.map((s) => ({
+    id: s.id || `${s.rule || "unknown"}:${s.file || "unknown"}:${s.line || 1}`,
+    rule: s.rule || "unknown",
+    file: s.file || "unknown",
+    line: typeof s.line === "number" ? Math.floor(s.line) : 1,
+    message: String(s.message || "").split("\n")[0],
+  }));
+
+  return {
+    snapshotHash: hash,
+    signals,
+    template: {
+      snapshotHash: hash,
+      decisions: Object.fromEntries(
+        signals.map((s) => [s.id, "Justificación de al menos 12 caracteres"])
+      ),
+    },
+  };
 }

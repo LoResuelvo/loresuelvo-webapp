@@ -19,13 +19,13 @@ Usar cuando la tarea cambia comportamiento observable, criterios de aceptación,
 
 ## Double-Loop TDD
 
-1. Crear o ajustar el escenario Gherkin. El RED inicial se confirma cuando sea viable y aporte valor; Gate 0 comprueba que los steps compilen y no rompan los existentes, sin exigir demostrar un RED inicial. Un RED esperado no habilita commit.
+1. Crear o ajustar el escenario Gherkin. El RED inicial se comprueba mediante `delivery_test({ mode: "scenario", featureFile: "features/<feature>.feature", scenarioName: "<Scenario Name>" })`. Gate 0 en prepare comprueba que los steps compilen y no rompan los existentes, pero para comprobar el fallo esperado en TDD se utiliza `delivery_test`. Un RED esperado no habilita commit.
 2. Si faltan frases, agregar step definitions mínimos antes de la implementación.
 3. Crear la presentación mínima aislada con props o mocks; no agregar ruta, fetch, repositorio, Server Action ni wiring todavía.
-4. Para cada pieza interna, escribir un test unitario o de componente pequeño en RED, centrado solamente en el nuevo comportamiento.
-5. Implementar lo mínimo para GREEN y refactorizar sin perderlo. En código productivo no trivial, resolver la revisión de `frontend-maintainability-governance` antes de cerrar el ciclo.
+4. Para cada pieza interna, escribir un test unitario o de componente pequeño en RED, centrado solamente en el nuevo comportamiento, comprobándolo con `delivery_test({ mode: "unit", testFiles: ["<path-to-test>"] })`.
+5. Implementar lo mínimo para GREEN y comprobarlo mediante `delivery_test` (mode `unit` para suites Vitest o mode `affected` para cambios de código). Refactorizar sin perderlo. En código productivo no trivial, resolver la revisión de `frontend-maintainability-governance` antes de cerrar el ciclo.
 6. Agregar infraestructura/aplicación y luego el wiring de integración cuando el escenario activo lo requiera.
-7. En cada frontera atómica, el agente realiza stage exacto y ejecuta `delivery_prepare` con el intent correspondiente según `frontend-testing-gates`; los intents de batch o US solo aplican cuando su scope de features está completo. Mantener `@wip` mientras el escenario no esté listo para entrar en la suite normal; al completar su implementación, retirar `@wip` y cerrar la frontera mediante `delivery_prepare`. Los comandos focalizados crudos son únicamente fallback humano o diagnóstico excepcional cuando la respuesta procesada no alcance.
+7. Queda estrictamente prohibido utilizar el gate completo de delivery (`delivery_prepare` o suites pesadas) como bucle rápido de TDD. La iteración interactiva RED/GREEN se realiza exclusivamente con `delivery_test` (cuya evidencia se guarda en `.delivery/runtime/tdd/` y no es consumible por git hooks). Al completar la implementación del escenario, retirar el tag `@wip` en el mismo cambio funcional. En la frontera atómica de cierre del escenario, el agente realiza stage exacto y valida y registra el cierre con `delivery_prepare` (`intent: "close_scenario"`). Solo el receipt `status: passed` autoriza el commit y push. Los comandos focalizados crudos son únicamente fallback humano o diagnóstico excepcional cuando la respuesta procesada no alcance.
 
 ## Selección de pruebas
 

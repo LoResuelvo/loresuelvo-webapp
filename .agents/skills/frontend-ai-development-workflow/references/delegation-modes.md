@@ -8,9 +8,9 @@ Leer al preparar o revisar un handoff entre orquestador y developer. El contrato
 2. Declarar conducción y granularidad como ejes independientes.
 3. Incluir hechos específicos del batch y la próxima frontera segura.
 4. Agregar únicamente los anexos técnicos que aplican.
-5. Confirmar acceso del developer a `delivery_prepare` antes de autorizar ediciones.
+5. Confirmar acceso del developer al MCP de delivery (`delivery_test`, `delivery_prepare`, `delivery_job_wait`) antes de autorizar ediciones.
 
-El contrato define resultados, límites, invariantes y ownership. No calcula gates, prescribe comandos de test ni fija archivos o líneas salvo que una restricción de seguridad, una evidencia ya confirmada o una frontera prohibida lo requiera.
+El contrato define resultados, límites, invariantes y ownership. No calcula gates, prescribe comandos crudos de test ni fija archivos o líneas salvo que una restricción de seguridad, una evidencia ya confirmada o una frontera prohibida lo requiera.
 
 ## Contrato completo
 
@@ -50,9 +50,8 @@ Próxima frontera atómica:
 - Mensaje de commit tentativo:
 
 Owners:
-- Implementación y validación:
-- Staging / commit / push:
-- Consulta de CI:
+- Implementación y validación (TDD con delivery_test):
+- Staging / commit / push (delivery_prepare):
 - Exclusividad del worktree:
 
 Condiciones para continuar:
@@ -170,7 +169,9 @@ volver a inspeccionar y regenerar delivery_prepare antes del commit.
 
 ## Delivery y cierre
 
-En cada frontera con commit, el developer realiza stage exacto e invoca `delivery_prepare`; el MCP selecciona el gate. No incluir listas de comandos ni gates “esperados” en el contrato.
+Durante el ciclo RED/GREEN se utiliza exclusivamente `delivery_test`. En cada frontera atómica con commit, el developer realiza stage exacto e invoca `delivery_prepare` (con soporte de jobs `delivery_job_wait` ante gates largos); el MCP selecciona el gate. No incluir listas de comandos, scripts crudos ni gates “esperados” en el contrato.
+
+Al completar el último escenario de una US y encontrarse el árbol limpio en HEAD, invocar `delivery_verify_head({ intent: "close_us", scopeFiles })` para validar Gate D sobre HEAD sin crear commits artificiales ni vacíos.
 
 `delivery_finalize(close_batch)` se usa solo si los feature files declarados para ese batch están completos y sin `@wip`. Cuando una feature conserva escenarios futuros con `@wip`, cerrar los escenarios implementados, emitir el reporte del batch y continuar sin formalizar `close_batch` sobre esa feature.
 
@@ -186,7 +187,7 @@ Ante una falla persistente, usar el [protocolo de diagnóstico](../../frontend-t
 Escenarios GREEN:
 Commits / SHAs:
 Gates y receipts:
-CI por SHA:
+Ventana de CI / incidentes:
 Cambios de contratos o tipos:
 Archivos productivos materiales:
 Mantenibilidad y decisiones:

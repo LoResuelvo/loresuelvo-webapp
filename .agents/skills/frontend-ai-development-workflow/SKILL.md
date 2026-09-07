@@ -29,15 +29,15 @@ Usar `MICROSTEP` ante ambigüedad o riesgo alto, `SCENARIO` como opción ordinar
 - El orquestador conserva el contrato funcional, el plan de batches, las decisiones de alcance y la comunicación con el usuario.
 - Antes de delegar trabajo estructural, consulta Codebase Memory, verifica cobertura y entrega la evidencia relevante sin pedir al developer que repita la exploración.
 - El developer persistente trabaja únicamente sobre el batch activo, no vuelve a delegar la implementación salvo autorización expresa, decide la solución cohesionada dentro del alcance y escala antes de cambiar comportamiento aprobado o cruzar una prohibición.
-- En `SCENARIO` y `SCENARIO_GROUP`, el developer valida, commitea, pushea y consulta CI. En `MICROSTEP`, esos owners pertenecen al orquestador salvo contrato explícito distinto.
+- En `SCENARIO` y `SCENARIO_GROUP`, el developer valida mediante `delivery_test`, commitea y pushea. La ventana de CI y los incidentes se evalúan automáticamente en `delivery_prepare` y `pre-push`; no se asigna al developer el monitoreo periódico de CI por SHA tras cada push. En `MICROSTEP`, esos owners pertenecen al orquestador salvo contrato explícito distinto.
 - La granularidad no determina el número de commits. Cada commit representa una frontera lógica completa según `frontend-commit-governance`.
 - Después del reporte, el orquestador revisa trazabilidad, diff y riesgos en proporción al cambio sin volver a ejecutar gates verdes ni reconstruir logs.
 
-Antes de delegar, comprobar que el developer tenga acceso a `delivery_prepare`. Los adaptadores y la propagación de herramientas son responsabilidad del cliente local, no del contrato compartido. Un agente autónomo sin el MCP requerido debe detenerse; la CLI neutral queda para humanos o para un entorno sin MCP aprobado explícitamente.
+Antes de delegar, comprobar que el developer tenga habilitado el MCP de delivery con acceso completo a `delivery_test`, `delivery_prepare` y `delivery_job_wait`. Los adaptadores y la propagación de herramientas son responsabilidad del cliente local, no del contrato compartido. Un agente autónomo sin el MCP requerido debe detenerse; la CLI neutral queda para humanos o para un entorno sin MCP aprobado explícitamente.
 
 ## Handoff suficiente
 
-El contrato transmite hechos específicos del batch, no vuelve a copiar reglas estables. Debe permitir que el developer conozca:
+El contrato transmite hechos específicos del batch, no vuelve a copiar reglas estables ni incluye comandos crudos ni cálculo manual de gates. Debe permitir que el developer conozca:
 
 - estado inicial, escenarios activos y objetivo observable;
 - contratos, tipos, invariantes y decisiones ya confirmadas;
@@ -52,10 +52,10 @@ Usar el contrato completo para el primer batch, un developer nuevo, contexto per
 
 En `SCENARIO` y `SCENARIO_GROUP`, el developer recorre cada escenario Outside-In y trabaja una frontera atómica por vez:
 
-1. implementar el comportamiento mínimo del escenario activo;
-2. aplicar las skills técnicas que correspondan;
-3. realizar stage exacto;
-4. invocar MCP `delivery_prepare` con el intent y mensaje propuesto;
+1. implementar el comportamiento mínimo del escenario activo usando el ciclo TDD focalizado con `delivery_test` (sin ejecutar el gate completo ni comandos de test crudos como bucle interactivo);
+2. aplicar las skills técnicas que correspondan (resolviendo señales de mantenibilidad con acknowledgement estructurado si aplica);
+3. retirar el tag `@wip` en el mismo cambio funcional que deja el escenario GREEN y realizar stage exacto;
+4. invocar MCP `delivery_prepare` con el intent y mensaje propuesto (aguardando con `delivery_job_wait` si la ejecución es asíncrona en modo job);
 5. con `status: passed`, commitear y pushear antes de iniciar otra frontera lógica.
 
 En `MICROSTEP`, se detiene después de validar el comportamiento y entrega el estado al owner de commit; no stagea ni prepara evidencia salvo que el contrato le asigne expresamente esa responsabilidad.
@@ -85,8 +85,8 @@ Una vez declarado `STOP_USER`, se detienen reparaciones, cambios, commits y push
 
 ## CI y cierres
 
-- Pushear cada commit inmediatamente y consultar su SHA mediante `delivery_ci_inspect`; continuar mientras la ventana configurada permita otro push.
-- Ante CI fallido, detener nuevos pushes y aplicar el protocolo `repair_ci`.
+- Pushear cada commit inmediatamente. La ventana continua (hasta 4 commits en vuelo) y los incidentes activos se evalúan automáticamente en `delivery_prepare` y `pre-push`; no se requiere polling ni monitoreo manual periódico por parte del developer.
+- Si un push es bloqueado por CI fallido previo, detener nuevos pushes e iniciar el flujo de reparación auditable (`repair_ci` / Gate R con soporte de `delivery_job_wait`). Para diagnóstico puntual de la falla, usar `delivery_ci_inspect({ sha })`.
 - `delivery_finalize(close_batch)` solo corresponde cuando todos los feature files declarados como scope del batch están completos y sin `@wip`. Si el batch cierra algunos escenarios de una feature que aún conserva otros `@wip`, reportar el batch y continuar mediante cierres de escenario; no invocar `close_batch` sobre esa feature incompleta.
 - Un cierre de batch puede devolver `passed_pending_ci`; habilita el siguiente batch dentro de la ventana, pero no representa CI verde.
 

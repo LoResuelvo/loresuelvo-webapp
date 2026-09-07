@@ -66,9 +66,33 @@ Una clase no es el patrón predeterminado para hacer legible un hook. Preferir n
 
 ## Auditoría antes del gate
 
-Para revisar antes de ejecutar tests, invocar `delivery_inspect`; clasifica de forma automática los archivos productivos staged, ejecuta el auditor y reporta las señales. Antes del commit, `delivery_prepare` repite esa inspección sobre el snapshot exacto y solo entonces ejecuta el gate seleccionado.
+Para auditar el código modificado antes de ejecutar tests, invocar MCP `delivery_inspect`; clasifica de forma automática los archivos productivos staged, ejecuta el auditor y reporta las señales.
 
-Si MCP no está disponible, usar las entradas neutrales equivalentes:
+Antes del commit, `delivery_prepare` repite esa inspección sobre el snapshot staged exacto:
+- Si no hay señales o todas están justificadas, procede a ejecutar el gate correspondiente.
+- Si detecta señales no justificadas, retorna `status: "review_required"`. La respuesta estructurada incluye el objeto `requiredAcknowledgement` con el `snapshotHash` exacto, la lista de señales y un `template` listo para completar.
+
+### Formato estándar canónico de acknowledgement (MCP)
+
+El agente resuelve las señales justificando cada una (o refactorizando para eliminarlas) y re-invoca `delivery_prepare` con el acknowledgement estructurado:
+
+```json
+{
+  "intent": "prepare_commit",
+  "acknowledgement": {
+    "snapshotHash": "<sha256>",
+    "decisions": {
+      "<signal-id>": "Justificación de al menos 12 caracteres"
+    }
+  }
+}
+```
+
+Cada justificación en `decisions` debe tener al menos 12 caracteres y asociar determinísticamente la señal (`<signal-id>`). Si las señales exceden el límite y son truncadas por la política, no pueden aprobarse parcialmente y bloquean el commit hasta reducir el alcance.
+
+### Humano, entorno sin MCP o diagnóstico manual
+
+En ausencia de MCP, para uso humano o diagnóstico manual puntual:
 
 ```bash
 npm run delivery:inspect -- --intent prepare_commit
@@ -78,8 +102,6 @@ npm run delivery:prepare -- --intent prepare_commit --message '<mensaje>' \
   --acknowledge-decision '<signal-id>=<justificación>'
 ```
 
-Cada justificación debe tener al menos 12 caracteres y cubrir de forma determinística la señal (`<signal-id>`). Si las señales exceden el límite y son truncadas por la política, no pueden aprobarse parcialmente y bloquean el commit hasta reducir el alcance.
-
 Para una revisión focalizada sobre archivos concretos (uso humano o diagnóstico focalizado excepcional):
 
 ```bash
@@ -87,13 +109,13 @@ git diff --name-only --diff-filter=ACMR HEAD
 node .agents/skills/frontend-maintainability-governance/scripts/audit-changed-code.mjs <rutas-productivas>
 ```
 
-Para revisar un commit ya creado o un archivo específico (uso humano o diagnóstico):
+Para revisar un commit ya creado o un archivo específico:
 
 ```bash
 node .agents/skills/frontend-maintainability-governance/scripts/audit-changed-code.mjs hooks/audio/useAudioRecorder.ts
 ```
 
-Los comandos directos de `audit-changed-code.mjs` son exclusivamente para uso humano o diagnóstico focalizado; los agentes interactúan a través de `delivery_inspect` y `delivery_prepare`. No usar sustituciones de shell opacas para construir la lista: inspeccionarla y excluir tests, archivos generados y documentación. El auditor emite señales y finaliza correctamente aunque existan; la decisión sigue siendo humana. Resolver cada señal mediante refactor o una justificación explícita ligada al `snapshotHash`; `delivery_prepare` conserva esa decisión en la evidencia local.
+Los scripts directos y comandos de CLI son exclusivamente para uso humano o diagnóstico focalizado; los agentes interactúan a través de `delivery_inspect` y `delivery_prepare`. No usar sustituciones de shell opacas para construir la lista: inspeccionarla y excluir tests, archivos generados y documentación. El auditor emite señales y finaliza correctamente aunque existan; la decisión sigue siendo humana. Resolver cada señal mediante refactor o una justificación explícita ligada al `snapshotHash`; `delivery_prepare` conserva esa decisión en la evidencia local.
 
 ## Evidencia de cierre
 

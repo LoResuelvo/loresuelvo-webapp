@@ -11,15 +11,29 @@ Los gates verifican comportamiento y salud técnica, no legibilidad por sí solo
 
 ## Ejecución canónica
 
-Con MCP disponible, invocar `delivery_prepare`. En cualquier otro entorno:
+Para TDD interactivo y comprobaciones rápidas durante el ciclo RED/GREEN, el agente invoca exclusivamente `delivery_test`:
+```text
+delivery_test({ mode: "affected" | "unit" | "scenario" | "diagnostic", ... })
+```
+La evidencia de TDD se conserva en `.delivery/runtime/tdd/` y **no es consumible por git hooks ni genera receipts de commit**.
 
+Para fronteras staged previas a commit, el ejecutor canónico es `delivery_prepare`:
+```text
+delivery_prepare({ intent: "prepare_commit" | "close_scenario" | "close_batch" | "close_us" | "repair_ci", proposedCommitMessage: "..." })
+```
+En cualquier entorno sin MCP o para uso humano:
 ```bash
 npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuesto>'
 ```
 
 La política versionada en `.delivery/policy.v1.json` es la única fuente de clasificación, selección y orden de checks. La CLI y MCP comparten exactamente el mismo núcleo. Los comandos de las secciones siguientes documentan qué protege cada gate y sirven para diagnóstico focalizado; no deben ejecutarse manualmente como una lista pre-commit.
 
-El runner ejecuta en fail-fast, reutiliza evidencia determinística del mismo snapshot (tanto éxitos como fallos idénticos, con `--force` para forzar una ejecución nueva) y devuelve diagnósticos acotados sin tracebacks completos. Conserva el log completo y el ledger local en `.delivery/runtime/`, fuera de Git. La evidencia queda ligada a HEAD, árbol staged, política, intent y alcance. El control `ci_green` pertenece al estado posterior al push y nunca se presenta como aprobado por el gate local. Los hooks de Git (`.githooks/`, instalados mediante `npm run delivery:hooks:install`) son deliberadamente livianos y nunca ejecutan suites de tests; solo verifican formato, receipts existentes y estado previo de CI. Para los agentes, `delivery_prepare` es la entrada canónica obligatoria previa a cada commit; el guard anticipatorio disponible en el entorno deniega intentos de commit sin receipt válido. La seguridad final del repositorio depende de CI remoto y protección de rama.
+### Evidencia de delivery, diagnósticos compactos y modo Jobs
+- **Evidencia y ledger**: La evidencia autoritativa para autorizar commits se almacena en `.delivery/runtime/runs/` y se registra en el ledger de delivery (`.delivery/runtime/ledger.json`). Queda ligada criptográficamente a HEAD, árbol staged, política, intent y alcance.
+- **Diagnóstico compacto**: El runner ejecuta en fail-fast y devuelve diagnósticos acotados y procesados, sin volcados masivos de stdout/stderr. Cada resultado incluye la propiedad `logPath` apuntando al log completo persistente en `.delivery/runtime/logs/`; dicho archivo se consulta únicamente de forma excepcional ante diagnósticos donde el resumen procesado no alcance.
+- **Caché determinística**: Reutiliza evidencia idéntica (éxitos y fallos idénticos, con `force: true` para forzar re-ejecución).
+- **Modo Jobs (`delivery_job_wait`)**: Para gates largos (Gate D, Gate R o cierres con espera de CI prolongada), `delivery_prepare` y `delivery_finalize` admiten ejecución asíncrona (`mode: "job"` o auto-promoción cuando el gate excede el tiempo de respuesta inmediato). En tal caso retornan un `jobId`. El agente debe aguardar la culminación usando `delivery_job_wait({ jobId, timeoutMs })` de forma no bloqueante y sin loops ni busy-polling. Ante un timeout o indisponibilidad, debe continuar la espera o escalar; jamás recurrir a la CLI cruda ni eludir la verificación.
+- **Hooks livianos**: Los hooks de Git (`.githooks/`, instalados mediante `npm run delivery:hooks:install`) nunca ejecutan suites de tests; solo verifican formato, receipts válidos existentes en el ledger y ventana de CI. Para los agentes, `delivery_prepare` es la entrada obligatoria previa a cada commit.
 
 ## Semántica de los gates
 
@@ -53,11 +67,13 @@ El runner ejecuta en fail-fast, reutiliza evidencia determinística del mismo sn
 
 - **Selección**: Cierre formal de User Story (`close_us`), cierre de batch (`close_batch`) o escenario de alto riesgo cerrado.
 - **Frontera semántica**: Máxima cobertura local: ejecuta la batería de Gate C y verifica de forma estricta la ausencia total de tags `@wip` en el alcance de features declarado.
+- **Soporte de Jobs**: Dada la extensión de la suite E2E completa, `delivery_prepare` puede ejecutarse o auto-promoverse a modo job (`delivery_job_wait({ jobId })`) para evitar timeouts de cliente.
 
 ### Gate R — Reproducción exhaustiva de CI para reparación de un solo uso
 
 - **Selección**: Intent `repair_ci` con `repairsSha` indicando el commit fallido en CI remoto.
 - **Frontera semántica**: Reproduce de forma exhaustiva los checks de CI asignados a agentes (`delivery_unit`, `lint`, `typecheck_app`, `typecheck_cucumber`, `unit`, `e2e_full` y `build`; excluyendo la construcción de imágenes Docker, reservada a humanos y GitHub Actions).
+- **Soporte de Jobs**: Al igual que Gate D, soporta modo job recuperable con `delivery_job_wait`.
 - **Autorización de un solo uso**: Emite un receipt de reparación consumible una única vez en `pre-push` para autorizar el push del fix y subsanar el SHA fallido en el ledger.
 
 ### Superficie Docker reservada a humanos (HUMAN_ONLY)
@@ -75,7 +91,7 @@ La selección del gate no se guía por heurísticas superficiales de directorios
 El runner local verifica que no queden tags `@wip` en los feature files del alcance terminado. Después del push todavía corresponde verificar:
 
 - commits coherentes, pusheados individualmente y registrados por SHA;
-- los SHAs relevantes no tienen CI roja; `queued`, `in_progress` o un run todavía `not_found` pueden permanecer al cierre de batch, pero deben estar verdes antes del cierre de la US;
+- la ventana de CI se valida automáticamente (hasta 4 commits en vuelo sin incidentes);
 - working tree sin artefactos accidentales.
 
 ## Fail-fast y reparación
@@ -89,14 +105,13 @@ Cuando una falla no se resuelve con su causa directa, leer [diagnóstico y escal
 
 ## CI remoto, verificación sobre HEAD y reparación
 
-- Monitorear cada push por SHA, con una ventana máxima de cuatro commits totales en vuelo, incluido el commit que se está pusheando. La cifra vive en `ci.maxInFlightCommits` dentro de la política versionada.
-- La consulta de CI se realiza de forma compacta mediante `delivery_ci_inspect` o `npm run delivery:ci -- --sha <sha>`, sin emitir comandos crudos de `gh` ni tracebacks masivos.
-- Mientras el siguiente push no exceda cuatro SHAs en vuelo, continuar el trabajo local. Ante CI fallido, `timed_out` o `cancelled`, los hooks de Git bloquean nuevos pushes hasta resolver la causa.
-- Queda terminantemente prohibido cualquier intento de bypass ambiental de CI: la variable `DELIVERY_SKIP_CI_CHECK` está obsoleta y es rechazada inmediatamente de forma fail-closed (`DEPRECATED_CI_BYPASS_REJECTED`).
-- La resolución de fallos remotos de CI se realiza únicamente mediante el flujo de reparación auditable: preparar el fix y ejecutar `delivery_prepare({ intent: "repair_ci", repairsSha: "<failed-sha>", proposedCommitMessage: "fix: ..." })`. Esto corre el Gate R y genera un receipt de uso único que autoriza el push correctivo y subsana el fallo en el ledger.
+- **Cero polling de CI**: La ventana de hasta cuatro commits en vuelo (`queued`, `in_progress`, `not_found`) y los incidentes activos se evalúan automáticamente en `delivery_prepare` y `pre-push`. El desarrollador no debe realizar polling ni monitoreo periódico manual por SHA tras cada push.
+- **Diagnóstico puntual de CI**: Si un commit falla en CI remoto, `pre-push` bloquea nuevos pushes ordinarios. En ese caso, se utiliza `delivery_ci_inspect({ sha: "<failed-sha>" })` para diagnóstico focalizado puntual sin emitir comandos crudos de `gh` ni tracebacks masivos.
+- **Prohibición de bypass**: Queda terminantemente prohibido cualquier intento de bypass ambiental de CI: la variable `DELIVERY_SKIP_CI_CHECK` está obsoleta y es rechazada inmediatamente de forma fail-closed (`DEPRECATED_CI_BYPASS_REJECTED`). Tampoco se permite `--no-verify`.
+- **Flujo de reparación (`repair_ci` / Gate R)**: Preparar el fix y ejecutar `delivery_prepare({ intent: "repair_ci", repairsSha: "<failed-sha>", proposedCommitMessage: "fix: ..." })`. Esto corre el Gate R (con soporte de job `delivery_job_wait`) y genera un receipt de uso único que autoriza el push correctivo y subsana el fallo en el ledger.
 - **Verificación sobre HEAD**: Para verificar Gate D sobre un commit HEAD ya existente sin crear commits vacíos ni artificiales, invocar `delivery_verify_head({ intent: "close_us", scopeFiles })` (o CLI `delivery:verify-head`). Esto valida el árbol de HEAD y registra la evidencia para autorizar el cierre.
 - `delivery_finalize` con `close_batch` se usa solamente cuando todos los feature files declarados como scope del batch están completos y sin `@wip`. Puede aceptar `queued`, `in_progress` o `not_found`, devolver `passed_pending_ci` y habilitar el siguiente batch. Si una feature conserva escenarios futuros con `@wip`, reportar el batch sin formalizar `close_batch` sobre ese archivo.
-- En `close_us`, MCP `delivery_finalize` —o `npm run delivery:finalize` sin MCP— comprueba de forma automática que todos los commits de la US (incluyendo commits previos registrados como `not_run`) estén en verde con `status: passed` en CI, y que HEAD cuente con Gate D aprobado sin `@wip`. Estados `not_found`, `cancelled`, `timed_out` o `provider_error`, así como evidencia corrupta o faltante, bloquean el cierre. Admite `waitForCi: true` (con `timeoutMs` y `pollIntervalMs` configurables) para aguardar de forma acotada a que los checks de CI en vuelo completen en verde.
+- En `close_us`, MCP `delivery_finalize` —o `npm run delivery:finalize` sin MCP— comprueba de forma automática que todos los commits de la US (incluyendo commits previos registrados como `not_run`) estén en verde con `status: passed` en CI, y que HEAD cuente con Gate D aprobado sin `@wip`. Estados `not_found`, `cancelled`, `timed_out` o `provider_error`, así como evidencia corrupta o faltante, bloquean el cierre. Admite `waitForCi: true` (con soporte de modo job mediante `delivery_job_wait`) para aguardar de forma acotada a que los checks de CI en vuelo completen en verde.
 
 ## Seguridad antes de commit
 

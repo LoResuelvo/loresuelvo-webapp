@@ -9,11 +9,12 @@ Usar al preparar un commit o push.
 
 ## Ownership
 
-- `MICROSTEP`: el desarrollador implementa y valida; el orquestador revisa, commitea, pushea y monitorea CI.
-- `SCENARIO`: el desarrollador implementa, valida, commitea, pushea y monitorea los SHAs del escenario aprobado.
+- `MICROSTEP`: el desarrollador implementa y valida con `delivery_test`; el orquestador revisa, commitea y pushea.
+- `SCENARIO`: el desarrollador implementa, valida con `delivery_test`, commitea y pushea los commits atómicos del escenario aprobado.
 - `SCENARIO_GROUP`: el desarrollador hace lo mismo para 2–3 escenarios consecutivos, cerrando cada uno en GREEN antes de avanzar.
 
 La conducción `USER_GUIDED` o `AGENT_ORCHESTRATED` define quién guía la US, no cambia por sí sola el ownership de commits. El contrato debe declarar ambos ejes y sus owners. Sin granularidad explícita, usar `MICROSTEP`.
+La ventana de CI (hasta cuatro commits en vuelo) y los incidentes activos se evalúan automáticamente en `delivery_prepare` y `pre-push`; no se asigna al desarrollador la tarea de polling ni monitoreo periódico de CI por SHA tras cada push.
 
 ## Commit atómico
 
@@ -28,27 +29,42 @@ Debe:
 
 No dividir por archivo ni por cantidad de líneas. Si el diff es grande, buscar un corte vertical independiente; si no existe, conservar el cambio coherente.
 
-Antes de cada commit del agente, dejar staged únicamente el cambio atómico e invocar `delivery_prepare` con el `intent` aplicable (`prepare_commit`, `close_scenario`, `close_batch`, `close_us`, `repair_ci`) y el mensaje propuesto. Esta herramienta inspecciona el snapshot, selecciona y ejecuta el gate local; el agente no calcula el gate ni reproduce sus comandos.
+Queda estrictamente prohibido crear commits artificiales o vacíos con el único propósito de retirar un tag `@wip`, agregar comentarios cosméticos o forzar el cierre de una User Story. La remoción del tag `@wip` debe integrarse directamente en el commit funcional que deja el escenario GREEN. Cuando el último escenario ya fue commiteado en GREEN y HEAD contiene la versión definitiva, no se debe hacer un nuevo commit: el cierre se certifica directamente sobre HEAD mediante `delivery_verify_head({ intent: "close_us", scopeFiles })`.
+
+Antes de cada commit del agente, dejar staged únicamente el cambio atómico e invocar `delivery_prepare` con el `intent` aplicable (`prepare_commit`, `close_scenario`, `close_batch`, `close_us`, `repair_ci`) y el mensaje propuesto. Esta herramienta inspecciona el snapshot, selecciona y ejecuta el gate local (con soporte para `delivery_job_wait` si corre en modo job); el agente no calcula el gate ni reproduce sus comandos.
 
 El repositorio distingue claramente el flujo humano del flujo de agente:
 - **Agentes autónomos**: deben usar MCP `delivery_prepare` antes de commitear para obtener un receipt con `status: passed`. El guard anticipatorio disponible en el entorno intercepta `git commit` y deniega cualquier commit que no cuente con un receipt previo coincidente. Si el MCP requerido no está disponible, detenerse salvo aprobación explícita de otro entorno.
 - **Humanos**: pueden desarrollar, hacer stage y commitear directamente de forma manual o apoyándose en CI; en ausencia de receipt, sus commits se registran en el ledger como `not_run`.
 
-La CLI neutral usa el mismo núcleo y queda disponible para humanos, diagnóstico o un entorno sin MCP aprobado:
+La CLI neutral usa el mismo núcleo y queda reservada para humanos, diagnóstico o un entorno sin MCP aprobado:
 
 ```bash
 npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuesto>'
 ```
 
-`delivery_inspect` —o `npm run delivery:inspect`— se reserva para previsualizar la decisión sin ejecutar el gate. Un resultado `review_required` exige revisar las señales. Si la solución sigue siendo cohesionada, la aceptación se ata al hash exacto y se justifica por cada señal detectada (con al menos 12 caracteres por justificación):
+`delivery_inspect` se reserva para previsualizar la decisión sin ejecutar el gate. Un resultado `review_required` exige revisar las señales. La respuesta incluye `requiredAcknowledgement` con el `template` listo para completar. La aceptación se ata al hash exacto y se justifica por cada señal detectada (con al menos 12 caracteres por justificación) en formato canónico MCP:
 
+```json
+{
+  "intent": "prepare_commit",
+  "acknowledgement": {
+    "snapshotHash": "<sha256>",
+    "decisions": {
+      "<signal-id>": "Justificación de al menos 12 caracteres"
+    }
+  }
+}
+```
+
+En CLI (uso humano / diagnóstico manual), se utilizan los flags equivalentes:
 ```bash
 npm run delivery:prepare -- --intent prepare_commit --message '<mensaje>' \
   --acknowledge-snapshot <snapshotHash> \
   --acknowledge-decision '<signal-id>=<justificación>'
 ```
 
-La caché determinística cubre tanto ejecuciones exitosas como fallos idénticos; `--force` evita la caché cuando se solicita expresamente. Solo `status: passed` autoriza el commit. `no_changes` significa que no existe un snapshot staged para commitear; los demás estados detienen el commit. Los logs completos quedan en `.delivery/runtime/`, ignorados por Git, y la respuesta devuelve únicamente diagnósticos acotados sin tracebacks completos.
+La caché determinística cubre tanto ejecuciones exitosas como fallos idénticos; `--force` evita la caché cuando se solicita expresamente. Solo `status: passed` autoriza el commit. `no_changes` significa que no existe un snapshot staged para commitear; los demás estados detienen el commit. Los logs completos quedan en `.delivery/runtime/`, ignorados por Git, y la respuesta devuelve únicamente diagnósticos acotados sin tracebacks completos (consultando `logPath` solo en excepciones de diagnóstico).
 
 Registrar en el handoff o reporte solamente la evidencia compacta necesaria: `snapshotHash`, `runKey`, estado, gate, checks, caché y receipt. El runner define el schema; no reconstruirlo manualmente ni adjuntar logs verdes.
 
@@ -82,9 +98,9 @@ docs: clarify local E2E setup
 
 ## Dependencias y push
 
-No pushear un commit intermedio que requiera archivos aún no presentes en `main`. Para commits de agente, ejecutar `delivery_prepare`, crear el commit solo con evidencia `passed` y pushearlo inmediatamente; no acumular varios commits locales para un único push. CI se sigue por SHA dentro de la ventana de commits en vuelo. Los commits humanos sin receipt siguen la excepción `not_run` definida en `AGENTS.md`.
+No pushear un commit intermedio que requiera archivos aún no presentes en `main`. Para commits de agente, ejecutar `delivery_prepare` (con soporte para `delivery_job_wait`), crear el commit solo con evidencia `passed` y pushearlo inmediatamente; no acumular varios commits locales para un único push. La ventana continua de hasta cuatro commits en vuelo y los incidentes activos se evalúan automáticamente antes de cada preparación y push; el developer no realiza polling ni monitoreo manual de CI. Los commits humanos sin receipt siguen la excepción `not_run` definida en `AGENTS.md`.
 
-En `SCENARIO` y `SCENARIO_GROUP`, el desarrollador registra cada SHA y continúa sin reportes ordinarios mientras respete la ventana de CI. Cualquier estimación de commits por reporte es orientativa, no una cuota, mínimo ni máximo. No fusionar cambios independientes ni agrandar commits para ajustarse a una cifra; si el batch requiere más o menos fronteras, continuar con el siguiente commit atómico y registrar la desviación al llegar a una frontera segura. Si CI falla, detener nuevos pushes e iniciar el flujo de reparación auditable (`repair_ci`).
+En `SCENARIO` y `SCENARIO_GROUP`, el desarrollador continúa sin reportes ordinarios mientras el flujo se mantenga verde. Cualquier estimación de commits por reporte es orientativa, no una cuota, mínimo ni máximo. No fusionar cambios independientes ni agrandar commits para ajustarse a una cifra; si el batch requiere más o menos fronteras, continuar con el siguiente commit atómico y registrar la desviación al llegar a una frontera segura. Si un push es bloqueado por CI fallido previo, detener nuevos pushes e iniciar el flujo de reparación auditable (`repair_ci`).
 
 ## Reparación de CI de un solo uso (`repair_ci` / Gate R)
 

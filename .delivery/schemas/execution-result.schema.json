@@ -49,7 +49,15 @@
           "durationMs": { "type": "integer", "minimum": 0 },
           "exitCode": { "type": ["integer", "null"] },
           "summaryLines": { "type": "array", "items": { "type": "string" } },
-          "logPath": { "type": "string" }
+          "logPath": { "type": "string" },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "passed": { "type": "integer", "minimum": 0 },
+              "failed": { "type": "integer", "minimum": 0 },
+              "skipped": { "type": "integer", "minimum": 0 }
+            }
+          }
         }
       }
     },
@@ -90,6 +98,7 @@
       ],
       "properties": {
         "signature": { "type": "string" },
+        "code": { "type": "string" },
         "checkId": { "type": "string" },
         "exitCode": { "type": ["integer", "null"] },
         "message": { "type": "string" },

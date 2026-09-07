@@ -27,6 +27,7 @@ function checkResultForOutput(result) {
     summaryLines: result.summaryLines || [],
   };
   if (result.logPath) output.logPath = result.logPath;
+  if (result.counts) output.counts = result.counts;
   return output;
 }
 
@@ -190,7 +191,8 @@ export async function runGate({
 
     let failureObj = null;
     if (failedCheck) {
-      const locations = failedCheck.locations || [];
+      const maxLines = policy.limits.maxFailureSummaryLines ?? 6;
+      const locations = (failedCheck.locations || []).slice(0, maxLines);
       const msg = failedCheck.diagnostic?.message || failedCheck.summaryLines[0] || "Check failed";
       const signature = computeFailureSignature({
         checkId: failedCheck.id,
@@ -201,11 +203,12 @@ export async function runGate({
 
       failureObj = {
         signature,
+        code: failedCheck.diagnostic?.code || "CHECK_FAILED",
         checkId: failedCheck.id,
         exitCode: failedCheck.exitCode ?? 1,
         message: msg,
         locations,
-        summaryLines: (failedCheck.summaryLines || []).slice(0, policy.limits.maxFailureSummaryLines ?? 6),
+        summaryLines: (failedCheck.summaryLines || []).slice(0, maxLines),
         attemptCount: 1,
         logPath: failedCheck.logPath || "",
       };

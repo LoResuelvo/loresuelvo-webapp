@@ -11,7 +11,9 @@ import {
   resolveCheck,
   summarizeFailureOutput,
   extractLocations,
+  computeFailureSignature,
 } from "./execute-check.mjs";
+import { parseDiagnostics } from "./parse-diagnostics.mjs";
 import { parsePorcelainStatus, runGit } from "./git-snapshot.mjs";
 import {
   loadOrBuildCucumberImpactIndex,
@@ -364,15 +366,21 @@ export async function executeProcessDefault({
   await fsPromises.writeFile(absoluteLogPath, safeLog, { flag: "w", mode: 0o600 });
 
   const durationMs = Date.now() - startedAt;
-  const passed = !timedOut && !outcome.error && outcome.exitCode === 0;
-  const safeTail = redactSecrets(outputTail.toString("utf8"));
-  const summaryLines = passed
-    ? []
-    : summarizeFailureOutput(
-        outcome.error?.message || safeTail || `Process exited with code ${outcome.exitCode ?? outcome.signal ?? "unknown"}`,
-        maxSummaryLines
-      );
-  const locations = passed ? [] : extractLocations(safeTail || outcome.error?.message || "");
+  const passed = !timedOut && !outcome.error && outcome.exitCode === 0 && !outcome.signal;
+  const parsedDiag = parseDiagnostics({
+    command,
+    args,
+    output: safeLog,
+    exitCode: outcome.exitCode,
+    signal: outcome.signal,
+    timedOut,
+    error: outcome.error,
+    maxSummaryLines,
+    maxLocations: maxSummaryLines,
+  });
+
+  const summaryLines = passed ? [] : parsedDiag.summaryLines;
+  const locations = passed ? [] : parsedDiag.locations;
 
   return {
     passed,
@@ -383,6 +391,9 @@ export async function executeProcessDefault({
     rawOutput,
     summaryLines,
     locations,
+    counts: parsedDiag.counts,
+    code: parsedDiag.code,
+    message: parsedDiag.message,
     logPath,
   };
 }
@@ -574,16 +585,35 @@ export async function testDelivery({
       : { passed: 0, failed: validatedFiles.length, skipped: 0 };
 
     const status = execResult.passed ? "passed" : "failed";
+    const failureMsg = execResult.passed
+      ? ""
+      : redactSecrets(
+          execResult.timedOut
+            ? `Test execution timed out after ${timeoutMs}ms`
+            : execResult.summaryLines?.[0] || "Unit test execution failed"
+        );
+    const failureLocations = (execResult.locations || []).slice(0, 6);
+    const failureSummaryLines = (execResult.summaryLines || []).slice(0, 6).map((l) => redactSecrets(l));
+    const failureCode = execResult.timedOut ? "CHECK_TIMEOUT" : "TEST_FAILED";
+    const failureSignature = execResult.passed
+      ? null
+      : computeFailureSignature({
+          checkId: "unit",
+          exitCode: execResult.exitCode,
+          message: failureMsg,
+          locations: failureLocations,
+        });
+
     const failure = execResult.passed
       ? undefined
       : {
-          message: redactSecrets(
-            execResult.timedOut
-              ? `Test execution timed out after ${timeoutMs}ms`
-              : redactSecrets(execResult.summaryLines?.[0] || "Unit test execution failed")
-          ),
-          summaryLines: (execResult.summaryLines || []).map((l) => redactSecrets(l)),
-          locations: execResult.locations || [],
+          signature: failureSignature,
+          code: failureCode,
+          checkId: "unit",
+          message: failureMsg,
+          summaryLines: failureSummaryLines,
+          locations: failureLocations,
+          logPath: execResult.logPath || "",
           exitCode: execResult.exitCode ?? null,
         };
 
@@ -591,7 +621,7 @@ export async function testDelivery({
       ? []
       : [
           {
-            code: execResult.timedOut ? "CHECK_TIMEOUT" : "TEST_FAILED",
+            code: failureCode,
             message: failure.message,
             retryable: true,
           },
@@ -716,16 +746,35 @@ export async function testDelivery({
       : { passed: 0, failed: 1, skipped: 0 };
 
     const status = execResult.passed ? "passed" : "failed";
+    const failureMsg = execResult.passed
+      ? ""
+      : redactSecrets(
+          execResult.timedOut
+            ? `Scenario execution timed out after ${timeoutMs}ms`
+            : execResult.summaryLines?.[0] || "Scenario execution failed"
+        );
+    const failureLocations = (execResult.locations || []).slice(0, 6);
+    const failureSummaryLines = (execResult.summaryLines || []).slice(0, 6).map((l) => redactSecrets(l));
+    const failureCode = execResult.timedOut ? "CHECK_TIMEOUT" : "TEST_FAILED";
+    const failureSignature = execResult.passed
+      ? null
+      : computeFailureSignature({
+          checkId: "scenario",
+          exitCode: execResult.exitCode,
+          message: failureMsg,
+          locations: failureLocations,
+        });
+
     const failure = execResult.passed
       ? undefined
       : {
-          message: redactSecrets(
-            execResult.timedOut
-              ? `Scenario execution timed out after ${timeoutMs}ms`
-              : redactSecrets(execResult.summaryLines?.[0] || "Scenario execution failed")
-          ),
-          summaryLines: (execResult.summaryLines || []).map((l) => redactSecrets(l)),
-          locations: execResult.locations || [],
+          signature: failureSignature,
+          code: failureCode,
+          checkId: "scenario",
+          message: failureMsg,
+          summaryLines: failureSummaryLines,
+          locations: failureLocations,
+          logPath: execResult.logPath || "",
           exitCode: execResult.exitCode ?? null,
         };
 
@@ -733,7 +782,7 @@ export async function testDelivery({
       ? []
       : [
           {
-            code: execResult.timedOut ? "CHECK_TIMEOUT" : "TEST_FAILED",
+            code: failureCode,
             message: failure.message,
             retryable: true,
           },
@@ -888,16 +937,35 @@ export async function testDelivery({
       : { passed: 0, failed: 1, skipped: 0 };
 
     const status = execResult.passed ? "passed" : "failed";
+    const failureMsg = execResult.passed
+      ? ""
+      : redactSecrets(
+          execResult.timedOut
+            ? `Diagnostic check '${checkId}' timed out`
+            : execResult.summaryLines?.[0] || `Diagnostic check '${checkId}' failed`
+        );
+    const failureLocations = (execResult.locations || []).slice(0, 6);
+    const failureSummaryLines = (execResult.summaryLines || []).slice(0, 6).map((l) => redactSecrets(l));
+    const failureCode = execResult.timedOut ? "CHECK_TIMEOUT" : "DIAGNOSTIC_CHECK_FAILED";
+    const failureSignature = execResult.passed
+      ? null
+      : computeFailureSignature({
+          checkId,
+          exitCode: execResult.exitCode,
+          message: failureMsg,
+          locations: failureLocations,
+        });
+
     const failure = execResult.passed
       ? undefined
       : {
-          message: redactSecrets(
-            execResult.timedOut
-              ? `Diagnostic check '${checkId}' timed out`
-              : redactSecrets(execResult.summaryLines?.[0] || `Diagnostic check '${checkId}' failed`)
-          ),
-          summaryLines: (execResult.summaryLines || []).map((l) => redactSecrets(l)),
-          locations: execResult.locations || [],
+          signature: failureSignature,
+          code: failureCode,
+          checkId,
+          message: failureMsg,
+          summaryLines: failureSummaryLines,
+          locations: failureLocations,
+          logPath: execResult.logPath || "",
           exitCode: execResult.exitCode ?? null,
         };
 
@@ -905,7 +973,7 @@ export async function testDelivery({
       ? []
       : [
           {
-            code: execResult.timedOut ? "CHECK_TIMEOUT" : "DIAGNOSTIC_CHECK_FAILED",
+            code: failureCode,
             message: failure.message,
             retryable: true,
           },

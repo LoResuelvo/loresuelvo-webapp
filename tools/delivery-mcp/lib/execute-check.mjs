@@ -4,28 +4,18 @@ import path from "node:path";
 import { redactSecrets } from "./redact-secrets.mjs";
 import { SAFE_COMMANDS } from "./policy-loader.mjs";
 import { assertSafeRepoPath } from "./repo-root.mjs";
+import {
+  parseDiagnostics,
+  extractLocations,
+  stripAnsi,
+  computeFailureSignature,
+} from "./parse-diagnostics.mjs";
+
+export { extractLocations, computeFailureSignature };
 
 const ANSI_ESCAPE = /\u001b\[[0-?]*[ -/]*[@-~]/g;
 const FAILURE_SIGNAL = /(?:error|failed|failure|expected|received|not found|timed? out|×|✗)/i;
 const FEATURE_PATH = /^[A-Za-z0-9._/-]+\.feature$/;
-const LOCATION_REGEX = /(?:^|[\s(])([A-Za-z0-9._/-]+\.[a-zA-Z0-9]+):([0-9]+)(?::[0-9]+)?/;
-
-export function extractLocations(text) {
-  if (!text || typeof text !== "string") return [];
-  const lines = text.split(/\r?\n/);
-  const locations = [];
-  for (const line of lines) {
-    const match = line.match(LOCATION_REGEX);
-    if (match) {
-      const loc = `${match[1]}:${match[2]}`;
-      if (!locations.includes(loc)) {
-        locations.push(loc);
-      }
-      if (locations.length >= 10) break;
-    }
-  }
-  return locations;
-}
 
 function safeFeaturePath(repoRoot, value) {
   assertSafeRepoPath(repoRoot, String(value || ""), "Feature path");
@@ -206,16 +196,39 @@ async function executeCommandCheck({ check, repoRoot, logPath, limits = {} }) {
   await fsPromises.writeFile(absoluteLogPath, safeLog, { flag: "wx", mode: 0o600 });
 
   const durationMs = Date.now() - startedAt;
-  const passed = !timedOut && !outcome.error && outcome.exitCode === 0;
-  const summaryLines = passed
-    ? []
-    : summarizeFailureOutput(
-        outcome.error?.message || outputTail || `Process exited with signal ${outcome.signal || "unknown"}`,
-        maxSummaryLines
-      );
-  const code = timedOut ? "CHECK_TIMEOUT" : outcome.error ? "CHECK_START_FAILED" : "CHECK_FAILED";
-  const safeTail = redactSecrets(outputTail.toString("utf8"));
-  const locations = passed ? [] : extractLocations(safeTail || outcome.error?.message || "");
+  const passed = !timedOut && !outcome.error && outcome.exitCode === 0 && !outcome.signal;
+
+  const parsedDiag = parseDiagnostics({
+    check,
+    command: check.command,
+    args: check.args,
+    output: safeLog,
+    exitCode: outcome.exitCode,
+    signal: outcome.signal,
+    timedOut,
+    error: outcome.error,
+    maxSummaryLines,
+    maxLocations: maxSummaryLines,
+  });
+
+  const summaryLines = passed ? [] : parsedDiag.summaryLines;
+  const locations = passed ? [] : parsedDiag.locations;
+  const counts = parsedDiag.counts;
+  const code = parsedDiag.code || (timedOut ? "CHECK_TIMEOUT" : outcome.error ? "CHECK_START_FAILED" : "CHECK_FAILED");
+  const message = passed
+    ? ""
+    : redactSecrets(parsedDiag.message || summaryLines[0] || `${check.label} failed`);
+
+  let file = undefined;
+  let line = undefined;
+  if (!passed && locations.length > 0) {
+    const parts = locations[0].split(":");
+    if (parts.length >= 2) {
+      file = parts[0];
+      const parsedLine = Number.parseInt(parts[1], 10);
+      if (!Number.isNaN(parsedLine)) line = parsedLine;
+    }
+  }
 
   return {
     id: check.id,
@@ -224,14 +237,17 @@ async function executeCommandCheck({ check, repoRoot, logPath, limits = {} }) {
     exitCode: outcome.exitCode,
     summaryLines,
     locations,
+    counts,
     logPath,
     diagnostic: passed
       ? null
       : {
           code,
           checkId: check.id,
-          message: redactSecrets(summaryLines[0] || `${check.label} failed without diagnostic output`),
+          message,
           retryable: true,
+          ...(file ? { file } : {}),
+          ...(line !== undefined ? { line } : {}),
         },
   };
 }
@@ -254,6 +270,7 @@ async function executeNoWipCheck({ check, repoRoot }) {
         exitCode: null,
         summaryLines: [`Feature scope file not found: ${featureFile}`],
         locations: [featureFile],
+        counts: { passed: 0, failed: 1, skipped: 0 },
         diagnostic: {
           code: "SCOPE_FILE_MISSING",
           checkId: check.id,
@@ -281,6 +298,11 @@ async function executeNoWipCheck({ check, repoRoot }) {
     exitCode: findings.length === 0 ? 0 : 1,
     summaryLines,
     locations,
+    counts: {
+      passed: findings.length === 0 ? check.parameters.scopeFeatures.length : 0,
+      failed: findings.length > 0 ? findings.length : 0,
+      skipped: 0,
+    },
     diagnostic: first
       ? {
           code: "WIP_TAG_IN_COMPLETED_SCOPE",

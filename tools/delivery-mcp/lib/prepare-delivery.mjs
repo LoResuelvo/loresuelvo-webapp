@@ -4,6 +4,8 @@ import { findRepoRoot } from "./repo-root.mjs";
 import { validateExecutionResult } from "./validate-schema.mjs";
 import { recordPreparedEvidence, verifyPreparedEvidence } from "./delivery-ledger.mjs";
 import { saveDeliveryContext } from "./delivery-context.mjs";
+import { computeRunKey } from "./delivery-evidence.mjs";
+import { createDeliveryJob, spawnJobWorker, findActiveDeliveryJob } from "./jobs.mjs";
 
 
 function stoppedResult(inspection, status, extraDiagnostic, repoRoot) {
@@ -160,6 +162,8 @@ export async function prepareDelivery({
   ciProvider = null,
   provider = null,
   executeCheck = null,
+  mode = "sync",
+  async: isAsync = false,
   ...inspectionInput
 } = {}) {
   const root = findRepoRoot(repoRoot);
@@ -193,6 +197,75 @@ export async function prepareDelivery({
   const review = resolveReview(inspection, acknowledgement);
   if (!review.accepted) {
     return stoppedResult(inspection, review.status || "review_required", review.diagnostic, root);
+  }
+
+  const runKey = computeRunKey({ inspection, snapshot });
+
+  // 1. Re-use existing active job for the exact snapshot if running
+  const activeJob = await findActiveDeliveryJob({ repoRoot: root, runKey });
+  if (activeJob) {
+    return {
+      schemaVersion: 1,
+      status: "running",
+      jobId: activeJob.jobId,
+      snapshotHash: inspection.snapshotHash,
+      runKey,
+      cached: false,
+      policy: inspection.policy,
+      gate: inspection.gate,
+      summary: { passed: 0, failed: 0, skipped: inspection.gate.checkIds.length, durationMs: 0 },
+      checks: [],
+      diagnostics: [],
+      evidence: { recordPath: null },
+      message: `Delivery job '${activeJob.jobId}' is already running for this snapshot. Use delivery_job_wait to await completion.`,
+    };
+  }
+
+  // 2. Decide if execution should run as a background job
+  const requestedMode = inspectionInput.mode || mode;
+  const isLongGate = ["C", "D", "R"].includes(inspection.gate.id);
+  const shouldRunAsJob =
+    isAsync ||
+    requestedMode === "job" ||
+    (requestedMode === "auto" && isLongGate && !executeCheck);
+
+  if (shouldRunAsJob) {
+    const job = await createDeliveryJob({
+      repoRoot: root,
+      type: "prepare",
+      params: {
+        ...inspectionInput,
+        intent: resolvedInput.intent,
+        proposedCommitMessage: resolvedInput.proposedCommitMessage,
+        featureFile: resolvedInput.featureFile,
+        scenarioName: resolvedInput.scenarioName,
+        scopeFiles: resolvedInput.scopeFiles,
+        repairsSha: resolvedInput.repairsSha,
+        acknowledgement,
+        force,
+      },
+      runKey,
+      snapshotHash: inspection.snapshotHash,
+      gateId: inspection.gate.id,
+    });
+
+    await spawnJobWorker({ repoRoot: root, jobId: job.jobId });
+
+    return {
+      schemaVersion: 1,
+      status: "job_started",
+      jobId: job.jobId,
+      snapshotHash: inspection.snapshotHash,
+      runKey,
+      cached: false,
+      policy: inspection.policy,
+      gate: inspection.gate,
+      summary: { passed: 0, failed: 0, skipped: inspection.gate.checkIds.length, durationMs: 0 },
+      checks: [],
+      diagnostics: [],
+      evidence: { recordPath: null },
+      message: `Execution for Gate ${inspection.gate.id} started as recoverable background job '${job.jobId}'. Use delivery_job_wait to await completion.`,
+    };
   }
 
   const outcome = await runGate({

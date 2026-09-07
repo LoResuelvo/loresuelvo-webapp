@@ -13,6 +13,7 @@ import { inspectCi } from "./ci-provider.mjs";
 import { loadDeliveryPolicy } from "./policy-loader.mjs";
 import { summarizeFailureOutput } from "./execute-check.mjs";
 import { redactSecrets } from "./redact-secrets.mjs";
+import { createDeliveryJob, spawnJobWorker, findActiveDeliveryJob } from "./jobs.mjs";
 
 const BATCH_PENDING_CI_STATUSES = new Set(["queued", "in_progress", "not_found"]);
 // A missing run is not in flight: polling it forever can turn a provider
@@ -128,6 +129,8 @@ export async function finalizeDelivery({
   pollIntervalMs = 10000,
   sleepFn = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   unpushedCommitsResolver = null,
+  mode = "sync",
+  async: isAsync = false,
 } = {}) {
   const root = findRepoRoot(repoRoot);
   try {
@@ -396,6 +399,49 @@ export async function finalizeDelivery({
         failedRepairs,
         invalidRepairs,
         activeCiIncidents: unresolvedIncidents,
+      };
+    }
+
+    const shouldRunAsJob =
+      waitForCi &&
+      (isAsync || mode === "job" || (mode === "auto" && !ciProvider && timeoutMs > 60000));
+
+    if (shouldRunAsJob) {
+      const jobRunKey = `finalize-${headSha}-${intent}`;
+      const activeJob = await findActiveDeliveryJob({ repoRoot: root, runKey: jobRunKey });
+      if (activeJob) {
+        return {
+          finalized: false,
+          status: "running",
+          jobId: activeJob.jobId,
+          message: `Finalization job '${activeJob.jobId}' is already running. Use delivery_job_wait to await completion.`,
+        };
+      }
+
+      const job = await createDeliveryJob({
+        repoRoot: root,
+        type: "finalize",
+        params: {
+          intent,
+          usId,
+          scopeFiles,
+          waitForCi: true,
+          timeoutMs,
+          pollIntervalMs,
+          mode: "sync",
+        },
+        runKey: jobRunKey,
+        snapshotHash: headSha,
+        gateId: "D",
+      });
+
+      await spawnJobWorker({ repoRoot: root, jobId: job.jobId });
+
+      return {
+        finalized: false,
+        status: "job_started",
+        jobId: job.jobId,
+        message: `Finalization with CI wait started as recoverable background job '${job.jobId}'. Use delivery_job_wait to await completion.`,
       };
     }
 

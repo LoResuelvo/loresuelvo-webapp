@@ -13,6 +13,8 @@ export const DeliveryInspectInputSchema = z.object({
 
 export const DeliveryPrepareInputSchema = DeliveryInspectInputSchema.extend({
   force: z.boolean().default(false),
+  mode: z.enum(["sync", "job", "auto"]).default("auto"),
+  async: z.boolean().optional(),
   acknowledgement: z
     .object({
       snapshotHash: z.string().length(64),
@@ -58,6 +60,26 @@ export const DeliveryFinalizeInputSchema = z.object({
   waitForCi: z.boolean().default(false),
   timeoutMs: z.number().int().min(100).max(1800000).default(900000),
   pollIntervalMs: z.number().int().min(50).max(60000).default(10000),
+  mode: z.enum(["sync", "job", "auto"]).default("auto"),
+  async: z.boolean().optional(),
+});
+
+export const DeliveryJobWaitInputSchema = z.object({
+  jobId: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(/^[a-zA-Z0-9_-]+$/, "Invalid job identifier"),
+  timeoutMs: z.number().int().min(100).max(180000).default(60000),
+});
+
+export const DeliveryJobCancelInputSchema = z.object({
+  jobId: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(/^[a-zA-Z0-9_-]+$/, "Invalid job identifier"),
+  reason: z.string().max(500).optional(),
 });
 
 export const DeliveryVerifyHeadInputSchema = z.object({

@@ -14,12 +14,14 @@ import {
   DeliveryFinalizeInputSchema,
   DeliveryVerifyHeadInputSchema,
   DeliveryTestInputSchema,
+  DeliveryJobWaitInputSchema,
   formatInputIssues,
 } from "./lib/input-schema.mjs";
 import { inspectCi } from "./lib/ci-provider.mjs";
 import { finalizeDelivery, verifyHeadDelivery } from "./lib/delivery-finalize.mjs";
 import { testDelivery } from "./lib/test-delivery.mjs";
 import { redactSecrets } from "./lib/redact-secrets.mjs";
+import { waitForJob } from "./lib/jobs.mjs";
 
 const intentProperty = {
   type: "string",
@@ -99,6 +101,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "boolean",
             description: "Re-run checks instead of reusing cached evidence",
           },
+          mode: {
+            type: "string",
+            enum: ["sync", "job", "auto"],
+            description: "Execution mode: 'sync' waits for completion, 'job' returns immediately with a jobId, 'auto' runs as job for gates exceeding safe client deadlines (Gate D/R). Default is 'auto'.",
+          },
+          async: {
+            type: "boolean",
+            description: "Run as an asynchronous job returning a jobId immediately; alias for mode: 'job'.",
+          },
         },
         required: ["intent"],
       },
@@ -162,6 +173,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "integer",
             description: "Polling interval in milliseconds (50 to 60000, default 10000)",
           },
+          mode: {
+            type: "string",
+            enum: ["sync", "job", "auto"],
+            description: "Execution mode: 'sync' waits for completion, 'job' returns immediately with a jobId, 'auto' runs as job for extended CI waits. Default is 'auto'.",
+          },
+          async: {
+            type: "boolean",
+            description: "Run as an asynchronous job returning a jobId immediately; alias for mode: 'job'.",
+          },
         },
       },
       annotations: {
@@ -169,6 +189,31 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         destructiveHint: false,
         idempotentHint: true,
         openWorldHint: true,
+      },
+    },
+    {
+      name: "delivery_job_wait",
+      description:
+        "Waits for a recoverable delivery background job (e.g. Gate D or CI wait) to complete within a bounded long-poll timeout without busy looping.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          jobId: {
+            type: "string",
+            description: "The unique identifier of the background delivery job to await",
+          },
+          timeoutMs: {
+            type: "integer",
+            description: "Maximum milliseconds to wait for the job (100 to 180000, default 60000)",
+          },
+        },
+        required: ["jobId"],
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
       },
     },
     {
@@ -317,6 +362,28 @@ function toolResponse(result, isError = false) {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const name = request.params.name;
 
+  if (name === "delivery_job_wait") {
+    const parsed = DeliveryJobWaitInputSchema.safeParse(request.params.arguments || {});
+    if (!parsed.success) {
+      return toolResponse(
+        {
+          status: "blocked",
+          code: "INVALID_ARGUMENTS",
+          message: formatInputIssues(parsed.error),
+        },
+        true
+      );
+    }
+    try {
+      const result = await waitForJob(parsed.data);
+      const isError = ["failed", "timed_out", "cancelled"].includes(result.status);
+      return toolResponse(result, isError);
+    } catch (error) {
+      const message = redactSecrets(String(error.message || "Job wait error")).split("\n")[0];
+      return toolResponse({ status: "blocked", code: "INTERNAL_ERROR", message }, true);
+    }
+  }
+
   if (name === "delivery_finalize") {
     const parsed = DeliveryFinalizeInputSchema.safeParse(request.params.arguments || {});
     if (!parsed.success) {
@@ -327,7 +394,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     try {
       const result = await finalizeDelivery(parsed.data);
-      return toolResponse(result, !result.finalized);
+      const isError = !result.finalized && result.status !== "job_started" && result.status !== "running";
+      return toolResponse(result, isError);
     } catch (error) {
       const message = redactSecrets(String(error.message || "Delivery finalization error")).split(
         "\n"
@@ -447,9 +515,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     const result = isPrepare
-      ? await prepareDelivery(parsed.data)
+      ? await prepareDelivery({
+          ...parsed.data,
+          mode: parsed.data.mode || (parsed.data.async ? "job" : "auto"),
+        })
       : (await inspectDelivery(parsed.data)).result;
-    const failed = isPrepare && !["passed", "no_changes"].includes(result.status);
+    const failed =
+      isPrepare && !["passed", "no_changes", "job_started", "running"].includes(result.status);
     return toolResponse(result, failed);
   } catch (error) {
     const message = redactSecrets(String(error.message || "Unexpected delivery error")).split("\n")[0];

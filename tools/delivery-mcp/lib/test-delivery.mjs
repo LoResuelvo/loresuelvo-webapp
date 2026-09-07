@@ -1251,7 +1251,7 @@ export async function testDelivery({
       env: {
         ...process.env,
         TS_NODE_PROJECT: "tsconfig.cucumber.json",
-        APP_URL: process.env.APP_URL || "http://localhost:3000",
+        APP_URL: process.env.APP_URL || "http://localhost:3001",
       },
       timeoutMs,
       logPath,

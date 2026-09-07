@@ -533,15 +533,18 @@ test("pre-push hook: si un commit previo devuelve status: provider_error, es blo
   assert.strictEqual(post1.recorded, true);
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
 
+  const mockCi = new MockCiProvider({
+    [post1.commitSha]: { status: "passed" },
+  });
+
   // Commit 2 nuevo local
   await fs.writeFile(path.join(repoRoot, "file2.txt"), "2", "utf8");
   execFileSync("git", ["add", "file2.txt"], { cwd: repoRoot });
-  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  assert.strictEqual((await prepareDelivery({ repoRoot, ciProvider: mockCi })).status, "passed");
   execFileSync("git", ["commit", "-m", "chore: commit 2"], { cwd: repoRoot });
   const post2 = await runPostCommitHook({ repoRoot });
   assert.strictEqual(post2.recorded, true);
 
-  const mockCi = new MockCiProvider();
   mockCi.setFixture(post1.commitSha, { status: "provider_error" });
 
   const pushLine = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
@@ -576,10 +579,14 @@ test("pre-push hook: si inspectCi arroja un error (excepción / offline), es blo
   assert.strictEqual(post1.recorded, true);
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
 
+  const mockCi = new MockCiProvider({
+    [post1.commitSha]: { status: "passed" },
+  });
+
   // Commit 2 nuevo local
   await fs.writeFile(path.join(repoRoot, "file2.txt"), "2", "utf8");
   execFileSync("git", ["add", "file2.txt"], { cwd: repoRoot });
-  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  assert.strictEqual((await prepareDelivery({ repoRoot, ciProvider: mockCi })).status, "passed");
   execFileSync("git", ["commit", "-m", "chore: commit 2"], { cwd: repoRoot });
   const post2 = await runPostCommitHook({ repoRoot });
   assert.strictEqual(post2.recorded, true);
@@ -1277,18 +1284,18 @@ test("pre-push hook: reparación no descendiente del fallo es bloqueada con REPA
   const post1 = await runPostCommitHook({ repoRoot });
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
 
+  const mockCi = new MockCiProvider({
+    [post1.commitSha]: { status: "passed" },
+  });
+
   // Commit 2 en main (falla)
   await fs.writeFile(path.join(repoRoot, "file2.txt"), "2", "utf8");
   execFileSync("git", ["add", "file2.txt"], { cwd: repoRoot });
-  assert.strictEqual((await prepareDelivery({ repoRoot })).status, "passed");
+  assert.strictEqual((await prepareDelivery({ repoRoot, ciProvider: mockCi })).status, "passed");
   execFileSync("git", ["commit", "-m", "chore: commit 2"], { cwd: repoRoot });
   const post2 = await runPostCommitHook({ repoRoot });
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
-
-  const mockCi = new MockCiProvider({
-    [post1.commitSha]: { status: "passed" },
-    [post2.commitSha]: { status: "failed" },
-  });
+  mockCi.setFixture(post2.commitSha, { status: "failed" });
 
   // Rebobinar localmente a commit 1 y crear commit 3 que no desciende de commit 2
   execFileSync("git", ["reset", "--hard", post1.commitSha], { cwd: repoRoot });
@@ -1339,15 +1346,16 @@ test("pre-push hook: reparación con Gate no R es bloqueada con REPAIR_GATE_INVA
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
 
   const mockCi = new MockCiProvider({
-    [post1.commitSha]: { status: "failed" },
+    [post1.commitSha]: { status: "in_progress" },
   });
 
   // Commit 2 con Gate A
   await fs.writeFile(path.join(repoRoot, "fix.txt"), "fixed", "utf8");
   execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
-  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42" })).status, "passed"); // Gate A
+  assert.strictEqual((await prepareDelivery({ repoRoot, usId: "42", ciProvider: mockCi })).status, "passed"); // Gate A
   execFileSync("git", ["commit", "-m", "fix[42]: repair attempt with Gate A"], { cwd: repoRoot });
   const post2 = await runPostCommitHook({ repoRoot });
+  mockCi.setFixture(post1.commitSha, { status: "failed" });
 
   // Forzar intent: repair_ci y repairsSha pero gateId: "A"
   const entry2 = await getCommitEvidence({ repoRoot, commitSha: post2.commitSha });

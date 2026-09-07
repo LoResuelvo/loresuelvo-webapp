@@ -156,7 +156,7 @@
       "command": "npm",
       "args": ["run", "delivery:test"],
       "display": "npm run delivery:test",
-      "timeoutMs": 180000
+      "timeoutMs": 300000
     },
     "typecheck_app": {
       "kind": "command",

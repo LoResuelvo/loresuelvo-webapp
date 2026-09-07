@@ -2,7 +2,7 @@ import { inspectDelivery } from "./inspect-delivery.mjs";
 import { runGate } from "./run-gate.mjs";
 import { findRepoRoot } from "./repo-root.mjs";
 import { validateExecutionResult } from "./validate-schema.mjs";
-import { recordPreparedEvidence, verifyPreparedEvidence } from "./delivery-ledger.mjs";
+import { recordPreparedEvidence, verifyPreparedEvidence, evaluateCiWindow } from "./delivery-ledger.mjs";
 import { saveDeliveryContext } from "./delivery-context.mjs";
 import { computeRunKey } from "./delivery-evidence.mjs";
 import { createDeliveryJob, spawnJobWorker, findActiveDeliveryJob } from "./jobs.mjs";
@@ -12,7 +12,7 @@ function stoppedResult(inspection, status, extraDiagnostic, repoRoot) {
   const diagnostics = [
     ...inspection.diagnostics,
     ...(extraDiagnostic ? [extraDiagnostic] : []),
-  ];
+  ].slice(0, 20);
   const res = {
     schemaVersion: 1,
     status,
@@ -182,6 +182,35 @@ export async function prepareDelivery({
   if (inspection.status === "blocked" || inspection.status === "needs_input") {
     return stoppedResult(inspection, inspection.status, null, root);
   }
+
+  // Single compact CI window and incident evaluation before running local gates
+  const ciEvaluation = await evaluateCiWindow({
+    repoRoot: root,
+    policy,
+    ciProvider: effectiveProvider,
+    intent: resolvedInput.intent,
+    repairsSha: resolvedInput.repairsSha,
+  });
+
+  if (!ciEvaluation.allowed) {
+    const diagCode = ciEvaluation.code || ciEvaluation.reason || "CI_EVALUATION_BLOCKED";
+    const extraDiag = {
+      code: diagCode,
+      message: ciEvaluation.message,
+      retryable: Boolean(ciEvaluation.retryable),
+      ...(ciEvaluation.failedSha ? { failedSha: ciEvaluation.failedSha } : {}),
+    };
+    const stopped = stoppedResult(inspection, "blocked", extraDiag, root);
+    if (ciEvaluation.failedSha) {
+      stopped.failedSha = ciEvaluation.failedSha;
+    }
+    if (ciEvaluation.pendingCount !== undefined) {
+      stopped.pendingCount = ciEvaluation.pendingCount;
+      stopped.maxInFlightCommits = ciEvaluation.maxInFlightCommits;
+    }
+    return stopped;
+  }
+
 
   if (!force) {
     const prepared = await verifyPreparedEvidence({

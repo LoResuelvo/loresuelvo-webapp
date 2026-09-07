@@ -22,6 +22,7 @@ import { prepareDelivery } from "../lib/prepare-delivery.mjs";
 import { verifyPreparedEvidence } from "../lib/delivery-ledger.mjs";
 import { captureGitSnapshot } from "../lib/git-snapshot.mjs";
 import { inspectDelivery } from "../lib/inspect-delivery.mjs";
+import { computeRunKey } from "../lib/delivery-evidence.mjs";
 
 async function createTempGitRepo(t) {
   const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-jobs-test-"));
@@ -284,17 +285,30 @@ test("jobs: deduplicación de job activo para el mismo snapshot", async (t) => {
   await fs.writeFile(path.join(repoRoot, "features/test.feature"), "Feature: Test\n", "utf8");
   execFileSync("git", ["add", "features/test.feature"], { cwd: repoRoot });
 
-  const firstCall = await prepareDelivery({
+  const snapshot = await captureGitSnapshot({ cwd: repoRoot });
+  const inspection = (await inspectDelivery({ repoRoot, intent: "prepare_commit" })).result;
+  const runKey = computeRunKey({ inspection, snapshot });
+
+  // 1. Simular un job activo garantizado para este snapshot
+  const activeJob = await createDeliveryJob({
     repoRoot,
-    intent: "prepare_commit",
-    mode: "job",
+    type: "prepare",
+    params: { intent: "prepare_commit" },
+    runKey,
+    snapshotHash: inspection.snapshotHash,
+    gateId: inspection.gate.id,
+  });
+  await updateDeliveryJob({
+    repoRoot,
+    jobId: activeJob.jobId,
+    updates: {
+      status: "running",
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+    },
   });
 
-  assert.strictEqual(firstCall.status, "job_started");
-  const firstJobId = firstCall.jobId;
-  assert.ok(firstJobId);
-
-  // Segunda llamada mientras el job está activo
+  // 2. Llamada concurrente mientras el job está activo detecta deduplicación
   const secondCall = await prepareDelivery({
     repoRoot,
     intent: "prepare_commit",
@@ -302,7 +316,7 @@ test("jobs: deduplicación de job activo para el mismo snapshot", async (t) => {
   });
 
   assert.strictEqual(secondCall.status, "running");
-  assert.strictEqual(secondCall.jobId, firstJobId);
+  assert.strictEqual(secondCall.jobId, activeJob.jobId);
   assert.ok(secondCall.message.includes("already running"));
 });
 

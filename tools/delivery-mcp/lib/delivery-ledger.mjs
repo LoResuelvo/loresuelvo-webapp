@@ -4,7 +4,8 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { assertSafeRepoPath, findRepoRoot } from "./repo-root.mjs";
 import { validateExecutionResult } from "./validate-schema.mjs";
-import { inspectCi } from "./ci-provider.mjs";
+import { inspectCi, getCiProvider } from "./ci-provider.mjs";
+import { loadDeliveryPolicy } from "./policy-loader.mjs";
 
 export const LEDGER_DIR = ".delivery/runtime/ledger";
 export const LEDGER_FILE = ".delivery/runtime/ledger.json";
@@ -2366,3 +2367,267 @@ export async function getActiveCiIncidents({
   activeCiIncidents.allIncidents = allIncidents;
   return activeCiIncidents;
 }
+
+export async function evaluateCiWindow({
+  repoRoot,
+  policy = null,
+  ciProvider = null,
+  targetSha = null,
+  intent = "prepare_commit",
+  repairsSha = null,
+  excludeShas = [],
+  commitCount = 0,
+} = {}) {
+  const root = findRepoRoot(repoRoot);
+  const effectivePolicy = policy || (await loadDeliveryPolicy({ repoRoot: root }));
+  const maxInFlightCommits = effectivePolicy?.ci?.maxInFlightCommits ?? 4;
+  const effectiveProvider = ciProvider || getCiProvider();
+
+  let rawEntries = [];
+  try {
+    rawEntries = await listCommitEvidence({ repoRoot: root });
+  } catch (error) {
+    if (
+      error?.code === "LEDGER_CORRUPT" ||
+      error?.code === "LEDGER_INCONSISTENT" ||
+      error?.message?.includes("LEDGER_CORRUPT") ||
+      error?.message?.includes("LEDGER_INCONSISTENT")
+    ) {
+      return {
+        allowed: false,
+        status: "blocked",
+        reason: "LEDGER_CORRUPT",
+        code: "LEDGER_CORRUPT",
+        message: "Delivery ledger is corrupt and cannot be safely recovered.",
+        retryable: false,
+      };
+    }
+    throw error;
+  }
+
+  const excludeSet = new Set(
+    Array.from(excludeShas || []).map((s) => String(s).trim().toLowerCase())
+  );
+  const relevantEntries = (rawEntries || []).filter(
+    (e) => !excludeSet.has(String(e.commitSha).trim().toLowerCase())
+  );
+  const priorShas = relevantEntries.map((e) => e.commitSha);
+
+  let activeIncidents = [];
+  let supersededSet = new Set();
+  let repairResolution = null;
+  try {
+    repairResolution = await resolveRepairChain({ repoRoot: root, ciProvider: effectiveProvider });
+    supersededSet = new Set((repairResolution.supersededFailures || []).map((s) => s.toLowerCase()));
+    activeIncidents = await getActiveCiIncidents({
+      repoRoot: root,
+      ciProvider: effectiveProvider,
+      excludeShas: excludeSet,
+    });
+  } catch (error) {
+    if (
+      error?.code === "LEDGER_CORRUPT" ||
+      error?.code === "LEDGER_INCONSISTENT" ||
+      error?.message?.includes("LEDGER_CORRUPT") ||
+      error?.message?.includes("LEDGER_INCONSISTENT")
+    ) {
+      return {
+        allowed: false,
+        status: "blocked",
+        reason: "LEDGER_CORRUPT",
+        code: "LEDGER_CORRUPT",
+        message: "Delivery ledger is corrupt and cannot be safely recovered.",
+        retryable: false,
+      };
+    }
+    return {
+      allowed: false,
+      status: "blocked",
+      reason: "CI_INSPECTION_FAILED",
+      code: "CI_INSPECTION_FAILED",
+      message: `Could not inspect remote CI: ${error.message}`,
+      retryable: true,
+    };
+  }
+
+  const providerErrorIncident =
+    activeIncidents.find((inc) => inc.status === "provider_error") ||
+    (activeIncidents.allIncidents &&
+      activeIncidents.allIncidents.find((inc) => inc.status === "provider_error"));
+  if (providerErrorIncident) {
+    return {
+      allowed: false,
+      status: "blocked",
+      reason: "CI_PROVIDER_ERROR",
+      code: "CI_PROVIDER_ERROR",
+      message: "CI provider returned an error. Cannot determine remote CI safely.",
+      retryable: true,
+    };
+  }
+
+  const unresolvedIncidents = activeIncidents.filter(
+    (inc) =>
+      ["repair_required", "repair_failed", "repair_prepared", "repair_submitted"].includes(inc.status) &&
+      !supersededSet.has(inc.failedSha.toLowerCase())
+  );
+
+  const effectiveRepairsSha = repairsSha || targetSha || null;
+  const isRepair = intent === "repair_ci" || Boolean(effectiveRepairsSha);
+
+  if (unresolvedIncidents.length > 0) {
+    const matchingIncident = isRepair && effectiveRepairsSha
+      ? unresolvedIncidents.find((inc) => matchesTarget(effectiveRepairsSha, inc.failedSha))
+      : null;
+
+    if (isRepair && matchingIncident) {
+      return {
+        allowed: true,
+        status: "passed",
+        isRepair: true,
+        matchingIncident,
+        targetSha: matchingIncident.failedSha,
+        activeIncident: matchingIncident,
+        activeIncidents,
+        unresolvedIncidents,
+        supersededSet,
+        repairResolution,
+      };
+    }
+
+    if (isRepair && !matchingIncident && effectiveRepairsSha) {
+      return {
+        allowed: false,
+        status: "blocked",
+        reason: "REPAIR_TARGET_MISMATCH",
+        code: "REPAIR_TARGET_MISMATCH",
+        message: `repair_ci specified target ${effectiveRepairsSha.slice(0, 8)}, but active CI failure is on commit ${unresolvedIncidents[0].failedSha.slice(0, 8)}.`,
+        failedSha: unresolvedIncidents[0].failedSha,
+        sha: unresolvedIncidents[0].failedSha,
+        activeIncident: unresolvedIncidents[0],
+        unresolvedIncidents,
+        retryable: false,
+      };
+    }
+
+    const targetIncident = unresolvedIncidents[0];
+    const failedSha = targetIncident.failedSha;
+    return {
+      allowed: false,
+      status: "blocked",
+      reason: "PRIOR_COMMIT_CI_FAILED",
+      code: "REPAIR_REQUIRED",
+      message: `Prior commit ${failedSha.slice(0, 8)} failed CI in GitHub Actions. Repair required before delivering new changes. Use intent: 'repair_ci' with repairsSha: '${failedSha}'.`,
+      failedSha,
+      sha: failedSha,
+      activeIncident: targetIncident,
+      unresolvedIncidents,
+      retryable: false,
+    };
+  }
+
+  // If local commit claims to be a repair but there are no active unresolved incidents:
+  if (isRepair) {
+    return {
+      allowed: true,
+      status: "passed",
+      isRepair: true,
+      matchingIncident: null,
+      targetSha: effectiveRepairsSha,
+      activeIncidents,
+      unresolvedIncidents: [],
+      supersededSet,
+      repairResolution,
+    };
+  }
+
+  // Step 2: Continuous window control for pending commits
+  const recentPriorShas = priorShas.slice(-(maxInFlightCommits + 1)).reverse();
+  let pendingCount = 0;
+
+  const incidentsBySha = new Map();
+  for (const inc of activeIncidents.allIncidents || []) {
+    if (inc.failedSha) {
+      incidentsBySha.set(inc.failedSha.toLowerCase(), inc);
+    }
+  }
+
+  for (const priorSha of recentPriorShas) {
+    const inc = incidentsBySha.get(priorSha.toLowerCase());
+    if (inc) {
+      if (inc.status === "provider_error") {
+        return {
+          allowed: false,
+          status: "blocked",
+          reason: "CI_PROVIDER_ERROR",
+          code: "CI_PROVIDER_ERROR",
+          message: "CI provider returned an error. Cannot determine remote CI safely.",
+          retryable: true,
+        };
+      }
+      if (inc.status === "pending") {
+        pendingCount += 1;
+      }
+    } else {
+      let ci;
+      try {
+        ci = await inspectCi({ sha: priorSha, repoRoot: root, provider: effectiveProvider });
+      } catch {
+        return {
+          allowed: false,
+          status: "blocked",
+          reason: "CI_INSPECTION_FAILED",
+          code: "CI_INSPECTION_FAILED",
+          message: "Could not inspect remote CI.",
+          retryable: true,
+        };
+      }
+      if (ci.status === "provider_error") {
+        return {
+          allowed: false,
+          status: "blocked",
+          reason: "CI_PROVIDER_ERROR",
+          code: "CI_PROVIDER_ERROR",
+          message: "CI provider returned an error. Cannot determine remote CI safely.",
+          retryable: true,
+        };
+      }
+      if (["in_progress", "queued", "not_found"].includes(ci.status)) {
+        pendingCount += 1;
+      }
+    }
+  }
+
+  const inFlightCount = pendingCount + commitCount;
+  const isWindowFull = commitCount > 0 ? inFlightCount > maxInFlightCommits : pendingCount >= maxInFlightCommits;
+
+  if (isWindowFull) {
+    return {
+      allowed: false,
+      status: "blocked",
+      reason: commitCount > 0 ? "CI_PENDING_WINDOW_EXCEEDED" : "CI_WINDOW_FULL",
+      code: "CI_WINDOW_FULL",
+      message: commitCount > 0
+        ? `Pre-push blocked: this push would create ${inFlightCount} commits in flight (maximum ${maxInFlightCommits}). Wait for CI to complete.`
+        : `CI window full: ${pendingCount} commits currently in flight (maximum ${maxInFlightCommits}). Wait for CI to complete before delivering new changes.`,
+      pendingCount,
+      inFlightCount: commitCount > 0 ? inFlightCount : pendingCount,
+      maxInFlightCommits,
+      activeIncidents,
+      unresolvedIncidents: [],
+      retryable: true,
+    };
+  }
+
+  return {
+    allowed: true,
+    status: "passed",
+    pendingCount,
+    inFlightCount: commitCount > 0 ? inFlightCount : pendingCount,
+    maxInFlightCommits,
+    activeIncidents,
+    unresolvedIncidents: [],
+    supersededSet,
+    repairResolution,
+  };
+}
+

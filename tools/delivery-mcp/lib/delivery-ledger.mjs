@@ -1058,48 +1058,69 @@ export async function getCommitEvidence({ repoRoot, commitSha } = {}) {
   }
 
   const commitFilePath = path.resolve(root, LEDGER_DIR, `${cleanSha}.json`);
-  let rawCommitEntry;
-  try {
-    rawCommitEntry = await fs.readFile(commitFilePath, "utf8");
-  } catch (error) {
-    if (error.code !== "ENOENT") throw evidenceReadError("COMMIT_EVIDENCE_FILE_UNREADABLE");
-  }
-  if (rawCommitEntry !== undefined) {
-    let parsed;
+  const ledgerFilePath = path.resolve(root, LEDGER_FILE);
+
+  let lastInconsistentError = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    let rawCommitEntry;
     try {
-      parsed = JSON.parse(rawCommitEntry);
-    } catch {
-      throw evidenceReadError("INVALID_COMMIT_EVIDENCE_FILE");
-    }
-    if (!isJsonObject(parsed)) throw evidenceReadError("INVALID_COMMIT_EVIDENCE_FILE");
-    // An individual record is authoritative only when it can be reconciled
-    // with the consolidated ledger. If the latter is absent, the historical
-    // individual record remains verifiable on its own and can be rebuilt.
-    let rawLedger;
-    try {
-      rawLedger = await fs.readFile(path.resolve(root, LEDGER_FILE), "utf8");
+      rawCommitEntry = await fs.readFile(commitFilePath, "utf8");
     } catch (error) {
-      if (error.code === "ENOENT") return parsed;
-      throw evidenceReadError("CONSOLIDATED_LEDGER_UNREADABLE");
+      if (error.code !== "ENOENT") throw evidenceReadError("COMMIT_EVIDENCE_FILE_UNREADABLE");
     }
-    let parsedLedger;
-    try {
-      parsedLedger = JSON.parse(rawLedger);
-    } catch {
-      throw evidenceReadError("INVALID_CONSOLIDATED_LEDGER");
+    if (rawCommitEntry !== undefined) {
+      let parsed;
+      try {
+        parsed = JSON.parse(rawCommitEntry);
+      } catch {
+        throw evidenceReadError("INVALID_COMMIT_EVIDENCE_FILE");
+      }
+      if (!isJsonObject(parsed)) throw evidenceReadError("INVALID_COMMIT_EVIDENCE_FILE");
+      // An individual record is authoritative only when it can be reconciled
+      // with the consolidated ledger. If the latter is absent, the historical
+      // individual record remains verifiable on its own and can be rebuilt.
+      let rawLedger;
+      try {
+        rawLedger = await fs.readFile(ledgerFilePath, "utf8");
+      } catch (error) {
+        if (error.code === "ENOENT") return parsed;
+        throw evidenceReadError("CONSOLIDATED_LEDGER_UNREADABLE");
+      }
+      let parsedLedger;
+      try {
+        parsedLedger = JSON.parse(rawLedger);
+      } catch {
+        throw evidenceReadError("INVALID_CONSOLIDATED_LEDGER");
+      }
+      if (!isJsonObject(parsedLedger)) throw evidenceReadError("INVALID_CONSOLIDATED_LEDGER");
+      const consolidatedKey = Object.keys(parsedLedger).find(
+        (key) => key.toLowerCase() === cleanSha
+      );
+      if (!consolidatedKey) {
+        lastInconsistentError = evidenceReadError("LEDGER_INCONSISTENT");
+        if (attempt < 2) {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          continue;
+        }
+        throw lastInconsistentError;
+      }
+      if (!isJsonObject(parsedLedger[consolidatedKey])) {
+        throw evidenceReadError("INVALID_COMMIT_EVIDENCE_ENTRY");
+      }
+      if (canonicalJson(parsedLedger[consolidatedKey]) !== canonicalJson(parsed)) {
+        lastInconsistentError = evidenceReadError("LEDGER_INCONSISTENT");
+        if (attempt < 2) {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          continue;
+        }
+        throw lastInconsistentError;
+      }
+      return parsed;
     }
-    if (!isJsonObject(parsedLedger)) throw evidenceReadError("INVALID_CONSOLIDATED_LEDGER");
-    const consolidatedKey = Object.keys(parsedLedger).find(
-      (key) => key.toLowerCase() === cleanSha
-    );
-    if (!consolidatedKey) throw evidenceReadError("LEDGER_INCONSISTENT");
-    if (!isJsonObject(parsedLedger[consolidatedKey])) {
-      throw evidenceReadError("INVALID_COMMIT_EVIDENCE_ENTRY");
-    }
-    if (canonicalJson(parsedLedger[consolidatedKey]) !== canonicalJson(parsed)) {
-      throw evidenceReadError("LEDGER_INCONSISTENT");
-    }
-    return parsed;
+    break;
+  }
+  if (lastInconsistentError) {
+    throw lastInconsistentError;
   }
 
   let rawLedger;
@@ -1776,7 +1797,15 @@ export async function validateRepairLineage({
   let repairEntry = null;
   try {
     repairEntry = await getCommitEvidence({ repoRoot: root, commitSha: cleanRepairSha });
-  } catch {
+  } catch (error) {
+    if (
+      error?.code === "LEDGER_CORRUPT" ||
+      error?.code === "LEDGER_INCONSISTENT" ||
+      error?.message?.includes("LEDGER_CORRUPT") ||
+      error?.message?.includes("LEDGER_INCONSISTENT")
+    ) {
+      throw error;
+    }
     repairEntry = null;
   }
 

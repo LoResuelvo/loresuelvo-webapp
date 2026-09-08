@@ -603,37 +603,6 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
     if (ciEvaluation.matchingIncident) {
       // Commit being pushed is a valid repair candidate for an active incident
       const targetSha = ciEvaluation.matchingIncident.failedSha;
-      let targetValidation;
-      try {
-        targetValidation = await validateRepairLineage({
-          repoRoot: root,
-          repairSha: localSha,
-          targetSha,
-          ciProvider,
-          supersededSet,
-        });
-      } catch (error) {
-        if (
-          error?.code === "LEDGER_CORRUPT" ||
-          error?.code === "LEDGER_INCONSISTENT" ||
-          error?.message?.includes("LEDGER_CORRUPT")
-        ) {
-          return {
-            passed: false,
-            reason: "LEDGER_CORRUPT",
-            message: "Pre-push blocked: delivery ledger is corrupt and cannot be safely recovered.",
-          };
-        }
-        throw error;
-      }
-      if (!targetValidation.valid) {
-        return {
-          passed: false,
-          reason: targetValidation.reason,
-          message: targetValidation.message,
-          sha: localSha,
-        };
-      }
 
       let releaseRepairLock = null;
       try {
@@ -648,6 +617,38 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
       }
 
       try {
+        let targetValidation;
+        try {
+          targetValidation = await validateRepairLineage({
+            repoRoot: root,
+            repairSha: localSha,
+            targetSha,
+            ciProvider,
+            supersededSet,
+          });
+        } catch (error) {
+          if (
+            error?.code === "LEDGER_CORRUPT" ||
+            error?.code === "LEDGER_INCONSISTENT" ||
+            error?.message?.includes("LEDGER_CORRUPT")
+          ) {
+            return {
+              passed: false,
+              reason: "LEDGER_CORRUPT",
+              message: "Pre-push blocked: delivery ledger is corrupt and cannot be safely recovered.",
+            };
+          }
+          throw error;
+        }
+        if (!targetValidation.valid) {
+          return {
+            passed: false,
+            reason: targetValidation.reason,
+            message: targetValidation.message,
+            sha: localSha,
+          };
+        }
+
         const authResult = await authorizeRepairPush({
           repoRoot: root,
           targetSha,
@@ -681,38 +682,41 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
 
     // If local commit claims to be a repair but there were no active incidents:
     if (isRepair) {
-      const selfValidation = await validateRepairLineage({
-        repoRoot: root,
-        repairSha: localSha,
-        ciProvider,
-        supersededSet,
-      });
-      if (!selfValidation.valid) {
-        return {
-          passed: false,
-          reason: selfValidation.reason,
-          message: selfValidation.message,
-          sha: localSha,
-        };
-      }
-
-      if (localEntry?.repairsSha && !localEntry.repairPushConsumed) {
-        let releaseRepairLock = null;
+      const repairTarget = localEntry?.repairsSha ? String(localEntry.repairsSha) : null;
+      let releaseRepairLock = null;
+      if (repairTarget && !localEntry?.repairPushConsumed) {
         try {
-          releaseRepairLock = await acquireRepairLock({ repoRoot: root, targetSha: String(localEntry.repairsSha) });
+          releaseRepairLock = await acquireRepairLock({ repoRoot: root, targetSha: repairTarget });
         } catch (lockError) {
           return {
             passed: false,
             reason: "CONCURRENT_PUSH_IN_PROGRESS",
-            message: `Pre-push blocked: concurrent push in progress for repair of commit ${String(localEntry.repairsSha).slice(0, 8)}.`,
+            message: `Pre-push blocked: concurrent push in progress for repair of commit ${repairTarget.slice(0, 8)}.`,
+            sha: localSha,
+          };
+        }
+      }
+
+      try {
+        const selfValidation = await validateRepairLineage({
+          repoRoot: root,
+          repairSha: localSha,
+          ciProvider,
+          supersededSet,
+        });
+        if (!selfValidation.valid) {
+          return {
+            passed: false,
+            reason: selfValidation.reason,
+            message: selfValidation.message,
             sha: localSha,
           };
         }
 
-        try {
+        if (repairTarget && !localEntry.repairPushConsumed) {
           const authResult = await authorizeRepairPush({
             repoRoot: root,
-            targetSha: String(localEntry.repairsSha),
+            targetSha: repairTarget,
             commitSha: localSha,
             ciProvider,
             lockHeld: true,
@@ -724,17 +728,17 @@ export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = n
               reason: authResult.reason || "REPAIR_RECEIPT_ALREADY_CONSUMED",
               message:
                 authResult.message ||
-                `Pre-push blocked: repair authorization for commit ${String(localEntry.repairsSha).slice(0, 8)} has already been consumed for a push.`,
+                `Pre-push blocked: repair authorization for commit ${repairTarget.slice(0, 8)} has already been consumed for a push.`,
               sha: localSha,
             };
           }
 
           localEntry.repairAuthState = authResult.state;
           localEntry.repairPushConsumed = true;
-        } finally {
-          if (releaseRepairLock) {
-            await releaseRepairLock();
-          }
+        }
+      } finally {
+        if (releaseRepairLock) {
+          await releaseRepairLock();
         }
       }
     }

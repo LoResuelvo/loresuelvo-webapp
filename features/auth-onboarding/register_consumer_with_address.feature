@@ -48,7 +48,6 @@ Feature: US-1.2 Registrar consumidor con dirección
       Then veo el mensaje de error "Campo obligatorio" debajo del campo "Número"
       And permanezco en la página de registro
 
-    @wip
     Scenario: 06-RCA Rechazar registro con calle de solo espacios en blanco
       Given elegí la opción de consumidor en la pagina de registro
       And ingreso mi nombre "Ana" y apellido "Pérez" en el formulario

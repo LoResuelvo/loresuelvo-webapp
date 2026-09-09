@@ -46,6 +46,15 @@ Then(
 );
 
 Given(
+  "ingreso la calle {string} y el número {string}",
+  async function (this: CustomWorld, street: string, streetNumber: string) {
+    (this as any).explicitAddressSet = true;
+    await this.page.getByLabel("Calle").fill(street);
+    await this.page.getByLabel("Número").fill(streetNumber);
+  }
+);
+
+Given(
   "ingreso el número {string} pero dejo la calle vacía",
   async function (this: CustomWorld, streetNumber: string) {
     (this as any).explicitAddressSet = true;

@@ -65,7 +65,6 @@ Feature: US-1.2 Registrar consumidor con dirección
       Then veo el mensaje "No se pudo validar la dirección ingresada"
       And permanezco en la página de registro
 
-    @wip
     Scenario: 08-RCA Informar que la dirección está fuera del área de servicio
       Given elegí la opción de consumidor en la pagina de registro
       And ingreso mi nombre "Ana" y apellido "Pérez" en el formulario

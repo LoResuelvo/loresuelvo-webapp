@@ -96,6 +96,10 @@ Given("la API responde que la dirección no pudo geolocalizarse", async function
   await this.stubPost("/consumers", 400, anApiError("Address could not be validated"));
 });
 
+Given("la API responde que la dirección está fuera del área de servicio", async function (this: CustomWorld) {
+  await this.stubPost("/consumers", 400, anApiError("Services are not available in this location"));
+});
+
 Then(
   "veo el mensaje de error {string} debajo del campo {string}",
   async function (this: CustomWorld, errorMessage: string, fieldName: string) {

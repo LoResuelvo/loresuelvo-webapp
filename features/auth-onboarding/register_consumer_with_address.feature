@@ -101,7 +101,6 @@ Feature: US-1.2 Registrar consumidor con dirección
 
   Rule: Sin Google Places se puede completar la dirección manualmente
 
-    @wip
     Scenario: 12-RCA Ingresar dirección manualmente sin configuración de Google
       Given elegí la opción de consumidor en la pagina de registro
       And no hay API key de Google configurada

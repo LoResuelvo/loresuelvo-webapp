@@ -89,6 +89,16 @@ async function enableGooglePlacesFake(page: Page, options: GooglePlacesFakeOptio
   await page.waitForSelector('input[name="firstName"]');
 }
 
+async function reloadConsumerProfile(page: Page) {
+  await page.reload();
+  const consumerButton = page.getByText("Soy Cliente").first();
+  if (await consumerButton.isVisible().catch(() => false)) {
+    await consumerButton.click();
+    await page.getByText("Continuar").first().click();
+  }
+  await page.waitForSelector('input[name="firstName"]');
+}
+
 When("avanzo al paso de datos de perfil", async function (this: CustomWorld) {
   const continueButton = this.page.getByRole("button", { name: /continuar/i }).first();
   if (await continueButton.isVisible().catch(() => false)) {
@@ -209,6 +219,14 @@ Given("Google Places Autocomplete está disponible", async function (this: Custo
   });
 });
 
+Given("no hay API key de Google configurada", async function (this: CustomWorld) {
+  await this.page.addInitScript(() => {
+    type GoogleWindow = { google?: unknown };
+    delete (window as unknown as GoogleWindow).google;
+  });
+  await reloadConsumerProfile(this.page);
+});
+
 When("escribo {string} en el campo {string}", async function (this: CustomWorld, value: string, fieldName: string) {
   await this.page.getByLabel(fieldName).fill(value);
 });
@@ -228,6 +246,27 @@ Then(
 
 When("selecciono la sugerencia {string}", async function (this: CustomWorld, suggestion: string) {
   await this.page.getByRole("option", { name: suggestion }).click();
+});
+
+Then(
+  "veo los campos {string} y {string} editables sin sugerencias automáticas",
+  async function (this: CustomWorld, streetLabel: string, streetNumberLabel: string) {
+    for (const fieldName of [streetLabel, streetNumberLabel]) {
+      const input = this.page.getByLabel(fieldName).first();
+      await input.waitFor({ state: "visible" });
+      assert.ok(await input.isEditable(), `El campo "${fieldName}" debería ser editable`);
+    }
+    assert.equal(await this.page.getByRole("option").count(), 0, "No deberían mostrarse sugerencias");
+  }
+);
+
+Then("puedo completar la dirección manualmente", async function (this: CustomWorld) {
+  const streetInput = this.page.getByLabel("Calle").first();
+  const streetNumberInput = this.page.getByLabel("Número").first();
+  await streetInput.fill("Av. Santa Fe");
+  await streetNumberInput.fill("1234");
+  assert.equal(await streetInput.inputValue(), "Av. Santa Fe");
+  assert.equal(await streetNumberInput.inputValue(), "1234");
 });
 
 Then(

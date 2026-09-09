@@ -81,7 +81,11 @@ describe("ApiUserRepository", () => {
           name: "Ana",
           surname: "Pérez",
         },
-        "photo-uuid-456"
+        "photo-uuid-456",
+        {
+          street: "Av. Rivadavia",
+          streetNumber: "5100",
+        }
       );
 
       expect(baseClient.api.post).toHaveBeenCalledWith("/consumers", {
@@ -90,7 +94,7 @@ describe("ApiUserRepository", () => {
         surname: "Pérez",
         address: {
           street: "Av. Rivadavia",
-          street_number: "1234",
+          street_number: "5100",
         },
         profile_photo_file_id: "photo-uuid-456",
       });

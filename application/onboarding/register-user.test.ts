@@ -5,6 +5,11 @@ import { AuthService } from "@/ports/onboarding/auth-service";
 import { ROUTES } from "@/lib/routes";
 
 describe("registerUser", () => {
+  const consumerAddress = {
+    street: "Av. Rivadavia",
+    streetNumber: "5100",
+  };
+
   const mockUserRepository = {
     registerConsumer: vi.fn(),
     registerProvider: vi.fn(),
@@ -36,6 +41,7 @@ describe("registerUser", () => {
       firstName: "Andres",
       lastName: "Gomez",
       role: "consumer",
+      address: consumerAddress,
     });
 
     expect(mockUserRepository.registerConsumer).toHaveBeenCalledWith(
@@ -44,7 +50,8 @@ describe("registerUser", () => {
         name: "Andres",
         surname: "Gomez",
       },
-      undefined
+      undefined,
+      consumerAddress
     );
     expect(mockAuthService.updateSession).toHaveBeenCalledWith({
       firstName: "Andres",
@@ -69,6 +76,7 @@ describe("registerUser", () => {
       lastName: "Pérez",
       role: "consumer",
       profilePhotoId: "photo-456",
+      address: consumerAddress,
     });
 
     expect(mockUserRepository.registerConsumer).toHaveBeenCalledWith(
@@ -77,7 +85,8 @@ describe("registerUser", () => {
         name: "Ana",
         surname: "Pérez",
       },
-      "photo-456"
+      "photo-456",
+      consumerAddress
     );
     expect(mockAuthService.updateSession).toHaveBeenCalledWith({
       firstName: "Ana",

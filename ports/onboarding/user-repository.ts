@@ -1,4 +1,4 @@
-import { RegisterUserData } from "@/domain/onboarding/types";
+import { ConsumerAddress, RegisterUserData } from "@/domain/onboarding/types";
 import { CurrentUser } from "@/domain/user/types";
 
 export interface UserRepository {
@@ -11,9 +11,9 @@ export interface UserRepository {
 
   registerConsumer(
     data: RegisterUserData,
-    profilePhotoFileId?: string
+    profilePhotoFileId: string | undefined,
+    address: ConsumerAddress
   ): Promise<{ profilePhotoUrl?: string }>;
 
   getCurrentUser(): Promise<CurrentUser>;
 }
-

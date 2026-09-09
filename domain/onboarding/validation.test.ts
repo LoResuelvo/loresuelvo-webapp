@@ -62,6 +62,7 @@ describe("validateProfileForm", () => {
       undefined,
       undefined,
       undefined,
+      undefined,
       "Av. Rivadavia",
       ""
     );
@@ -72,6 +73,7 @@ describe("validateProfileForm", () => {
       "Andrés",
       "Pérez",
       "consumer",
+      undefined,
       undefined,
       undefined,
       undefined,

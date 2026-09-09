@@ -3,7 +3,7 @@
 import { ApiUserRepository } from "@/infrastructure/repositories/onboarding/api-user-repository";
 import { registerUser } from "@/application/onboarding/register-user";
 import { getAuthService } from "@/infrastructure/auth";
-import { UserRole } from "@/domain/onboarding/types";
+import { ConsumerAddress, UserRole } from "@/domain/onboarding/types";
 
 export async function submitRegistration(formData: FormData) {
   const firstName = formData.get("firstName") as string;
@@ -15,6 +15,21 @@ export async function submitRegistration(formData: FormData) {
   let profilePhotoId: string | undefined = undefined;
   let profilePhotoUrl: string | undefined = undefined;
   let coverageZoneIds: number[] | undefined = undefined;
+  let address: ConsumerAddress | undefined = undefined;
+
+  if (role === "consumer") {
+    const street = formData.get("street");
+    const streetNumber = formData.get("streetNumber");
+    const floor = formData.get("floor");
+    const unit = formData.get("unit");
+
+    address = {
+      street: typeof street === "string" ? street : "",
+      streetNumber: typeof streetNumber === "string" ? streetNumber : "",
+      ...(typeof floor === "string" && floor !== "" ? { floor } : {}),
+      ...(typeof unit === "string" && unit !== "" ? { unit } : {}),
+    };
+  }
 
   if (role === "provider") {
     const rawCategoryId = formData.get("categoryId") as string;
@@ -42,7 +57,7 @@ export async function submitRegistration(formData: FormData) {
     profilePhotoId,
     profilePhotoUrl,
     coverageZoneIds,
+    address,
   });
 }
-
 

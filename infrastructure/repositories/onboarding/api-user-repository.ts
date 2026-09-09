@@ -2,7 +2,8 @@ import { api } from "@/infrastructure/api/base-client";
 import { RegisterUserData } from "@/domain/onboarding/types";
 import { UserRepository } from "@/ports/onboarding/user-repository";
 import { CurrentUser } from "@/domain/user/types";
-import { ApiCurrentUserResponse } from "@/infrastructure/api/types";
+import { ConsumerAddress } from "@/domain/onboarding/types";
+import { ApiCurrentUserResponse, ApiRegisterConsumerRequest, ApiRegisterConsumerResponse } from "@/infrastructure/api/types";
 import { mapApiToCurrentUser } from "./current-user-mapper";
 
 export class ApiUserRepository implements UserRepository {
@@ -25,21 +26,24 @@ export class ApiUserRepository implements UserRepository {
 
   async registerConsumer(
     data: RegisterUserData,
-    profilePhotoFileId?: string
+    profilePhotoFileId: string | undefined,
+    address: ConsumerAddress
   ): Promise<{ profilePhotoUrl?: string }> {
-    const body: Record<string, unknown> = {
+    const body: ApiRegisterConsumerRequest = {
       email: data.email,
       name: data.name,
       surname: data.surname,
       address: {
-        street: "Av. Rivadavia",
-        street_number: "1234",
-      }, // Mock temporal
+        street: address.street,
+        street_number: address.streetNumber,
+        ...(address.floor !== undefined ? { floor: address.floor } : {}),
+        ...(address.unit !== undefined ? { unit: address.unit } : {}),
+      },
     };
     if (profilePhotoFileId) {
       body.profile_photo_file_id = profilePhotoFileId;
     }
-    const res = await api.post<{ profile_photo_url?: string }>("/consumers", body);
+    const res = await api.post<ApiRegisterConsumerResponse>("/consumers", body);
     return { profilePhotoUrl: res?.profile_photo_url };
   }
 

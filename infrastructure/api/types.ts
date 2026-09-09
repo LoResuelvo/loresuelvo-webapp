@@ -299,6 +299,19 @@ export interface ApiPaymentAccountAuthorization {
   state: string;
 }
 
+export interface ApiRegisterConsumerRequest {
+  email: string;
+  name: string;
+  surname: string;
+  address: {
+    street: string;
+    street_number: string;
+    floor?: string;
+    unit?: string;
+  };
+  profile_photo_file_id?: string;
+}
+
 export interface ApiRegisterConsumerResponse {
   id: number;
   name: string;

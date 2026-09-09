@@ -1,5 +1,5 @@
 import { UserRepository } from "@/ports/onboarding/user-repository";
-import { RegisterUserData, UserRole } from "@/domain/onboarding/types";
+import { ConsumerAddress, RegisterUserData, UserRole } from "@/domain/onboarding/types";
 import { AuthService } from "@/ports/onboarding/auth-service";
 import { ROUTES } from "@/lib/routes";
 
@@ -11,6 +11,25 @@ interface RegisterUserCommand {
   profilePhotoId?: string;
   profilePhotoUrl?: string;
   coverageZoneIds?: number[];
+  address?: ConsumerAddress;
+}
+
+async function registerConsumerProfile(
+  userRepository: UserRepository,
+  userData: RegisterUserData,
+  command: RegisterUserCommand
+): Promise<string | undefined> {
+  if (!command.address) {
+    throw new Error("Consumer address is required");
+  }
+
+  const consumerResult = await userRepository.registerConsumer(
+    userData,
+    command.profilePhotoId,
+    command.address
+  );
+
+  return consumerResult?.profilePhotoUrl || command.profilePhotoUrl;
 }
 
 export async function registerUser(
@@ -43,12 +62,7 @@ export async function registerUser(
       finalProfilePhotoUrl = command.profilePhotoUrl;
     }
   } else {
-    const consumerResult = await userRepository.registerConsumer(userData, command.profilePhotoId);
-    if (consumerResult?.profilePhotoUrl) {
-      finalProfilePhotoUrl = consumerResult.profilePhotoUrl;
-    } else if (command.profilePhotoUrl) {
-      finalProfilePhotoUrl = command.profilePhotoUrl;
-    }
+    finalProfilePhotoUrl = await registerConsumerProfile(userRepository, userData, command);
   }
 
   try {

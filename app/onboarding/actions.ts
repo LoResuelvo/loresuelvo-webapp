@@ -13,6 +13,7 @@ export type RegistrationActionResult =
 
 const registrationErrorMessages: Record<string, string> = {
   "Address could not be validated": t.onboarding.profileForm.addressValidationFailed,
+  "Services are not available in this location": t.onboarding.profileForm.addressOutOfService,
 };
 
 function getRegistrationErrorMessage(error: unknown): string {

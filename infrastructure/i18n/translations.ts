@@ -176,6 +176,7 @@ export const t = {
       photoRequired: "La foto de perfil es obligatoria", photoInvalidFormat: "Formato de imagen no permitido. Los formatos permitidos son: PNG, JPG, JPEG y WEBP", photoTooLarge: "La imagen no debe superar los 5MB",
       saving: "Guardando...", finishRegister: "Finalizar Registro", errorSave: "Hubo un problema al guardar tu perfil. Inténtalo nuevamente.",
       addressValidationFailed: "No se pudo validar la dirección ingresada",
+      addressOutOfService: "Todavía no ofrecemos servicios en esa ubicación",
     },
     photoUpload: { label: "Foto de perfil", placeholder: "Haz clic para subir una foto", changePhoto: "Cambiar foto", },
     mercadoPago: {

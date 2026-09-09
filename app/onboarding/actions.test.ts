@@ -84,4 +84,22 @@ describe("submitRegistration", () => {
       error: "No se pudo validar la dirección ingresada",
     });
   });
+
+  it("returns a safe translated message for an out-of-service consumer address", async () => {
+    vi.mocked(registerUser).mockRejectedValue(
+      new ApiClientError(400, "Bad Request", "Services are not available in this location")
+    );
+
+    const formData = new FormData();
+    formData.set("firstName", "Ana");
+    formData.set("lastName", "Pérez");
+    formData.set("role", "consumer");
+    formData.set("street", "Ruta Nacional 5");
+    formData.set("streetNumber", "100");
+
+    await expect(submitRegistration(formData)).resolves.toEqual({
+      success: false,
+      error: "Todavía no ofrecemos servicios en esa ubicación",
+    });
+  });
 });

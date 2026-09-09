@@ -103,6 +103,8 @@ function useProfileFormValidation() {
     const lastName = formData.get("lastName") as string;
     const categoryId = formData.get("categoryId") as string;
     const photo = (formData.get("profilePhoto") as File) || null;
+    const street = (formData.get("street") as string) || "";
+    const streetNumber = (formData.get("streetNumber") as string) || "";
 
     const { isValid, errors: validationErrors } = validateProfileForm(
       firstName,
@@ -113,7 +115,9 @@ function useProfileFormValidation() {
       photo?.name || "",
       photo?.type || "",
       t.onboarding.profileForm,
-      role === "provider" ? zoneIds : undefined
+      role === "provider" ? zoneIds : undefined,
+      street,
+      streetNumber
     );
 
     setErrors(validationErrors);

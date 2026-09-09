@@ -59,6 +59,16 @@ When("finalizo el registro", async function (this: CustomWorld) {
   const finalizeOptions = { name: "Finalizar Registro" };
   const button = this.page.getByRole("button", finalizeOptions).first();
   await button.waitFor();
+
+  if (selectedRole === "consumer" && (this as any).registeredFirstName && !(this as any).explicitAddressSet) {
+    const streetInput = this.page.getByLabel("Calle").first();
+    if (await streetInput.isVisible().catch(() => false)) {
+      await streetInput.fill("Av. Rivadavia");
+      const numberInput = this.page.getByLabel("Número").first();
+      await numberInput.fill("5100");
+    }
+  }
+
   await button.click();
 });
 

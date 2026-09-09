@@ -32,7 +32,6 @@ Feature: US-1.2 Registrar consumidor con dirección
 
   Rule: La dirección debe contener calle y número no vacíos
 
-    @wip
     Scenario: 04-RCA Rechazar registro sin calle
       Given elegí la opción de consumidor en la pagina de registro
       And ingreso mi nombre "Ana" y apellido "Pérez" en el formulario

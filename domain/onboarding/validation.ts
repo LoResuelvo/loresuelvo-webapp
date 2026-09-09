@@ -38,7 +38,9 @@ export function validateProfileForm(
   profilePhotoName?: string,
   profilePhotoType?: string,
   messages?: Partial<ProfileFormMessages>,
-  coverageZoneIds?: number[]
+  coverageZoneIds?: number[],
+  street?: string,
+  streetNumber?: string
 ): { isValid: boolean; errors: ValidationErrors } {
   const msg = { ...defaultMessages, ...messages };
   const errors: ValidationErrors = {};
@@ -52,6 +54,13 @@ export function validateProfileForm(
   if (!lastName || lastName.trim() === "") {
     errors.lastName = msg.requiredField;
     isValid = false;
+  }
+
+  if (role === "consumer") {
+    if (!street || street.trim() === "") {
+      errors.street = msg.requiredField;
+      isValid = false;
+    }
   }
 
   if (role === "provider") {

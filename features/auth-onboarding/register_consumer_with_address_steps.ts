@@ -1,4 +1,4 @@
-import { When, Then } from "@cucumber/cucumber";
+import { Given, When, Then } from "@cucumber/cucumber";
 import { CustomWorld } from "../support/world";
 import assert from "assert";
 
@@ -42,5 +42,34 @@ Then(
       const isRequired = await input.evaluate((el: HTMLInputElement) => el.required || el.getAttribute("aria-required") === "true");
       assert.ok(!isRequired, `El campo "${fieldName}" debería ser opcional`);
     }
+  }
+);
+
+Given(
+  "ingreso el número {string} pero dejo la calle vacía",
+  async function (this: CustomWorld, streetNumber: string) {
+    (this as any).explicitAddressSet = true;
+    const streetInput = this.page.getByLabel("Calle").first();
+    await streetInput.waitFor({ state: "visible" });
+    await streetInput.fill("");
+    const numberInput = this.page.getByLabel("Número").first();
+    await numberInput.waitFor({ state: "visible" });
+    await numberInput.fill(streetNumber);
+  }
+);
+
+Then(
+  "veo el mensaje de error {string} debajo del campo {string}",
+  async function (this: CustomWorld, errorMessage: string, fieldName: string) {
+    const input = this.page.getByLabel(fieldName).first();
+    await input.waitFor({ state: "visible" });
+    const container = input.locator("xpath=..");
+    const error = container.getByRole("alert");
+    await error.waitFor({ state: "visible" });
+    const text = await error.textContent();
+    assert.ok(
+      text?.includes(errorMessage),
+      `Se esperaba el mensaje "${errorMessage}" debajo de "${fieldName}" pero se encontró "${text}"`
+    );
   }
 );

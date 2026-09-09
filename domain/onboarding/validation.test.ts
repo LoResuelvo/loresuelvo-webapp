@@ -3,9 +3,52 @@ import { validateProfileForm, validateProfilePhoto } from "./validation";
 
 describe("validateProfileForm", () => {
   it("validates a complete consumer form successfully", () => {
-    const { isValid, errors } = validateProfileForm("Andrés", "Pérez", "consumer");
+    const { isValid, errors } = validateProfileForm(
+      "Andrés",
+      "Pérez",
+      "consumer",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "Av. Rivadavia"
+    );
     expect(isValid).toBe(true);
     expect(errors).toEqual({});
+  });
+
+  it("fails if consumer street is missing or whitespace only", () => {
+    const resMissing = validateProfileForm(
+      "Andrés",
+      "Pérez",
+      "consumer",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      ""
+    );
+    expect(resMissing.isValid).toBe(false);
+    expect(resMissing.errors.street).toBe("Campo obligatorio");
+
+    const resWhitespace = validateProfileForm(
+      "Andrés",
+      "Pérez",
+      "consumer",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "   "
+    );
+    expect(resWhitespace.isValid).toBe(false);
+    expect(resWhitespace.errors.street).toBe("Campo obligatorio");
   });
 
   it("fails if first name or last name is missing", () => {

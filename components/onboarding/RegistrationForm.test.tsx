@@ -99,8 +99,13 @@ describe("RegistrationForm", () => {
 
       const firstNameInput = screen.getByLabelText(/Nombre/i) as HTMLInputElement;
       const lastNameInput = screen.getByLabelText(/Apellido/i) as HTMLInputElement;
+      const streetInput = screen.getByLabelText(/Calle/i) as HTMLInputElement;
+      const streetNumberInput = screen.getByLabelText(/Número/i) as HTMLInputElement;
+
       fireEvent.change(firstNameInput, { target: { value: "Maria" } });
       fireEvent.change(lastNameInput, { target: { value: "Gomez" } });
+      fireEvent.change(streetInput, { target: { value: "Av. Rivadavia" } });
+      fireEvent.change(streetNumberInput, { target: { value: "5100" } });
 
       const submitButton = screen.getByRole("button", { name: /Finalizar Registro/i });
       fireEvent.click(submitButton);
@@ -291,8 +296,13 @@ describe("RegistrationForm", () => {
 
       const firstNameInput = screen.getByLabelText(/Nombre/i) as HTMLInputElement;
       const lastNameInput = screen.getByLabelText(/Apellido/i) as HTMLInputElement;
+      const streetInput = screen.getByLabelText(/Calle/i) as HTMLInputElement;
+      const streetNumberInput = screen.getByLabelText(/Número/i) as HTMLInputElement;
+
       fireEvent.change(firstNameInput, { target: { value: "Maria" } });
       fireEvent.change(lastNameInput, { target: { value: "Gomez" } });
+      fireEvent.change(streetInput, { target: { value: "Av. Rivadavia" } });
+      fireEvent.change(streetNumberInput, { target: { value: "5100" } });
 
       const file = new File(["dummy content"], "consumer_avatar.png", { type: "image/png" });
       const originalGet = window.FormData.prototype.get;

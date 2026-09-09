@@ -3,6 +3,8 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { t } from "@/infrastructure/i18n/translations";
+import { useCallback, useState } from "react";
+import { useAddressAutocomplete } from "./useAddressAutocomplete";
 
 interface ProfileAddressFieldsProps {
   streetError: string | null;
@@ -17,6 +19,21 @@ function StreetFields({
   onClearStreet,
   onClearStreetNumber,
 }: ProfileAddressFieldsProps) {
+  const [street, setStreet] = useState("");
+  const [streetNumber, setStreetNumber] = useState("");
+  const handlePlaceSelected = useCallback(
+    (address: { street: string; streetNumber: string }) => {
+      setStreet(address.street);
+      setStreetNumber(address.streetNumber);
+      if (address.street) onClearStreet();
+      if (address.streetNumber) onClearStreetNumber();
+    },
+    [onClearStreet, onClearStreetNumber]
+  );
+  const { inputRef: streetInputRef } = useAddressAutocomplete({
+    onPlaceSelected: handlePlaceSelected,
+  });
+
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <div className="space-y-2 sm:col-span-2">
@@ -24,13 +41,18 @@ function StreetFields({
           {t.onboarding.profileForm.street}
         </Label>
         <Input
+          ref={streetInputRef}
           id="street"
           name="street"
+          value={street}
           placeholder={t.onboarding.profileForm.streetPlaceholder}
           required
           aria-required="true"
           className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${streetError ? "border-destructive focus-visible:ring-destructive" : ""}`}
-          onChange={onClearStreet}
+          onChange={(event) => {
+            setStreet(event.target.value);
+            onClearStreet();
+          }}
         />
         {streetError && <p className="text-sm text-destructive" role="alert">{streetError}</p>}
       </div>
@@ -42,11 +64,15 @@ function StreetFields({
         <Input
           id="streetNumber"
           name="streetNumber"
+          value={streetNumber}
           placeholder={t.onboarding.profileForm.streetNumberPlaceholder}
           required
           aria-required="true"
           className={`h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary ${streetNumberError ? "border-destructive focus-visible:ring-destructive" : ""}`}
-          onChange={onClearStreetNumber}
+          onChange={(event) => {
+            setStreetNumber(event.target.value);
+            onClearStreetNumber();
+          }}
         />
         {streetNumberError && <p className="text-sm text-destructive" role="alert">{streetNumberError}</p>}
       </div>

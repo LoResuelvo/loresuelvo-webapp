@@ -1,7 +1,93 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import { CustomWorld } from "../support/world";
 import { anApiError } from "../support/factories";
+import type { Page } from "playwright";
 import assert from "assert";
+
+interface GooglePlacesFakeOptions {
+  suggestionText: string;
+  street: string;
+  streetNumber: string;
+}
+
+async function enableGooglePlacesFake(page: Page, options: GooglePlacesFakeOptions) {
+  await page.addInitScript((config: GooglePlacesFakeOptions) => {
+    type PlaceChangedListener = () => void;
+    type FakeAutocomplete = {
+      addListener: (eventName: string, handler: PlaceChangedListener) => { remove: () => void };
+      getPlace: () => { address_components: Array<{ long_name: string; types: string[] }> };
+    };
+    type FakeAutocompleteConstructor = new (
+      input: HTMLInputElement,
+      options: unknown
+    ) => FakeAutocomplete;
+
+    class FakeAutocompleteImplementation implements FakeAutocomplete {
+      private place = {
+        address_components: [
+          { long_name: config.street, types: ["route"] },
+          { long_name: config.streetNumber, types: ["street_number"] },
+        ],
+      };
+      private readonly listeners: PlaceChangedListener[] = [];
+      private suggestionList: HTMLDivElement | null = null;
+
+      constructor(private readonly input: HTMLInputElement, _options: unknown) {
+        input.addEventListener("input", this.showSuggestion);
+      }
+
+      addListener(eventName: string, handler: PlaceChangedListener) {
+        if (eventName === "place_changed") this.listeners.push(handler);
+        return {
+          remove: () => {
+            const index = this.listeners.indexOf(handler);
+            if (index >= 0) this.listeners.splice(index, 1);
+          },
+        };
+      }
+
+      getPlace() {
+        return this.place;
+      }
+
+      private showSuggestion = () => {
+        this.suggestionList?.remove();
+        this.suggestionList = null;
+        if (!this.input.value.trim()) return;
+
+        const list = document.createElement("div");
+        list.setAttribute("role", "listbox");
+        list.setAttribute("aria-label", "Sugerencias de direcciones");
+        const option = document.createElement("button");
+        option.type = "button";
+        option.setAttribute("role", "option");
+        option.textContent = config.suggestionText;
+        option.addEventListener("click", () => {
+          this.listeners.forEach((listener) => listener());
+          list.remove();
+          this.suggestionList = null;
+        });
+        list.appendChild(option);
+        document.body.appendChild(list);
+        this.suggestionList = list;
+      };
+    }
+
+    const fakeWindow = window as unknown as {
+      google?: { maps?: { places?: { Autocomplete: FakeAutocompleteConstructor } } };
+    };
+    fakeWindow.google = {
+      maps: { places: { Autocomplete: FakeAutocompleteImplementation } },
+    };
+  }, options);
+
+  await page.reload();
+  const consumerButton = page.getByText("Soy Cliente").first();
+  await consumerButton.waitFor({ state: "visible" });
+  await consumerButton.click();
+  await page.getByText("Continuar").first().click();
+  await page.waitForSelector('input[name="firstName"]');
+}
 
 When("avanzo al paso de datos de perfil", async function (this: CustomWorld) {
   const continueButton = this.page.getByRole("button", { name: /continuar/i }).first();
@@ -103,6 +189,55 @@ Given("la API responde que la dirección está fuera del área de servicio", asy
 Given("la API de ubicación no está disponible temporalmente", async function (this: CustomWorld) {
   await this.stubPost("/consumers", 503, anApiError("Address validation is temporarily unavailable"));
 });
+
+Given(
+  "Google Places Autocomplete está disponible con sugerencias para {string}",
+  async function (this: CustomWorld, query: string) {
+    await enableGooglePlacesFake(this.page, {
+      suggestionText: `Av. ${query} 5100, Buenos Aires`,
+      street: `Av. ${query}`,
+      streetNumber: "5100",
+    });
+  }
+);
+
+Given("Google Places Autocomplete está disponible", async function (this: CustomWorld) {
+  await enableGooglePlacesFake(this.page, {
+    suggestionText: "Av. Rivadavia 5100, Buenos Aires",
+    street: "Av. Rivadavia",
+    streetNumber: "5100",
+  });
+});
+
+When("escribo {string} en el campo {string}", async function (this: CustomWorld, value: string, fieldName: string) {
+  await this.page.getByLabel(fieldName).fill(value);
+});
+
+Then(
+  "veo sugerencias de direcciones que incluyen {string}",
+  async function (this: CustomWorld, expectedText: string) {
+    const options = this.page.getByRole("option");
+    await options.first().waitFor({ state: "visible" });
+    const optionTexts = await options.allTextContents();
+    assert.ok(
+      optionTexts.some((text) => text.includes(expectedText)),
+      `No se encontró una sugerencia que incluya "${expectedText}"`
+    );
+  }
+);
+
+When("selecciono la sugerencia {string}", async function (this: CustomWorld, suggestion: string) {
+  await this.page.getByRole("option", { name: suggestion }).click();
+});
+
+Then(
+  "el campo {string} contiene {string}",
+  async function (this: CustomWorld, fieldName: string, expectedValue: string) {
+    const input = this.page.getByLabel(fieldName);
+    await input.waitFor({ state: "visible" });
+    assert.equal(await input.inputValue(), expectedValue);
+  }
+);
 
 Then(
   "veo el mensaje de error {string} debajo del campo {string}",

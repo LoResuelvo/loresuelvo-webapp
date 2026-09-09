@@ -85,7 +85,6 @@ Feature: US-1.2 Registrar consumidor con dirección
 
   Rule: El autocomplete de direcciones asiste el ingreso cuando está disponible
 
-    @wip
     Scenario: 10-RCA Ver sugerencias de direcciones al escribir la calle
       Given elegí la opción de consumidor en la pagina de registro
       And Google Places Autocomplete está disponible con sugerencias para "Rivadavia"

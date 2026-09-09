@@ -68,6 +68,11 @@ async function loadPlacesLibrary(apiKey: string): Promise<GooglePlacesLibrary> {
   return placesLibrary as unknown as GooglePlacesLibrary;
 }
 
+function normalizeApiKey(apiKey: string | undefined): string | undefined {
+  const normalizedApiKey = apiKey?.trim();
+  return normalizedApiKey || undefined;
+}
+
 function readAddressComponent(
   components: readonly GoogleAddressComponent[] | undefined,
   type: string
@@ -105,20 +110,21 @@ export function useAddressAutocomplete({
 
     const input = inputRef.current;
     const existingPlacesLibrary = getExistingPlacesLibrary();
+    const normalizedApiKey = normalizeApiKey(apiKey);
 
     if (!input) {
       setStatus("error");
       return cleanup;
     }
 
-    if (!apiKey && !existingPlacesLibrary) {
+    if (!normalizedApiKey && !existingPlacesLibrary) {
       setStatus("unavailable");
       return cleanup;
     }
 
     const initializeAutocomplete = async () => {
       try {
-        const placesLibrary = existingPlacesLibrary ?? (apiKey ? await loadPlacesLibrary(apiKey) : null);
+        const placesLibrary = existingPlacesLibrary ?? (normalizedApiKey ? await loadPlacesLibrary(normalizedApiKey) : null);
         if (cancelled) return;
         if (!placesLibrary) {
           setStatus("unavailable");

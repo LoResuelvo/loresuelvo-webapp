@@ -50,6 +50,17 @@ describe("useAddressAutocomplete", () => {
     expect(loaderConstructor).not.toHaveBeenCalled();
   });
 
+  it("treats a whitespace-only api key as unavailable without loading Places", async () => {
+    const { result } = renderHook(() => {
+      const hook = useAddressAutocomplete({ apiKey: "   ", onPlaceSelected: vi.fn() });
+      hook.inputRef.current = document.createElement("input");
+      return hook;
+    });
+
+    await waitFor(() => expect(result.current.status).toBe("unavailable"));
+    expect(loaderConstructor).not.toHaveBeenCalled();
+  });
+
   it("loads Places with the Argentina address restrictions", async () => {
     const removeListener = vi.fn();
     let placeChanged: (() => void) | undefined;

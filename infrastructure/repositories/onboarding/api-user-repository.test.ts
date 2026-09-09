@@ -100,6 +100,38 @@ describe("ApiUserRepository", () => {
       });
       expect(result).toEqual({ profilePhotoUrl: "https://example.com/consumer-photo.jpg" });
     });
+
+    it("maps optional floor and unit fields to the API address payload", async () => {
+      vi.mocked(baseClient.api.post).mockResolvedValue({});
+
+      const repository = new ApiUserRepository();
+      await repository.registerConsumer(
+        {
+          email: "ana@example.com",
+          name: "Ana",
+          surname: "Pérez",
+        },
+        undefined,
+        {
+          street: "Av. Rivadavia",
+          streetNumber: "5100",
+          floor: "4",
+          unit: "B",
+        }
+      );
+
+      expect(baseClient.api.post).toHaveBeenCalledWith("/consumers", {
+        email: "ana@example.com",
+        name: "Ana",
+        surname: "Pérez",
+        address: {
+          street: "Av. Rivadavia",
+          street_number: "5100",
+          floor: "4",
+          unit: "B",
+        },
+      });
+    });
   });
 
   describe("getCurrentUser", () => {

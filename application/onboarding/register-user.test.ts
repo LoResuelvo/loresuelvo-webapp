@@ -98,6 +98,36 @@ describe("registerUser", () => {
     expect(result.redirectTo).toBe(ROUTES.consumer.home);
   });
 
+  it("passes optional consumer address fields to the repository", async () => {
+    vi.mocked(mockAuthService.getSession).mockResolvedValue({
+      user: { id: "1", email: "ana@test.com", firstName: "", lastName: "" },
+    });
+
+    const address = {
+      street: "Av. Rivadavia",
+      streetNumber: "5100",
+      floor: "4",
+      unit: "B",
+    };
+
+    await registerUser(mockUserRepository, mockAuthService, {
+      firstName: "Ana",
+      lastName: "Pérez",
+      role: "consumer",
+      address,
+    });
+
+    expect(mockUserRepository.registerConsumer).toHaveBeenCalledWith(
+      {
+        email: "ana@test.com",
+        name: "Ana",
+        surname: "Pérez",
+      },
+      undefined,
+      address
+    );
+  });
+
   it("registers a provider successfully, updates the session with photo URL, and returns the correct provider redirect path", async () => {
     vi.mocked(mockAuthService.getSession).mockResolvedValue({
       user: { id: "2", email: "prestador@test.com", firstName: "", lastName: "" },

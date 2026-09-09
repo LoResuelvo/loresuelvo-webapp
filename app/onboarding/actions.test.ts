@@ -42,4 +42,27 @@ describe("submitRegistration", () => {
       },
     });
   });
+
+  it("passes optional floor and unit fields from FormData", async () => {
+    vi.mocked(registerUser).mockResolvedValue({ redirectTo: "/consumidor/home" });
+
+    const formData = new FormData();
+    formData.set("firstName", "Ana");
+    formData.set("lastName", "Pérez");
+    formData.set("role", "consumer");
+    formData.set("street", "Av. Rivadavia");
+    formData.set("streetNumber", "5100");
+    formData.set("floor", "4");
+    formData.set("unit", "B");
+
+    await submitRegistration(formData);
+
+    const command = vi.mocked(registerUser).mock.calls[0]?.[2];
+    expect(command?.address).toEqual({
+      street: "Av. Rivadavia",
+      streetNumber: "5100",
+      floor: "4",
+      unit: "B",
+    });
+  });
 });

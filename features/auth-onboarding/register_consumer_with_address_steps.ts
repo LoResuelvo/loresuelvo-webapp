@@ -100,6 +100,10 @@ Given("la API responde que la dirección está fuera del área de servicio", asy
   await this.stubPost("/consumers", 400, anApiError("Services are not available in this location"));
 });
 
+Given("la API de ubicación no está disponible temporalmente", async function (this: CustomWorld) {
+  await this.stubPost("/consumers", 503, anApiError("Address validation is temporarily unavailable"));
+});
+
 Then(
   "veo el mensaje de error {string} debajo del campo {string}",
   async function (this: CustomWorld, errorMessage: string, fieldName: string) {

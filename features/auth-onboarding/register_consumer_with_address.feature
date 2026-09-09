@@ -74,7 +74,6 @@ Feature: US-1.2 Registrar consumidor con dirección
       Then veo el mensaje "Todavía no ofrecemos servicios en esa ubicación"
       And permanezco en la página de registro
 
-    @wip
     Scenario: 09-RCA Informar que el servicio de validación no está disponible
       Given elegí la opción de consumidor en la pagina de registro
       And ingreso mi nombre "Ana" y apellido "Pérez" en el formulario

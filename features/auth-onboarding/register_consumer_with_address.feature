@@ -56,7 +56,6 @@ Feature: US-1.2 Registrar consumidor con dirección
 
   Rule: Errores del backend se muestran como mensajes específicos
 
-    @wip
     Scenario: 07-RCA Informar que la dirección no pudo validarse
       Given elegí la opción de consumidor en la pagina de registro
       And ingreso mi nombre "Ana" y apellido "Pérez" en el formulario

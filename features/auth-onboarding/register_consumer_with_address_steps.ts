@@ -1,5 +1,6 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import { CustomWorld } from "../support/world";
+import { anApiError } from "../support/factories";
 import assert from "assert";
 
 When("avanzo al paso de datos de perfil", async function (this: CustomWorld) {
@@ -90,6 +91,10 @@ Given(
     await numberInput.fill("");
   }
 );
+
+Given("la API responde que la dirección no pudo geolocalizarse", async function (this: CustomWorld) {
+  await this.stubPost("/consumers", 400, anApiError("Address could not be validated"));
+});
 
 Then(
   "veo el mensaje de error {string} debajo del campo {string}",

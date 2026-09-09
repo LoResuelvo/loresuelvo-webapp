@@ -145,4 +145,16 @@ describe("useAddressAutocomplete", () => {
 
     await waitFor(() => expect(result.current.status).toBe("error"));
   });
+
+  it("degrades to unavailable when the Places loader rejects", async () => {
+    loaderInstance.importLibrary.mockRejectedValue(new Error("Places loader unavailable"));
+
+    const { result } = renderHook(() => {
+      const hook = useAddressAutocomplete({ apiKey: "test-key", onPlaceSelected: vi.fn() });
+      hook.inputRef.current = document.createElement("input");
+      return hook;
+    });
+
+    await waitFor(() => expect(result.current.status).toBe("unavailable"));
+  });
 });

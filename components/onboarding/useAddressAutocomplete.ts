@@ -59,13 +59,17 @@ function getExistingPlacesLibrary(): GooglePlacesLibrary | null {
   return mapsWindow.google?.maps?.places ?? null;
 }
 
-async function loadPlacesLibrary(apiKey: string): Promise<GooglePlacesLibrary> {
-  const loader = new Loader({
-    apiKey,
-    libraries: ["places"],
-  });
-  const placesLibrary = await loader.importLibrary("places");
-  return placesLibrary as unknown as GooglePlacesLibrary;
+async function loadPlacesLibrary(apiKey: string): Promise<GooglePlacesLibrary | null> {
+  try {
+    const loader = new Loader({
+      apiKey,
+      libraries: ["places"],
+    });
+    const placesLibrary = await loader.importLibrary("places");
+    return placesLibrary as unknown as GooglePlacesLibrary;
+  } catch {
+    return null;
+  }
 }
 
 function normalizeApiKey(apiKey: string | undefined): string | undefined {

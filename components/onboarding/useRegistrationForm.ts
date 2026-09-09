@@ -48,11 +48,17 @@ export function useRegistrationForm(session: AuthSession | null) {
       }
 
       const result = await submitRegistration(formData);
+      if (!result.success) {
+        setError(result.error);
+        setIsLoading(false);
+        return;
+      }
+
       if (role === "provider") {
         setStep(3);
         setIsLoading(false);
       } else {
-        if (result?.redirectTo) {
+        if (result.redirectTo) {
           router.push(result.redirectTo);
         }
       }

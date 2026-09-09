@@ -6,7 +6,10 @@ import { submitRegistration } from "@/app/onboarding/actions";
 
 // Mock of the Server Action to avoid Auth0 alerts and verify submission in isolation
 vi.mock("@/app/onboarding/actions", () => ({
-  submitRegistration: vi.fn().mockResolvedValue(true),
+  submitRegistration: vi.fn().mockResolvedValue({
+    success: true,
+    redirectTo: "/consumidor/home",
+  }),
 }));
 
 vi.mock("@/application/files/execute-file-upload", () => ({
@@ -89,7 +92,10 @@ describe("RegistrationForm", () => {
 
   describe("two steps", () => {
     it("submits the correct consumer role and inputs to the backend registration", async () => {
-      const mockSubmit = vi.mocked(submitRegistration).mockResolvedValue(undefined as never);
+      const mockSubmit = vi.mocked(submitRegistration).mockResolvedValue({
+        success: true,
+        redirectTo: "/consumidor/home",
+      });
       render(<RegistrationForm session={null} />);
 
       const clientButton = screen.getByText("Soy Cliente").closest("button");
@@ -129,7 +135,10 @@ describe("RegistrationForm", () => {
     });
 
     it("submits the correct provider role and inputs to the backend registration", async () => {
-      const mockSubmit = vi.mocked(submitRegistration).mockResolvedValue(undefined as never);
+      const mockSubmit = vi.mocked(submitRegistration).mockResolvedValue({
+        success: true,
+        redirectTo: "/prestador/home",
+      });
       const mockCategories = [{ id: 4, name: "Plomería" }];
       render(<RegistrationForm session={null} categories={mockCategories} />);
 
@@ -294,7 +303,10 @@ describe("RegistrationForm", () => {
       expect(mockSubmit).not.toHaveBeenCalled();
     });
     it("submits the correct consumer role with profile photo", async () => {
-      const mockSubmit = vi.mocked(submitRegistration).mockResolvedValue(undefined as never);
+      const mockSubmit = vi.mocked(submitRegistration).mockResolvedValue({
+        success: true,
+        redirectTo: "/consumidor/home",
+      });
       render(<RegistrationForm session={null} />);
 
       const clientButton = screen.getByText("Soy Cliente").closest("button");

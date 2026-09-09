@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { registerUser } from "@/application/onboarding/register-user";
+import { ApiClientError } from "@/infrastructure/api/base-client";
 import { submitRegistration } from "./actions";
 
 vi.mock("@/application/onboarding/register-user", () => ({
@@ -63,6 +64,24 @@ describe("submitRegistration", () => {
       streetNumber: "5100",
       floor: "4",
       unit: "B",
+    });
+  });
+
+  it("returns a safe translated message for an unvalidated consumer address", async () => {
+    vi.mocked(registerUser).mockRejectedValue(
+      new ApiClientError(400, "Bad Request", "Address could not be validated")
+    );
+
+    const formData = new FormData();
+    formData.set("firstName", "Ana");
+    formData.set("lastName", "Pérez");
+    formData.set("role", "consumer");
+    formData.set("street", "Calle Inexistente");
+    formData.set("streetNumber", "99999");
+
+    await expect(submitRegistration(formData)).resolves.toEqual({
+      success: false,
+      error: "No se pudo validar la dirección ingresada",
     });
   });
 });

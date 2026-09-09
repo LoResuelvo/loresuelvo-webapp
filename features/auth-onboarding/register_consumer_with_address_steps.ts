@@ -99,6 +99,42 @@ async function reloadConsumerProfile(page: Page) {
   await page.waitForSelector('input[name="firstName"]');
 }
 
+async function enableGooglePlacesFailure(page: Page) {
+  await page.addInitScript(() => {
+    type FailingAutocomplete = {
+      addListener: () => { remove: () => void };
+      getPlace: () => { address_components: [] };
+    };
+    type FailingAutocompleteConstructor = new (
+      input: HTMLInputElement,
+      options: unknown
+    ) => FailingAutocomplete;
+
+    class FailingAutocompleteImplementation implements FailingAutocomplete {
+      constructor(_input: HTMLInputElement, _options: unknown) {
+        throw new Error("Places unavailable");
+      }
+
+      addListener() {
+        return { remove: () => undefined };
+      }
+
+      getPlace() {
+        return { address_components: [] as [] };
+      }
+    }
+
+    const fakeWindow = window as unknown as {
+      google?: { maps?: { places?: { Autocomplete: FailingAutocompleteConstructor } } };
+    };
+    fakeWindow.google = {
+      maps: { places: { Autocomplete: FailingAutocompleteImplementation } },
+    };
+  });
+
+  await reloadConsumerProfile(page);
+}
+
 When("avanzo al paso de datos de perfil", async function (this: CustomWorld) {
   const continueButton = this.page.getByRole("button", { name: /continuar/i }).first();
   if (await continueButton.isVisible().catch(() => false)) {
@@ -225,6 +261,10 @@ Given("no hay API key de Google configurada", async function (this: CustomWorld)
     delete (window as unknown as GoogleWindow).google;
   });
   await reloadConsumerProfile(this.page);
+});
+
+Given("falla la carga de Google Places", async function (this: CustomWorld) {
+  await enableGooglePlacesFailure(this.page);
 });
 
 When("escribo {string} en el campo {string}", async function (this: CustomWorld, value: string, fieldName: string) {

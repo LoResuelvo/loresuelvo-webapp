@@ -108,7 +108,6 @@ Feature: US-1.2 Registrar consumidor con dirección
       Then veo los campos "Calle" y "Número" editables sin sugerencias automáticas
       And puedo completar la dirección manualmente
 
-    @wip
     Scenario: 13-RCA Ingresar dirección manualmente cuando falla Google Places
       Given elegí la opción de consumidor en la pagina de registro
       And falla la carga de Google Places

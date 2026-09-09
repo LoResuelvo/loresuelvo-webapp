@@ -177,6 +177,7 @@ export const t = {
       saving: "Guardando...", finishRegister: "Finalizar Registro", errorSave: "Hubo un problema al guardar tu perfil. Inténtalo nuevamente.",
       addressValidationFailed: "No se pudo validar la dirección ingresada",
       addressOutOfService: "Todavía no ofrecemos servicios en esa ubicación",
+      addressValidationUnavailable: "No se pudo validar la dirección temporalmente. Intente nuevamente más tarde",
     },
     photoUpload: { label: "Foto de perfil", placeholder: "Haz clic para subir una foto", changePhoto: "Cambiar foto", },
     mercadoPago: {

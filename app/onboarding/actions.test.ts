@@ -102,4 +102,22 @@ describe("submitRegistration", () => {
       error: "Todavía no ofrecemos servicios en esa ubicación",
     });
   });
+
+  it("returns a safe translated message when address validation is unavailable", async () => {
+    vi.mocked(registerUser).mockRejectedValue(
+      new ApiClientError(503, "Service Unavailable", "Address validation is temporarily unavailable")
+    );
+
+    const formData = new FormData();
+    formData.set("firstName", "Ana");
+    formData.set("lastName", "Pérez");
+    formData.set("role", "consumer");
+    formData.set("street", "Av. Rivadavia");
+    formData.set("streetNumber", "5100");
+
+    await expect(submitRegistration(formData)).resolves.toEqual({
+      success: false,
+      error: "No se pudo validar la dirección temporalmente. Intente nuevamente más tarde",
+    });
+  });
 });

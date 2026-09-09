@@ -58,6 +58,19 @@ Given(
   }
 );
 
+Given(
+  "ingreso la calle {string} pero dejo el número vacío",
+  async function (this: CustomWorld, street: string) {
+    (this as any).explicitAddressSet = true;
+    const streetInput = this.page.getByLabel("Calle").first();
+    await streetInput.waitFor({ state: "visible" });
+    await streetInput.fill(street);
+    const numberInput = this.page.getByLabel("Número").first();
+    await numberInput.waitFor({ state: "visible" });
+    await numberInput.fill("");
+  }
+);
+
 Then(
   "veo el mensaje de error {string} debajo del campo {string}",
   async function (this: CustomWorld, errorMessage: string, fieldName: string) {

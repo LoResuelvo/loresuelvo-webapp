@@ -13,7 +13,8 @@ describe("validateProfileForm", () => {
       undefined,
       undefined,
       undefined,
-      "Av. Rivadavia"
+      "Av. Rivadavia",
+      "5100"
     );
     expect(isValid).toBe(true);
     expect(errors).toEqual({});
@@ -49,6 +50,38 @@ describe("validateProfileForm", () => {
     );
     expect(resWhitespace.isValid).toBe(false);
     expect(resWhitespace.errors.street).toBe("Campo obligatorio");
+  });
+
+  it("fails if consumer street number is missing or whitespace only", () => {
+    const resMissing = validateProfileForm(
+      "Andrés",
+      "Pérez",
+      "consumer",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "Av. Rivadavia",
+      ""
+    );
+    expect(resMissing.isValid).toBe(false);
+    expect(resMissing.errors.streetNumber).toBe("Campo obligatorio");
+
+    const resWhitespace = validateProfileForm(
+      "Andrés",
+      "Pérez",
+      "consumer",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "Av. Rivadavia",
+      "   "
+    );
+    expect(resWhitespace.isValid).toBe(false);
+    expect(resWhitespace.errors.streetNumber).toBe("Campo obligatorio");
   });
 
   it("fails if first name or last name is missing", () => {

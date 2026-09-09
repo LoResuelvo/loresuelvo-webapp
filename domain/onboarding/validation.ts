@@ -61,6 +61,11 @@ export function validateProfileForm(
       errors.street = msg.requiredField;
       isValid = false;
     }
+
+    if (!streetNumber || streetNumber.trim() === "") {
+      errors.streetNumber = msg.requiredField;
+      isValid = false;
+    }
   }
 
   if (role === "provider") {

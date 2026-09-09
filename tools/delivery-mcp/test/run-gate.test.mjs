@@ -70,6 +70,35 @@ test("runGate: reuses successful evidence for the identical snapshot", async (t)
   assert.ok(first.evidence.recordPath.startsWith(".delivery/runtime/runs/"));
 });
 
+test("runGate: null executeCheck usa el ejecutor predeterminado", async (t) => {
+  const repoRoot = await createRunRepo(t);
+  const featurePath = "features/complete.feature";
+  await fs.mkdir(path.join(repoRoot, "features"), { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, featurePath),
+    "Feature: Complete\n  Scenario: Done\n    Given everything is ready\n",
+    "utf8"
+  );
+
+  const fixture = executionFixture(["no_wip_in_scope"], "D");
+  fixture.inspection.gate.parameters = { scopeFeatures: [featurePath] };
+
+  const result = await runGate({
+    ...fixture,
+    policy,
+    repoRoot,
+    executeCheck: null,
+    force: true,
+  });
+
+  assert.strictEqual(result.status, "passed");
+  assert.strictEqual(result.summary.passed, 1);
+  assert.strictEqual(result.summary.failed, 0);
+  assert.strictEqual(result.summary.skipped, 0);
+  assert.strictEqual(result.checks[0].id, "no_wip_in_scope");
+  assert.strictEqual(result.checks[0].status, "passed");
+});
+
 test("runGate: fails fast and returns the normalized diagnostic with failure structure", async (t) => {
   const repoRoot = await createRunRepo(t);
   const fixture = executionFixture(["unit", "typecheck_app"], "A");

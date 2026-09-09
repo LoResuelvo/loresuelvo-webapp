@@ -954,6 +954,54 @@ test("verifyHeadDelivery: verifica un HEAD existente y tras verify_head, finaliz
   assert.strictEqual(finalizeRes.headSha, initialHead);
 });
 
+test("verifyHeadDelivery: el flujo sync y el worker usan el ejecutor predeterminado sin inyección", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us35-default-executor.feature";
+  const policyPath = path.join(repoRoot, ".delivery", "policy.v1.json");
+  const policy = JSON.parse(await fs.readFile(policyPath, "utf8"));
+  policy.gates.D.checkIds = ["no_wip_in_scope"];
+  policy.gates.D.postPushChecks = [];
+  await fs.writeFile(policyPath, `${JSON.stringify(policy, null, 2)}\n`, "utf8");
+
+  await fs.mkdir(path.join(repoRoot, "features"), { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, featurePath),
+    "Feature: US35 default executor\n  Scenario: Done\n    Given everything is ready\n",
+    "utf8"
+  );
+  execFileSync("git", ["add", ".delivery/policy.v1.json", featurePath], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "test[35]: verify default executor"], { cwd: repoRoot });
+
+  const syncResult = await verifyHeadDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "35",
+    scopeFiles: [featurePath],
+    force: true,
+    mode: "sync",
+  });
+
+  assert.strictEqual(syncResult.verified, true);
+  assert.strictEqual(syncResult.status, "passed");
+  assert.strictEqual(syncResult.gate, "D");
+  assert.strictEqual(syncResult.summary.passed, 1);
+  assert.strictEqual(syncResult.summary.skipped, 0);
+
+  const workerResult = await verifyHeadDelivery({
+    repoRoot,
+    intent: "close_us",
+    usId: "35",
+    scopeFiles: [featurePath],
+    force: true,
+    mode: "sync",
+    workerJobId: "job-verify-head-test",
+  });
+
+  assert.strictEqual(workerResult.verified, true);
+  assert.strictEqual(workerResult.status, "passed");
+  assert.strictEqual(workerResult.gate, "D");
+});
+
 test("verifyHeadDelivery: idempotencia - segunda ejecución sobre el mismo HEAD devuelve cached: true sin re-ejecutar checks", async (t) => {
   const repoRoot = await createTempGitRepo(t);
   const featurePath = "features/us36.feature";

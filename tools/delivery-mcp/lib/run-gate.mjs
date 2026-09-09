@@ -73,6 +73,8 @@ export async function runGate({
   executeCheck = executeCheckDefault,
   force = false,
 } = {}) {
+  const resolvedExecuteCheck =
+    typeof executeCheck === "function" ? executeCheck : executeCheckDefault;
   const runKey = computeRunKey({ inspection, snapshot });
   let checks;
 
@@ -155,7 +157,7 @@ export async function runGate({
       const logPath = path.posix.join(artifacts.logDirectory, `${check.id}.log`);
       let completed;
       try {
-        completed = await executeCheck({
+        completed = await resolvedExecuteCheck({
           check,
           repoRoot,
           logPath,

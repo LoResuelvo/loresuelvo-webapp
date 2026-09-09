@@ -55,6 +55,17 @@ Given(
 );
 
 Given(
+  "ingreso la calle {string}, número {string}, piso {string} y departamento {string}",
+  async function (this: CustomWorld, street: string, streetNumber: string, floor: string, unit: string) {
+    (this as any).explicitAddressSet = true;
+    await this.page.getByLabel("Calle").fill(street);
+    await this.page.getByLabel("Número").fill(streetNumber);
+    await this.page.getByLabel("Piso").fill(floor);
+    await this.page.getByLabel("Departamento").fill(unit);
+  }
+);
+
+Given(
   "ingreso el número {string} pero dejo la calle vacía",
   async function (this: CustomWorld, streetNumber: string) {
     (this as any).explicitAddressSet = true;

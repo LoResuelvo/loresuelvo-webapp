@@ -101,11 +101,15 @@ describe("RegistrationForm", () => {
       const lastNameInput = screen.getByLabelText(/Apellido/i) as HTMLInputElement;
       const streetInput = screen.getByLabelText(/Calle/i) as HTMLInputElement;
       const streetNumberInput = screen.getByLabelText(/Número/i) as HTMLInputElement;
+      const floorInput = screen.getByLabelText(/Piso/i) as HTMLInputElement;
+      const unitInput = screen.getByLabelText(/Departamento/i) as HTMLInputElement;
 
       fireEvent.change(firstNameInput, { target: { value: "Maria" } });
       fireEvent.change(lastNameInput, { target: { value: "Gomez" } });
       fireEvent.change(streetInput, { target: { value: "Av. Rivadavia" } });
       fireEvent.change(streetNumberInput, { target: { value: "5100" } });
+      fireEvent.change(floorInput, { target: { value: "4" } });
+      fireEvent.change(unitInput, { target: { value: "B" } });
 
       const submitButton = screen.getByRole("button", { name: /Finalizar Registro/i });
       fireEvent.click(submitButton);
@@ -120,6 +124,8 @@ describe("RegistrationForm", () => {
       expect(submittedFormData.get("role")).toBe("consumer");
       expect(submittedFormData.get("street")).toBe("Av. Rivadavia");
       expect(submittedFormData.get("streetNumber")).toBe("5100");
+      expect(submittedFormData.get("floor")).toBe("4");
+      expect(submittedFormData.get("unit")).toBe("B");
     });
 
     it("submits the correct provider role and inputs to the backend registration", async () => {

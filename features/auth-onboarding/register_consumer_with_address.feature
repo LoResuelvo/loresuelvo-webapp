@@ -21,7 +21,6 @@ Feature: US-1.2 Registrar consumidor con dirección
     When finalizo el registro
     Then soy redirigido al home de consumidores
 
-  @wip
   Scenario: 03-RCA Registrar consumidor con dirección completa
     Given elegí la opción de consumidor en la pagina de registro
     And ingreso mi nombre "Ana" y apellido "Pérez" en el formulario

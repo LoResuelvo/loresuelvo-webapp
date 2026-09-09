@@ -70,12 +70,12 @@ function OptionalAddressFields() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="apartment" className="text-body font-semibold text-brand-primary">
+        <Label htmlFor="unit" className="text-body font-semibold text-brand-primary">
           {t.onboarding.profileForm.apartment}
         </Label>
         <Input
-          id="apartment"
-          name="apartment"
+          id="unit"
+          name="unit"
           placeholder={t.onboarding.profileForm.apartmentPlaceholder}
           className="h-[46px] rounded-lg border-border bg-brand-neutral/30 text-body-lg placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-brand-primary"
         />

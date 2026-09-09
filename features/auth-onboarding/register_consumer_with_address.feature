@@ -14,7 +14,6 @@ Feature: US-1.2 Registrar consumidor con dirección
     And "Calle" y "Número" son obligatorios
     And "Piso" y "Departamento" son opcionales
 
-  @wip
   Scenario: 02-RCA Registrar consumidor con calle y número
     Given elegí la opción de consumidor en la pagina de registro
     And ingreso mi nombre "Ana" y apellido "Pérez" en el formulario

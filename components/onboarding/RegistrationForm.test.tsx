@@ -118,6 +118,8 @@ describe("RegistrationForm", () => {
       expect(submittedFormData.get("firstName")).toBe("Maria");
       expect(submittedFormData.get("lastName")).toBe("Gomez");
       expect(submittedFormData.get("role")).toBe("consumer");
+      expect(submittedFormData.get("street")).toBe("Av. Rivadavia");
+      expect(submittedFormData.get("streetNumber")).toBe("5100");
     });
 
     it("submits the correct provider role and inputs to the backend registration", async () => {
@@ -322,6 +324,8 @@ describe("RegistrationForm", () => {
       expect(submittedFormData.get("firstName")).toBe("Maria");
       expect(submittedFormData.get("lastName")).toBe("Gomez");
       expect(submittedFormData.get("role")).toBe("consumer");
+      expect(submittedFormData.get("street")).toBe("Av. Rivadavia");
+      expect(submittedFormData.get("streetNumber")).toBe("5100");
     });
   })
 });

@@ -145,6 +145,53 @@ test("evaluateCiWindow: ventana con 4 commits en vuelo bloquea con CI_WINDOW_FUL
   assert.strictEqual(evalReopened.pendingCount, 3);
 });
 
+test("pre-push ignora commits del ledger descartados por reset y fuera del historial enviado", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  const baseSha = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  }).trim();
+  const mockCi = new MockCiProvider();
+
+  for (let index = 1; index <= 4; index += 1) {
+    const filename = `discarded-${index}.txt`;
+    await fs.writeFile(path.join(repoRoot, filename), `${index}`, "utf8");
+    execFileSync("git", ["add", filename], { cwd: repoRoot });
+    execFileSync("git", ["commit", "-m", `chore: discarded commit ${index}`], { cwd: repoRoot });
+    const discarded = await runPostCommitHook({ repoRoot });
+    mockCi.setFixture(discarded.commitSha, { status: "not_found" });
+    execFileSync("git", ["reset", "--hard", baseSha], { cwd: repoRoot });
+  }
+
+  await fs.writeFile(path.join(repoRoot, "current.txt"), "current", "utf8");
+  execFileSync("git", ["add", "current.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "chore: current commit"], { cwd: repoRoot });
+  const current = await runPostCommitHook({ repoRoot });
+  mockCi.setFixture(current.commitSha, { status: "not_found" });
+
+  const window = await evaluateCiWindow({
+    repoRoot,
+    ciProvider: mockCi,
+    historyHeadSha: current.commitSha,
+  });
+  assert.strictEqual(window.allowed, true);
+  assert.strictEqual(window.pendingCount, 1);
+
+  const pushLine = `refs/heads/main ${current.commitSha} refs/heads/main ${baseSha}`;
+  const push = await runPrePushHook({
+    repoRoot,
+    stdinLines: [pushLine],
+    ciProvider: mockCi,
+  });
+  assert.strictEqual(push.passed, true, JSON.stringify(push));
+});
+
 test("prepareDelivery: con 4 commits en vuelo bloquea de inmediato con CI_WINDOW_FULL sin ejecutar checks", async (t) => {
   const repoRoot = await createTempGitRepo(t);
   const mockCi = new MockCiProvider();

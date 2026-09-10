@@ -404,6 +404,85 @@ test("flujo humano: commit manual sin receipt se registra como not_run, push nor
   }
 });
 
+test("flujo humano: contexto repair_ci exacto autoriza un commit not_run para reparar CI", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
+  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
+  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
+
+  await fs.writeFile(path.join(repoRoot, "broken.txt"), "broken", "utf8");
+  execFileSync("git", ["add", "broken.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix: introduce failure"], { cwd: repoRoot });
+  const failedPost = await runPostCommitHook({ repoRoot });
+  assert.strictEqual(failedPost.verificationStatus, "not_run");
+  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider();
+  mockCi.setFixture(failedPost.commitSha, { status: "failed" });
+
+  await fs.writeFile(path.join(repoRoot, "broken.txt"), "fixed", "utf8");
+  execFileSync("git", ["add", "broken.txt"], { cwd: repoRoot });
+  const snapshot = await captureGitSnapshot({ cwd: repoRoot });
+  await saveDeliveryContext({
+    repoRoot,
+    snapshot,
+    intent: "repair_ci",
+    repairsSha: failedPost.commitSha,
+  });
+
+  execFileSync("git", ["commit", "-m", "fix: repair failed commit"], { cwd: repoRoot });
+  const repairPost = await runPostCommitHook({ repoRoot });
+  assert.strictEqual(repairPost.verificationStatus, "not_run");
+  assert.strictEqual(repairPost.reason, "MANUAL_REPAIR_WITHOUT_RECEIPT");
+  assert.strictEqual(repairPost.ledgerEntry.intent, "repair_ci");
+  assert.strictEqual(repairPost.ledgerEntry.repairsSha, failedPost.commitSha);
+  assert.strictEqual(repairPost.ledgerEntry.manualRepairContextValidated, true);
+  assert.strictEqual((await loadDeliveryContext({ repoRoot })).consumed, true);
+
+  const pushLine = `refs/heads/main ${repairPost.commitSha} refs/heads/main ${failedPost.commitSha}`;
+  const previousStrict = process.env.DELIVERY_REQUIRE_EVIDENCE;
+  process.env.DELIVERY_REQUIRE_EVIDENCE = "1";
+  try {
+    const strictPush = await runPrePushHook({ repoRoot, stdinLines: [pushLine], ciProvider: mockCi });
+    assert.strictEqual(strictPush.passed, false);
+    assert.strictEqual(strictPush.reason, "UNVERIFIED_COMMIT_PUSH_BLOCKED");
+  } finally {
+    if (previousStrict === undefined) delete process.env.DELIVERY_REQUIRE_EVIDENCE;
+    else process.env.DELIVERY_REQUIRE_EVIDENCE = previousStrict;
+  }
+
+  const humanPush = await runPrePushHook({ repoRoot, stdinLines: [pushLine], ciProvider: mockCi });
+  assert.strictEqual(humanPush.passed, true, JSON.stringify(humanPush));
+});
+
+test("flujo humano: repair_ci no se conserva si cambia el árbol staged antes del commit", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+
+  await fs.writeFile(path.join(repoRoot, "repair.txt"), "first", "utf8");
+  execFileSync("git", ["add", "repair.txt"], { cwd: repoRoot });
+  const snapshot = await captureGitSnapshot({ cwd: repoRoot });
+  await saveDeliveryContext({
+    repoRoot,
+    snapshot,
+    intent: "repair_ci",
+    repairsSha: snapshot.headSha,
+  });
+
+  await fs.writeFile(path.join(repoRoot, "extra.txt"), "changed after context", "utf8");
+  execFileSync("git", ["add", "extra.txt"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "fix: changed repair snapshot"], { cwd: repoRoot });
+  const post = await runPostCommitHook({ repoRoot });
+
+  assert.strictEqual(post.verificationStatus, "not_run");
+  assert.strictEqual(post.reason, "NO_PREPARED_RECEIPT");
+  assert.strictEqual(post.ledgerEntry.intent, null);
+  assert.strictEqual(post.ledgerEntry.repairsSha, null);
+  assert.strictEqual(post.ledgerEntry.manualRepairContextValidated, false);
+  assert.strictEqual((await loadDeliveryContext({ repoRoot })).consumed, false);
+});
+
 test("pre-push hook: bloquea multiples commits y commits ausentes del ledger", async (t) => {
   const repoRoot = await createTempGitRepo(t);
 

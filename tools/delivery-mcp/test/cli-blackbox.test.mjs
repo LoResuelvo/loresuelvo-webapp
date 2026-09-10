@@ -108,12 +108,14 @@ test("cli blackbox: delivery:context propaga y preserva --repairs-sha", async (t
   const setJson = JSON.parse(setResult.stdout);
   assert.strictEqual(setJson.intent, "repair_ci");
   assert.strictEqual(setJson.repairsSha, failedSha);
+  assert.match(setJson.stagedTreeSha, /^[a-f0-9]{40}$/);
 
   const inspectResult = runCli(["context", "--inspect"], { cwd: repoRoot });
   assert.strictEqual(inspectResult.status, 0);
   const inspectJson = JSON.parse(inspectResult.stdout);
   assert.strictEqual(inspectJson.active, true);
   assert.strictEqual(inspectJson.context.repairsSha, failedSha);
+  assert.strictEqual(inspectJson.context.stagedTreeSha, setJson.stagedTreeSha);
 });
 
 test("cli blackbox: delivery:verify-head muestra ayuda con --force y ejecuta validación", async (t) => {

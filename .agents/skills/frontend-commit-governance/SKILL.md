@@ -102,11 +102,11 @@ No pushear un commit intermedio que requiera archivos aún no presentes en `main
 
 En `SCENARIO` y `SCENARIO_GROUP`, el desarrollador continúa sin reportes ordinarios mientras el flujo se mantenga verde. Cualquier estimación de commits por reporte es orientativa, no una cuota, mínimo ni máximo. No fusionar cambios independientes ni agrandar commits para ajustarse a una cifra; si el batch requiere más o menos fronteras, continuar con el siguiente commit atómico y registrar la desviación al llegar a una frontera segura. Si un push es bloqueado por CI fallido previo, detener nuevos pushes e iniciar el flujo de reparación auditable (`repair_ci`).
 
-## Reparación de CI de un solo uso (`repair_ci` / Gate R)
+## Reparación de CI de un solo uso (`repair_ci`)
 
 Cuando un commit anterior falla en CI remoto, el hook `pre-push` bloquea cualquier push ordinario subsiguiente. Queda estrictamente prohibido intentar eludir este bloqueo con variables ambientales (`DELIVERY_SKIP_CI_CHECK` es rechazado de forma fail-closed con `DEPRECATED_CI_BYPASS_REJECTED`) o con `--no-verify`.
 
-Para subsanar el fallo de forma auditable:
+Para subsanar el fallo de forma auditable como agente:
 1. Inspeccionar el fallo con `delivery_ci_inspect({ sha: "<failed-sha>" })` o `npm run delivery:ci -- --sha <failed-sha>`.
 2. Implementar la corrección atómica y dejarla staged (`git add`).
 3. Invocar MCP `delivery_prepare` con `intent: "repair_ci"`, `repairsSha: "<failed-sha>"` y un mensaje propuesto con tipo `fix`, `test` o `chore`:
@@ -117,5 +117,7 @@ Para subsanar el fallo de forma auditable:
 4. Esta invocación selecciona y ejecuta obligatoriamente el **Gate R**, que reproduce exhaustivamente a nivel local los checks de CI asignados a agentes (`delivery_unit`, `lint`, `typecheck_app`, `typecheck_cucumber`, `unit`, `e2e_full` y `build`; excluyendo la construcción de imágenes Docker, reservada para GitHub Actions y humanos).
 5. Con `status: passed`, crear el commit (`git commit -m "fix: ..."`) y pushearlo inmediatamente (`git push origin main`).
 6. El hook `pre-push` comprueba la correspondencia con el SHA fallido, valida el Gate R y consume la autorización de reparación (de uso único). En el ledger local se asocia la reparación y se marca como subsanado el fallo previo, habilitando nuevamente pushes normales.
+
+Un desarrollador humano puede elegir Gate R o delegar la verificación al CI remoto. En la segunda ruta debe dejar el snapshot final staged y ejecutar `npm run delivery:context -- --intent repair_ci --repairs-sha <failed-sha> [--us-id <id>]` inmediatamente antes de commitear. `post-commit` solo conserva esa intención si coinciden parent, branch, árbol staged y mensaje; la evidencia queda `not_run`, `DELIVERY_REQUIRE_EVIDENCE=1` la bloquea y `pre-push` consume igualmente una autorización de un solo uso.
 
 Superficie Docker y pipeline (HUMAN_ONLY): Modificaciones a `Dockerfile`, `.dockerignore`, `compose*.yml`, cualquier archivo bajo `.github/workflows/**` o scripts de construcción de imágenes pertenecen exclusivamente al desarrollador humano. Los agentes se detienen con `HUMAN_ONLY_CHANGE` y escalan a `STOP_USER`; el nombre de un job Docker no bloquea una reparación cuyo snapshot contiene únicamente código no reservado.

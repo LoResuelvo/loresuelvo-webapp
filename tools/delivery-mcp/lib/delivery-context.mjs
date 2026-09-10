@@ -55,6 +55,7 @@ export async function saveDeliveryContext({
     branch: snapshot?.branch || "HEAD",
     headSha: snapshot?.headSha || "UNKNOWN",
     snapshotHash: snapshot?.snapshotHash || "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    stagedTreeSha: snapshot?.stagedTreeSha || null,
     intent,
     usId: usId ? String(usId).trim() : null,
     featureFile: featureFile ? String(featureFile).trim() : null,
@@ -145,6 +146,15 @@ export function validateDeliveryContext({
       expired: true,
       reason: "CONTEXT_SNAPSHOT_MISMATCH",
       message: `Active delivery context bound to snapshot ${context.snapshotHash.slice(0, 8)} expired because staged diff changed`,
+    };
+  }
+
+  if (context.stagedTreeSha && context.stagedTreeSha !== snapshot?.stagedTreeSha) {
+    return {
+      valid: false,
+      expired: true,
+      reason: "CONTEXT_TREE_MISMATCH",
+      message: "Active delivery context expired because the staged tree changed",
     };
   }
 

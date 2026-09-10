@@ -30,6 +30,7 @@ test("saveDeliveryContext y loadDeliveryContext: guarda y lee contexto ligado a 
     branch: "feature/search",
     headSha: "a".repeat(40),
     snapshotHash: "b".repeat(64),
+    stagedTreeSha: "c".repeat(40),
   };
 
   const saved = await saveDeliveryContext({
@@ -46,6 +47,7 @@ test("saveDeliveryContext y loadDeliveryContext: guarda y lee contexto ligado a 
   assert.strictEqual(saved.branch, "feature/search");
   assert.strictEqual(saved.headSha, "a".repeat(40));
   assert.strictEqual(saved.snapshotHash, "b".repeat(64));
+  assert.strictEqual(saved.stagedTreeSha, "c".repeat(40));
   assert.strictEqual(saved.intent, "close_scenario");
   assert.strictEqual(saved.usId, "US-01");
   assert.strictEqual(saved.consumed, false);
@@ -71,6 +73,7 @@ test("validateDeliveryContext: contexto expira si snapshot o HEAD no coincide", 
     branch: "main",
     headSha: "1".repeat(40),
     snapshotHash: "2".repeat(64),
+    stagedTreeSha: "3".repeat(40),
   };
 
   const context = await saveDeliveryContext({
@@ -81,20 +84,27 @@ test("validateDeliveryContext: contexto expira si snapshot o HEAD no coincide", 
   });
 
   // 1. Snapshot modified
-  const modifiedSnapshot = { ...snapshot, snapshotHash: "3".repeat(64) };
+  const modifiedSnapshot = { ...snapshot, snapshotHash: "4".repeat(64) };
   const valSnap = validateDeliveryContext({ context, snapshot: modifiedSnapshot });
   assert.strictEqual(valSnap.valid, false);
   assert.strictEqual(valSnap.expired, true);
   assert.strictEqual(valSnap.reason, "CONTEXT_SNAPSHOT_MISMATCH");
 
   // 2. HEAD modified (new commit)
-  const modifiedHead = { ...snapshot, headSha: "4".repeat(40) };
+  const modifiedHead = { ...snapshot, headSha: "5".repeat(40) };
   const valHead = validateDeliveryContext({ context, snapshot: modifiedHead });
   assert.strictEqual(valHead.valid, false);
   assert.strictEqual(valHead.expired, true);
   assert.strictEqual(valHead.reason, "CONTEXT_HEAD_MISMATCH");
 
-  // 3. Consumed context
+  // 3. Staged tree modified
+  const modifiedTree = { ...snapshot, stagedTreeSha: "6".repeat(40) };
+  const valTree = validateDeliveryContext({ context, snapshot: modifiedTree });
+  assert.strictEqual(valTree.valid, false);
+  assert.strictEqual(valTree.expired, true);
+  assert.strictEqual(valTree.reason, "CONTEXT_TREE_MISMATCH");
+
+  // 4. Consumed context
   const consumed = await consumeDeliveryContext({ repoRoot, context });
   assert.strictEqual(consumed.consumed, true);
   const valConsumed = validateDeliveryContext({ context: consumed, snapshot });

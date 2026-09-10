@@ -4,11 +4,13 @@ import { t } from "@/infrastructure/i18n/translations";
 import { cn } from "@/lib/utils";
 import { CoverageZone } from "@/domain/provider/coverage-zone";
 import { useGoogleCoverageMap } from "./useGoogleCoverageMap";
+import type { GoogleMapsRuntimeConfig } from "@/infrastructure/config/public-runtime-config";
 
 export interface CoverageZoneMapProps {
   zones: CoverageZone[];
   selectedZoneIds: number[];
   onToggleZone?: (zoneId: number) => void;
+  googleMapsConfig?: GoogleMapsRuntimeConfig;
   className?: string;
 }
 
@@ -47,12 +49,15 @@ export function CoverageZoneMap({
   zones,
   selectedZoneIds,
   onToggleZone,
+  googleMapsConfig = {},
   className,
 }: CoverageZoneMapProps) {
   const { containerRef, status } = useGoogleCoverageMap({
     zones,
     selectedZoneIds,
     onToggleZone,
+    apiKey: googleMapsConfig.apiKey,
+    mapId: googleMapsConfig.mapId,
   });
 
   const isMapUnavailable = status === "unavailable" || status === "error";

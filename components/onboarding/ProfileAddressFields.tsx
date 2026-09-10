@@ -5,12 +5,14 @@ import { Label } from "@/components/ui/label";
 import { t } from "@/infrastructure/i18n/translations";
 import { useCallback, useState } from "react";
 import { useAddressAutocomplete } from "./useAddressAutocomplete";
+import type { GoogleMapsRuntimeConfig } from "@/infrastructure/config/public-runtime-config";
 
 interface ProfileAddressFieldsProps {
   streetError: string | null;
   streetNumberError: string | null;
   onClearStreet: () => void;
   onClearStreetNumber: () => void;
+  googleMapsConfig?: GoogleMapsRuntimeConfig;
 }
 
 function StreetFields({
@@ -18,6 +20,7 @@ function StreetFields({
   streetNumberError,
   onClearStreet,
   onClearStreetNumber,
+  googleMapsConfig,
 }: ProfileAddressFieldsProps) {
   const [street, setStreet] = useState("");
   const [streetNumber, setStreetNumber] = useState("");
@@ -31,6 +34,7 @@ function StreetFields({
     [onClearStreet, onClearStreetNumber]
   );
   const { inputRef: streetInputRef } = useAddressAutocomplete({
+    apiKey: googleMapsConfig?.apiKey,
     onPlaceSelected: handlePlaceSelected,
   });
 

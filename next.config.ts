@@ -1,4 +1,7 @@
 import type { NextConfig } from "next";
+import { getPublicMediaBaseUrl } from "./infrastructure/config/build-env";
+
+const publicMediaBaseUrl = getPublicMediaBaseUrl();
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -24,11 +27,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "placehold.co",
       },
-      ...(process.env.NEXT_PUBLIC_PUBLIC_MEDIA_BASE_URL
+      ...(publicMediaBaseUrl
         ? [
             {
               protocol: "https" as const,
-              hostname: new URL(process.env.NEXT_PUBLIC_PUBLIC_MEDIA_BASE_URL).hostname,
+              hostname: publicMediaBaseUrl.hostname,
             },
           ]
         : []),

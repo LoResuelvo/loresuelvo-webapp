@@ -25,7 +25,7 @@ vi.mock("next/headers", () => ({
 }));
 
 vi.mock("@/lib/auth0", () => ({
-  auth0: mockAuth0,
+  getAuth0Client: () => mockAuth0,
 }));
 
 describe("MockAuthAdapter", () => {
@@ -218,9 +218,20 @@ describe("getAuthService factory", () => {
     expect(service).toBeInstanceOf(Auth0Adapter);
   });
 
-  it("should return DevAuthAdapter by default or in non-production", () => {
-    delete process.env.APP_ENV;
+  it("should return DevAuthAdapter in the test environment", () => {
+    process.env.APP_ENV = "test";
     const service = getAuthService();
     expect(service).toBeInstanceOf(DevAuthAdapter);
+  });
+
+  it("should return Auth0Adapter in staging", () => {
+    process.env.APP_ENV = "staging";
+    const service = getAuthService();
+    expect(service).toBeInstanceOf(Auth0Adapter);
+  });
+
+  it("should reject unknown application environments", () => {
+    process.env.APP_ENV = "produciton";
+    expect(() => getAuthService()).toThrow();
   });
 });

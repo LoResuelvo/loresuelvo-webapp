@@ -6,6 +6,7 @@ import { t } from "@/infrastructure/i18n/translations";
 import { cn } from "@/lib/utils";
 import { CoverageZone } from "@/domain/provider/coverage-zone";
 import { CoverageZoneMap } from "./CoverageZoneMap";
+import type { GoogleMapsRuntimeConfig } from "@/infrastructure/config/public-runtime-config";
 
 export type CoverageZoneItem = CoverageZone;
 
@@ -17,6 +18,7 @@ export interface CoverageZoneSelectorProps {
   validationError?: string | null;
   onRetry?: () => void;
   onToggleZone?: (zoneId: number) => void;
+  googleMapsConfig?: GoogleMapsRuntimeConfig;
   className?: string;
 }
 
@@ -140,6 +142,7 @@ export function CoverageZoneSelector({
   validationError = null,
   onRetry,
   onToggleZone,
+  googleMapsConfig = {},
   className,
 }: CoverageZoneSelectorProps) {
   if (isLoading) {
@@ -181,6 +184,7 @@ export function CoverageZoneSelector({
         zones={zones}
         selectedZoneIds={selectedZoneIds}
         onToggleZone={onToggleZone}
+        googleMapsConfig={googleMapsConfig}
       />
     </div>
   );

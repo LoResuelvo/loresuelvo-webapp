@@ -7,14 +7,17 @@ import { MercadoPagoConnectionStep } from "./MercadoPagoConnectionStep";
 import { Category } from "@/domain/shared/types";
 import { cn } from "@/lib/utils";
 import { useRegistrationForm } from "./useRegistrationForm";
+import type { GoogleMapsRuntimeConfig } from "@/infrastructure/config/public-runtime-config";
 
 export default function RegistrationForm({
   session,
   categories = [],
+  googleMapsConfig = {},
   className,
 }: {
   session: AuthSession | null;
   categories?: Category[];
+  googleMapsConfig?: GoogleMapsRuntimeConfig;
   className?: string;
 }) {
   const {
@@ -45,6 +48,7 @@ export default function RegistrationForm({
         <ProfileFormStep
           role={role}
           categories={categories}
+          googleMapsConfig={googleMapsConfig}
           onBack={() => setStep(1)}
           onSubmit={handleFinalSubmit}
           isLoading={isLoading}

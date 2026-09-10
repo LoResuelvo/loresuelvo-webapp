@@ -117,8 +117,8 @@ export function useGoogleCoverageMap({
   zones,
   selectedZoneIds,
   onToggleZone,
-  apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-  mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_ID,
+  apiKey,
+  mapId,
 }: UseGoogleCoverageMapOptions) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<MapStatus>("idle");

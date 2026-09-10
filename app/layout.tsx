@@ -6,6 +6,8 @@ import { WebSocketProvider } from "@/infrastructure/websocket";
 import { ClockProvider } from "@/infrastructure/clock/ClockContext";
 import { TimeProviderWidget } from "@/components/dev/TimeProviderWidget";
 import { getCurrentUserAction } from "@/app/api/me/actions";
+import { getApiUrl } from "@/infrastructure/config/server-env";
+import { showsDevelopmentTools } from "@/infrastructure/config/runtime-env";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -37,9 +39,9 @@ export default async function RootLayout({
 
   const role = typeof rawRole === "string" ? rawRole : undefined;
 
-  const apiUrl = process.env.API_URL || "http://localhost:8080";
+  const apiUrl = getApiUrl();
   const wsUrl = apiUrl.replace(/^http/, "ws") + "/ws";
-  const isDevOrTest = process.env.NODE_ENV !== "production" || process.env.APP_ENV !== "production";
+  const isDevOrTest = showsDevelopmentTools();
 
   return (
     <html lang="es-AR">

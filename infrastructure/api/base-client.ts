@@ -2,6 +2,8 @@ import { getAuthService } from "@/infrastructure/auth";
 import type { ApiStub } from "./types";
 import { parseE2EStubsFromCookies } from "./e2e-stubs-utils";
 import { logger } from "@/infrastructure/logging/logger";
+import { getApiUrl } from "@/infrastructure/config/server-env";
+import { usesE2EAdapters } from "@/infrastructure/config/runtime-env";
 
 export class ApiClientError extends Error {
   constructor(
@@ -16,12 +18,6 @@ export class ApiClientError extends Error {
 }
 
 export class ApiClient {
-  private baseUrl: string;
-
-  constructor() {
-    this.baseUrl = process.env.API_URL || "http://localhost:8080"; // TODO: change all this to use app config
-  }
-
   private async getHeaders(): Promise<HeadersInit> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -42,7 +38,7 @@ export class ApiClient {
   }
 
   private async resolveE2EStub<T>(method: string, endpoint: string): Promise<T | null> {
-    if (process.env.APP_ENV === "production") return null;
+    if (!usesE2EAdapters()) return null;
     try {
       const { cookies } = await import("next/headers");
       const cookieStore = await cookies();
@@ -76,13 +72,13 @@ export class ApiClient {
   }
 
   private async request<T>(endpoint: string, options: RequestInit): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    const url = `${getApiUrl()}${endpoint}`;
     const headers = await this.getHeaders();
 
     const e2eResult = await this.resolveE2EStub<T>(options.method ?? "", endpoint);
     if (e2eResult !== null) return e2eResult;
 
-    if (process.env.APP_ENV !== "production") {
+    if (usesE2EAdapters()) {
       try {
         const { cookies } = await import("next/headers");
         const cookieStore = await cookies();

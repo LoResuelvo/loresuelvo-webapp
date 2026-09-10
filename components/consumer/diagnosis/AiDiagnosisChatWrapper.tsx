@@ -3,7 +3,6 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import AiDiagnosisChat from "@/components/consumer/diagnosis/AiDiagnosisChat";
-import { createApiAssistantClient } from "@/infrastructure/repositories/consumer/api-assistant-client";
 import {
   createAiConversationAction,
   sendAiMessageAction,
@@ -42,7 +41,6 @@ export default function AiDiagnosisChatWrapper({
       .catch((err) => logger.debug("Failed to fetch conversations:", { err }));
   }, [selectedId, initial.length]);
 
-  const assistantClient = useMemo(() => createApiAssistantClient(), []);
   const chatRepository = useMemo(
     () => ({
       create: async (content: string, imageFileIds?: string[]) => {
@@ -157,7 +155,6 @@ export default function AiDiagnosisChatWrapper({
         } flex-1 flex-col min-w-0`}
       >
         <AiDiagnosisChat
-          client={assistantClient}
           chatRepository={chatRepository}
           conversationId={selectedId}
         />

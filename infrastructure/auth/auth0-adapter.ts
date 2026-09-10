@@ -1,9 +1,9 @@
-import { auth0 } from "@/lib/auth0";
+import { getAuth0Client } from "@/lib/auth0";
 import { AuthService, AuthSession, AppUser } from "./types";
 
 export class Auth0Adapter implements AuthService {
   async getSession(): Promise<AuthSession | null> {
-    const session = await auth0.getSession();
+    const session = await getAuth0Client().getSession();
 
     if (!session || !session.user) return null;
 
@@ -22,6 +22,7 @@ export class Auth0Adapter implements AuthService {
   }
 
   async updateSession(userUpdate: Partial<AppUser>): Promise<void> {
+    const auth0 = getAuth0Client();
     const session = await auth0.getSession();
     if (!session || !session.user) return;
 

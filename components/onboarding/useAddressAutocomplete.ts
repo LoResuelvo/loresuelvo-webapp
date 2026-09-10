@@ -92,7 +92,7 @@ function readSelectedAddress(place: GooglePlace): AddressAutocompleteSelection {
 }
 
 export function useAddressAutocomplete({
-  apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+  apiKey,
   onPlaceSelected,
 }: UseAddressAutocompleteOptions) {
   const inputRef = useRef<HTMLInputElement | null>(null);

@@ -1,4 +1,6 @@
-export type LogLevel = "debug" | "info" | "warn" | "error";
+import { getConfiguredLogLevel, type ConfiguredLogLevel } from "@/infrastructure/config/logging-env";
+
+export type LogLevel = ConfiguredLogLevel;
 
 const LOG_LEVEL_WEIGHTS: Record<LogLevel, number> = {
   debug: 10,
@@ -8,17 +10,7 @@ const LOG_LEVEL_WEIGHTS: Record<LogLevel, number> = {
 };
 
 function getEffectiveLogLevel(): LogLevel {
-  const envLevel = process.env.NEXT_PUBLIC_LOG_LEVEL || process.env.LOG_LEVEL;
-  if (envLevel && envLevel.toLowerCase() in LOG_LEVEL_WEIGHTS) {
-    return envLevel.toLowerCase() as LogLevel;
-  }
-  if (process.env.NODE_ENV === "test") {
-    return "warn";
-  }
-  if (process.env.APP_ENV === "production" || process.env.NODE_ENV === "production") {
-    return "info";
-  }
-  return "info";
+  return getConfiguredLogLevel();
 }
 
 function shouldLog(level: LogLevel): boolean {

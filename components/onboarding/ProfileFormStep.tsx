@@ -14,6 +14,7 @@ import { t } from "@/infrastructure/i18n/translations";
 import { validateProfileForm, validateProfilePhoto, ValidationErrors } from "@/domain/onboarding/validation";
 import { ProfileAddressFields } from "./ProfileAddressFields";
 import { cn } from "@/lib/utils";
+import type { GoogleMapsRuntimeConfig } from "@/infrastructure/config/public-runtime-config";
 
 interface ProfileFormStepProps {
   onBack: () => void;
@@ -22,6 +23,7 @@ interface ProfileFormStepProps {
   error: string | null;
   role: "consumer" | "provider" | null;
   categories: Category[];
+  googleMapsConfig?: GoogleMapsRuntimeConfig;
   className?: string;
 }
 
@@ -159,6 +161,7 @@ function ProfileProviderFields({
   coverage,
   coverageError,
   onToggleZone,
+  googleMapsConfig,
 }: {
   categories: Category[];
   categoryError: string | null;
@@ -166,6 +169,7 @@ function ProfileProviderFields({
   coverage: ReturnType<typeof useCoverageZones>;
   coverageError: string | null;
   onToggleZone: (zoneId: number) => void;
+  googleMapsConfig: GoogleMapsRuntimeConfig;
 }) {
   return (
     <>
@@ -178,13 +182,14 @@ function ProfileProviderFields({
         validationError={coverageError}
         onRetry={coverage.loadZones}
         onToggleZone={onToggleZone}
+        googleMapsConfig={googleMapsConfig}
       />
     </>
   );
 }
 
 export function ProfileFormStep({
-  onBack, onSubmit, isLoading, error, role, categories, className,
+  onBack, onSubmit, isLoading, error, role, categories, googleMapsConfig = {}, className,
 }: ProfileFormStepProps) {
   const validation = useProfileFormValidation();
   const coverage = useCoverageZones(role);
@@ -222,6 +227,7 @@ export function ProfileFormStep({
             streetNumberError={validation.streetNumberError}
             onClearStreet={() => validation.clearFieldError("street")}
             onClearStreetNumber={() => validation.clearFieldError("streetNumber")}
+            googleMapsConfig={googleMapsConfig}
           />
         )}
         {role === "provider" && (
@@ -231,6 +237,7 @@ export function ProfileFormStep({
             onClearCategoryError={() => validation.clearFieldError("categoryId")}
             coverage={coverage}
             coverageError={validation.coverageZonesError}
+            googleMapsConfig={googleMapsConfig}
             onToggleZone={(zoneId) => {
               validation.clearFieldError("coverageZones");
               coverage.toggleZone(zoneId);

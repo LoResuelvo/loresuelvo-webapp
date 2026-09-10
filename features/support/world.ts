@@ -5,8 +5,9 @@ import { addApiStub, getStubs, hasApiStub } from "./stubs-helper";
 import { MOCK_SESSION_COOKIE } from "../../infrastructure/auth/mock-adapter";
 import { AuthSession } from "../../infrastructure/auth/types";
 import { aSession } from "./factories";
+import { getTestAppUrl } from "./test-env";
 
-export const APP_URL = process.env.APP_URL || "http://localhost:3001";
+export const APP_URL = getTestAppUrl();
 
 export class CustomWorld extends World {
   browser!: Browser;

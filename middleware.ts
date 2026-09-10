@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth0 } from "./lib/auth0";
+import { getAuth0Client } from "./lib/auth0";
 import { ROUTES } from "./lib/routes";
 import { getAuthService } from "./infrastructure/auth";
 import { ApiUserRepository } from "./infrastructure/repositories/onboarding/api-user-repository";
@@ -8,7 +8,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith("/auth")) {
-    return await auth0.middleware(request);
+    return await getAuth0Client().middleware(request);
   }
 
   const session = await getAuthService().getSession();

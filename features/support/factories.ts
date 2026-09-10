@@ -6,6 +6,10 @@ import {
   ApiConversationMessage, ApiAiConversationMessage,
   ApiAiConversation,
   ApiAiConversationDetail,
+  ApiCalendarConnectionStatus,
+  ApiCurrentUserCategory,
+  ApiCurrentUserProfilePhoto,
+  ApiCurrentUserResponse,
 } from "../../infrastructure/api/types";
 
 export interface MockCounterpart {
@@ -98,33 +102,42 @@ export function aSession(
   };
 }
 
+type CurrentUserFactoryOverrides = Partial<{
+  id: number;
+  name: string;
+  surname: string;
+  email: string;
+  calendar_connection_status: ApiCalendarConnectionStatus;
+  profile_photo: ApiCurrentUserProfilePhoto | null;
+  category: ApiCurrentUserCategory;
+}>;
+
 export function aCurrentUser(
   role: "consumer" | "provider" = "consumer",
-  overrides: Partial<any> = {}
-) {
+  overrides: CurrentUserFactoryOverrides = {},
+): ApiCurrentUserResponse {
   const base = {
     id: role === "consumer" ? 1 : 2,
     name: role === "consumer" ? "Ana" : "Juan",
     surname: role === "consumer" ? "Pérez" : "Gómez",
     email: role === "consumer" ? "consumidor@loresuelvo.test" : "prestador@loresuelvo.test",
-    role,
+    calendar_connection_status: "disconnected" as const,
     profile_photo: null,
   };
 
   if (role === "provider") {
     return {
       ...base,
-      category: {
-        id: 1,
-        name: "Plomería",
-      },
       ...overrides,
+      role: "provider",
+      category: overrides.category ?? { id: 1, name: "Plomería" },
     };
   }
 
   return {
     ...base,
     ...overrides,
+    role: "consumer",
   };
 }
 

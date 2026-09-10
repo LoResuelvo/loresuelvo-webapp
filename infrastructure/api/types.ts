@@ -329,20 +329,32 @@ export interface ApiCurrentUserCategory {
   name: string;
 }
 
-export interface ApiCurrentUserResponse {
+export type ApiCalendarConnectionStatus =
+  | "disconnected"
+  | "connected"
+  | "action_required";
+
+interface ApiCurrentUserBaseResponse {
   id: number;
   name: string;
   surname: string;
   email: string;
-  role: "consumer" | "provider";
+  calendar_connection_status: ApiCalendarConnectionStatus;
   profile_photo?: ApiCurrentUserProfilePhoto | null;
 }
 
-export type ApiConsumerCurrentUserResponse = ApiCurrentUserResponse;
+export interface ApiConsumerCurrentUserResponse extends ApiCurrentUserBaseResponse {
+  role: "consumer";
+}
 
-export interface ApiProviderCurrentUserResponse extends ApiCurrentUserResponse {
+export interface ApiProviderCurrentUserResponse extends ApiCurrentUserBaseResponse {
+  role: "provider";
   category: ApiCurrentUserCategory;
 }
+
+export type ApiCurrentUserResponse =
+  | ApiConsumerCurrentUserResponse
+  | ApiProviderCurrentUserResponse;
 
 export interface ApiWorkOrder {
   id: number;

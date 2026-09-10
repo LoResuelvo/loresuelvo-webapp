@@ -12,6 +12,7 @@ describe("getCurrentUser", () => {
       lastName: "Pérez",
       email: "ana@example.com",
       role: "consumer",
+      calendarConnectionStatus: "disconnected",
       profilePhoto: {
         originalName: "avatar.png",
         url: "https://example.com/avatar.png",

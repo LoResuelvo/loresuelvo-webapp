@@ -1,6 +1,6 @@
 import {
   ApiCurrentUserResponse,
-  ApiProviderCurrentUserResponse
+  ApiProviderCurrentUserResponse,
 } from "@/infrastructure/api/types";
 import { CurrentUser, ProviderCurrentUser } from "@/domain/user/types";
 
@@ -11,13 +11,14 @@ export function mapApiToCurrentUser(api: ApiCurrentUserResponse): CurrentUser {
     lastName: api.surname,
     email: api.email,
     role: api.role,
+    calendarConnectionStatus: api.calendar_connection_status,
     profilePhoto: api.profile_photo
       ? { originalName: api.profile_photo.original_name, url: api.profile_photo.url }
       : null,
   };
 
   if (api.role === "provider") {
-    const providerApi = api as ApiProviderCurrentUserResponse;
+    const providerApi: ApiProviderCurrentUserResponse = api;
     const result: ProviderCurrentUser = {
       ...base,
       role: "provider",

@@ -13,6 +13,7 @@ describe("mapApiToCurrentUser", () => {
       surname: "Pérez",
       email: "ana@example.com",
       role: "consumer",
+      calendar_connection_status: "disconnected",
       profile_photo: {
         original_name: "avatar.png",
         url: "https://example.com/avatar.png",
@@ -27,6 +28,7 @@ describe("mapApiToCurrentUser", () => {
       lastName: "Pérez",
       email: "ana@example.com",
       role: "consumer",
+      calendarConnectionStatus: "disconnected",
       profilePhoto: {
         originalName: "avatar.png",
         url: "https://example.com/avatar.png",
@@ -41,12 +43,14 @@ describe("mapApiToCurrentUser", () => {
       surname: "Pérez",
       email: "ana@example.com",
       role: "consumer",
+      calendar_connection_status: "connected",
       profile_photo: null,
     };
 
     const user = mapApiToCurrentUser(apiResponse);
 
     expect(user.profilePhoto).toBeNull();
+    expect(user.calendarConnectionStatus).toBe("connected");
   });
 
   it("maps provider response with category and photo", () => {
@@ -56,6 +60,7 @@ describe("mapApiToCurrentUser", () => {
       surname: "Gómez",
       email: "juan@example.com",
       role: "provider",
+      calendar_connection_status: "action_required",
       profile_photo: {
         original_name: "foto.jpg",
         url: "https://example.com/foto.jpg",
@@ -74,6 +79,7 @@ describe("mapApiToCurrentUser", () => {
       lastName: "Gómez",
       email: "juan@example.com",
       role: "provider",
+      calendarConnectionStatus: "action_required",
       profilePhoto: {
         originalName: "foto.jpg",
         url: "https://example.com/foto.jpg",

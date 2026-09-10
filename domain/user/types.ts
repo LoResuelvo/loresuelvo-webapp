@@ -3,6 +3,11 @@ export interface CurrentUserProfilePhoto {
   url: string;
 }
 
+export type CalendarConnectionStatus =
+  | "disconnected"
+  | "connected"
+  | "action_required";
+
 export interface CurrentUser {
   id: number;
   firstName: string;
@@ -10,6 +15,7 @@ export interface CurrentUser {
   email: string;
   role: "consumer" | "provider";
   profilePhoto?: CurrentUserProfilePhoto | null;
+  calendarConnectionStatus: CalendarConnectionStatus;
 }
 
 export interface ConsumerCurrentUser extends CurrentUser {

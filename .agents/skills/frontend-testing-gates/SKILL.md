@@ -80,7 +80,7 @@ La política versionada en `.delivery/policy.v1.json` es la única fuente de cla
 
 Los archivos y scripts de Docker (`Dockerfile`, `Dockerfile.*`, `.dockerignore`, `docker/**`, `compose*.yml`, `compose*.yaml`, cualquier archivo bajo `.github/workflows/**` y scripts de imágenes) pertenecen exclusivamente al desarrollador humano (`HUMAN_ONLY`).
 - Si un agente los incluye en su snapshot staged, `delivery_inspect` y `delivery_prepare` bloquean con `HUMAN_ONLY_CHANGE` y escalan a `STOP_USER`.
-- Si un fallo remoto de CI ocurre en un job de Docker, `repair_ci` bloquea con `HUMAN_ONLY_CI_FAILURE` y escala a `STOP_USER`.
+- Un fallo observado en un job Docker puede usar `repair_ci` cuando la causa y el snapshot staged pertenecen a código no reservado. Si la reparación modifica Docker, workflows o scripts de imágenes, conserva `HUMAN_ONLY_CHANGE` y escala a `STOP_USER`.
 
 ### Elevación determinística por impacto real
 

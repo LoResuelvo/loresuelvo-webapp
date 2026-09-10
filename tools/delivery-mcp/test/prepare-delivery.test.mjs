@@ -276,12 +276,48 @@ test("prepareDelivery: modificacion de Dockerfile bloquea con HUMAN_ONLY_CHANGE"
   assert.ok(result.diagnostics.some((d) => d.code === "HUMAN_ONLY_CHANGE"));
 });
 
-test("prepareDelivery: fallo de CI en job de Docker bloquea reparacion con HUMAN_ONLY_CI_FAILURE", async (t) => {
+test("prepareDelivery: fallo en job Docker causado por codigo productivo permite Gate R", async (t) => {
   const repoRoot = await createTempGitRepo(t);
   const failedSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
 
   await fs.writeFile(path.join(repoRoot, "fix.txt"), "fix content", "utf8");
   execFileSync("git", ["add", "fix.txt"], { cwd: repoRoot });
+
+  const mockCi = new MockCiProvider({
+    [failedSha]: {
+      status: "failed",
+      failedJobs: ["build-docker-image"],
+      failure: { message: "Docker build failed" },
+    },
+  });
+  const fakeExecute = async ({ check }) => ({
+    id: check.id,
+    status: "passed",
+    durationMs: 2,
+    exitCode: 0,
+    summaryLines: [],
+    diagnostic: null,
+  });
+
+  const result = await prepareDelivery({
+    repoRoot,
+    intent: "repair_ci",
+    repairsSha: failedSha,
+    ciProvider: mockCi,
+    executeCheck: fakeExecute,
+  });
+
+  assert.strictEqual(result.status, "passed");
+  assert.strictEqual(result.gate.id, "R");
+  assert.ok(!result.diagnostics.some((d) => d.code === "HUMAN_ONLY_CHANGE"));
+});
+
+test("prepareDelivery: reparacion que modifica Dockerfile conserva HUMAN_ONLY_CHANGE", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const failedSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+
+  await fs.writeFile(path.join(repoRoot, "Dockerfile"), "FROM node:20\n", "utf8");
+  execFileSync("git", ["add", "Dockerfile"], { cwd: repoRoot });
 
   const mockCi = new MockCiProvider({
     [failedSha]: {
@@ -299,5 +335,5 @@ test("prepareDelivery: fallo de CI en job de Docker bloquea reparacion con HUMAN
   });
 
   assert.strictEqual(result.status, "blocked");
-  assert.ok(result.diagnostics.some((d) => d.code === "HUMAN_ONLY_CI_FAILURE"));
+  assert.ok(result.diagnostics.some((d) => d.code === "HUMAN_ONLY_CHANGE"));
 });

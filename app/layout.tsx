@@ -1,4 +1,5 @@
 import { Manrope } from "next/font/google";
+import { connection } from "next/server";
 import type { Metadata } from "next";
 import { Auth0Provider } from "@auth0/nextjs-auth0/client";
 import { getAuthService } from "@/infrastructure/auth";
@@ -25,6 +26,8 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  await connection();
+
   const session = await getAuthService().getSession();
   let rawRole = session?.user?.role;
 

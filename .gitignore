@@ -9,6 +9,9 @@ npm-debug.log*
 .env.*
 !.env.example
 
+# Clone-local Codex MCP registration
+.codex/config.toml
+
 # Cucumber
 reports/
 .cucumber-dist/

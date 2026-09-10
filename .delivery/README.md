@@ -89,7 +89,7 @@ El runner selecciona el gate evaluando el impacto real del snapshot staged:
 
 Los archivos y scripts relacionados con Docker y el pipeline (`Dockerfile`, `Dockerfile.*`, `.dockerignore`, `docker/**`, `compose*.yml`, `compose*.yaml`, cualquier archivo bajo `.github/workflows/**` y scripts exclusivos de construcción de imágenes) están reservados exclusivamente a desarrolladores humanos (`HUMAN_ONLY`).
 - Si un agente modifica estas rutas, `delivery_inspect` y `delivery_prepare` bloquean la ejecución con diagnóstico `HUMAN_ONLY_CHANGE`, requiriendo escalación a `STOP_USER`.
-- Si el fallo remoto en CI ocurre en un job de Docker, `repair_ci` bloquea con `HUMAN_ONLY_CI_FAILURE`, escalando igualmente a `STOP_USER`. Los agentes no reparan incidencias de contenedores ni ejecutan Docker build localmente.
+- El nombre del job remoto no clasifica por sí solo la reparación: un fallo observado durante Docker puede repararse mediante Gate R cuando su causa y el snapshot staged son código no reservado. Si la reparación modifica archivos de contenedor o pipeline, conserva `HUMAN_ONLY_CHANGE` y escala a `STOP_USER`. Los agentes no modifican esas rutas ni ejecutan Docker build localmente.
 
 ## Flujo de reparación de CI (`repair_ci`)
 

@@ -299,6 +299,11 @@ export interface ApiPaymentAccountAuthorization {
   state: string;
 }
 
+export interface ApiCalendarAuthorization {
+  authorization_url: string;
+  state: string;
+}
+
 export interface ApiRegisterConsumerRequest {
   email: string;
   name: string;

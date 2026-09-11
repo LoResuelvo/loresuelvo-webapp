@@ -28,4 +28,32 @@ describe("GoogleCalendarConnectionCard", () => {
       screen.getByRole("button", { name: "Reautorizar Google Calendar" }),
     ).toBeInTheDocument();
   });
+
+  it("renders the connection action as busy and disabled while authorizing", () => {
+    render(
+      <GoogleCalendarConnectionCard
+        status="disconnected"
+        isAuthorizing
+        onAuthorize={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Conectando con Google Calendar…" }),
+    ).toBeDisabled();
+  });
+
+  it("renders a safe authorization error without exposing internal details", () => {
+    render(
+      <GoogleCalendarConnectionCard
+        status="disconnected"
+        authorizationError="No pudimos iniciar la vinculación con Google Calendar. Intentá nuevamente."
+        onAuthorize={() => undefined}
+      />,
+    );
+
+    const error = screen.getByRole("alert");
+    expect(error).toHaveTextContent("No pudimos iniciar la vinculación con Google Calendar");
+    expect(error).not.toHaveTextContent("Internal Server Error");
+  });
 });

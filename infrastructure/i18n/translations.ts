@@ -130,6 +130,8 @@ export const t = {
       actionRequiredStatus: "Requiere atención",
       connectAction: "Vincular Google Calendar",
       reauthorizeAction: "Reautorizar Google Calendar",
+      connecting: "Conectando con Google Calendar…",
+      authorizationError: "No pudimos iniciar la vinculación con Google Calendar. Intentá nuevamente.",
       authorizationRequired: "Google Calendar requiere autorización",
     },
   },

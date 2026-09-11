@@ -16,6 +16,7 @@ export class CustomWorld extends World {
   appUrl: string = APP_URL;
   calendarProfileRole?: "consumer" | "provider";
   calendarConnectionStatus?: string;
+  calendarAuthorizationAttempts = 0;
   selectedRole: "consumer" | "provider" | null = null;
   registeredFirstName?: string;
   registeredLastName?: string;

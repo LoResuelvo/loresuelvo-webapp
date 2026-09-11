@@ -1,3 +1,5 @@
+"use client";
+
 import { CalendarDays } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,10 +15,16 @@ import { t } from "@/infrastructure/i18n/translations";
 
 interface GoogleCalendarConnectionCardProps {
   status: CalendarConnectionStatus;
+  isAuthorizing?: boolean;
+  authorizationError?: string | null;
+  onAuthorize?: () => void;
 }
 
 export default function GoogleCalendarConnectionCard({
   status,
+  isAuthorizing = false,
+  authorizationError = null,
+  onAuthorize,
 }: GoogleCalendarConnectionCardProps) {
   const calendarCopy = t.profile.calendar;
   const statusLabel = {
@@ -53,14 +61,33 @@ export default function GoogleCalendarConnectionCard({
         {status === "action_required" && (
           <InfoBanner tone="warning">{calendarCopy.authorizationRequired}</InfoBanner>
         )}
+        {authorizationError && (
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-body text-rose-700"
+          >
+            {authorizationError}
+          </div>
+        )}
         {status === "disconnected" && (
-          <Button type="button" variant="brandSecondary" disabled>
-            {calendarCopy.connectAction}
+          <Button
+            type="button"
+            variant="brandSecondary"
+            disabled={isAuthorizing || !onAuthorize}
+            onClick={onAuthorize}
+          >
+            {isAuthorizing ? calendarCopy.connecting : calendarCopy.connectAction}
           </Button>
         )}
         {status === "action_required" && (
-          <Button type="button" variant="brandSecondary" disabled>
-            {calendarCopy.reauthorizeAction}
+          <Button
+            type="button"
+            variant="brandSecondary"
+            disabled={isAuthorizing || !onAuthorize}
+            onClick={onAuthorize}
+          >
+            {isAuthorizing ? calendarCopy.connecting : calendarCopy.reauthorizeAction}
           </Button>
         )}
       </CardContent>

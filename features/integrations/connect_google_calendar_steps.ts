@@ -2,7 +2,7 @@ import { Given, Then, When } from "@cucumber/cucumber";
 import assert from "assert";
 import type { CalendarConnectionStatus } from "../../domain/user/types";
 import { ROUTES } from "../../lib/routes";
-import { APP_URL, CustomWorld, visibleTimeout } from "../support/world";
+import { APP_URL, CustomWorld, visibleTimeout, waitTimeout } from "../support/world";
 import { aCurrentUser, anApiError } from "../support/factories";
 
 const calendarStatuses: readonly CalendarConnectionStatus[] = [
@@ -33,9 +33,65 @@ Given("la consulta de mi perfil no está disponible", async function (this: Cust
 Given(
   "mi perfil informa el estado de Google Calendar {string}",
   async function (this: CustomWorld, status: string) {
-    this.calendarConnectionStatus = calendarStatusFromLabel(status);
+    const calendarConnectionStatus = calendarStatusFromLabel(status);
+    this.calendarConnectionStatus = calendarConnectionStatus;
+
+    const role = this.calendarProfileRole ?? "consumer";
+    await this.stubGet(
+      "/me",
+      aCurrentUser(role, { calendar_connection_status: calendarConnectionStatus }),
+    );
   },
 );
+
+Given("la API devuelve una URL de consentimiento de Google Calendar", async function (this: CustomWorld) {
+  await this.page.route("https://accounts.google.com/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<html><body>Google Calendar authorization</body></html>",
+    });
+  });
+
+  await this.stubPost("/me/calendar-connection/authorizations", 201, {
+    authorization_url: "https://accounts.google.com/o/oauth2/v2/auth?client_id=loresuelvo-test",
+    state: "opaque-calendar-state",
+  });
+});
+
+When("activo {string}", async function (this: CustomWorld, action: string) {
+  if (!this.calendarProfileRole) throw new Error("Falta definir el rol del perfil");
+
+  const calendarConnectionStatus = calendarStatusFromLabel(
+    this.calendarConnectionStatus ?? "disconnected",
+  );
+  const profile = aCurrentUser(this.calendarProfileRole, {
+    calendar_connection_status: calendarStatusFromLabel(calendarConnectionStatus),
+  });
+  await this.stubGet("/me", profile);
+
+  const profileRoute =
+    this.calendarProfileRole === "consumer" ? ROUTES.consumer.profile : ROUTES.provider.profile;
+  await this.page.goto(`${APP_URL}${profileRoute}`, { waitUntil: "domcontentloaded" });
+
+  const calendarCard = this.page.getByRole("region", { name: "Google Calendar" });
+  const button = calendarCard.getByRole("button", { name: action, exact: true });
+  await button.waitFor(visibleTimeout);
+  this.calendarAuthorizationAttempts += 1;
+  await button.click({ noWaitAfter: true });
+});
+
+Then("se inicia una única autorización web para mi cuenta", async function (this: CustomWorld) {
+  assert.strictEqual(this.calendarAuthorizationAttempts, 1, "Se inició más de una autorización web.");
+});
+
+Then("soy redirigido a la URL de consentimiento de Google", async function (this: CustomWorld) {
+  await this.page.waitForURL("https://accounts.google.com/**", waitTimeout);
+  assert.ok(
+    this.page.url().startsWith("https://accounts.google.com/"),
+    "No se redirigió a la URL de consentimiento de Google.",
+  );
+});
 
 When("abro mi perfil de LoResuelvo", async function (this: CustomWorld) {
   if (!this.calendarProfileRole) throw new Error("Falta definir el rol del perfil");

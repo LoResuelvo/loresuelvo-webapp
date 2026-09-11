@@ -22,7 +22,6 @@ Feature: US-57 Vincular Google Calendar
     Then veo la integración "Google Calendar" como vinculada y sincronizada
     And no veo una acción para volver a vincularla
 
-  @wip
   Scenario: 03-CGC Ver que una conexión de Calendar requiere atención
     Given que estoy autenticado como prestador
     And mi perfil informa el estado de Google Calendar "action_required"

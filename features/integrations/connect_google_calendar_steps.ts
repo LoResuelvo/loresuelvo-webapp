@@ -77,3 +77,14 @@ Then("no veo una acción para volver a vincularla", async function (this: Custom
     "Se visualiza una acción para volver a vincular Google Calendar.",
   );
 });
+
+Then(
+  "veo una alerta indicando que Google Calendar requiere autorización",
+  async function (this: CustomWorld) {
+    const alert = this.page
+      .getByRole("status")
+      .filter({ hasText: "Google Calendar requiere autorización" });
+    await alert.waitFor(visibleTimeout);
+    assert.ok(await alert.isVisible(), "No se visualiza la alerta de autorización de Google Calendar.");
+  },
+);

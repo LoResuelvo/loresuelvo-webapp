@@ -19,4 +19,13 @@ describe("GoogleCalendarConnectionCard", () => {
     expect(screen.getByText("Vinculada y sincronizada", { exact: true })).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
+
+  it("renders the authorization alert and reauthorization action", () => {
+    render(<GoogleCalendarConnectionCard status="action_required" />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Google Calendar requiere autorización");
+    expect(
+      screen.getByRole("button", { name: "Reautorizar Google Calendar" }),
+    ).toBeInTheDocument();
+  });
 });

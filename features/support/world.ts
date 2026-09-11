@@ -50,8 +50,19 @@ export class CustomWorld extends World {
     return this.addApiStub({ method: "GET", endpoint, status, body });
   }
 
-  async stubPost(endpoint: string, status: number = 200, body: unknown = {}): Promise<void> {
-    return this.addApiStub({ method: "POST", endpoint, status, body });
+  async stubPost(
+    endpoint: string,
+    status: number = 200,
+    body: unknown = {},
+    delayMs?: number,
+  ): Promise<void> {
+    return this.addApiStub({
+      method: "POST",
+      endpoint,
+      status,
+      body,
+      ...(delayMs !== undefined ? { delayMs } : {}),
+    });
   }
 
   async stubPatch(endpoint: string, status: number = 200, body: unknown = {}): Promise<void> {

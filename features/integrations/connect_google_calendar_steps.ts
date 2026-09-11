@@ -11,6 +11,11 @@ const calendarStatuses: readonly CalendarConnectionStatus[] = [
   "action_required",
 ];
 
+const calendarAuthorizationResponse = {
+  authorization_url: "https://accounts.google.com/o/oauth2/v2/auth?client_id=loresuelvo-test",
+  state: "opaque-calendar-state",
+};
+
 function isCalendarStatus(value: string): value is CalendarConnectionStatus {
   return calendarStatuses.some((status) => status === value);
 }
@@ -54,10 +59,53 @@ Given("la API devuelve una URL de consentimiento de Google Calendar", async func
   });
 
   await this.stubPost("/me/calendar-connection/authorizations", 201, {
-    authorization_url: "https://accounts.google.com/o/oauth2/v2/auth?client_id=loresuelvo-test",
-    state: "opaque-calendar-state",
+    ...calendarAuthorizationResponse,
   });
 });
+
+Given("que estoy autenticado con Google Calendar desvinculado", async function (this: CustomWorld) {
+  await this.setSession("consumer");
+  await this.stubGet(
+    "/me",
+    aCurrentUser("consumer", { calendar_connection_status: "disconnected" }),
+  );
+  await this.page.goto(`${APP_URL}${ROUTES.consumer.profile}`, { waitUntil: "domcontentloaded" });
+});
+
+Given("la solicitud de autorización todavía está en curso", async function (this: CustomWorld) {
+  await this.stubPost(
+    "/me/calendar-connection/authorizations",
+    201,
+    calendarAuthorizationResponse,
+    2000,
+  );
+});
+
+Then("veo la acción de vinculación ocupada y deshabilitada", async function (this: CustomWorld) {
+  const calendarCard = this.page.getByRole("region", { name: "Google Calendar" });
+  const button = calendarCard.getByRole("button");
+  await button.waitFor(visibleTimeout);
+
+  assert.ok(await button.isDisabled(), "La acción de vinculación debería estar deshabilitada.");
+  assert.strictEqual(
+    await button.textContent(),
+    "Conectando con Google Calendar…",
+    "La acción no muestra el estado de espera.",
+  );
+});
+
+Then(
+  "no puedo iniciar otra autorización mientras la primera está pendiente",
+  async function (this: CustomWorld) {
+    assert.strictEqual(
+      this.calendarAuthorizationAttempts,
+      1,
+      "Se permitió iniciar una segunda autorización.",
+    );
+    const button = this.page.getByRole("region", { name: "Google Calendar" }).getByRole("button");
+    assert.ok(await button.isDisabled(), "La acción debería seguir deshabilitada mientras espera.");
+  },
+);
 
 When("activo {string}", async function (this: CustomWorld, action: string) {
   if (!this.calendarProfileRole) throw new Error("Falta definir el rol del perfil");

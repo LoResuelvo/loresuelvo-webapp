@@ -10,6 +10,7 @@ export interface ApiStub {
   endpoint: string;
   status: number;
   body: unknown;
+  delayMs?: number;
 }
 
 export interface ApiConversation {

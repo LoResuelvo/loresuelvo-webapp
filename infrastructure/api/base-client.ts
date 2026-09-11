@@ -55,6 +55,10 @@ export class ApiClient {
 
       if (!match) return null;
 
+      if (match.delayMs && match.delayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, match.delayMs));
+      }
+
       logger.debug(`[ApiClient] [E2E] Stub found: ${match.status} for ${method} ${endpoint}`);
 
       const isSuccess = match.status >= 200 && match.status < 300;

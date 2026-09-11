@@ -49,7 +49,6 @@ Feature: US-57 Vincular Google Calendar
       | disconnected    | Vincular Google Calendar    |
       | action_required | Reautorizar Google Calendar |
 
-  @wip
   Scenario: 06-CGC Evitar autorizaciones duplicadas mientras comienza la vinculación
     Given que estoy autenticado con Google Calendar desvinculado
     And la solicitud de autorización todavía está en curso

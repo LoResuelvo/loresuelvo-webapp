@@ -141,6 +141,7 @@ function initialStatus({ snapshot, diagnostics, policy }) {
 export function selectGate({
   intent = "prepare_commit",
   featureFile = "",
+  scenarioName = "",
   scopeFiles = [],
   repairsSha = "",
   snapshot,
@@ -203,7 +204,12 @@ export function selectGate({
       policy,
       "D",
       [reasonCode],
-      { scopeFeatures }
+      {
+        scopeFeatures,
+        intent,
+        targetScenario: scenarioName || null,
+        featureFile: featureFile || (scopeFeatures.length === 1 ? scopeFeatures[0] : ""),
+      }
     );
     if (scopeFeatures.length === 0 && status !== "blocked") {
       status = "needs_input";
@@ -220,6 +226,8 @@ export function selectGate({
     const targetFeature = featureCandidates.length === 1 ? featureCandidates[0] : "";
     gate = buildGate(policy, "B", ["INTENT_CLOSE_SCENARIO_LOW_RISK"], {
       featureFile: targetFeature,
+      targetScenario: scenarioName || null,
+      intent,
     });
     if (!targetFeature && status !== "blocked") {
       status = "needs_input";

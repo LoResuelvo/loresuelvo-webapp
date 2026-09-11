@@ -152,3 +152,148 @@ test("no_wip_in_scope: reports only compact locations from the declared feature 
   ]);
   assert.deepStrictEqual(result.locations, ["features/provider/reviews.feature:3"]);
 });
+
+test("no_wip_in_scope: close_scenario permite escenario objetivo sin @wip aunque existan escenarios futuros @wip", async (t) => {
+  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-check-scenario-"));
+  t.after(() => fs.rm(repoRoot, { recursive: true, force: true }));
+  await fs.mkdir(path.join(repoRoot, "features", "integrations"), { recursive: true });
+
+  const featureContent = [
+    "Feature: Google Calendar Integration",
+    "",
+    "  Scenario: 01 Login with Google",
+    "    Given user is authenticated",
+    "",
+    "  Scenario: 04 Connect account",
+    "    Given user is on calendar page",
+    "",
+    "  @wip",
+    "  Scenario: 05 Disconnect account",
+    "    Given user is on calendar page",
+    "",
+    "  @wip",
+    "  Scenario: 06 Sync events",
+    "    Given calendar is connected",
+  ].join("\n");
+
+  await fs.writeFile(
+    path.join(repoRoot, "features", "integrations", "calendar.feature"),
+    featureContent,
+    "utf8"
+  );
+
+  const check = resolveCheck({
+    checkId: "no_wip_in_scope",
+    definition: {
+      kind: "builtin",
+      label: "No @wip",
+      handler: "no_wip_in_scope",
+      display: "verify no @wip",
+      requires: ["scopeFeatures"],
+    },
+    parameters: {
+      scopeFeatures: ["features/integrations/calendar.feature"],
+      intent: "close_scenario",
+      targetScenario: "04 Connect account",
+    },
+    repoRoot,
+  });
+  const result = await executeCheck({ check, repoRoot, limits: {} });
+
+  assert.strictEqual(result.status, "passed");
+  assert.strictEqual(result.diagnostic, null);
+  assert.deepStrictEqual(result.summaryLines, []);
+  assert.deepStrictEqual(result.locations, []);
+});
+
+test("no_wip_in_scope: close_scenario bloquea si el escenario objetivo todavia tiene @wip", async (t) => {
+  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-check-scenario-wip-"));
+  t.after(() => fs.rm(repoRoot, { recursive: true, force: true }));
+  await fs.mkdir(path.join(repoRoot, "features", "integrations"), { recursive: true });
+
+  const featureContent = [
+    "Feature: Google Calendar Integration",
+    "",
+    "  @wip",
+    "  Scenario: 04 Connect account",
+    "    Given user is on calendar page",
+    "",
+    "  @wip",
+    "  Scenario: 05 Disconnect account",
+    "    Given user is on calendar page",
+  ].join("\n");
+
+  await fs.writeFile(
+    path.join(repoRoot, "features", "integrations", "calendar.feature"),
+    featureContent,
+    "utf8"
+  );
+
+  const check = resolveCheck({
+    checkId: "no_wip_in_scope",
+    definition: {
+      kind: "builtin",
+      label: "No @wip",
+      handler: "no_wip_in_scope",
+      display: "verify no @wip",
+      requires: ["scopeFeatures"],
+    },
+    parameters: {
+      scopeFeatures: ["features/integrations/calendar.feature"],
+      intent: "close_scenario",
+      targetScenario: "04 Connect account",
+    },
+    repoRoot,
+  });
+  const result = await executeCheck({ check, repoRoot, limits: {} });
+
+  assert.strictEqual(result.status, "failed");
+  assert.strictEqual(result.diagnostic.code, "TARGET_SCENARIO_HAS_WIP");
+  assert.ok(result.diagnostic.message.includes("still has @wip tag"));
+});
+
+test("no_wip_in_scope: close_batch y close_us rechazan si el feature conserva escenarios @wip", async (t) => {
+  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-check-batch-wip-"));
+  t.after(() => fs.rm(repoRoot, { recursive: true, force: true }));
+  await fs.mkdir(path.join(repoRoot, "features", "integrations"), { recursive: true });
+
+  const featureContent = [
+    "Feature: Google Calendar Integration",
+    "",
+    "  Scenario: 04 Connect account",
+    "    Given user is on calendar page",
+    "",
+    "  @wip",
+    "  Scenario: 05 Disconnect account",
+    "    Given user is on calendar page",
+  ].join("\n");
+
+  await fs.writeFile(
+    path.join(repoRoot, "features", "integrations", "calendar.feature"),
+    featureContent,
+    "utf8"
+  );
+
+  for (const intent of ["close_batch", "close_us"]) {
+    const check = resolveCheck({
+      checkId: "no_wip_in_scope",
+      definition: {
+        kind: "builtin",
+        label: "No @wip",
+        handler: "no_wip_in_scope",
+        display: "verify no @wip",
+        requires: ["scopeFeatures"],
+      },
+      parameters: {
+        scopeFeatures: ["features/integrations/calendar.feature"],
+        intent,
+      },
+      repoRoot,
+    });
+    const result = await executeCheck({ check, repoRoot, limits: {} });
+
+    assert.strictEqual(result.status, "failed");
+    assert.strictEqual(result.diagnostic.code, "WIP_TAG_IN_COMPLETED_SCOPE");
+    assert.ok(result.summaryLines.some((l) => l.includes("calendar.feature:6: @wip remains in completed scope")));
+  }
+});

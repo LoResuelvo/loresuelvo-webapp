@@ -291,11 +291,80 @@ async function executeCommandCheck({ check, repoRoot, logPath, limits = {} }) {
   };
 }
 
+/**
+ * Parse a Gherkin feature file into scenarios and feature-level tags with line numbers.
+ */
+export function parseGherkinScenarios(source) {
+  const lines = source.split(/\r?\n/);
+  let featureTags = [];
+  let pendingTags = [];
+  let seenFeature = false;
+  let featureWipLine = null;
+  const scenarios = [];
+
+  for (const [index, rawLine] of lines.entries()) {
+    const lineNum = index + 1;
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+
+    if (line.startsWith("@")) {
+      const tags = line.split(/\s+/).filter((t) => t.startsWith("@"));
+      pendingTags.push(...tags.map((tag) => ({ tag, line: lineNum })));
+      continue;
+    }
+
+    const featureMatch = line.match(/^Feature:\s*(.+)$/i);
+    if (featureMatch) {
+      featureTags = pendingTags;
+      const fWip = featureTags.find((t) => t.tag === "@wip");
+      if (fWip) featureWipLine = fWip.line;
+      pendingTags = [];
+      seenFeature = true;
+      continue;
+    }
+
+    const scenarioMatch = line.match(/^(?:Scenario(?: Outline)?|Example|Escenario|Esquema del escenario):\s*(.+)$/i);
+    if (scenarioMatch) {
+      const name = scenarioMatch[1].trim();
+      const allTags = [
+        ...featureTags.map((t) => ({ ...t, fromFeature: true })),
+        ...pendingTags.map((t) => ({ ...t, fromFeature: false })),
+      ];
+      const wipTag = allTags.find((t) => t.tag === "@wip");
+      scenarios.push({
+        name,
+        line: lineNum,
+        tags: allTags,
+        hasWip: Boolean(wipTag),
+        wipLine: wipTag ? wipTag.line : null,
+      });
+      pendingTags = [];
+      continue;
+    }
+
+    if (/^(?:Rule|Background):/i.test(line)) {
+      pendingTags = [];
+    } else if (!line.startsWith("|")) {
+      pendingTags = [];
+    }
+  }
+
+  return {
+    featureHasWip: Boolean(featureWipLine),
+    featureWipLine,
+    scenarios,
+  };
+}
+
 async function executeNoWipCheck({ check, repoRoot }) {
   const startedAt = Date.now();
   const findings = [];
+  const scopeFeatures = check.parameters?.scopeFeatures || [];
+  const intent = check.parameters?.intent || null;
+  const targetScenario = check.parameters?.targetScenario || null;
+  const isScenarioClosure = intent === "close_scenario";
 
-  for (const featureFile of check.parameters.scopeFeatures) {
+  for (const featureFile of scopeFeatures) {
     assertSafeRepoPath(repoRoot, featureFile, "Feature scope file");
     const absolute = path.resolve(repoRoot, featureFile);
     const realRepoRoot = fs.realpathSync(repoRoot);
@@ -341,16 +410,66 @@ async function executeNoWipCheck({ check, repoRoot }) {
       };
     }
 
-    source.split(/\r?\n/).forEach((line, index) => {
-      if (/(?:^|\s)@wip(?:\s|$)/.test(line)) {
-        findings.push({ file: featureFile, line: index + 1 });
+    if (isScenarioClosure) {
+      const parsed = parseGherkinScenarios(source);
+      if (parsed.featureHasWip) {
+        findings.push({
+          file: featureFile,
+          line: parsed.featureWipLine,
+          message: "@wip tag remains on Feature heading",
+        });
+      } else if (targetScenario) {
+        const targetNorm = targetScenario.trim().toLowerCase();
+        const matched = parsed.scenarios.find(
+          (s) => s.name.trim().toLowerCase() === targetNorm || s.name.trim().toLowerCase().includes(targetNorm)
+        );
+        if (matched) {
+          if (matched.hasWip) {
+            findings.push({
+              file: featureFile,
+              line: matched.wipLine,
+              message: `target scenario '${matched.name}' still has @wip tag`,
+            });
+          }
+        } else {
+          findings.push({
+            file: featureFile,
+            line: 1,
+            message: `target scenario '${targetScenario}' not found in feature`,
+          });
+        }
+      } else {
+        const allWip = parsed.scenarios.length > 0 && parsed.scenarios.every((s) => s.hasWip);
+        if (allWip) {
+          const firstWip = parsed.scenarios[0];
+          findings.push({
+            file: featureFile,
+            line: firstWip.wipLine || 1,
+            message: "all scenarios in feature still have @wip tag",
+          });
+        }
       }
-    });
+    } else {
+      source.split(/\r?\n/).forEach((line, index) => {
+        if (/(?:^|\s)@wip(?:\s|$)/.test(line)) {
+          findings.push({ file: featureFile, line: index + 1 });
+        }
+      });
+    }
   }
 
-  const summaryLines = findings.slice(0, 6).map(({ file, line }) => `${file}:${line}: @wip remains in completed scope`);
+  const summaryLines = findings.slice(0, 6).map(({ file, line, message }) =>
+    message ? `${file}:${line}: ${message}` : `${file}:${line}: @wip remains in completed scope`
+  );
   const locations = findings.map(({ file, line }) => `${file}:${line}`);
   const first = findings[0];
+  const diagCode = isScenarioClosure && first?.message?.includes("still has @wip")
+    ? "TARGET_SCENARIO_HAS_WIP"
+    : "WIP_TAG_IN_COMPLETED_SCOPE";
+  const diagMessage = isScenarioClosure && first?.message
+    ? first.message
+    : `${findings.length} @wip tag(s) remain in completed scope`;
+
   return {
     id: check.id,
     status: findings.length === 0 ? "passed" : "failed",
@@ -365,9 +484,9 @@ async function executeNoWipCheck({ check, repoRoot }) {
     },
     diagnostic: first
       ? {
-          code: "WIP_TAG_IN_COMPLETED_SCOPE",
+          code: diagCode,
           checkId: check.id,
-          message: `${findings.length} @wip tag(s) remain in completed scope`,
+          message: diagMessage,
           file: first.file,
           line: first.line,
           retryable: false,

@@ -90,12 +90,18 @@ export async function inspectDelivery({
   }
 
   // Safe inference: removing @wip from a single staged scenario can suggest close_scenario
-  if (effectiveIntent === "prepare_commit" && !effectiveFeatureFile) {
+  // and resolve the target scenarioName if not explicitly provided
+  if (
+    (!effectiveScenarioName && (effectiveIntent === "close_scenario" || effectiveIntent === "prepare_commit")) ||
+    (effectiveIntent === "prepare_commit" && !effectiveFeatureFile)
+  ) {
     const inferred = inferWipRemovalScenario(snapshot.stagedDiffText, snapshot.stagedFiles);
     if (inferred) {
-      effectiveIntent = inferred.intent;
-      effectiveFeatureFile = inferred.featureFile;
-      effectiveScenarioName = inferred.scenarioName || effectiveScenarioName;
+      if (effectiveIntent === "prepare_commit" && !effectiveFeatureFile) {
+        effectiveIntent = inferred.intent;
+      }
+      effectiveFeatureFile = effectiveFeatureFile || inferred.featureFile;
+      effectiveScenarioName = effectiveScenarioName || inferred.scenarioName || "";
     }
   }
 

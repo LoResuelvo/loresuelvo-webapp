@@ -180,7 +180,8 @@ test("jobs: waitForJob respeta timeoutMs cuando el job sigue en ejecución", asy
     updates: {
       status: "running",
       pid: process.pid,
-      startedAt: new Date().toISOString(),
+      startedAt: new Date(Date.now() - 1000).toISOString(),
+      ...(process.env.DELIVERY_JOB_TOKEN ? { workerToken: process.env.DELIVERY_JOB_TOKEN } : {}),
     },
   });
 
@@ -304,7 +305,8 @@ test("jobs: deduplicación de job activo para el mismo snapshot", async (t) => {
     updates: {
       status: "running",
       pid: process.pid,
-      startedAt: new Date().toISOString(),
+      startedAt: new Date(Date.now() - 1000).toISOString(),
+      ...(process.env.DELIVERY_JOB_TOKEN ? { workerToken: process.env.DELIVERY_JOB_TOKEN } : {}),
     },
   });
 
@@ -482,22 +484,29 @@ test("jobs: integración MCP delivery_prepare y delivery_job_wait", async () => 
     assert.ok(waitTool.inputSchema.properties.jobId);
 
     // 2. delivery_prepare with mode: 'job' returns job_started or no_changes
-    const prepResult = await client.callTool({
-      name: "delivery_prepare",
-      arguments: { intent: "prepare_commit", mode: "job" },
-    });
-    const prepResultJson = JSON.parse(prepResult.content[0].text);
-    assert.ok(
-      ["job_started", "no_changes", "running", "passed", "blocked"].includes(prepResultJson.status),
-      `Unexpected prepare status: ${prepResultJson.status}`
-    );
-    if (prepResultJson.jobId) {
-      const waitJob = await client.callTool({
-        name: "delivery_job_wait",
-        arguments: { jobId: prepResultJson.jobId, timeoutMs: 300 },
+    // Avoid spawning nested job workers if already running inside an active delivery worker
+    if (!process.env.DELIVERY_JOB_ID) {
+      const prepResult = await client.callTool({
+        name: "delivery_prepare",
+        arguments: { intent: "prepare_commit", mode: "job" },
       });
-      const waitJson = JSON.parse(waitJob.content[0].text);
-      assert.ok(["running", "passed", "failed"].includes(waitJson.status));
+      const prepResultJson = JSON.parse(prepResult.content[0].text);
+      assert.ok(
+        ["job_started", "no_changes", "running", "passed", "blocked"].includes(prepResultJson.status),
+        `Unexpected prepare status: ${prepResultJson.status}`
+      );
+      if (prepResultJson.jobId) {
+        const waitJob = await client.callTool({
+          name: "delivery_job_wait",
+          arguments: { jobId: prepResultJson.jobId, timeoutMs: 300 },
+        });
+        const waitJson = JSON.parse(waitJob.content[0].text);
+        assert.ok(["running", "passed", "failed"].includes(waitJson.status));
+        await client.callTool({
+          name: "delivery_job_cancel",
+          arguments: { jobId: prepResultJson.jobId, reason: "Test cleanup" },
+        });
+      }
     }
 
     // 3. delivery_job_wait with non-existent jobId returns failure diagnostic

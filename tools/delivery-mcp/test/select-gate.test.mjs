@@ -167,6 +167,26 @@ test("selectGate: cierre de escenario de alto riesgo -> Gate D", () => {
   assert.strictEqual(result.gate.id, "D");
   assert.strictEqual(result.status, "ready");
   assert.deepStrictEqual(result.gate.reasonCodes, ["INTENT_CLOSE_HIGH_RISK_SCENARIO"]);
+  assert.strictEqual(result.gate.parameters.intent, "close_scenario");
+});
+
+test("selectGate: cierre de escenario de alto riesgo propaga scenarioName en parameters de Gate D", () => {
+  const result = selectGate({
+    intent: "close_scenario",
+    featureFile: "features/provider/provider-reviews.feature",
+    scenarioName: "04 Preview",
+    snapshot: {
+      stagedFiles: [
+        "features/provider/provider-reviews.feature",
+        "infrastructure/repositories/provider-repository.ts",
+      ],
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "D");
+  assert.strictEqual(result.status, "ready");
+  assert.strictEqual(result.gate.parameters.targetScenario, "04 Preview");
+  assert.strictEqual(result.gate.parameters.intent, "close_scenario");
 });
 
 test("selectGate: documentación o configuración solamente -> Gate NONE", () => {

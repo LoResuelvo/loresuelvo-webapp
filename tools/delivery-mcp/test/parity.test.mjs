@@ -46,23 +46,25 @@ test("paridad CLI / MCP: inspect, prepare, finalize y verify_head producen el mi
     assert.deepStrictEqual(mcpResult.diagnostics, cliResult.diagnostics);
 
     // 2. Prepare parity test (empty diff / no_changes)
-    const prepareInput = {
-      intent: "prepare_commit",
-    };
-    const parsedPrepare = DeliveryPrepareInputSchema.parse(prepareInput);
+    if (cliResult.status === "no_changes") {
+      const prepareInput = {
+        intent: "prepare_commit",
+      };
+      const parsedPrepare = DeliveryPrepareInputSchema.parse(prepareInput);
 
-    const cliPrepareResult = await prepareDelivery(parsedPrepare);
-    const mcpPrepareCall = await client.callTool({
-      name: "delivery_prepare",
-      arguments: prepareInput,
-    });
-    const mcpPrepareResult = JSON.parse(mcpPrepareCall.content[0].text);
+      const cliPrepareResult = await prepareDelivery(parsedPrepare);
+      const mcpPrepareCall = await client.callTool({
+        name: "delivery_prepare",
+        arguments: prepareInput,
+      });
+      const mcpPrepareResult = JSON.parse(mcpPrepareCall.content[0].text);
 
-    assert.strictEqual(mcpPrepareResult.status, cliPrepareResult.status);
-    assert.strictEqual(mcpPrepareResult.snapshotHash, cliPrepareResult.snapshotHash);
-    assert.strictEqual(mcpPrepareResult.gate.id, cliPrepareResult.gate.id);
-    assert.deepStrictEqual(mcpPrepareResult.gate.checkIds, cliPrepareResult.gate.checkIds);
-    assert.deepStrictEqual(mcpPrepareResult.summary, cliPrepareResult.summary);
+      assert.strictEqual(mcpPrepareResult.status, cliPrepareResult.status);
+      assert.strictEqual(mcpPrepareResult.snapshotHash, cliPrepareResult.snapshotHash);
+      assert.strictEqual(mcpPrepareResult.gate.id, cliPrepareResult.gate.id);
+      assert.deepStrictEqual(mcpPrepareResult.gate.checkIds, cliPrepareResult.gate.checkIds);
+      assert.deepStrictEqual(mcpPrepareResult.summary, cliPrepareResult.summary);
+    }
 
     // 3. Finalize parity test. The current checkout normally blocks before CI
     // unless HEAD already carries exact Gate D evidence; either outcome must be

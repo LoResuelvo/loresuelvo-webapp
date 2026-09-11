@@ -337,3 +337,119 @@ test("prepareDelivery: reparacion que modifica Dockerfile conserva HUMAN_ONLY_CH
   assert.strictEqual(result.status, "blocked");
   assert.ok(result.diagnostics.some((d) => d.code === "HUMAN_ONLY_CHANGE"));
 });
+
+test("prepareDelivery: close_scenario con alto riesgo permite @wip futuros en el mismo feature, pero close_batch y close_us rechazan", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.mkdir(path.join(repoRoot, "features", "integrations"), { recursive: true });
+  await fs.mkdir(path.join(repoRoot, "infrastructure", "repositories"), { recursive: true });
+  await fs.mkdir(
+    path.join(repoRoot, ".agents", "skills", "frontend-maintainability-governance", "scripts"),
+    { recursive: true }
+  );
+  await fs.writeFile(
+    path.join(
+      repoRoot,
+      ".agents",
+      "skills",
+      "frontend-maintainability-governance",
+      "scripts",
+      "audit-changed-code.mjs"
+    ),
+    'console.log(JSON.stringify({ passed: true, summary: { totalSignals: 0, byRule: {} }, signals: [] }));\n',
+    "utf8"
+  );
+
+  const featureContent = [
+    "Feature: Google Calendar Integration",
+    "",
+    "  Scenario: 01 Login with Google",
+    "    Given user is authenticated",
+    "",
+    "  Scenario: 04 Connect account",
+    "    Given user is on calendar page",
+    "",
+    "  @wip",
+    "  Scenario: 05 Disconnect account",
+    "    Given user is on calendar page",
+  ].join("\n");
+
+  await fs.writeFile(
+    path.join(repoRoot, "features", "integrations", "calendar.feature"),
+    featureContent,
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(repoRoot, "infrastructure", "repositories", "calendar-repo.ts"),
+    "export const calendarRepo = {};\n",
+    "utf8"
+  );
+  execFileSync("git", ["add", "."], { cwd: repoRoot });
+
+  const fakeExecute = async ({ check }) => {
+    if (check.handler === "no_wip_in_scope") {
+      const { executeCheck: realExecute } = await import("../lib/execute-check.mjs");
+      return realExecute({ check, repoRoot, limits: {} });
+    }
+    return {
+      id: check.id,
+      status: "passed",
+      durationMs: 2,
+      exitCode: 0,
+      summaryLines: [],
+      diagnostic: null,
+    };
+  };
+
+  // 1. close_scenario debe pasar (Gate D) validando solo el escenario 04
+  const resultScenario = await prepareDelivery({
+    repoRoot,
+    intent: "close_scenario",
+    featureFile: "features/integrations/calendar.feature",
+    scenarioName: "04 Connect account",
+    executeCheck: fakeExecute,
+  });
+
+  assert.strictEqual(resultScenario.status, "passed");
+  assert.strictEqual(resultScenario.gate.id, "D");
+  assert.deepStrictEqual(resultScenario.gate.reasonCodes, ["INTENT_CLOSE_HIGH_RISK_SCENARIO"]);
+
+  // 2. close_batch en el mismo feature debe fallar por @wip en escenario 05
+  const resultBatch = await prepareDelivery({
+    repoRoot,
+    intent: "close_batch",
+    scopeFiles: ["features/integrations/calendar.feature"],
+    executeCheck: fakeExecute,
+  });
+
+  assert.strictEqual(resultBatch.status, "failed");
+  assert.strictEqual(resultBatch.gate.id, "D");
+  assert.ok(resultBatch.checks.some((c) => c.id === "no_wip_in_scope" && c.status === "failed"));
+  assert.ok(resultBatch.diagnostics.some((d) => d.code === "WIP_TAG_IN_COMPLETED_SCOPE"));
+
+  // 3. close_us en el mismo feature debe fallar por @wip en escenario 05
+  const resultUs = await prepareDelivery({
+    repoRoot,
+    intent: "close_us",
+    scopeFiles: ["features/integrations/calendar.feature"],
+    executeCheck: fakeExecute,
+  });
+
+  assert.strictEqual(resultUs.status, "failed");
+  assert.strictEqual(resultUs.gate.id, "D");
+  assert.ok(resultUs.checks.some((c) => c.id === "no_wip_in_scope" && c.status === "failed"));
+  assert.ok(resultUs.diagnostics.some((d) => d.code === "WIP_TAG_IN_COMPLETED_SCOPE"));
+
+  // 4. close_scenario para un escenario que todavía tiene @wip (escenario 05) debe fallar con TARGET_SCENARIO_HAS_WIP
+  const resultScenarioWip = await prepareDelivery({
+    repoRoot,
+    intent: "close_scenario",
+    featureFile: "features/integrations/calendar.feature",
+    scenarioName: "05 Disconnect account",
+    executeCheck: fakeExecute,
+  });
+
+  assert.strictEqual(resultScenarioWip.status, "failed");
+  assert.strictEqual(resultScenarioWip.gate.id, "D");
+  assert.ok(resultScenarioWip.checks.some((c) => c.id === "no_wip_in_scope" && c.status === "failed"));
+  assert.ok(resultScenarioWip.diagnostics.some((d) => d.code === "TARGET_SCENARIO_HAS_WIP"));
+});

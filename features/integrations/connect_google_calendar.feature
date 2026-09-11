@@ -36,7 +36,6 @@ Feature: US-57 Vincular Google Calendar
     Then veo un mensaje seguro indicando que no se pudo cargar la configuración
     And veo una acción para reintentar la consulta
 
-  @wip
   Scenario Outline: 05-CGC Iniciar la autorización de Google Calendar
     Given que estoy autenticado
     And mi perfil informa el estado de Google Calendar "<estado>"

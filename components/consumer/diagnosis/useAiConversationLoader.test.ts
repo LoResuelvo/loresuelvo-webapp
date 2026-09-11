@@ -1,6 +1,6 @@
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { useAiConversationLoader } from "./useAiConversationLoader";
+import { useAiConversationLoader, USER_ID } from "./useAiConversationLoader";
 import type { AiChatRepository } from "@/ports/consumer/ai-chat-repository";
 
 const mockRouter = {
@@ -74,6 +74,137 @@ describe("useAiConversationLoader", () => {
 
     expect(result.current.messages[0].content).toBe("Tengo una fuga");
     expect(result.current.messages[1].content).toBe("Donde está la fuga?");
+  });
+
+  it("does not overwrite newer messages with a late initial response", async () => {
+    type ConversationDetail = Awaited<ReturnType<AiChatRepository["getById"]>>;
+    let resolveGet: (detail: ConversationDetail) => void = () => undefined;
+    (mockChatRepo.getById as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise<ConversationDetail>((resolve) => {
+        resolveGet = resolve;
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useAiConversationLoader({
+        conversationId: "10",
+        chatRepository: mockChatRepo,
+      })
+    );
+
+    await waitFor(() => {
+      expect(mockChatRepo.getById).toHaveBeenCalledWith("10");
+    });
+
+    const newerMessages = [
+      {
+        id: "new-message",
+        content: "Mensaje enviado mientras cargaba",
+        senderId: USER_ID,
+        sentAt: "31/05/2026 09:00",
+      },
+    ];
+
+    act(() => {
+      result.current.setMessages(newerMessages);
+    });
+
+    await act(async () => {
+      resolveGet({
+        id: 10,
+        status: "active",
+        title: "Test",
+        responseStatus: "done",
+        diagnosisCompleted: true,
+        messages: [
+          {
+            id: "old-message",
+            senderRole: "consumer",
+            content: "Respuesta tardía",
+            sentAt: "2026-05-31T12:00:00Z",
+          },
+        ],
+        recommendedProviders: [],
+        updatedOn: "2026-05-31T12:00:00Z",
+      });
+    });
+
+    expect(result.current.messages).toEqual(newerMessages);
+  });
+
+  it("ignores a response from the previous conversation after navigation", async () => {
+    type ConversationDetail = Awaited<ReturnType<AiChatRepository["getById"]>>;
+    const resolvers: Record<string, (detail: ConversationDetail) => void> = {};
+    (mockChatRepo.getById as ReturnType<typeof vi.fn>).mockImplementation(
+      (id: string) => new Promise<ConversationDetail>((resolve) => {
+        resolvers[id] = resolve;
+      })
+    );
+
+    const { result, rerender } = renderHook(
+      ({ conversationId }: { conversationId: string }) =>
+        useAiConversationLoader({
+          conversationId,
+          chatRepository: mockChatRepo,
+        }),
+      { initialProps: { conversationId: "10" } }
+    );
+
+    await waitFor(() => {
+      expect(mockChatRepo.getById).toHaveBeenCalledWith("10");
+    });
+
+    rerender({ conversationId: "11" });
+
+    await waitFor(() => {
+      expect(mockChatRepo.getById).toHaveBeenCalledWith("11");
+    });
+
+    await act(async () => {
+      resolvers["11"]({
+        id: 11,
+        status: "active",
+        title: "Nueva conversación",
+        responseStatus: "done",
+        diagnosisCompleted: true,
+        messages: [
+          {
+            id: "new-message",
+            senderRole: "consumer",
+            content: "Conversación nueva",
+            sentAt: "2026-05-31T12:00:00Z",
+          },
+        ],
+        recommendedProviders: [],
+        updatedOn: "2026-05-31T12:00:00Z",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages[0]?.content).toBe("Conversación nueva");
+    });
+
+    await act(async () => {
+      resolvers["10"]({
+        id: 10,
+        status: "active",
+        title: "Conversación anterior",
+        responseStatus: "done",
+        diagnosisCompleted: true,
+        messages: [
+          {
+            id: "old-message",
+            senderRole: "consumer",
+            content: "Conversación anterior",
+            sentAt: "2026-05-31T12:00:00Z",
+          },
+        ],
+        recommendedProviders: [],
+        updatedOn: "2026-05-31T12:00:00Z",
+      });
+    });
+
+    expect(result.current.messages[0]?.content).toBe("Conversación nueva");
   });
 
   it("clears messages when transitioning from an existing conversation to null without pending creation", async () => {

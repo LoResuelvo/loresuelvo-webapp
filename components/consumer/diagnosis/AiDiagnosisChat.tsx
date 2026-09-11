@@ -54,7 +54,7 @@ export default function AiDiagnosisChat({
   } = useAiDiagnosisChat({ client, chatRepository, simulateError, conversationId, jobRequestFn });
 
   const isProcessing = isWaitingForReply && chatError === null;
-  const isInputDisabled = isProcessing || isSending;
+  const isInputDisabled = isProcessing || isSending || isLoadingMessages;
 
   const handleBackToList = useCallback(() => {
     router.push(ROUTES.consumer.aiMessages);

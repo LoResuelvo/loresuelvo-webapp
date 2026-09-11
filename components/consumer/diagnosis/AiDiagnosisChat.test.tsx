@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import AiDiagnosisChat from "@/components/consumer/diagnosis/AiDiagnosisChat";
 import { AssistantClient } from "@/ports/consumer/assistant-client";
 import { AiChatRepository } from "@/ports/consumer/ai-chat-repository";
+import type { AiConversationDetail } from "@/domain/messaging/types";
 import * as executeUploadModule from "@/application/files/execute-file-upload";
 
 const ASSISTANT_REPLY =
@@ -190,6 +191,51 @@ describe("AiDiagnosisChat", () => {
   it("carga mensajes desde localStorage al montar", async () => {
     render(<AiDiagnosisChat client={instantClient()} />);
     expect(screen.queryByText(USER_MESSAGE)).not.toBeInTheDocument();
+  });
+
+  it("deshabilita el envío mientras carga la conversación inicial", async () => {
+    let resolveGet: (value: AiConversationDetail) => void = () => undefined;
+    const mockRepo = {
+      getById: vi.fn().mockImplementation(
+        () => new Promise<AiConversationDetail>((resolve) => {
+          resolveGet = resolve;
+        })
+      ),
+      sendMessage: vi.fn(),
+      create: vi.fn(),
+      getAll: vi.fn(),
+    };
+
+    render(
+      <AiDiagnosisChat
+        chatRepository={mockRepo as unknown as AiChatRepository}
+        conversationId="10"
+      />
+    );
+
+    const input = screen.getByPlaceholderText(/escribe un mensaje/i);
+    await waitFor(() => {
+      expect(mockRepo.getById).toHaveBeenCalledWith("10");
+      expect(input).toBeDisabled();
+      expect(screen.getByRole("button", { name: /enviar mensaje/i })).toBeDisabled();
+    });
+
+    await act(async () => {
+      resolveGet({
+        id: 10,
+        status: "active",
+        title: "Pérdida",
+        responseStatus: "done",
+        diagnosisCompleted: true,
+        messages: [],
+        recommendedProviders: [],
+        updatedOn: "2026-05-31T12:00:00Z",
+      });
+    });
+
+    await waitFor(() => {
+      expect(input).not.toBeDisabled();
+    });
   });
 
   it("guarda el mensaje del usuario al enviar", async () => {

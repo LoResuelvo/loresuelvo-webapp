@@ -15,7 +15,6 @@ Feature: US-57 Vincular Google Calendar
       | consumidor |
       | prestador  |
 
-  @wip
   Scenario: 02-CGC Ver una cuenta de Calendar vinculada
     Given que estoy autenticado como consumidor
     And mi perfil informa el estado de Google Calendar "connected"

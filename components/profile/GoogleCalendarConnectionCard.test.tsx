@@ -12,4 +12,11 @@ describe("GoogleCalendarConnectionCard", () => {
       screen.getByRole("button", { name: "Vincular Google Calendar" }),
     ).toBeInTheDocument();
   });
+
+  it("renders the connected state without a reconnection action", () => {
+    render(<GoogleCalendarConnectionCard status="connected" />);
+
+    expect(screen.getByText("Vinculada y sincronizada", { exact: true })).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
 });

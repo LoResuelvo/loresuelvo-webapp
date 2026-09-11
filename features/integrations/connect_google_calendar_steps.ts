@@ -58,3 +58,22 @@ Then(
     assert.ok(await status.isVisible(), `No se visualiza el estado de ${integrationName}.`);
   },
 );
+
+Then(
+  "veo la integración {string} como vinculada y sincronizada",
+  async function (this: CustomWorld, integrationName: string) {
+    const status = this.page.getByText("Vinculada y sincronizada", { exact: true });
+    await status.waitFor(visibleTimeout);
+    assert.ok(await status.isVisible(), `No se visualiza el estado de ${integrationName}.`);
+  },
+);
+
+Then("no veo una acción para volver a vincularla", async function (this: CustomWorld) {
+  const calendarCard = this.page.getByRole("region", { name: "Google Calendar" });
+  await calendarCard.waitFor(visibleTimeout);
+  assert.strictEqual(
+    await calendarCard.getByRole("button").count(),
+    0,
+    "Se visualiza una acción para volver a vincular Google Calendar.",
+  );
+});

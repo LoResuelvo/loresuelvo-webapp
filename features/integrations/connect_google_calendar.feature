@@ -56,7 +56,6 @@ Feature: US-57 Vincular Google Calendar
     Then veo la acción de vinculación ocupada y deshabilitada
     And no puedo iniciar otra autorización mientras la primera está pendiente
 
-  @wip
   Scenario: 07-CGC Reintentar después de un error al iniciar la autorización
     Given que estoy autenticado con Google Calendar desvinculado
     And la API no puede iniciar la autorización

@@ -81,6 +81,14 @@ Given("la solicitud de autorización todavía está en curso", async function (t
   );
 });
 
+Given("la API no puede iniciar la autorización", async function (this: CustomWorld) {
+  await this.stubPost(
+    "/me/calendar-connection/authorizations",
+    503,
+    { error: "Internal calendar provider failure" },
+  );
+});
+
 Then("veo la acción de vinculación ocupada y deshabilitada", async function (this: CustomWorld) {
   const calendarCard = this.page.getByRole("region", { name: "Google Calendar" });
   const button = calendarCard.getByRole("button");
@@ -104,6 +112,47 @@ Then(
     );
     const button = this.page.getByRole("region", { name: "Google Calendar" }).getByRole("button");
     assert.ok(await button.isDisabled(), "La acción debería seguir deshabilitada mientras espera.");
+  },
+);
+
+Then("permanezco en mi perfil con el estado no vinculado", async function (this: CustomWorld) {
+  await this.page
+    .getByText("No pudimos iniciar la vinculación con Google Calendar", { exact: false })
+    .waitFor(visibleTimeout);
+  assert.ok(
+    this.page.url().endsWith(ROUTES.consumer.profile),
+    "La página abandonó el perfil después del error de autorización.",
+  );
+  await this.page.getByText("No vinculada", { exact: true }).waitFor(visibleTimeout);
+});
+
+Then(
+  "veo un error seguro que no expone detalles internos",
+  async function (this: CustomWorld) {
+    const error = this.page
+      .getByRole("alert")
+      .filter({ hasText: "No pudimos iniciar la vinculación con Google Calendar" });
+    await error.waitFor(visibleTimeout);
+    const message = await error.textContent();
+    assert.ok(
+      message?.includes("No pudimos iniciar la vinculación con Google Calendar"),
+      "No se visualiza el mensaje seguro de autorización.",
+    );
+    assert.ok(
+      !message?.includes("Internal calendar provider failure"),
+      "El error de autorización expone detalles internos.",
+    );
+  },
+);
+
+Then(
+  "la acción {string} vuelve a estar disponible",
+  async function (this: CustomWorld, action: string) {
+    const button = this.page
+      .getByRole("region", { name: "Google Calendar" })
+      .getByRole("button", { name: action, exact: true });
+    await button.waitFor(visibleTimeout);
+    assert.ok(await button.isEnabled(), "La acción de vinculación no volvió a estar disponible.");
   },
 );
 

@@ -64,7 +64,6 @@ Feature: US-57 Vincular Google Calendar
     And veo un error seguro que no expone detalles internos
     And la acción "Vincular Google Calendar" vuelve a estar disponible
 
-  @wip
   Scenario: 08-CGC Confirmar la vinculación al regresar de Google
     Given que Google autorizó el acceso al calendario
     And la API redirige a mi perfil con el resultado "success"

@@ -1,5 +1,6 @@
 export const ROUTES = {
   home: "/",
+  me: "/me",
   auth: {
     login: "/auth/login",
     signup: "/auth/login?screen_hint=signup",

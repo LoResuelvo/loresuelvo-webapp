@@ -16,6 +16,8 @@ const calendarAuthorizationResponse = {
   state: "opaque-calendar-state",
 };
 
+type CalendarCallbackResult = "success" | "cancelled";
+
 function isCalendarStatus(value: string): value is CalendarConnectionStatus {
   return calendarStatuses.some((status) => status === value);
 }
@@ -24,6 +26,26 @@ function calendarStatusFromLabel(label: string): CalendarConnectionStatus {
   if (isCalendarStatus(label)) return label;
   throw new Error(`Estado de Calendar no soportado: ${label}`);
 }
+
+function calendarCallbackResultFromLabel(label: string): CalendarCallbackResult {
+  if (label === "success" || label === "cancelled") return label;
+  throw new Error(`Resultado de Calendar no soportado: ${label}`);
+}
+
+Given("que Google autorizó el acceso al calendario", async function (this: CustomWorld) {
+  await this.setSession("consumer");
+});
+
+Given("que rechacé el acceso al calendario en Google", async function (this: CustomWorld) {
+  await this.setSession("consumer");
+});
+
+Given(
+  "la API redirige a mi perfil con el resultado {string}",
+  async function (this: CustomWorld, result: string) {
+    this.calendarCallbackResult = calendarCallbackResultFromLabel(result);
+  },
+);
 
 Given("que estoy autenticado", async function (this: CustomWorld) {
   await this.setSession("consumer");
@@ -190,6 +212,46 @@ Then("soy redirigido a la URL de consentimiento de Google", async function (this
   );
 });
 
+When("regreso a LoResuelvo desde Google", async function (this: CustomWorld) {
+  const result = this.calendarCallbackResult;
+  if (!result) throw new Error("Falta definir el resultado del callback de Calendar");
+
+  const profileRoute =
+    this.calendarProfileRole === "provider"
+      ? ROUTES.provider.profile
+      : ROUTES.consumer.profile;
+  await this.page.goto(`${APP_URL}${ROUTES.me}?calendar_result=${result}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await this.page.waitForURL(`${APP_URL}${profileRoute}`, waitTimeout);
+});
+
+Then("veo la confirmación de que Google Calendar fue vinculado", async function (this: CustomWorld) {
+  const banner = this.page
+    .getByRole("status")
+    .filter({ hasText: "Google Calendar fue vinculado" });
+  await banner.waitFor(visibleTimeout);
+  assert.ok(await banner.isVisible(), "No se visualiza la confirmación de vinculación.");
+  assert.strictEqual(
+    this.page.url(),
+    `${APP_URL}${ROUTES.consumer.profile}`,
+    "El resultado del callback no se quitó de la URL.",
+  );
+});
+
+Then("veo que la vinculación de Google Calendar fue cancelada", async function (this: CustomWorld) {
+  const banner = this.page
+    .getByRole("status")
+    .filter({ hasText: "La vinculación de Google Calendar fue cancelada" });
+  await banner.waitFor(visibleTimeout);
+  assert.ok(await banner.isVisible(), "No se visualiza la cancelación de vinculación.");
+  assert.strictEqual(
+    this.page.url(),
+    `${APP_URL}${ROUTES.consumer.profile}`,
+    "El resultado del callback no se quitó de la URL.",
+  );
+});
+
 When("abro mi perfil de LoResuelvo", async function (this: CustomWorld) {
   if (!this.calendarProfileRole) throw new Error("Falta definir el rol del perfil");
 
@@ -236,6 +298,18 @@ Then(
     assert.ok(await status.isVisible(), `No se visualiza el estado de ${integrationName}.`);
   },
 );
+
+Then("veo la integración como vinculada y sincronizada", async function (this: CustomWorld) {
+  const status = this.page.getByText("Vinculada y sincronizada", { exact: true });
+  await status.waitFor(visibleTimeout);
+  assert.ok(await status.isVisible(), "No se visualiza el estado de Calendar vinculado.");
+});
+
+Then("veo la integración como no vinculada", async function (this: CustomWorld) {
+  const status = this.page.getByText("No vinculada", { exact: true });
+  await status.waitFor(visibleTimeout);
+  assert.ok(await status.isVisible(), "No se visualiza el estado de Calendar no vinculado.");
+});
 
 Then("no veo una acción para volver a vincularla", async function (this: CustomWorld) {
   const calendarCard = this.page.getByRole("region", { name: "Google Calendar" });

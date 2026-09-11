@@ -309,6 +309,12 @@ Then("veo la integración como no vinculada", async function (this: CustomWorld)
   const status = this.page.getByText("No vinculada", { exact: true });
   await status.waitFor(visibleTimeout);
   assert.ok(await status.isVisible(), "No se visualiza el estado de Calendar no vinculado.");
+
+  const connectAction = this.page
+    .getByRole("region", { name: "Google Calendar" })
+    .getByRole("button", { name: "Vincular Google Calendar", exact: true });
+  await connectAction.waitFor(visibleTimeout);
+  assert.ok(await connectAction.isEnabled(), "La acción para vincular Calendar no está disponible.");
 });
 
 Then("no veo una acción para volver a vincularla", async function (this: CustomWorld) {

@@ -72,7 +72,6 @@ Feature: US-57 Vincular Google Calendar
     Then veo la confirmación de que Google Calendar fue vinculado
     And veo la integración como vinculada y sincronizada
 
-  @wip
   Scenario: 09-CGC Informar la cancelación al regresar de Google
     Given que rechacé el acceso al calendario en Google
     And la API redirige a mi perfil con el resultado "cancelled"

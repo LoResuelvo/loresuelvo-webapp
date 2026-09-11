@@ -110,12 +110,13 @@ When(
 
 Then("cada prestador recomendado muestra un botón {string}", async function (this: CustomWorld, buttonText: string) {
   const providerCards = this.page.locator("[data-testid='recommended-provider']");
+  await providerCards.first().waitFor(visibleTimeout);
   const count = await providerCards.count();
   assert.ok(count > 0, "No se encontraron prestadores recomendados");
 
   for (let i = 0; i < count; i++) {
     const button = providerCards.nth(i).getByRole("button", { name: new RegExp(buttonText, "i") });
-    await button.waitFor();
+    await button.waitFor(visibleTimeout);
     assert.ok(await button.isVisible(), `El prestador ${i + 1} no tiene botón "${buttonText}"`);
   }
 });

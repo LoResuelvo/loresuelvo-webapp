@@ -28,8 +28,7 @@ Given(
     });
 
     const fileInput = this.page.locator('input[type="file"]');
-    const attachedState = { state: "attached" as const };
-    await fileInput.waitFor(attachedState);
+    await fileInput.waitFor(attachedTimeout);
     const buffer = Buffer.alloc(1 * 1024 * 1024, "a");
     let mimeType = "image/png";
     if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) mimeType = "image/jpeg";
@@ -43,7 +42,6 @@ Then("veo mi foto de perfil en el encabezado del consumidor", async function (th
     .locator('header img[data-testid="header-profile-photo"]')
     .or(this.page.locator('header img[alt*="perfil"]'))
     .first();
-  const attachedState = { state: "attached" as const };
-  await headerAvatar.waitFor(attachedState);
+  await headerAvatar.waitFor(attachedTimeout);
   assert.ok(await headerAvatar.isVisible(), "La foto de perfil del consumidor no se visualiza en el encabezado.");
 });

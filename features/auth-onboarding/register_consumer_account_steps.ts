@@ -6,12 +6,6 @@ import { aConsumer, aProvider, aCategory } from "../support/factories";
 
 const CONSUMER_URL = APP_URL + "/consumidor/home";
 const AUTH0_SIGNUP_URL = "/auth/login?screen_hint=signup";
-
-let selectedRole: "consumer" | "provider" | null = null;
-export const setSelectedRole = (role: "consumer" | "provider") => {
-  selectedRole = role;
-};
-
 Given("que estoy en la página de inicio", async function (this: CustomWorld) {
   await this.page.goto(APP_URL);
 });
@@ -21,7 +15,7 @@ When("hago clic en el botón {string}", async function (this: CustomWorld, butto
     .getByRole("button", { name: buttonName })
     .or(this.page.getByRole("link", { name: buttonName }))
     .first();
-  await button.waitFor();
+  await button.waitFor(visibleTimeout);
   if (buttonName === "Ver conversación") {
     const initialUrl = this.page.url();
     for (let i = 0; i < 5; i++) {
@@ -35,12 +29,13 @@ When("hago clic en el botón {string}", async function (this: CustomWorld, butto
 });
 
 When("finalizo el registro", async function (this: CustomWorld) {
-  const endpoint = selectedRole === "provider" ? "/providers" : "/consumers";
-  const firstName = (this as any).registeredFirstName || (selectedRole === "provider" ? "Carlos" : "Andres");
-  const lastName = (this as any).registeredLastName || (selectedRole === "provider" ? "López" : "Colina");
+  const role = this.selectedRole || "consumer";
+  const endpoint = role === "provider" ? "/providers" : "/consumers";
+  const firstName = this.registeredFirstName || (role === "provider" ? "Carlos" : "Andres");
+  const lastName = this.registeredLastName || (role === "provider" ? "López" : "Colina");
 
   if (!(await this.hasApiStub("POST", endpoint))) {
-    const user = selectedRole === "provider" 
+    const user = role === "provider" 
       ? aProvider({ name: firstName, surname: lastName }) 
       : aConsumer({ name: firstName, surname: lastName });
     await this.stubPost(endpoint, 201, user);
@@ -51,22 +46,22 @@ When("finalizo el registro", async function (this: CustomWorld) {
     name: firstName,
     surname: lastName,
     email: "andy@pro.com",
-    role: selectedRole === "provider" ? "provider" : "consumer",
-    category: selectedRole === "provider" ? { id: 1, name: "Plomería" } : undefined,
+    role: role === "provider" ? "provider" : "consumer",
+    category: role === "provider" ? { id: 1, name: "Plomería" } : undefined,
     profile_photo: null,
   });
 
   const finalizeOptions = { name: "Finalizar Registro" };
   const button = this.page.getByRole("button", finalizeOptions).first();
-  await button.waitFor();
+  await button.waitFor(visibleTimeout);
 
-  if (selectedRole === "consumer" && (this as any).registeredFirstName && !(this as any).explicitAddressSet) {
+  if (role === "consumer" && this.registeredFirstName && !this.explicitAddressSet) {
     const streetInput = this.page.getByLabel("Calle").first();
-    if (await streetInput.isVisible().catch(() => false)) {
-      await streetInput.fill("Av. Rivadavia");
-      const numberInput = this.page.getByLabel("Número").first();
-      await numberInput.fill("5100");
-    }
+    await streetInput.waitFor(visibleTimeout);
+    await streetInput.fill("Av. Rivadavia");
+    const numberInput = this.page.getByLabel("Número").first();
+    await numberInput.waitFor(visibleTimeout);
+    await numberInput.fill("5100");
   }
 
   await button.click();
@@ -115,12 +110,18 @@ Given(
 );
 
 Given("elegí la opción de consumidor en la pagina de registro", async function (this: CustomWorld) {
-  selectedRole = "consumer";
+  this.selectedRole = "consumer";
   await this.page.goto(APP_URL + ROUTES.onboarding);
-  const consumerButton = this.page.getByText("Soy Cliente").first();
+  const consumerButton = this.page
+    .locator("#role-consumer-btn")
+    .or(this.page.getByText("Soy Cliente"))
+    .first();
+  await consumerButton.waitFor(visibleTimeout);
   await consumerButton.click();
-  const continueButton = this.page.getByText("Continuar").first();
+  const continueButton = this.page.getByRole("button", { name: /continuar/i }).or(this.page.getByText("Continuar")).first();
+  await continueButton.waitFor(visibleTimeout);
   await continueButton.click();
+  await this.page.getByLabel("Nombre").first().waitFor(visibleTimeout);
 });
 
 Then("veo mi nombre {string} en el encabezado", async function (this: CustomWorld, name: string) {

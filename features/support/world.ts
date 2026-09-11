@@ -14,6 +14,16 @@ export class CustomWorld extends World {
   context!: BrowserContext;
   page!: Page;
   appUrl: string = APP_URL;
+  selectedRole: "consumer" | "provider" | null = null;
+  registeredFirstName?: string;
+  registeredLastName?: string;
+  registeredEmail?: string;
+  explicitAddressSet?: boolean;
+  activeConversationId: number = 1;
+  wsServer: import("playwright").WebSocketRoute | null = null;
+  audioWsServer: import("playwright").WebSocketRoute | null = null;
+  currentAttachedImages: string[] = [];
+  currentJobRequestAttachedImages: string[] = [];
 
   constructor(options: IWorldOptions) {
     super(options);

@@ -3,8 +3,6 @@ import assert from "assert";
 import { CustomWorld, visibleTimeout, attachedTimeout, waitTimeout, attachedState } from "../support/world";
 import { aPresignedUpload, aConfirmedFile, aConversationDetail, aConversationMessage, aMessageImage, aCounterpart } from "../support/factories";
 
-let currentAttachedImages: string[] = [];
-
 async function stubFileUpload(world: CustomWorld, fileName: string, fileId: string = "mock-file-123") {
   await world.stubPost(
     "/files/presign",
@@ -54,7 +52,7 @@ async function triggerFileChooser(world: CustomWorld) {
 }
 
 Given("que adjunté la imagen {string}", async function (this: CustomWorld, imagen: string) {
-  currentAttachedImages.push(imagen);
+  this.currentAttachedImages.push(imagen);
   await stubFileUpload(this, imagen);
 
   const fileChooser = await triggerFileChooser(this);
@@ -67,7 +65,7 @@ Given("que adjunté la imagen {string}", async function (this: CustomWorld, imag
 });
 
 Given("que adjunté las imágenes {string} y {string}", async function (this: CustomWorld, img1: string, img2: string) {
-  currentAttachedImages.push(img1, img2);
+  this.currentAttachedImages.push(img1, img2);
   await stubFileUpload(this, img1, "mock-file-1");
   await stubFileUpload(this, img2, "mock-file-2");
 
@@ -89,7 +87,7 @@ When("adjunto la imagen {string} que supera los 5MB", async function (this: Cust
 });
 
 Given("que eliminé la imagen {string} de los archivos adjuntos", async function (this: CustomWorld, imagen: string) {
-  currentAttachedImages = currentAttachedImages.filter((img) => img !== imagen);
+  this.currentAttachedImages = this.currentAttachedImages.filter((img) => img !== imagen);
   const deleteBtn = this.page.getByRole("button", { name: `Eliminar ${imagen}` });
   await deleteBtn.click();
 });
@@ -99,7 +97,7 @@ When("envío el mensaje {string}", async function (this: CustomWorld, mensaje: s
     id: 999,
     sender_role: "consumer",
     content: mensaje,
-    images: currentAttachedImages.map((name, idx) => aMessageImage({
+    images: this.currentAttachedImages.map((name, idx) => aMessageImage({
       id: `mock-file-${idx}`,
       url: `/${name}`,
       original_name: name,
@@ -107,7 +105,7 @@ When("envío el mensaje {string}", async function (this: CustomWorld, mensaje: s
     created_on: new Date().toISOString(),
   }));
 
-  currentAttachedImages = [];
+  this.currentAttachedImages = [];
 
   const input = this.page.getByRole("textbox", { name: /escribe un mensaje/i });
   await input.fill(mensaje);
@@ -121,7 +119,7 @@ When("envío el mensaje sin texto", async function (this: CustomWorld) {
     id: 999,
     sender_role: "consumer",
     content: "",
-    images: currentAttachedImages.map((name, idx) => aMessageImage({
+    images: this.currentAttachedImages.map((name, idx) => aMessageImage({
       id: `mock-file-${idx}`,
       url: `/${name}`,
       original_name: name,
@@ -129,7 +127,7 @@ When("envío el mensaje sin texto", async function (this: CustomWorld) {
     created_on: new Date().toISOString(),
   }));
 
-  currentAttachedImages = [];
+  this.currentAttachedImages = [];
 
   const sendButton = this.page.getByRole("button", { name: /enviar/i });
   await sendButton.click();
@@ -183,13 +181,12 @@ Then("el detalle del mensaje en pantalla incluye la imagen {string}", async func
 When(
   "el consumidor {string} me envía un mensaje con la imagen {string}",
   async function (this: CustomWorld, nombre: string, imagen: string) {
-    let wsServer = (global as any).wsServer;
     let attempts = 0;
-    while (!wsServer && attempts < 100) {
+    while (!this.wsServer && !(global as any).wsServer && attempts < 100) {
       await new Promise((r) => setTimeout(r, 100));
-      wsServer = (global as any).wsServer;
       attempts++;
     }
+    const wsServer = this.wsServer || (global as any).wsServer;
     if (!wsServer) throw new Error("No hay WebSocket interceptado para enviar el mensaje con imagen");
     wsServer.send(
       JSON.stringify({

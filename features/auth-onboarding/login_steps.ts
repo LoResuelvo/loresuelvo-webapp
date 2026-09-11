@@ -7,10 +7,6 @@ import { ROUTES } from "../../lib/routes";
 const AUTH0_LOGIN_URL = ROUTES.auth.login;
 const CONSUMER_URL = APP_URL + ROUTES.consumer.home;
 
-let registeredEmail = "";
-let registeredFirstName = "";
-let registeredLastName = "";
-
 Given("que no inicié sesión en Auth0", async function (this: CustomWorld) {
   await this.page.context().clearCookies();
 });
@@ -18,9 +14,9 @@ Given("que no inicié sesión en Auth0", async function (this: CustomWorld) {
 Given(
   "previamente me registre exitosamente con el mail {string}, nombre {string} y apellido {string}",
   async function (this: CustomWorld, email: string, firstName: string, lastName: string) {
-    registeredEmail = email;
-    registeredFirstName = firstName;
-    registeredLastName = lastName;
+    this.registeredEmail = email;
+    this.registeredFirstName = firstName;
+    this.registeredLastName = lastName;
   }
 );
 
@@ -42,9 +38,9 @@ Then("soy redirigido al portal de autenticación de Auth0 para iniciar sesión",
 Given("que me logueé exitosamente en Auth0 como cliente", async function (this: CustomWorld) {
   await this.setSession("consumer", {
     id: "mock-001",
-    email: registeredEmail || "andy@pro.com",
-    firstName: registeredFirstName || "Andres",
-    lastName: registeredLastName || "Colina",
+    email: this.registeredEmail || "andy@pro.com",
+    firstName: this.registeredFirstName || "Andres",
+    lastName: this.registeredLastName || "Colina",
     isOnboarded: true,
   });
 });
@@ -52,9 +48,9 @@ Given("que me logueé exitosamente en Auth0 como cliente", async function (this:
 Given("que me logueé exitosamente en Auth0 como prestador", async function (this: CustomWorld) {
   await this.setSession("provider", {
     id: "mock-002",
-    email: registeredEmail || "andy@pro.com",
-    firstName: registeredFirstName || "Andres",
-    lastName: registeredLastName || "Colina",
+    email: this.registeredEmail || "andy@pro.com",
+    firstName: this.registeredFirstName || "Andres",
+    lastName: this.registeredLastName || "Colina",
     isOnboarded: true,
   });
 });
@@ -65,9 +61,9 @@ When("entro al home de clientes", async function (this: CustomWorld) {
 
 Given("la API devuelve mi perfil completo de consumidor sin foto", async function (this: CustomWorld) {
   const profile = aCurrentUser("consumer", {
-    name: registeredFirstName || "Ana",
-    surname: registeredLastName || "Pérez",
-    email: registeredEmail || "consumidor@loresuelvo.test",
+    name: this.registeredFirstName || "Ana",
+    surname: this.registeredLastName || "Pérez",
+    email: this.registeredEmail || "consumidor@loresuelvo.test",
     profile_photo: null,
   });
 
@@ -78,9 +74,9 @@ Given("la API devuelve mi perfil completo de consumidor sin foto", async functio
 
 Given("la API devuelve mi perfil completo de consumidor con foto", async function (this: CustomWorld) {
   const profile = aCurrentUser("consumer", {
-    name: registeredFirstName || "Ana",
-    surname: registeredLastName || "Pérez",
-    email: registeredEmail || "consumidor@loresuelvo.test",
+    name: this.registeredFirstName || "Ana",
+    surname: this.registeredLastName || "Pérez",
+    email: this.registeredEmail || "consumidor@loresuelvo.test",
     profile_photo: aConfirmedFile(),
   });
 
@@ -93,9 +89,9 @@ Given(
   "la API devuelve mi perfil completo de prestador con rubro {string}",
   async function (this: CustomWorld, categoryName: string) {
     const profile = aCurrentUser("provider", {
-      name: registeredFirstName || "Juan",
-      surname: registeredLastName || "Gómez",
-      email: registeredEmail || "prestador@loresuelvo.test",
+      name: this.registeredFirstName || "Juan",
+      surname: this.registeredLastName || "Gómez",
+      email: this.registeredEmail || "prestador@loresuelvo.test",
       profile_photo: aConfirmedFile(),
       category: aCategory({ name: categoryName }),
     });

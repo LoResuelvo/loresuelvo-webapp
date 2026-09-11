@@ -4,8 +4,6 @@ import { CustomWorld, APP_URL, visibleTimeout, attachedTimeout, waitTimeout, att
 import { ROUTES } from "../../lib/routes";
 import { aPresignedUpload, aConfirmedFile, aJobRequest } from "../support/factories";
 
-let currentJobRequestAttachedImages: string[] = [];
-
 async function stubFileUpload(world: CustomWorld, fileName: string, fileId: string = "mock-file-123") {
   await world.stubPost(
     "/files/presign",
@@ -32,7 +30,7 @@ async function stubFileUpload(world: CustomWorld, fileName: string, fileId: stri
 }
 
 Given("que adjunté la imagen {string} a la solicitud", async function (this: CustomWorld, imagen: string) {
-  currentJobRequestAttachedImages.push(imagen);
+  this.currentJobRequestAttachedImages.push(imagen);
   await stubFileUpload(this, imagen, "mock-file-123");
 
   const fileChooserPromise = this.page.waitForEvent("filechooser");
@@ -49,7 +47,7 @@ Given("que adjunté la imagen {string} a la solicitud", async function (this: Cu
 Given(
   "que adjunté las imágenes {string}, {string} y {string} a la solicitud",
   async function (this: CustomWorld, img1: string, img2: string, img3: string) {
-    currentJobRequestAttachedImages.push(img1, img2, img3);
+    this.currentJobRequestAttachedImages.push(img1, img2, img3);
     await stubFileUpload(this, img1, "mock-file-1");
     await stubFileUpload(this, img2, "mock-file-2");
     await stubFileUpload(this, img3, "mock-file-3");
@@ -70,7 +68,7 @@ Given(
 
 Given("que adjunté 3 imágenes a la solicitud", async function (this: CustomWorld) {
   const images = ["img1.jpg", "img2.jpg", "img3.jpg"];
-  currentJobRequestAttachedImages.push(...images);
+  this.currentJobRequestAttachedImages.push(...images);
   await stubFileUpload(this, "img1.jpg", "mock-file-1");
   await stubFileUpload(this, "img2.jpg", "mock-file-2");
   await stubFileUpload(this, "img3.jpg", "mock-file-3");

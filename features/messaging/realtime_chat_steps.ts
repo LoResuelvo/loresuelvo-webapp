@@ -16,9 +16,6 @@ interface WsEvent {
   };
 }
 
-let activeConversationId = 1;
-let wsServer: import("playwright").WebSocketRoute | null = null;
-
 async function setConsumerRealtimeSession(world: CustomWorld) {
   await world.setSession("consumer", {
     id: "consumer-001",
@@ -95,29 +92,29 @@ async function stubConversationApi(world: CustomWorld, conversationId: number = 
 }
 
 async function interceptWebSocket(world: CustomWorld) {
-  wsServer = null;
+  world.wsServer = null;
   (global as any).wsServer = null;
   await world.page.routeWebSocket(/.*\/ws.*/, (ws) => {
-    wsServer = ws;
+    world.wsServer = ws;
     (global as any).wsServer = ws;
     ws.onMessage(() => {});
   });
 }
 
-async function sendWsMessageToPage(event: WsEvent) {
+async function sendWsMessageToPage(world: CustomWorld, event: WsEvent) {
   let attempts = 0;
-  while (!wsServer && attempts < 100) {
+  while (!world.wsServer && attempts < 100) {
     await new Promise((r) => setTimeout(r, 200));
     attempts++;
   }
-  if (!wsServer) throw new Error("No hay WebSocket interceptado. ¿Se ejecutó interceptWebSocket() antes de navegar?");
-  wsServer.send(JSON.stringify(event));
+  if (!world.wsServer) throw new Error("No hay WebSocket interceptado. ¿Se ejecutó interceptWebSocket() antes de navegar?");
+  world.wsServer.send(JSON.stringify(event));
 }
 
 Given(
   "que existe un chat activo entre el consumidor {string} y el prestador {string}",
   async function (this: CustomWorld, consumerName: string, providerName: string) {
-    activeConversationId = 1;
+    this.activeConversationId = 1;
   }
 );
 
@@ -125,7 +122,7 @@ Given(
   "que estoy en el chat con el prestador {string} como consumidor",
   async function (this: CustomWorld, providerName: string) {
     await setConsumerRealtimeSession(this);
-    await stubConversationApi(this, activeConversationId);
+    await stubConversationApi(this, this.activeConversationId);
     await interceptWebSocket(this);
     await this.page.goto(
       APP_URL + ROUTES.consumer.messages + `?provider_id=1&name=Juan&surname=Gómez`,
@@ -143,7 +140,7 @@ Given(
 
     await this.stubGet("/conversations", [
       aConversation({
-        id: activeConversationId,
+        id: this.activeConversationId,
         status: "accepted",
         counterpart: aCounterpart({
           id: 1,
@@ -162,8 +159,8 @@ Given(
       }),
     ]);
 
-    await this.stubGet(`/conversations/${activeConversationId}`, aConversationDetail({
-      id: activeConversationId,
+    await this.stubGet(`/conversations/${this.activeConversationId}`, aConversationDetail({
+      id: this.activeConversationId,
       status: "accepted",
       counterpart: aCounterpart({
         id: 1,
@@ -199,9 +196,9 @@ Given(
 When(
   "el prestador {string} me envía el mensaje {string}",
   async function (this: CustomWorld, providerName: string, messageContent: string) {
-    await sendWsMessageToPage({
+    await sendWsMessageToPage(this, {
       type: "conversation.message.created",
-      conversation_id: activeConversationId,
+      conversation_id: this.activeConversationId,
       message: {
         id: 200,
         content: messageContent,
@@ -215,9 +212,9 @@ When(
 When(
   "el consumidor {string} me envía el mensaje {string}",
   async function (this: CustomWorld, consumerName: string, messageContent: string) {
-    await sendWsMessageToPage({
+    await sendWsMessageToPage(this, {
       type: "conversation.message.created",
-      conversation_id: activeConversationId,
+      conversation_id: this.activeConversationId,
       message: {
         id: 201,
         content: messageContent,
@@ -235,7 +232,7 @@ Then("veo el mensaje {string} en la pantalla del chat", async function (this: Cu
 });
 
 When("otro usuario me envía un mensaje en una conversación diferente", async function (this: CustomWorld) {
-  await sendWsMessageToPage({
+  await sendWsMessageToPage(this, {
     type: "conversation.message.created",
     conversation_id: 99,
     message: {
@@ -279,8 +276,8 @@ Then(
 );
 
 Given("estoy revisando mensajes anteriores en la conversación", async function (this: CustomWorld) {
-  await this.stubGet(`/conversations/${activeConversationId}`, aConversationDetail({
-    id: activeConversationId,
+  await this.stubGet(`/conversations/${this.activeConversationId}`, aConversationDetail({
+    id: this.activeConversationId,
     status: "accepted",
     counterpart: aCounterpart({ id: 1, role: "provider", name: "Juan", surname: "Gómez", category_name: "Plomería" }),
     messages: Array.from({ length: 15 }, (_, i) => aConversationMessage({
@@ -292,7 +289,8 @@ Given("estoy revisando mensajes anteriores en la conversación", async function 
     updated_on: new Date().toISOString(),
   }));
 
-  wsServer = null;
+  this.wsServer = null;
+  (global as any).wsServer = null;
   await this.page.reload();
 
   const chatPanel = this.page.locator("[data-testid='messages-list']");
@@ -302,7 +300,7 @@ Given("estoy revisando mensajes anteriores en la conversación", async function 
   await msg15.waitFor({ state: "visible" });
 
   let attempts = 0;
-  while (!wsServer && attempts < 100) {
+  while (!this.wsServer && attempts < 100) {
     await new Promise((r) => setTimeout(r, 200));
     attempts++;
   }

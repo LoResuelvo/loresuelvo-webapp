@@ -6,17 +6,23 @@ setDefaultTimeout(30_000);
 
 let globalBrowser: Browser;
 
+const CHROMIUM_LAUNCH_OPTIONS = {
+  headless: true,
+};
+
 BeforeAll(async () => {
-  globalBrowser = await chromium.launch({ headless: true });
+  globalBrowser = await chromium.launch(CHROMIUM_LAUNCH_OPTIONS);
 });
 
 AfterAll(async () => {
-  await globalBrowser?.close();
+  if (globalBrowser?.isConnected()) {
+    await globalBrowser.close().catch(() => {});
+  }
 });
 
 Before(async function (this: CustomWorld, scenario: ITestCaseHookParameter) {
-  if (!globalBrowser) {
-    globalBrowser = await chromium.launch({ headless: true });
+  if (!globalBrowser || !globalBrowser.isConnected()) {
+    globalBrowser = await chromium.launch(CHROMIUM_LAUNCH_OPTIONS);
   }
   this.browser = globalBrowser;
   this.context = await globalBrowser.newContext();
@@ -58,5 +64,26 @@ Before(async function (this: CustomWorld, scenario: ITestCaseHookParameter) {
 });
 
 After(async function (this: CustomWorld) {
-  await this.context?.close();
+  try {
+    if (this.page && !this.page.isClosed()) {
+      await this.page.close({ runBeforeUnload: false });
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    if (this.context) {
+      await this.context.close();
+    }
+  } catch {
+    try {
+      if (globalBrowser?.isConnected()) {
+        await globalBrowser.close().catch(() => {});
+      }
+    } catch {
+      // ignore
+    }
+    globalBrowser = await chromium.launch(CHROMIUM_LAUNCH_OPTIONS);
+  }
 });

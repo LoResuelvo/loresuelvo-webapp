@@ -1,6 +1,5 @@
 import { Given, When, Then } from "@cucumber/cucumber";
-import { CustomWorld, APP_URL } from "../support/world";
-import { setSelectedRole } from "./register_consumer_account_steps";
+import { CustomWorld, APP_URL, visibleTimeout } from "../support/world";
 import { aCategory } from "../support/factories";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
@@ -13,7 +12,7 @@ When("entro al home de prestadores", async function (this: CustomWorld) {
 });
 
 Given("elegí la opción de prestador en la pagina de registro", async function (this: CustomWorld) {
-  setSelectedRole("provider");
+  this.selectedRole = "provider";
 
   await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
   if (!(await this.hasApiStub("GET", "/coverage-zones"))) {
@@ -21,17 +20,23 @@ Given("elegí la opción de prestador en la pagina de registro", async function 
   }
 
   await this.page.goto(APP_URL + ROUTES.onboarding);
-  const providerButton = this.page.getByText("Soy Prestador").first();
+  const providerButton = this.page
+    .locator("#role-provider-btn")
+    .or(this.page.getByText("Soy Prestador"))
+    .first();
+  await providerButton.waitFor(visibleTimeout);
   await providerButton.click();
-  const continueButton = this.page.getByText("Continuar").first();
+  const continueButton = this.page.getByRole("button", { name: /continuar/i }).or(this.page.getByText("Continuar")).first();
+  await continueButton.waitFor(visibleTimeout);
   await continueButton.click();
+  await this.page.getByLabel("Nombre").first().waitFor(visibleTimeout);
 });
 
 Given(
   "ingreso mi nombre {string} y apellido {string} en el formulario",
   async function (this: CustomWorld, firstName: string, lastName: string) {
-    (this as any).registeredFirstName = firstName;
-    (this as any).registeredLastName = lastName;
+    this.registeredFirstName = firstName;
+    this.registeredLastName = lastName;
     await this.page.getByLabel("Nombre").fill(firstName);
     await this.page.getByLabel("Apellido").fill(lastName);
   }

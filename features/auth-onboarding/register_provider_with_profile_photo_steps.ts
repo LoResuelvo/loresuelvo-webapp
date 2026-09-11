@@ -5,7 +5,7 @@ import assert from "assert";
 
 async function selectFile(world: CustomWorld, fileName: string, sizeInMB: number = 1) {
   const fileInput = world.page.locator('input[type="file"]');
-  await fileInput.waitFor(attachedState);
+  await fileInput.waitFor(attachedTimeout);
 
   const sizeInBytes = sizeInMB * 1024 * 1024;
   const buffer = Buffer.alloc(sizeInBytes, "a");
@@ -80,6 +80,6 @@ Then("veo mi foto de perfil en el encabezado", async function (this: CustomWorld
     .or(this.page.locator('header img[alt*="perfil"]'))
     .first();
 
-  await headerAvatar.waitFor(attachedState);
+  await headerAvatar.waitFor(attachedTimeout);
   assert.ok(await headerAvatar.isVisible(), "La foto de perfil del prestador no se visualiza en el encabezado.");
 });

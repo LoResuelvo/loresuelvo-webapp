@@ -4,6 +4,7 @@ import { AvatarUploader } from "./AvatarUploader";
 
 if (typeof window !== "undefined") {
   window.URL.createObjectURL = vi.fn(() => "blob:mock-avatar-url");
+  window.URL.revokeObjectURL = vi.fn();
 }
 
 describe("AvatarUploader", () => {

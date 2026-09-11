@@ -12,8 +12,6 @@ import {
 } from "../support/factories";
 import { ROUTES } from "../../lib/routes";
 
-let audioWsServer: import("playwright").WebSocketRoute | null = null;
-
 async function stubAudioChat(world: CustomWorld) {
   await world.setSession("consumer", {
     id: "consumer-001",
@@ -570,9 +568,9 @@ Given("que el audio tiene una URL firmada vigente", async function (this: Custom
 
 Given("que estoy en el chat activo con {string}", async function (this: CustomWorld, _counterpartName: string) {
   await stubAudioChat(this);
-  audioWsServer = null;
+  this.audioWsServer = null;
   await this.page.routeWebSocket(/.*\/ws.*/, (ws) => {
-    audioWsServer = ws;
+    this.audioWsServer = ws;
     ws.onMessage(() => {});
   });
   await this.page.goto(
@@ -584,9 +582,9 @@ Given("que estoy en el chat activo con {string}", async function (this: CustomWo
 
 Given("que el sidebar cargó una conversación cuyo último mensaje es un audio de 18 segundos", async function (this: CustomWorld) {
   await stubAudioSidebarChat(this);
-  audioWsServer = null;
+  this.audioWsServer = null;
   await this.page.routeWebSocket(/.*\/ws.*/, (ws) => {
-    audioWsServer = ws;
+    this.audioWsServer = ws;
     ws.onMessage(() => {});
   });
   await this.page.goto(
@@ -605,11 +603,11 @@ Given("que el sidebar muestra exactamente {string}", async function (this: Custo
 
 Given("que el WebSocket está conectado", async function (this: CustomWorld) {
   let attempts = 0;
-  while (!audioWsServer && attempts < 25) {
+  while (!this.audioWsServer && attempts < 25) {
     await this.page.waitForTimeout(200);
     attempts += 1;
   }
-  assert.ok(audioWsServer, "No se conectó el WebSocket determinista del escenario");
+  assert.ok(this.audioWsServer, "No se conectó el WebSocket determinista del escenario");
 });
 
 Given("que el navegador permite usar el micrófono", async function (this: CustomWorld) {
@@ -730,8 +728,8 @@ When("consulto el chat", async function (this: CustomWorld) {
 });
 
 When("recibo por WebSocket el audio {string}", async function (this: CustomWorld, fileName: string) {
-  assert.ok(audioWsServer, "No se conectó el WebSocket determinista del escenario");
-  audioWsServer?.send(JSON.stringify({
+  assert.ok(this.audioWsServer, "No se conectó el WebSocket determinista del escenario");
+  this.audioWsServer?.send(JSON.stringify({
     type: "conversation.message.created",
     conversation_id: 1,
     message: {
@@ -772,8 +770,8 @@ When("reintento enviar el audio después de liberar un cupo", async function (th
 });
 
 When("recibo por WebSocket un nuevo audio de 18 segundos para esa conversación", async function (this: CustomWorld) {
-  assert.ok(audioWsServer, "No se conectó el WebSocket determinista del escenario");
-  audioWsServer?.send(JSON.stringify({
+  assert.ok(this.audioWsServer, "No se conectó el WebSocket determinista del escenario");
+  this.audioWsServer?.send(JSON.stringify({
     type: "conversation.message.created",
     conversation_id: 1,
     message: {

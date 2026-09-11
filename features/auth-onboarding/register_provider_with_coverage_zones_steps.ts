@@ -1,6 +1,5 @@
 import { Given, When, Then } from "@cucumber/cucumber";
-import { CustomWorld, APP_URL } from "../support/world";
-import { setSelectedRole } from "./register_consumer_account_steps";
+import { CustomWorld, APP_URL, visibleTimeout } from "../support/world";
 import { aCoverageZone, aCategory, anApiError, aProvider, aPresignedUpload, aConfirmedFile } from "../support/factories";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
@@ -25,7 +24,7 @@ Given("Google Maps está disponible con límites para esas comunas", async funct
 });
 
 When("elijo la opción de prestador y avanzo al paso de datos de perfil", async function (this: CustomWorld) {
-  setSelectedRole("provider");
+  this.selectedRole = "provider";
 
   if (!(await this.hasApiStub("GET", "/categories"))) {
     await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
@@ -36,10 +35,12 @@ When("elijo la opción de prestador y avanzo al paso de datos de perfil", async 
     .locator("#role-provider-btn")
     .or(this.page.getByText("Soy Prestador"))
     .first();
+  await providerButton.waitFor(visibleTimeout);
   await providerButton.click();
   const continueButton = this.page.getByRole("button", { name: /continuar/i }).first();
+  await continueButton.waitFor(visibleTimeout);
   await continueButton.click();
-  await this.page.waitForSelector('input[name="firstName"]');
+  await this.page.locator('input[name="firstName"]').waitFor(visibleTimeout);
 });
 
 Then("veo el estado de carga de las zonas de cobertura", async function (this: CustomWorld) {
@@ -98,7 +99,7 @@ Then("no puedo finalizar el registro como prestador", async function (this: Cust
 });
 
 Given("la consulta de zonas falló y veo su estado de error", async function (this: CustomWorld) {
-  setSelectedRole("provider");
+  this.selectedRole = "provider";
   await this.stubGet("/coverage-zones", anApiError("Internal Server Error"), 500);
 
   if (!(await this.hasApiStub("GET", "/categories"))) {
@@ -170,7 +171,7 @@ Given(
       await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
     }
 
-    setSelectedRole("provider");
+    this.selectedRole = "provider";
     await this.page.goto(APP_URL + ROUTES.onboarding);
     const providerButton = this.page
       .locator("#role-provider-btn")
@@ -234,7 +235,7 @@ Given(
       await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
     }
 
-    setSelectedRole("provider");
+    this.selectedRole = "provider";
     await this.page.goto(APP_URL + ROUTES.onboarding);
     const providerButton = this.page
       .locator("#role-provider-btn")
@@ -305,7 +306,7 @@ Given(
       await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
     }
 
-    setSelectedRole("provider");
+    this.selectedRole = "provider";
     await this.page.goto(APP_URL + ROUTES.onboarding);
     const providerButton = this.page
       .locator("#role-provider-btn")
@@ -371,7 +372,7 @@ Given(
       await this.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
     }
 
-    setSelectedRole("provider");
+    this.selectedRole = "provider";
     await this.page.goto(APP_URL + ROUTES.onboarding);
     const providerButton = this.page
       .locator("#role-provider-btn")
@@ -450,7 +451,7 @@ Given(
       (window as unknown as { __MOCK_MAPS_CONFIG__?: string }).__MOCK_MAPS_CONFIG__ = "missing";
     });
 
-    setSelectedRole("provider");
+    this.selectedRole = "provider";
     await this.page.goto(APP_URL + ROUTES.onboarding);
     const providerButton = this.page
       .locator("#role-provider-btn")
@@ -480,7 +481,7 @@ Given(
       (window as unknown as { __MOCK_MAPS_ERROR__?: boolean }).__MOCK_MAPS_ERROR__ = true;
     });
 
-    setSelectedRole("provider");
+    this.selectedRole = "provider";
     await this.page.goto(APP_URL + ROUTES.onboarding);
     const providerButton = this.page
       .locator("#role-provider-btn")

@@ -1,7 +1,7 @@
 "use client";
 
 import { AuthSession } from "@/infrastructure/auth/types";
-import { LogOut } from "lucide-react";
+import { LogOut, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { ROUTES } from "@/lib/routes";
@@ -62,6 +62,14 @@ export default function ConsumerHeader({ session }: ConsumerHeaderProps) {
               </div>
             )}
             <div className="py-1">
+              <Link
+                href={ROUTES.consumer.profile}
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-2.5 px-4 py-2 text-body text-brand-primary hover:bg-slate-50 font-medium transition-colors w-full text-left"
+              >
+                <UserRound className="w-4 h-4" aria-hidden="true" />
+                <span>{t.header.profile}</span>
+              </Link>
               <Link
                 href={ROUTES.auth.logout}
                 className="flex items-center gap-2.5 px-4 py-2 text-body text-rose-600 hover:bg-rose-50 font-medium transition-colors w-full text-left"

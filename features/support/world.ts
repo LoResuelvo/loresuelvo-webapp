@@ -14,6 +14,8 @@ export class CustomWorld extends World {
   context!: BrowserContext;
   page!: Page;
   appUrl: string = APP_URL;
+  calendarProfileRole?: "consumer" | "provider";
+  calendarConnectionStatus?: string;
   selectedRole: "consumer" | "provider" | null = null;
   registeredFirstName?: string;
   registeredLastName?: string;
@@ -69,6 +71,7 @@ export class CustomWorld extends World {
     role: "consumer" | "provider" = "consumer",
     userOverrides: Partial<AuthSession["user"]> = {}
   ): Promise<void> {
+    this.calendarProfileRole = role;
     const session = aSession(role, userOverrides);
     await this.page.context().addCookies([
       {
@@ -86,6 +89,7 @@ export class CustomWorld extends World {
         surname: session.user.lastName,
         email: session.user.email,
         role: session.user.role,
+        calendar_connection_status: "disconnected",
         category: session.user.role === "provider" ? { id: 1, name: "Plomería" } : undefined,
         profile_photo: session.user.profilePhotoUrl ? { url: session.user.profilePhotoUrl, original_name: "photo.jpg" } : null,
       });

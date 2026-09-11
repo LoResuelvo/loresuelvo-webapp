@@ -29,7 +29,6 @@ Feature: US-57 Vincular Google Calendar
     Then veo una alerta indicando que Google Calendar requiere autorización
     And veo la acción "Reautorizar Google Calendar"
 
-  @wip
   Scenario: 04-CGC Recuperarse de un error al consultar el perfil
     Given que estoy autenticado
     And la consulta de mi perfil no está disponible

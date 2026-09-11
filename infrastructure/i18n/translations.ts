@@ -117,6 +117,11 @@ export const t = {
     photoAlt: "Foto de perfil de",
     nameLabel: "Nombre",
     emailLabel: "Correo electrónico",
+    error: {
+      title: "No se pudo cargar la configuración",
+      description: "No pudimos consultar tu perfil en este momento. Intentá nuevamente.",
+      retry: "Reintentar consulta",
+    },
     calendar: {
       title: "Google Calendar",
       description: "Sincronizá tus turnos y citas de trabajo.",

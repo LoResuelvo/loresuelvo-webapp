@@ -157,6 +157,11 @@ Given("existe una conversación con la IA", async function (this: CustomWorld) {
 
   await this.page.goto(`${APP_URL}${ROUTES.consumer.aiMessages}?id=1`);
   await this.page.waitForLoadState("domcontentloaded");
+
+  const chatArea = this.page.getByRole("region", { name: "Chat con el asistente de diagnóstico" });
+  await chatArea
+    .getByText("Revisá si el agua sale desde la rosca del sifón.")
+    .waitFor(visibleTimeout);
 });
 
 When("recibo una nueva respuesta del asistente", async function (this: CustomWorld) {

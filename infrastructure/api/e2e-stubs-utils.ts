@@ -28,25 +28,25 @@ export function parseE2EStubsFromCookies(cookies: Cookie[]): ApiStub[] {
 
   const stubsCookieValue = chunks.map((c) => c.value).join("");
   try {
-    return JSON.parse(decodeURIComponent(stubsCookieValue)) as ApiStub[];
+    const decoded = Buffer.from(stubsCookieValue, "base64url").toString("utf8");
+    return JSON.parse(decoded) as ApiStub[];
   } catch {
-    return [];
+    try {
+      return JSON.parse(decodeURIComponent(stubsCookieValue)) as ApiStub[];
+    } catch {
+      return [];
+    }
   }
 }
 
 export function createE2EStubCookies(stubs: ApiStub[]): Cookie[] {
-  const fullValue = encodeURIComponent(JSON.stringify(stubs));
+  const fullValue = Buffer.from(JSON.stringify(stubs), "utf8").toString("base64url");
   
   const chunks: string[] = [];
   let i = 0;
   while (i < fullValue.length) {
-    let size = E2E_CHUNK_SIZE;
-    if (i + size < fullValue.length) {
-      if (fullValue[i + size - 1] === '%') size -= 1;
-      else if (fullValue[i + size - 2] === '%') size -= 2;
-    }
-    chunks.push(fullValue.slice(i, i + size));
-    i += size;
+    chunks.push(fullValue.slice(i, i + E2E_CHUNK_SIZE));
+    i += E2E_CHUNK_SIZE;
   }
 
   const cookiesToSet: Cookie[] = [];

@@ -137,7 +137,7 @@ test-e2e-managed:
 		set --; \
 		if [ -n "$(E2E_PROFILE)" ]; then set -- "$$@" --profile "$(E2E_PROFILE)"; fi; \
 		if [ -n "$(E2E_FILE)" ]; then set -- "$$@" "$(E2E_FILE)"; fi; \
-		if [ -n "$(E2E_NAME)" ]; then set -- "$$@" --name "$(E2E_NAME)"; fi; \
+		if [ -n "$(E2E_NAME)" ]; then set -- "$$@" --name "$(E2E_NAME)" --parallel 1; fi; \
 		if [ "$(E2E_REQUIRE_SCENARIO)" = "1" ]; then \
 			rm -f "$(E2E_SCENARIO_REPORT)"; \
 			set -- "$$@" --format "json:$(E2E_SCENARIO_REPORT)"; \

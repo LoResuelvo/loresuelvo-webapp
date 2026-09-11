@@ -1,6 +1,6 @@
 {
   "default": {
-    "parallel": 4,
+    "parallel": 2,
     "require": [
       "features/support/**/*.ts",
       "features/**/*.ts"

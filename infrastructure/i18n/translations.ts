@@ -220,6 +220,12 @@ export const t = {
       accountCreated: "Tu cuenta ya fue creada.",
       verifyNow: "Verificar ahora",
       later: "Más tarde",
+      starting: "Iniciando verificación…",
+      errorSessionExpired: "Tu sesión venció. Iniciá sesión nuevamente para verificar tu identidad.",
+      errorIneligible: "Tu cuenta no puede iniciar esta verificación.",
+      errorTemporary: "No pudimos iniciar la verificación en este momento. Intentá nuevamente o continuá más tarde.",
+      errorGeneric: "No pudimos iniciar la verificación de identidad. Intentá nuevamente o continuá más tarde.",
+      errorRead: "No pudimos consultar el estado de tu identidad. Intentá nuevamente más tarde.",
     },
     coverageZones: {
       title: "Zonas de cobertura", subtitle: "Selecciona las comunas en las que ofreces tus servicios", loading: "Cargando zonas de cobertura...", emptyMessage: "No hay zonas de cobertura disponibles en este momento.",

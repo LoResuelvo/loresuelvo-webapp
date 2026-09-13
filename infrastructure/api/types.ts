@@ -356,6 +356,15 @@ export interface ApiConsumerCurrentUserResponse extends ApiCurrentUserBaseRespon
 export interface ApiProviderCurrentUserResponse extends ApiCurrentUserBaseResponse {
   role: "provider";
   category: ApiCurrentUserCategory;
+  identity_verification_status: string;
+  identity_verified_on: string | null;
+}
+
+export interface ApiIdentityVerificationSessionResponse {
+  session_id: string;
+  session_token: string;
+  verification_url: string;
+  status: string;
 }
 
 export type ApiCurrentUserResponse =

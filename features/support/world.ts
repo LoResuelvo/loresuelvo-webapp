@@ -105,6 +105,12 @@ export class CustomWorld extends World {
         calendar_connection_status: "disconnected",
         category: session.user.role === "provider" ? { id: 1, name: "Plomería" } : undefined,
         profile_photo: session.user.profilePhotoUrl ? { url: session.user.profilePhotoUrl, original_name: "photo.jpg" } : null,
+        ...(session.user.role === "provider"
+          ? {
+              identity_verification_status: "unverified",
+              identity_verified_on: null,
+            }
+          : {}),
       });
     }
   }

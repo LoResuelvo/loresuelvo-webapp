@@ -26,11 +26,15 @@ export async function uploadProfilePhoto(formData: FormData): Promise<void> {
   }
 }
 
-export function useRegistrationForm(session: AuthSession | null) {
+export function useRegistrationForm(
+  session: AuthSession | null,
+  requestedInitialStep?: RegistrationStep,
+) {
   const initialStep: RegistrationStep =
-    session?.user?.role === "provider" && !session?.user?.isOnboarded
+    requestedInitialStep ??
+    (session?.user?.role === "provider" && !session?.user?.isOnboarded
       ? "mercadoPago"
-      : "role";
+      : "role");
   const [step, setStep] = useState<RegistrationStep>(initialStep);
   const [role, setRole] = useState<"consumer" | "provider" | null>(
     (session?.user?.role as "consumer" | "provider") || null

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as baseClient from "@/infrastructure/api/base-client";
 import { ApiUserRepository } from "./api-user-repository";
+import type { ProviderCurrentUser } from "@/domain/user/types";
 
 vi.mock("@/infrastructure/api/base-client", () => ({
   api: {
@@ -137,21 +138,26 @@ describe("ApiUserRepository", () => {
   describe("getCurrentUser", () => {
     it("fetches current user and maps to domain", async () => {
       vi.mocked(baseClient.api.get).mockResolvedValue({
-        id: "user-123",
+        id: 2,
         email: "user@example.com",
-        first_name: "Carlos",
-        last_name: "López",
+        name: "Carlos",
+        surname: "López",
         role: "provider",
+        calendar_connection_status: "disconnected",
+        profile_photo: null,
         category: { id: 1, name: "Plomería" },
-        profile_photo_url: "https://example.com/photo.jpg",
+        identity_verification_status: "unverified",
+        identity_verified_on: null,
       });
 
       const repository = new ApiUserRepository();
       const result = await repository.getCurrentUser();
 
       expect(baseClient.api.get).toHaveBeenCalledWith("/me");
-      expect(result.id).toBe("user-123");
+      expect(result.id).toBe(2);
       expect(result.email).toBe("user@example.com");
+      expect(result.role).toBe("provider");
+      expect((result as ProviderCurrentUser).identityVerificationStatus).toBe("unverified");
     });
   });
 });

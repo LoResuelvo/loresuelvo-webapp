@@ -69,6 +69,8 @@ describe("mapApiToCurrentUser", () => {
         id: 10,
         name: "Plomería",
       },
+      identity_verification_status: "approved",
+      identity_verified_on: "2026-09-13T12:00:00Z",
     };
 
     const user = mapApiToCurrentUser(apiResponse);
@@ -88,6 +90,69 @@ describe("mapApiToCurrentUser", () => {
         id: 10,
         name: "Plomería",
       },
+      identityVerificationStatus: "approved",
+      identityVerifiedOn: "2026-09-13T12:00:00Z",
     });
+  });
+
+  it("maps an unverified provider without a verification timestamp", () => {
+    const apiResponse: ApiProviderCurrentUserResponse = {
+      id: 2,
+      name: "Juan",
+      surname: "Gómez",
+      email: "juan@example.com",
+      role: "provider",
+      calendar_connection_status: "disconnected",
+      profile_photo: null,
+      category: { id: 10, name: "Plomería" },
+      identity_verification_status: "unverified",
+      identity_verified_on: null,
+    };
+
+    const user = mapApiToCurrentUser(apiResponse);
+
+    expect(user).toMatchObject({
+      role: "provider",
+      identityVerificationStatus: "unverified",
+      identityVerifiedOn: null,
+    });
+  });
+
+  it("rejects an unknown provider verification status", () => {
+    const apiResponse = {
+      id: 2,
+      name: "Juan",
+      surname: "Gómez",
+      email: "juan@example.com",
+      role: "provider" as const,
+      calendar_connection_status: "disconnected" as const,
+      profile_photo: null,
+      category: { id: 10, name: "Plomería" },
+      identity_verification_status: "unknown",
+      identity_verified_on: null,
+    };
+
+    expect(() => mapApiToCurrentUser(apiResponse)).toThrow(
+      "Identity verification operation failed: invalid_response",
+    );
+  });
+
+  it("rejects a malformed provider verification timestamp", () => {
+    const apiResponse = {
+      id: 2,
+      name: "Juan",
+      surname: "Gómez",
+      email: "juan@example.com",
+      role: "provider" as const,
+      calendar_connection_status: "disconnected" as const,
+      profile_photo: null,
+      category: { id: 10, name: "Plomería" },
+      identity_verification_status: "approved",
+      identity_verified_on: "not-a-timestamp",
+    };
+
+    expect(() => mapApiToCurrentUser(apiResponse)).toThrow(
+      "Identity verification operation failed: invalid_response",
+    );
   });
 });

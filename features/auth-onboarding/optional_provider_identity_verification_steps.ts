@@ -4,6 +4,7 @@ import {
   aCategory,
   aConfirmedFile,
   aCoverageZone,
+  aCurrentUser,
   aPresignedUpload,
   aProvider,
 } from "../support/factories";
@@ -142,4 +143,65 @@ When('elijo "Más tarde"', async function (this: CustomWorld) {
   const button = this.page.getByRole("button", { name: "Más tarde" }).first();
   await button.waitFor({ state: "visible", timeout: 10000 });
   await button.click();
+});
+
+async function stubRegisteredProviderIdentity(
+  world: CustomWorld,
+  status: string,
+  verifiedOn: string | null = null,
+): Promise<void> {
+  await world.setSession("provider", {
+    id: "provider-001",
+    email: "prestador@example.com",
+    firstName: "Carlos",
+    lastName: "López",
+    isOnboarded: true,
+  });
+  await world.stubGet("/categories", [aCategory({ id: 1, name: "Plomería" })]);
+  await world.stubGet(
+    "/me",
+    aCurrentUser("provider", {
+      identity_verification_status: status,
+      identity_verified_on: verifiedOn,
+    }),
+  );
+}
+
+Given(
+  "soy un prestador registrado sin sesiones previas y veo la invitación de identidad",
+  async function (this: CustomWorld) {
+    await stubRegisteredProviderIdentity(this, "unverified");
+    await this.page.goto(`${APP_URL}${ROUTES.onboarding}?stage=identity`);
+    await this.page.getByTestId("identity-verification-step").waitFor(visibleTimeout);
+  },
+);
+
+Given("la API puede iniciar mi verificación", async function (this: CustomWorld) {
+  await this.stubPost("/providers/me/identity-verification-sessions", 200, {
+    session_id: "identity-session-1",
+    session_token: "temporary-session-token",
+    verification_url: "https://verify.example/session-1",
+    status: "not_started",
+  });
+  await this.page.route("https://verify.example/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<html><body>Didit hosted verification</body></html>",
+    });
+  });
+});
+
+When('elijo "Verificar ahora"', async function (this: CustomWorld) {
+  const button = this.page.getByRole("button", { name: "Verificar ahora" }).first();
+  await button.waitFor(visibleTimeout);
+  await Promise.all([
+    this.page.waitForURL("https://verify.example/session-1", { timeout: 10000 }),
+    button.click(),
+  ]);
+});
+
+Then("soy dirigido al flujo alojado de Didit", async function (this: CustomWorld) {
+  assert.equal(new URL(this.page.url()).origin, "https://verify.example");
+  assert.match(this.page.url(), /\/session-1$/);
 });

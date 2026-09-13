@@ -8,17 +8,24 @@ import { Category } from "@/domain/shared/types";
 import { cn } from "@/lib/utils";
 import { useRegistrationForm } from "./useRegistrationForm";
 import { IdentityVerificationStep } from "./IdentityVerificationStep";
+import { useIdentityVerification } from "./useIdentityVerification";
 import type { GoogleMapsRuntimeConfig } from "@/infrastructure/config/public-runtime-config";
+import type { IdentityVerificationStatus } from "@/domain/identity-verification/types";
+import type { RegistrationStep } from "./useRegistrationForm";
 
 export default function RegistrationForm({
   session,
   categories = [],
   googleMapsConfig = {},
+  initialStep,
+  initialIdentityStatus = "unverified",
   className,
 }: {
   session: AuthSession | null;
   categories?: Category[];
   googleMapsConfig?: GoogleMapsRuntimeConfig;
+  initialStep?: RegistrationStep;
+  initialIdentityStatus?: IdentityVerificationStatus | null;
   className?: string;
 }) {
   const {
@@ -29,7 +36,8 @@ export default function RegistrationForm({
     isLoading,
     error,
     handleFinalSubmit,
-  } = useRegistrationForm(session);
+  } = useRegistrationForm(session, initialStep);
+  const identity = useIdentityVerification(initialIdentityStatus);
 
   return (
     <div
@@ -58,8 +66,10 @@ export default function RegistrationForm({
       )}
       {step === "identity" && role === "provider" && (
         <IdentityVerificationStep
-          onVerifyNow={() => setStep("identity")}
+          onVerifyNow={identity.start}
           onLater={() => setStep("mercadoPago")}
+          isLoading={identity.isStarting}
+          error={identity.error}
         />
       )}
       {step === "mercadoPago" && role === "provider" && (

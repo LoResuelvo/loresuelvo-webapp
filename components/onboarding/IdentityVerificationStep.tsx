@@ -5,10 +5,14 @@ import { Button } from "@/components/ui/button";
 import InfoBanner from "@/components/messaging/InfoBanner";
 import { t } from "@/infrastructure/i18n/translations";
 import { cn } from "@/lib/utils";
+import type { IdentityVerificationStatus } from "@/domain/identity-verification/types";
 
 interface IdentityVerificationStepProps {
   onVerifyNow: () => void;
   onLater: () => void;
+  status?: IdentityVerificationStatus | null;
+  isLoading?: boolean;
+  error?: string | null;
   className?: string;
 }
 
@@ -16,8 +20,13 @@ interface IdentityVerificationStepProps {
 export function IdentityVerificationStep({
   onVerifyNow,
   onLater,
+  status = "unverified",
+  isLoading = false,
+  error = null,
   className,
 }: IdentityVerificationStepProps) {
+  const identityStatusUnavailable = status === null;
+
   return (
     <div
       className={cn("w-full flex flex-col items-center", className)}
@@ -36,18 +45,32 @@ export function IdentityVerificationStep({
       </div>
 
       <div className="mb-6 w-full">
-        <InfoBanner>{t.onboarding.identityVerification.accountCreated}</InfoBanner>
+        {identityStatusUnavailable ? (
+          <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive" role="alert">
+            {error ?? t.onboarding.identityVerification.errorRead}
+          </div>
+        ) : (
+          <InfoBanner>{t.onboarding.identityVerification.accountCreated}</InfoBanner>
+        )}
       </div>
 
-      <div className="w-full space-y-3">
+      {!identityStatusUnavailable && error && (
+        <div className="mb-6 w-full rounded-md bg-destructive/15 p-3 text-sm text-destructive" role="alert">
+          {error}
+        </div>
+      )}
+      {!identityStatusUnavailable && <div className="w-full space-y-3">
         <Button
           id="identity-verify-now-btn"
           type="button"
           variant="brand"
           size="full"
           onClick={onVerifyNow}
+          disabled={isLoading}
         >
-          {t.onboarding.identityVerification.verifyNow}
+          {isLoading
+            ? t.onboarding.identityVerification.starting
+            : t.onboarding.identityVerification.verifyNow}
         </Button>
         <Button
           id="identity-later-btn"
@@ -55,10 +78,24 @@ export function IdentityVerificationStep({
           variant="ghost"
           size="full"
           onClick={onLater}
+          disabled={isLoading}
         >
           {t.onboarding.identityVerification.later}
         </Button>
-      </div>
+      </div>}
+      {identityStatusUnavailable && (
+        <div className="w-full">
+          <Button
+            id="identity-later-btn"
+            type="button"
+            variant="ghost"
+            size="full"
+            onClick={onLater}
+          >
+            {t.onboarding.identityVerification.later}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -110,6 +110,8 @@ type CurrentUserFactoryOverrides = Partial<{
   calendar_connection_status: ApiCalendarConnectionStatus;
   profile_photo: ApiCurrentUserProfilePhoto | null;
   category: ApiCurrentUserCategory;
+  identity_verification_status: string;
+  identity_verified_on: string | null;
 }>;
 
 export function aCurrentUser(
@@ -131,6 +133,8 @@ export function aCurrentUser(
       ...overrides,
       role: "provider",
       category: overrides.category ?? { id: 1, name: "Plomería" },
+      identity_verification_status: overrides.identity_verification_status ?? "unverified",
+      identity_verified_on: overrides.identity_verified_on ?? null,
     };
   }
 

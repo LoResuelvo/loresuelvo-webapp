@@ -16,7 +16,6 @@ Feature: US-58 Verificar opcionalmente identidad del prestador
     When elijo "Más tarde"
     Then veo el paso de conexión con Mercado Pago
 
-  @wip
   Scenario: 03-VIP Iniciar la verificación en Didit
     Given soy un prestador registrado sin sesiones previas y veo la invitación de identidad
     And la API puede iniciar mi verificación

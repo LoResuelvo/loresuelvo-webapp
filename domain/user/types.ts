@@ -1,3 +1,5 @@
+import type { IdentityVerificationStatus } from "@/domain/identity-verification/types";
+
 export interface CurrentUserProfilePhoto {
   originalName: string;
   url: string;
@@ -28,4 +30,6 @@ export interface ProviderCurrentUser extends CurrentUser {
     id: number;
     name: string;
   };
+  identityVerificationStatus: IdentityVerificationStatus;
+  identityVerifiedOn: string | null;
 }

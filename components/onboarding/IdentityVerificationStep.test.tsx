@@ -26,4 +26,33 @@ describe("IdentityVerificationStep", () => {
     expect(onVerifyNow).toHaveBeenCalledTimes(1);
     expect(onLater).toHaveBeenCalledTimes(1);
   });
+
+  it("renders the approved confirmation without starting another session", () => {
+    render(
+      <IdentityVerificationStep
+        status="approved"
+        onVerifyNow={vi.fn()}
+        onLater={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", {
+        name: t.onboarding.identityVerification.verifiedTitle,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      t.onboarding.identityVerification.verifiedDescription,
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: t.onboarding.identityVerification.verifyNow,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: t.onboarding.identityVerification.later,
+      }),
+    ).not.toBeInTheDocument();
+  });
 });

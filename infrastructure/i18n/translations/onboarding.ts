@@ -62,6 +62,8 @@ export const onboarding = {
   },
   identityVerification: {
     title: "Verificá tu identidad",
+    verifiedTitle: "Identidad verificada",
+    verifiedDescription: "Tu identidad ya fue verificada.",
     subtitle: "Este paso es opcional. Podés verificar tu identidad ahora o hacerlo más tarde.",
     accountCreated: "Tu cuenta ya fue creada.",
     verifyNow: "Verificar ahora",

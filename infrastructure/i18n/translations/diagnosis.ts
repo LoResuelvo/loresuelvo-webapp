@@ -1,0 +1,43 @@
+export const consumerDiagnosis = {
+  hero: {
+    ariaLabel: "Asistente de diagnóstico",
+    badge: "Diagnóstico con IA",
+    title: "¿Qué está pasando en tu hogar?",
+    label: "Describí el problema",
+    placeholder: "Describe el problema de tu hogar…",
+    buttonText: "Diagnosticar",
+    infoText: "Nuestra IA permite identificar el problema y contactar con un profesional",
+  },
+};
+
+export const aiDiagnosis = {
+  recommendedProviders: "Prestadores recomendados",
+  categoryLabel: "Rubro",
+  newChat: "Nuevo chat",
+  noConversations: "No hay conversaciones aún",
+  loadingConversations: "Estamos cargando las sesiones",
+  loadingMessages: "Estamos cargando los mensajes",
+  disclaimer: "Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo",
+  chatTitle: "Chat con IA",
+  chatDescription: "Describe el problema de tu hogar para iniciar una conversación con el asistente.",
+  assistantTyping: "Asistente escribiendo…",
+  retry: "Reintentar",
+  attachImages: "Adjuntar imágenes",
+  attachedImages: "Imágenes adjuntas",
+  backToList: "Volver a la lista de conversaciones",
+  conversationsList: "Conversaciones con IA",
+  noMessages: "Sin mensajes",
+  assistantName: "Asistente de diagnóstico",
+  noProvidersFound: "No encontramos profesionales disponibles para este rubro por el momento.",
+  professionalsCount: (count: number) => `Encontramos ${count} profesionales para ayudarte`,
+  contactProvider: "Contactar",
+  jobRequestSent: "Solicitud enviada",
+  jobRequestSending: "Enviando solicitud...",
+  jobRequestError: "No se pudo enviar la solicitud. Intentá de nuevo.",
+  jobRequestDuplicate: "Ya existe una solicitud abierta con este prestador.",
+  errors: {
+    imageUpload: "No se pudo cargar la imagen",
+    noResponse: "No pudimos obtener una respuesta en este momento",
+    startDiagnosis: "No pudimos iniciar el diagnóstico en este momento",
+  },
+};

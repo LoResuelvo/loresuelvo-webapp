@@ -24,7 +24,7 @@ Las capas internas no dependen de las externas. `domain/` y `ports/` no importan
 - El dominio y los puertos usan `camelCase`; los DTOs `snake_case` viven solo en `infrastructure/api/types.ts`.
 - Los mappers en `infrastructure/repositories/` transforman DTOs a modelos de dominio antes de exponerlos a aplicación o UI.
 - Los use cases propagan errores; las Server Actions o la UI los traducen a resultados y estados visibles.
-- Todo texto visible va en `infrastructure/i18n/translations.ts`; la UI está en español.
+- Todo texto visible va en `infrastructure/i18n/translations/`; `infrastructure/i18n/translations.ts` mantiene la entrada pública; la UI está en español.
 - Usar las primitivas existentes antes de crear UI ad hoc. Los modales usan `Modal` basado en Radix.
 - No hardcodear secretos ni commitear archivos de entorno. No mostrar datos sensibles en logs.
 - No convertir Server Components en Client Components sin una necesidad concreta.

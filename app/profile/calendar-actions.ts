@@ -13,7 +13,7 @@ export async function startCalendarAuthorizationAction(): Promise<StartCalendarA
     const repository = new ApiCalendarConnectionRepository();
     const { authorizationUrl } = await startCalendarAuthorization(repository);
     return { ok: true, authorizationUrl };
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     return { ok: false, error: t.profile.calendar.authorizationError };
   }
 }

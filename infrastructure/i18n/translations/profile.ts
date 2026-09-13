@@ -1,0 +1,27 @@
+export const profile = {
+  title: "Mi perfil",
+  description: "Consultá tus datos y el estado de tus integraciones.",
+  photoAlt: "Foto de perfil de",
+  nameLabel: "Nombre",
+  emailLabel: "Correo electrónico",
+  error: {
+    title: "No se pudo cargar la configuración",
+    description: "No pudimos consultar tu perfil en este momento. Intentá nuevamente.",
+    retry: "Reintentar consulta",
+  },
+  calendar: {
+    title: "Google Calendar",
+    description: "Sincronizá tus turnos y citas de trabajo.",
+    disconnectedStatus: "No vinculada",
+    connectedStatus: "Vinculada y sincronizada",
+    actionRequiredStatus: "Requiere atención",
+    connectAction: "Vincular Google Calendar",
+    reauthorizeAction: "Reautorizar Google Calendar",
+    connecting: "Conectando con Google Calendar…",
+    authorizationError: "No pudimos iniciar la vinculación con Google Calendar. Intentá nuevamente.",
+    authorizationRequired: "Google Calendar requiere autorización",
+    connectionSuccess: "Google Calendar fue vinculado correctamente.",
+    connectionCancelled: "La vinculación de Google Calendar fue cancelada.",
+    connectionSuccessUnconfirmed: "No pudimos confirmar la vinculación de Google Calendar. Revisá el estado de tu cuenta.",
+  },
+};

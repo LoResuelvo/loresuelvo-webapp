@@ -71,4 +71,4 @@ Feature: US-35.5 Registrar prestador con zonas de cobertura
     Given completé los datos, el rubro y la foto obligatorios del prestador
     And seleccioné "Comuna 6" desde la lista y "Comuna 14" desde el mapa
     When finalizo el registro
-    Then veo la pantalla de conexión de Mercado Pago
+    Then veo la invitación opcional para verificar mi identidad

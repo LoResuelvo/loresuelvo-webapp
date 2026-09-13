@@ -11,10 +11,10 @@ Feature: US-35.3 Conectar cuenta de Mercado Pago durante el registro
         And elegí el rubro "Plomería" de la lista en la pagina de registro de LoResuelvo
         And elegí la foto de perfil "avatar.png" desde mi dispositivo
 
-    Scenario: 01-CMP Ver paso de conexión de Mercado Pago después de completar el registro
+    Scenario: 01-CMP Ver paso opcional de identidad después de completar el registro
         When finalizo el registro como prestador
-        Then veo la pantalla de conexión de Mercado Pago
-        And veo un botón "Conectar con Mercado Pago"
+        Then veo la invitación opcional para verificar mi identidad
+        And veo un botón "Verificar ahora"
 
     Scenario: 02-CMP Iniciar conexión con Mercado Pago exitosamente
         Given que completé el registro y estoy en el paso de conexión de Mercado Pago

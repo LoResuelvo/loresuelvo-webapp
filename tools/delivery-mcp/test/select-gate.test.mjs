@@ -443,8 +443,8 @@ test("selectGate: modificar features/support/hooks.ts selecciona Gate C", () => 
   assert.ok(result.gate.checks.includes("make test-e2e-managed"));
 });
 
-test("selectGate: step definition compartido por varias features selecciona Gate C", () => {
-  // connect_mercado_pago_account_steps.ts is used by multiple features
+test("selectGate: step definition utilizado por una única feature selecciona Gate B", () => {
+  // connect_mercado_pago_account_steps.ts is used ONLY by connect_mercado_pago_account.feature
   const result = selectGate({
     intent: "prepare_commit",
     snapshot: {
@@ -452,14 +452,21 @@ test("selectGate: step definition compartido por varias features selecciona Gate
     },
   });
 
-  assert.strictEqual(result.gate.id, "C");
+  assert.strictEqual(result.gate.id, "B");
   assert.strictEqual(result.status, "ready");
-  assert.ok(result.gate.reasonCodes.includes("SHARED_STEP_CONSUMERS"));
-  assert.strictEqual(result.impact.gate, "C");
-  assert.deepStrictEqual(result.impact.reasonCodes, ["SHARED_STEP_CONSUMERS"]);
+  assert.ok(result.gate.reasonCodes.includes("SINGLE_FEATURE_STEP_CONSUMER"));
+  assert.strictEqual(result.impact.gate, "B");
+  assert.deepStrictEqual(result.impact.reasonCodes, ["SINGLE_FEATURE_STEP_CONSUMER"]);
   assert.strictEqual(result.impact.confidence, "high");
-  assert.ok(result.impact.affectedFeatures >= 2);
-  assert.ok(result.impact.consumerCount >= 2);
+  assert.strictEqual(result.impact.affectedFeatures, 1);
+  assert.ok(result.impact.consumerCount > 0);
+  assert.strictEqual(
+    result.gate.parameters.featureFile,
+    "features/auth-onboarding/connect_mercado_pago_account.feature"
+  );
+  assert.deepStrictEqual(result.gate.checks, [
+    "make test-e2e-managed E2E_FILE=features/auth-onboarding/connect_mercado_pago_account.feature",
+  ]);
 });
 
 test("selectGate: step definition utilizado por una única feature selecciona Gate B", () => {

@@ -89,6 +89,10 @@ Given(
     await button.waitFor();
     await button.click();
 
+    const identityLaterButton = this.page.getByRole("button", { name: "Más tarde" }).first();
+    await identityLaterButton.waitFor({ state: "visible", timeout: 10000 });
+    await identityLaterButton.click();
+
     const title = this.page.getByText("Conectá tu cuenta de Mercado Pago").first();
     await title.waitFor();
   }

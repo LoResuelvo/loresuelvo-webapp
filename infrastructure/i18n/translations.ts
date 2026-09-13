@@ -214,6 +214,13 @@ export const t = {
       connectionCancelledSubtitle: "No se vinculó ninguna cuenta. Podés intentar nuevamente cuando quieras.", continueButton: "Continuar", laterButton: "Hacerlo más tarde", retryButton: "Reintentar",
       errorGeneric: "Hubo un problema al iniciar la conexión. Inténtalo nuevamente.",
     },
+    identityVerification: {
+      title: "Verificá tu identidad",
+      subtitle: "Este paso es opcional. Podés verificar tu identidad ahora o hacerlo más tarde.",
+      accountCreated: "Tu cuenta ya fue creada.",
+      verifyNow: "Verificar ahora",
+      later: "Más tarde",
+    },
     coverageZones: {
       title: "Zonas de cobertura", subtitle: "Selecciona las comunas en las que ofreces tus servicios", loading: "Cargando zonas de cobertura...", emptyMessage: "No hay zonas de cobertura disponibles en este momento.",
       errorMessage: "Hubo un error al cargar las zonas de cobertura.", retryButton: "Reintentar", mapTitle: "Mapa de zonas de cobertura de CABA", mapPlaceholder: "Mapa interactivo de cobertura",

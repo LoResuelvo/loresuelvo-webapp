@@ -156,7 +156,7 @@ export async function inspectDelivery({
       }
       const targetSha = effectiveRepairsSha.toLowerCase();
       const alreadyRepaired = !ledgerDiagnostic && ledgerEntries.some((entry) => {
-        if (!entry.repairsSha) return false;
+        if (!entry.repairsSha || entry.repairStatus === "abandoned") return false;
         const entryRepairs = String(entry.repairsSha).toLowerCase();
         return (
           entryRepairs === targetSha ||

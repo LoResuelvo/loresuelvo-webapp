@@ -11,6 +11,7 @@ export const LEDGER_DIR = ".delivery/runtime/ledger";
 export const LEDGER_FILE = ".delivery/runtime/ledger.json";
 export const LAST_PREPARED_FILE = ".delivery/runtime/last-prepared.json";
 export const REPAIR_AUTH_DIR = ".delivery/runtime/repair-auth";
+export const REPAIR_AUDIT_DIR = ".delivery/runtime/repair-audit";
 export const REPAIR_LOCKS_DIR = ".delivery/runtime/locks";
 export const REPAIR_AUTH_STATES = Object.freeze([
   "prepared",
@@ -19,6 +20,7 @@ export const REPAIR_AUTH_STATES = Object.freeze([
   "ci_pending",
   "validated",
   "ci_failed",
+  "abandoned",
 ]);
 export const LEDGER_STATES = Object.freeze({
   VALID_LEDGER: "VALID_LEDGER",
@@ -38,6 +40,20 @@ export function ledgerError(code, message, details = {}) {
 function assertCommitSha(commitSha) {
   if (!commitSha || typeof commitSha !== "string" || !/^[a-f0-9]{7,40}$/i.test(commitSha.trim())) {
     throw new Error(`Invalid commit SHA: ${commitSha}`);
+  }
+  return commitSha.trim().toLowerCase();
+}
+
+function assertFullCommitSha(commitSha, fieldName) {
+  if (
+    !commitSha ||
+    typeof commitSha !== "string" ||
+    !/^[a-f0-9]{40}$/i.test(commitSha.trim())
+  ) {
+    throw ledgerError(
+      "INVALID_REPAIR_SHA",
+      `${fieldName} must be a full 40-character hexadecimal commit SHA`
+    );
   }
   return commitSha.trim().toLowerCase();
 }
@@ -228,9 +244,18 @@ export async function verifyPreparedEvidence({
   if (
     prepared.schemaVersion !== 2 ||
     prepared.status !== "passed" ||
-    prepared.consumedByCommitSha
+    prepared.consumedByCommitSha ||
+    prepared.repairStatus === "abandoned" ||
+    prepared.repairAuthState === "abandoned"
   ) {
-    return { valid: false, reason: "STALE_PREPARED_EVIDENCE", prepared };
+    return {
+      valid: false,
+      reason:
+        prepared.repairStatus === "abandoned" || prepared.repairAuthState === "abandoned"
+          ? "ABANDONED_PREPARED_EVIDENCE"
+          : "STALE_PREPARED_EVIDENCE",
+      prepared,
+    };
   }
 
   const expectedPolicyHash = policyHash ?? inspection?.policy?.hash;
@@ -545,6 +570,68 @@ export function isCommitInRemote(root, commitSha) {
   }
 }
 
+function resolveFullCommit(root, commitSha) {
+  try {
+    return execFileSync("git", ["rev-parse", `${commitSha}^{commit}`], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim().toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function inspectCommitReachability(root, commitSha) {
+  let refs;
+  try {
+    refs = execFileSync(
+      "git",
+      ["for-each-ref", "--contains", commitSha, "--format=%(refname)"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }
+    )
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+  } catch {
+    return { known: false, refs: [], headReachable: false };
+  }
+
+  let headReachable = false;
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", commitSha, "HEAD"], {
+      cwd: root,
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+    headReachable = true;
+  } catch (error) {
+    // Exit code 1 means the commit is not an ancestor. Other failures mean
+    // Git could not prove the negative and must remain fail-closed.
+    if (error?.status !== 1) {
+      return { known: false, refs: [], headReachable: false };
+    }
+  }
+
+  return { known: true, refs, headReachable };
+}
+
+async function readRepairAuditRecord({ repoRoot, repairSha } = {}) {
+  const root = findRepoRoot(repoRoot);
+  const auditPath = path.resolve(root, REPAIR_AUDIT_DIR, `${repairSha}.json`);
+  try {
+    const raw = await fs.readFile(auditPath, "utf8");
+    const parsed = JSON.parse(raw);
+    return { path: path.join(REPAIR_AUDIT_DIR, `${repairSha}.json`), record: parsed };
+  } catch (error) {
+    if (error.code === "ENOENT") return { path: path.join(REPAIR_AUDIT_DIR, `${repairSha}.json`), record: null };
+    throw ledgerError("REPAIR_AUDIT_CORRUPT", `Repair audit record is unreadable for ${repairSha.slice(0, 8)}.`);
+  }
+}
+
 function sameFileIdentity(left, right) {
   return left && right && left.dev === right.dev && left.ino === right.ino;
 }
@@ -824,7 +911,11 @@ export async function getRepairAuthorization({ repoRoot, targetSha } = {}) {
   // Fallback 2: inspect LAST_PREPARED_FILE
   try {
     const prepared = await getLastPreparedEvidence({ repoRoot: root });
-    if (prepared?.repairsSha && prepared.repairsSha.toLowerCase() === cleanTarget) {
+    if (
+      prepared?.repairsSha &&
+      prepared.repairsSha.toLowerCase() === cleanTarget &&
+      prepared.repairStatus !== "abandoned"
+    ) {
       const commitSha = prepared.consumedByCommitSha || null;
       const state = prepared.repairAuthState || (commitSha ? "bound_to_commit" : "prepared");
       return {
@@ -876,7 +967,25 @@ async function saveRepairAuthorizationLocked({ root, authorization, cleanTarget,
 
   // Enforce single-use commit binding: cannot overwrite an authorization bound to another commit
   const existing = await getRepairAuthorization({ repoRoot: root, targetSha: cleanTarget });
-  if (existing?.commitSha && (!cleanCommit || existing.commitSha.toLowerCase() !== cleanCommit)) {
+  const existingIsAbandoned = existing?.state === "abandoned";
+  let abandonedLedgerEntry = null;
+  if (existingIsAbandoned) {
+    try {
+      abandonedLedgerEntry = await getCommitEvidence({
+        repoRoot: root,
+        commitSha: existing.commitSha,
+      });
+    } catch {
+      abandonedLedgerEntry = null;
+    }
+  }
+  const canReplaceAbandoned =
+    existingIsAbandoned && abandonedLedgerEntry?.repairStatus === "abandoned";
+  if (
+    existing?.commitSha &&
+    (!cleanCommit || existing.commitSha.toLowerCase() !== cleanCommit) &&
+    !canReplaceAbandoned
+  ) {
     const conflictError = new Error(
       `Repair authorization for commit ${cleanTarget.slice(0, 8)} is already bound to commit ${existing.commitSha.slice(0, 8)}`
     );
@@ -901,6 +1010,458 @@ async function saveRepairAuthorizationLocked({ root, authorization, cleanTarget,
   const relativePath = path.join(REPAIR_AUTH_DIR, `${cleanTarget}.json`);
   await writeJsonAtomic(root, relativePath, record);
   return record;
+}
+
+function recoveryFailure(reason, message, details = {}) {
+  return {
+    abandoned: false,
+    status: "blocked",
+    reason,
+    message,
+    ...details,
+  };
+}
+
+function fullShaFromEntry(value) {
+  if (!value || typeof value !== "string" || !/^[a-f0-9]{7,40}$/i.test(value.trim())) {
+    return null;
+  }
+  return value.trim().toLowerCase();
+}
+
+function isDescendant(root, ancestorSha, descendantSha) {
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", ancestorSha, descendantSha], {
+      cwd: root,
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+    return true;
+  } catch (error) {
+    if (error?.status === 1) return false;
+    return null;
+  }
+}
+
+function hashLedgerEntry(entry) {
+  return crypto.createHash("sha256").update(canonicalJson(entry)).digest("hex");
+}
+
+/**
+ * Abandons exactly one local Gate R attempt whose lineage context is invalid.
+ * The commit evidence remains as a tombstone, while the repair authorization
+ * is moved to an explicit terminal state so a fresh Gate R can bind safely.
+ */
+export async function abandonRepairAttempt({
+  repoRoot,
+  repairSha,
+  targetSha,
+  reason = "",
+  ciProvider = null,
+} = {}) {
+  const root = findRepoRoot(repoRoot);
+  let cleanRepairSha;
+  let cleanTargetSha;
+  try {
+    cleanRepairSha = assertFullCommitSha(repairSha, "repairSha");
+    cleanTargetSha = assertFullCommitSha(targetSha, "targetSha");
+  } catch (error) {
+    return recoveryFailure(error.code || "INVALID_REPAIR_SHA", error.message);
+  }
+
+  const normalizedReason = typeof reason === "string" ? reason.trim() : "";
+  if (normalizedReason.length < 12 || normalizedReason.length > 500) {
+    return recoveryFailure(
+      "INVALID_RECOVERY_REASON",
+      "reason must contain between 12 and 500 characters"
+    );
+  }
+  if (cleanRepairSha === cleanTargetSha) {
+    return recoveryFailure(
+      "REPAIR_TARGET_MISMATCH",
+      "repairSha and targetSha must identify different commits"
+    );
+  }
+
+  const targetCommit = resolveFullCommit(root, cleanTargetSha);
+  const repairCommit = resolveFullCommit(root, cleanRepairSha);
+  if (!targetCommit) {
+    return recoveryFailure(
+      "REPAIR_TARGET_NOT_FOUND",
+      `Target commit ${cleanTargetSha.slice(0, 8)} was not found in git.`
+    );
+  }
+  if (!repairCommit) {
+    return recoveryFailure(
+      "REPAIR_COMMIT_NOT_FOUND",
+      `Repair commit ${cleanRepairSha.slice(0, 8)} was not found in git.`
+    );
+  }
+  if (targetCommit !== cleanTargetSha || repairCommit !== cleanRepairSha) {
+    return recoveryFailure(
+      "REPAIR_SHA_RESOLUTION_MISMATCH",
+      "repairSha and targetSha must resolve to the supplied full commit SHAs"
+    );
+  }
+
+  let repairEntry;
+  let targetEntry;
+  let existingAuthorization;
+  let existingAudit;
+  let lastPrepared;
+  try {
+    repairEntry = await getCommitEvidence({ repoRoot: root, commitSha: cleanRepairSha });
+    targetEntry = await getCommitEvidence({ repoRoot: root, commitSha: cleanTargetSha });
+    existingAuthorization = await getRepairAuthorization({
+      repoRoot: root,
+      targetSha: cleanTargetSha,
+    });
+    existingAudit = await readRepairAuditRecord({
+      repoRoot: root,
+      repairSha: cleanRepairSha,
+    });
+    lastPrepared = await getLastPreparedEvidence({ repoRoot: root });
+  } catch (error) {
+    return recoveryFailure(
+      error.code || "LEDGER_UNAVAILABLE",
+      `Delivery recovery could not validate its records: ${String(error.message || "unknown error").split("\n")[0]}`
+    );
+  }
+
+  if (existingAudit.record) {
+    return recoveryFailure(
+      existingAudit.record.status === "abandoned"
+        ? "REPAIR_ATTEMPT_ALREADY_ABANDONED"
+        : "REPAIR_AUDIT_EXISTS",
+      `A recovery audit already exists for repair commit ${cleanRepairSha.slice(0, 8)}.`
+    );
+  }
+  if (!repairEntry) {
+    return recoveryFailure(
+      "REPAIR_EVIDENCE_NOT_FOUND",
+      `Repair commit ${cleanRepairSha.slice(0, 8)} has no delivery evidence.`
+    );
+  }
+  if (
+    repairEntry.repairStatus === "abandoned" ||
+    repairEntry.repairAuthState === "abandoned"
+  ) {
+    return recoveryFailure(
+      "REPAIR_ATTEMPT_ALREADY_ABANDONED",
+      `Repair commit ${cleanRepairSha.slice(0, 8)} was already abandoned.`
+    );
+  }
+
+  const declaredTarget = fullShaFromEntry(repairEntry.repairsSha);
+  const declaredTargetFull = declaredTarget ? resolveFullCommit(root, declaredTarget) : null;
+  if (!declaredTargetFull || declaredTargetFull !== cleanTargetSha) {
+    return recoveryFailure(
+      "REPAIR_TARGET_MISMATCH",
+      `Repair commit ${cleanRepairSha.slice(0, 8)} does not declare target ${cleanTargetSha.slice(0, 8)}.`
+    );
+  }
+  if (!targetEntry) {
+    return recoveryFailure(
+      "REPAIR_TARGET_EVIDENCE_NOT_FOUND",
+      `Target commit ${cleanTargetSha.slice(0, 8)} has no delivery evidence.`
+    );
+  }
+  if (
+    repairEntry.commitSha?.toLowerCase() !== cleanRepairSha ||
+    repairEntry.intent !== "repair_ci" ||
+    repairEntry.gateId !== "R" ||
+    repairEntry.status !== "passed" ||
+    repairEntry.verificationStatus !== "passed"
+  ) {
+    return recoveryFailure(
+      "REPAIR_ATTEMPT_NOT_ELIGIBLE",
+      `Repair commit ${cleanRepairSha.slice(0, 8)} is not an unverified Gate R attempt.`
+    );
+  }
+  if (repairEntry.repairStatus !== "unverified") {
+    return recoveryFailure(
+      "REPAIR_ATTEMPT_NOT_ELIGIBLE",
+      `Repair commit ${cleanRepairSha.slice(0, 8)} is already in terminal repair state '${repairEntry.repairStatus}'.`
+    );
+  }
+  if (
+    repairEntry.repairAuthState !== "bound_to_commit" ||
+    repairEntry.repairAuthSha?.toLowerCase() !== cleanRepairSha
+  ) {
+    return recoveryFailure(
+      "REPAIR_AUTHORIZATION_MISMATCH",
+      `Repair authorization is not bound exactly to commit ${cleanRepairSha.slice(0, 8)}.`
+    );
+  }
+  if (
+    repairEntry.repairPushConsumed === true ||
+    repairEntry.repairPushConsumedAt !== null
+  ) {
+    return recoveryFailure(
+      "REPAIR_ATTEMPT_PUSHED",
+      `Repair commit ${cleanRepairSha.slice(0, 8)} already consumed a push authorization.`
+    );
+  }
+  if (
+    existingAuthorization?.commitSha &&
+    existingAuthorization.commitSha.toLowerCase() !== cleanRepairSha
+  ) {
+    return recoveryFailure(
+      "REPAIR_AUTHORIZATION_MISMATCH",
+      `Repair authorization is bound to another commit for target ${cleanTargetSha.slice(0, 8)}.`
+    );
+  }
+  if (
+    existingAuthorization?.state &&
+    !["prepared", "bound_to_commit"].includes(existingAuthorization.state)
+  ) {
+    return recoveryFailure(
+      "REPAIR_ATTEMPT_NOT_ELIGIBLE",
+      `Repair authorization is in terminal state '${existingAuthorization.state}'.`
+    );
+  }
+
+  const descendant = isDescendant(root, cleanTargetSha, cleanRepairSha);
+  if (descendant === null) {
+    return recoveryFailure(
+      "REPAIR_REACHABILITY_UNKNOWN",
+      "Git could not prove the repair commit's ancestry safely."
+    );
+  }
+  if (!descendant) {
+    return recoveryFailure(
+      "REPAIR_NOT_DESCENDANT",
+      `Repair commit ${cleanRepairSha.slice(0, 8)} is not a descendant of target ${cleanTargetSha.slice(0, 8)}.`
+    );
+  }
+
+  let reachability = inspectCommitReachability(root, cleanRepairSha);
+  if (!reachability.known) {
+    return recoveryFailure(
+      "REPAIR_REACHABILITY_UNKNOWN",
+      `Git could not determine whether repair commit ${cleanRepairSha.slice(0, 8)} is reachable.`
+    );
+  }
+  const remoteRefs = reachability.refs.filter((ref) => ref.startsWith("refs/remotes/"));
+  if (remoteRefs.length > 0) {
+    return recoveryFailure(
+      "REPAIR_ATTEMPT_PUSHED",
+      `Repair commit ${cleanRepairSha.slice(0, 8)} is reachable from a remote ref.`
+    );
+  }
+
+  let currentHead;
+  try {
+    currentHead = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim().toLowerCase();
+  } catch {
+    return recoveryFailure("REPAIR_REACHABILITY_UNKNOWN", "Could not resolve current HEAD safely.");
+  }
+  if (currentHead === cleanRepairSha) {
+    return recoveryFailure(
+      "REPAIR_ATTEMPT_CURRENT",
+      `Repair commit ${cleanRepairSha.slice(0, 8)} is the current HEAD and cannot be abandoned.`
+    );
+  }
+
+  if (reachability.headReachable || reachability.refs.length > 0) {
+    return recoveryFailure(
+      "REPAIR_ATTEMPT_REACHABLE",
+      `Repair commit ${cleanRepairSha.slice(0, 8)} is still reachable from a local ref.`
+    );
+  }
+
+  let lineage;
+  try {
+    lineage = await validateRepairLineage({
+      repoRoot: root,
+      repairSha: cleanRepairSha,
+      targetSha: cleanTargetSha,
+      ciProvider,
+    });
+  } catch (error) {
+    return recoveryFailure(
+      error.code || "REPAIR_LINEAGE_UNAVAILABLE",
+      `Repair lineage could not be validated: ${String(error.message || "unknown error").split("\n")[0]}`
+    );
+  }
+  if (lineage.valid) {
+    return recoveryFailure(
+      "REPAIR_CONTEXT_VALID",
+      `Repair commit ${cleanRepairSha.slice(0, 8)} has valid lineage context and cannot be abandoned.`
+    );
+  }
+  if (lineage.reason !== "REPAIR_CONTEXT_UNKNOWN") {
+    return recoveryFailure(
+      lineage.reason || "REPAIR_LINEAGE_INVALID",
+      lineage.message || `Repair commit ${cleanRepairSha.slice(0, 8)} is not eligible for recovery.`
+    );
+  }
+
+  const releaseLedgerLock = await acquireLedgerLock({ repoRoot: root });
+  let pendingAudit = null;
+  try {
+    const currentEntry = await getCommitEvidence({
+      repoRoot: root,
+      commitSha: cleanRepairSha,
+    });
+    if (!currentEntry || canonicalJson(currentEntry) !== canonicalJson(repairEntry)) {
+      return recoveryFailure(
+        "REPAIR_ATTEMPT_CHANGED",
+        `Repair evidence for ${cleanRepairSha.slice(0, 8)} changed while recovery was validating it.`
+      );
+    }
+
+    reachability = inspectCommitReachability(root, cleanRepairSha);
+    if (!reachability.known) {
+      return recoveryFailure(
+        "REPAIR_REACHABILITY_UNKNOWN",
+        `Git could not determine whether repair commit ${cleanRepairSha.slice(0, 8)} is reachable.`
+      );
+    }
+    if (reachability.refs.some((ref) => ref.startsWith("refs/remotes/"))) {
+      return recoveryFailure(
+        "REPAIR_ATTEMPT_PUSHED",
+        `Repair commit ${cleanRepairSha.slice(0, 8)} became reachable from a remote ref.`
+      );
+    }
+    if (reachability.headReachable || reachability.refs.length > 0) {
+      return recoveryFailure(
+        currentHead === cleanRepairSha ? "REPAIR_ATTEMPT_CURRENT" : "REPAIR_ATTEMPT_REACHABLE",
+        `Repair commit ${cleanRepairSha.slice(0, 8)} is reachable from a local ref.`
+      );
+    }
+
+    const audit = await readRepairAuditRecord({
+      repoRoot: root,
+      repairSha: cleanRepairSha,
+    });
+    if (audit.record) {
+      return recoveryFailure(
+        audit.record.status === "abandoned"
+          ? "REPAIR_ATTEMPT_ALREADY_ABANDONED"
+          : "REPAIR_AUDIT_EXISTS",
+        `A recovery audit already exists for repair commit ${cleanRepairSha.slice(0, 8)}.`
+      );
+    }
+
+    let ledgerMap;
+    try {
+      ledgerMap = JSON.parse(await fs.readFile(path.resolve(root, LEDGER_FILE), "utf8"));
+    } catch (error) {
+      return recoveryFailure(
+        "LEDGER_CORRUPT",
+        `Delivery ledger could not be updated safely: ${String(error.message || "unknown error").split("\n")[0]}`
+      );
+    }
+    if (!isJsonObject(ledgerMap) || !isJsonObject(ledgerMap[cleanRepairSha])) {
+      return recoveryFailure(
+        "LEDGER_INCONSISTENT",
+        `Delivery ledger has no consolidated entry for repair commit ${cleanRepairSha.slice(0, 8)}.`
+      );
+    }
+
+    const abandonedAt = new Date().toISOString();
+    const entryBeforeHash = hashLedgerEntry(currentEntry);
+    pendingAudit = {
+      schemaVersion: 1,
+      action: "abandon_repair",
+      status: "pending",
+      repairSha: cleanRepairSha,
+      targetSha: cleanTargetSha,
+      reason: normalizedReason,
+      lineageReason: lineage.reason,
+      entryBeforeHash,
+      currentHeadSha: currentHead,
+      createdAt: abandonedAt,
+    };
+    const auditRelativePath = path.join(REPAIR_AUDIT_DIR, `${cleanRepairSha}.json`);
+    await writeJsonAtomic(root, auditRelativePath, pendingAudit);
+
+    const abandonedEntry = {
+      ...currentEntry,
+      repairStatus: "abandoned",
+      repairAuthState: "abandoned",
+      repairAuthSha: null,
+      repairPushConsumed: false,
+      repairPushConsumedAt: null,
+      abandonedAt,
+      abandonmentReason: normalizedReason,
+    };
+    await writeJsonAtomic(root, path.join(LEDGER_DIR, `${cleanRepairSha}.json`), abandonedEntry);
+    ledgerMap[cleanRepairSha] = abandonedEntry;
+    await writeJsonAtomic(root, LEDGER_FILE, ledgerMap);
+
+    await writeJsonAtomic(root, path.join(REPAIR_AUTH_DIR, `${cleanTargetSha}.json`), {
+      schemaVersion: 1,
+      targetSha: cleanTargetSha,
+      commitSha: cleanRepairSha,
+      state: "abandoned",
+      snapshotHash: currentEntry.snapshotHash || existingAuthorization?.snapshotHash || null,
+      attemptCount: existingAuthorization?.attemptCount || 0,
+      lastAttemptAt: existingAuthorization?.lastAttemptAt || null,
+      updatedAt: abandonedAt,
+      ...(existingAuthorization?.preparedAt ? { preparedAt: existingAuthorization.preparedAt } : {}),
+      ...(existingAuthorization?.boundAt ? { boundAt: existingAuthorization.boundAt } : {}),
+      abandonedAt,
+    });
+
+    if (
+      lastPrepared?.repairsSha &&
+      matchesTarget(lastPrepared.repairsSha, cleanTargetSha) &&
+      (!lastPrepared.consumedByCommitSha ||
+        lastPrepared.consumedByCommitSha.toLowerCase() === cleanRepairSha)
+    ) {
+      await writeJsonAtomic(root, LAST_PREPARED_FILE, {
+        ...lastPrepared,
+        repairStatus: "abandoned",
+        repairAuthState: "abandoned",
+        abandonedAt,
+        abandonmentReason: normalizedReason,
+      });
+    }
+
+    const completedAudit = {
+      ...pendingAudit,
+      status: "abandoned",
+      completedAt: new Date().toISOString(),
+      entryAfterHash: hashLedgerEntry(abandonedEntry),
+      auditPath: auditRelativePath,
+    };
+    await writeJsonAtomic(root, auditRelativePath, completedAudit);
+
+    return {
+      abandoned: true,
+      status: "abandoned",
+      reason: "REPAIR_ATTEMPT_ABANDONED",
+      repairSha: cleanRepairSha,
+      targetSha: cleanTargetSha,
+      auditPath: auditRelativePath,
+      previousStatus: currentEntry.repairStatus,
+      lineageReason: lineage.reason,
+    };
+  } catch (error) {
+    if (pendingAudit) {
+      try {
+        await writeJsonAtomic(root, path.join(REPAIR_AUDIT_DIR, `${cleanRepairSha}.json`), {
+          ...pendingAudit,
+          status: "incomplete",
+          failedAt: new Date().toISOString(),
+          failureCode: error.code || "REPAIR_RECOVERY_WRITE_FAILED",
+        });
+      } catch {
+        // Preserve the original failure without masking it with audit I/O.
+      }
+    }
+    return recoveryFailure(
+      error.code || "REPAIR_RECOVERY_WRITE_FAILED",
+      `Repair recovery could not be completed safely: ${String(error.message || "unknown error").split("\n")[0]}`
+    );
+  } finally {
+    await releaseLedgerLock();
+  }
 }
 
 export async function determineRepairCommitState({
@@ -967,6 +1528,15 @@ export async function authorizeRepairPush({
 
   // 1. Get current authorization
   const auth = await getRepairAuthorization({ repoRoot: root, targetSha: cleanTarget });
+
+  if (auth?.state === "abandoned") {
+    return {
+      authorized: false,
+      reason: "REPAIR_ATTEMPT_ABANDONED",
+      message: `Pre-push blocked: repair attempt for commit ${cleanTarget.slice(0, 8)} was explicitly abandoned and cannot be reused.`,
+      authorization: auth,
+    };
+  }
 
   // 2. If already bound or consumed by another commit SHA, reject!
   if (auth?.commitSha && auth.commitSha.toLowerCase() !== cleanCommit) {
@@ -1865,6 +2435,17 @@ export async function validateRepairLineage({
     repairEntry = null;
   }
 
+  if (repairEntry?.repairStatus === "abandoned" || repairEntry?.repairAuthState === "abandoned") {
+    return {
+      valid: false,
+      reason: "REPAIR_ATTEMPT_ABANDONED",
+      message: `Repair commit ${cleanRepairSha.slice(0, 8)} was explicitly abandoned and cannot resolve a CI incident.`,
+      repairEntry,
+      targetEntry: null,
+      targetSha: targetSha || repairEntry.repairsSha || null,
+    };
+  }
+
   // 2. Resolve target commit (repairsSha exists in git, ledger, or CI)
   const declaredRepairsSha = repairEntry?.repairsSha ? String(repairEntry.repairsSha).trim() : null;
   const expectedTargetSha = targetSha ? String(targetSha).trim() : null;
@@ -2050,7 +2631,10 @@ export async function validateRepairLineage({
     };
   }
   for (const entry of allEvidence) {
-    if (entry.commitSha.toLowerCase() === cleanRepairSha) continue;
+    if (
+      entry.commitSha.toLowerCase() === cleanRepairSha ||
+      entry.repairStatus === "abandoned"
+    ) continue;
     const entrySupersedes = Array.isArray(entry.supersedes)
       ? entry.supersedes.map((s) => String(s).toLowerCase())
       : [];
@@ -2220,7 +2804,7 @@ export async function resolveRepairChain({
   const repairShas = [];
   for (const sha of candidateShas) {
     const entry = entriesBySha.get(sha);
-    if (entry?.repairsSha) {
+    if (entry?.repairsSha && entry.repairStatus !== "abandoned") {
       repairShas.push(sha);
     }
   }
@@ -2337,7 +2921,9 @@ export async function getActiveCiIncidents({
     Array.from(excludeShas || []).map((s) => String(s).trim().toLowerCase())
   );
   const entries = (rawEntries || []).filter(
-    (e) => !excludeSet.has(String(e.commitSha).trim().toLowerCase())
+    (e) =>
+      !excludeSet.has(String(e.commitSha).trim().toLowerCase()) &&
+      e.repairStatus !== "abandoned"
   );
   if (!entries || entries.length === 0) {
     const empty = [];
@@ -2346,7 +2932,7 @@ export async function getActiveCiIncidents({
     return empty;
   }
 
-  const repairResolution = await resolveRepairChain({ repoRoot: root, commits: rawEntries, ciProvider });
+  const repairResolution = await resolveRepairChain({ repoRoot: root, commits: entries, ciProvider });
   const supersededFailures = new Set(
     (repairResolution.supersededFailures || []).map((s) => s.toLowerCase())
   );
@@ -2362,7 +2948,7 @@ export async function getActiveCiIncidents({
   );
 
   // Mark historical failures in completed user stories whose close_us commit passed CI as superseded
-  for (const entry of rawEntries || []) {
+  for (const entry of entries || []) {
     if (entry.intent === "close_us" && entry.usId) {
       const closeSha = entry.commitSha.toLowerCase();
       let closeCi;
@@ -2373,7 +2959,7 @@ export async function getActiveCiIncidents({
       }
       if (closeCi?.status === "passed") {
         const usId = String(entry.usId).trim().toLowerCase();
-        for (const candidate of rawEntries || []) {
+        for (const candidate of entries || []) {
           if (
             candidate.usId &&
             String(candidate.usId).trim().toLowerCase() === usId &&
@@ -2500,7 +3086,8 @@ export async function getActiveCiIncidents({
           } else if (
             lastPrepared?.repairsSha &&
             matchesTarget(lastPrepared.repairsSha, sha) &&
-            !lastPrepared.consumedByCommitSha
+            !lastPrepared.consumedByCommitSha &&
+            lastPrepared.repairStatus !== "abandoned"
           ) {
             status = "repair_prepared";
             repairSha = null;

@@ -52,6 +52,18 @@ export const DeliveryCiInputSchema = z.object({
   sha: z.string().min(7).max(40),
 });
 
+export const DeliveryRepairAbandonInputSchema = z.object({
+  repairSha: z
+    .string()
+    .length(40)
+    .regex(/^[a-f0-9]{40}$/i, "repairSha must be a full commit SHA"),
+  targetSha: z
+    .string()
+    .length(40)
+    .regex(/^[a-f0-9]{40}$/i, "targetSha must be a full commit SHA"),
+  reason: z.string().min(12).max(500),
+});
+
 export const DeliveryFinalizeInputSchema = z.object({
   intent: z.enum(["close_us", "close_batch"]).default("close_us"),
   usId: z.string().max(500).optional(),

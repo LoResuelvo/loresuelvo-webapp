@@ -7,6 +7,7 @@ import { MercadoPagoConnectionStep } from "./MercadoPagoConnectionStep";
 import { Category } from "@/domain/shared/types";
 import { cn } from "@/lib/utils";
 import { useRegistrationForm } from "./useRegistrationForm";
+import { IdentityVerificationStep } from "./IdentityVerificationStep";
 import type { GoogleMapsRuntimeConfig } from "@/infrastructure/config/public-runtime-config";
 
 export default function RegistrationForm({
@@ -37,25 +38,31 @@ export default function RegistrationForm({
         className
       )}
     >
-      {step === 1 && (
+      {step === "role" && (
         <RoleSelectionStep
           role={role}
           onSelectRole={setRole}
-          onContinue={() => setStep(2)}
+          onContinue={() => setStep("profile")}
         />
       )}
-      {step === 2 && (
+      {step === "profile" && (
         <ProfileFormStep
           role={role}
           categories={categories}
           googleMapsConfig={googleMapsConfig}
-          onBack={() => setStep(1)}
+          onBack={() => setStep("role")}
           onSubmit={handleFinalSubmit}
           isLoading={isLoading}
           error={error}
         />
       )}
-      {step === 3 && role === "provider" && (
+      {step === "identity" && role === "provider" && (
+        <IdentityVerificationStep
+          onVerifyNow={() => setStep("identity")}
+          onLater={() => setStep("mercadoPago")}
+        />
+      )}
+      {step === "mercadoPago" && role === "provider" && (
         <MercadoPagoConnectionStep />
       )}
     </div>

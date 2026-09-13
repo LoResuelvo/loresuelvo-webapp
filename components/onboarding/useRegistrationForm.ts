@@ -8,6 +8,8 @@ import { clientFileUploadRepository } from "@/app/files/client-file-upload";
 import { executeFileUpload } from "@/application/files/execute-file-upload";
 import { t } from "@/infrastructure/i18n/translations";
 
+export type RegistrationStep = "role" | "profile" | "identity" | "mercadoPago";
+
 export async function uploadProfilePhoto(formData: FormData): Promise<void> {
   const profilePhoto = formData.get("profilePhoto") as File | null;
   if (profilePhoto && profilePhoto.size > 0 && profilePhoto.name !== "") {
@@ -25,8 +27,11 @@ export async function uploadProfilePhoto(formData: FormData): Promise<void> {
 }
 
 export function useRegistrationForm(session: AuthSession | null) {
-  const initialStep = session?.user?.role === "provider" && !session?.user?.isOnboarded ? 3 : 1;
-  const [step, setStep] = useState(initialStep);
+  const initialStep: RegistrationStep =
+    session?.user?.role === "provider" && !session?.user?.isOnboarded
+      ? "mercadoPago"
+      : "role";
+  const [step, setStep] = useState<RegistrationStep>(initialStep);
   const [role, setRole] = useState<"consumer" | "provider" | null>(
     (session?.user?.role as "consumer" | "provider") || null
   );
@@ -55,7 +60,7 @@ export function useRegistrationForm(session: AuthSession | null) {
       }
 
       if (role === "provider") {
-        setStep(3);
+        setStep("identity");
         setIsLoading(false);
       } else {
         if (result.redirectTo) {

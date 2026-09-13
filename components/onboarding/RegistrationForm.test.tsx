@@ -124,6 +124,8 @@ describe("RegistrationForm", () => {
         expect(mockSubmit).toHaveBeenCalledTimes(1);
       });
 
+      expect(screen.queryByTestId("identity-verification-step")).not.toBeInTheDocument();
+
       const [submittedFormData] = mockSubmit.mock.lastCall as [FormData];
       expect(submittedFormData.get("firstName")).toBe("Maria");
       expect(submittedFormData.get("lastName")).toBe("Gomez");
@@ -170,7 +172,7 @@ describe("RegistrationForm", () => {
 
       await waitFor(() => {
         expect(mockSubmit).toHaveBeenCalledTimes(1);
-        expect(screen.getByText("Conectá tu cuenta de Mercado Pago")).toBeInTheDocument();
+        expect(screen.getByTestId("identity-verification-step")).toBeInTheDocument();
       });
 
       const [submittedFormData] = mockSubmit.mock.lastCall as [FormData];

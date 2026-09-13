@@ -11,6 +11,7 @@ import {
   DeliveryInspectInputSchema,
   DeliveryPrepareInputSchema,
   DeliveryCiInputSchema,
+  DeliveryRepairAbandonInputSchema,
   DeliveryFinalizeInputSchema,
   DeliveryVerifyHeadInputSchema,
   DeliveryTestInputSchema,
@@ -23,6 +24,7 @@ import { finalizeDelivery, verifyHeadDelivery } from "./lib/delivery-finalize.mj
 import { testDelivery } from "./lib/test-delivery.mjs";
 import { redactSecrets } from "./lib/redact-secrets.mjs";
 import { waitForJob, cancelDeliveryJob } from "./lib/jobs.mjs";
+import { abandonRepairAttempt } from "./lib/delivery-ledger.mjs";
 
 const intentProperty = {
   type: "string",
@@ -57,7 +59,7 @@ const commonProperties = {
 };
 
 export const server = new Server(
-  { name: "loresuelvo-delivery", version: "1.3.0" },
+  { name: "loresuelvo-delivery", version: "1.4.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -168,6 +170,43 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         destructiveHint: false,
         idempotentHint: true,
         openWorldHint: true,
+      },
+    },
+    {
+      name: "delivery_repair_abandon",
+      description:
+        "Abandona una única tentativa Gate R local, no publicada y con contexto de lineage inválido; conserva la evidencia como tombstone y genera un registro de auditoría durable.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          repairSha: {
+            type: "string",
+            minLength: 40,
+            maxLength: 40,
+            pattern: "^[a-fA-F0-9]{40}$",
+            description: "Full SHA of the local Gate R repair commit to abandon",
+          },
+          targetSha: {
+            type: "string",
+            minLength: 40,
+            maxLength: 40,
+            pattern: "^[a-fA-F0-9]{40}$",
+            description: "Full SHA of the failed commit declared by the repair",
+          },
+          reason: {
+            type: "string",
+            minLength: 12,
+            maxLength: 500,
+            description: "Bounded human-readable reason recorded in the audit trail",
+          },
+        },
+        required: ["repairSha", "targetSha", "reason"],
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
       },
     },
     {
@@ -551,6 +590,36 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     } catch (error) {
       const message = redactSecrets(String(error.message || "CI inspection error")).split("\n")[0];
       return toolResponse({ error: message }, true);
+    }
+  }
+
+  if (name === "delivery_repair_abandon") {
+    const parsed = DeliveryRepairAbandonInputSchema.safeParse(request.params.arguments || {});
+    if (!parsed.success) {
+      return toolResponse(
+        {
+          abandoned: false,
+          status: "blocked",
+          reason: "INVALID_ARGUMENTS",
+          message: formatInputIssues(parsed.error),
+        },
+        true
+      );
+    }
+    try {
+      const result = await abandonRepairAttempt(parsed.data);
+      return toolResponse(result, !result.abandoned);
+    } catch (error) {
+      const message = redactSecrets(String(error.message || "Repair recovery error")).split("\n")[0];
+      return toolResponse(
+        {
+          abandoned: false,
+          status: "blocked",
+          reason: "INTERNAL_ERROR",
+          message,
+        },
+        true
+      );
     }
   }
 

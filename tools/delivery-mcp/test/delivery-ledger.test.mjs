@@ -26,7 +26,10 @@ import {
   LEDGER_STATES,
   LEDGER_DIR,
   LEDGER_FILE,
+  REPAIR_AUTH_DIR,
+  REPAIR_AUDIT_DIR,
   REPAIR_LOCKS_DIR,
+  abandonRepairAttempt,
 } from "../lib/delivery-ledger.mjs";
 import { MockCiProvider } from "../lib/ci-provider.mjs";
 
@@ -485,6 +488,167 @@ async function attachCommitEvidence({
     repairStatus,
   });
 }
+
+async function createRepairRecoveryFixture(t, { repairUsId = null } = {}) {
+  const repoRoot = await createTempGitRepo(t);
+  const targetSha = await commitFile(repoRoot, "failed-target.txt", "target", "chore[58]: failed target");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: targetSha,
+    gateId: "A",
+    branch: "main",
+    usId: "58",
+  });
+  const repairSha = await commitFile(repoRoot, "repair.txt", "repair", "fix[58]: repair target");
+  await attachCommitEvidence({
+    repoRoot,
+    sha: repairSha,
+    gateId: "R",
+    repairsSha: targetSha,
+    branch: "main",
+    usId: repairUsId,
+  });
+  return {
+    repoRoot,
+    targetSha,
+    repairSha,
+    ciProvider: new MockCiProvider({
+      [targetSha]: { status: "failed" },
+    }),
+  };
+}
+
+async function resetToTarget(repoRoot, targetSha) {
+  execFileSync("git", ["reset", "--hard", targetSha], { cwd: repoRoot });
+}
+
+test("abandonRepairAttempt: tombstonea intento Gate R local con contexto desconocido y deja auditoría durable", async (t) => {
+  const fixture = await createRepairRecoveryFixture(t);
+  await resetToTarget(fixture.repoRoot, fixture.targetSha);
+
+  const result = await abandonRepairAttempt({
+    ...fixture,
+    reason: "Gate R receipt lacks US context before push",
+  });
+
+  assert.equal(result.abandoned, true);
+  assert.equal(result.status, "abandoned");
+  assert.equal(result.reason, "REPAIR_ATTEMPT_ABANDONED");
+  assert.equal(result.lineageReason, "REPAIR_CONTEXT_UNKNOWN");
+
+  const entry = await getCommitEvidence({ repoRoot: fixture.repoRoot, commitSha: fixture.repairSha });
+  assert.equal(entry.repairStatus, "abandoned");
+  assert.equal(entry.repairAuthState, "abandoned");
+  assert.equal(entry.repairAuthSha, null);
+  assert.equal(entry.repairPushConsumed, false);
+
+  const authorization = await getRepairAuthorization({
+    repoRoot: fixture.repoRoot,
+    targetSha: fixture.targetSha,
+  });
+  assert.equal(authorization.state, "abandoned");
+  assert.equal(authorization.commitSha, fixture.repairSha);
+
+  const auditPath = path.join(fixture.repoRoot, result.auditPath);
+  const audit = JSON.parse(await fs.readFile(auditPath, "utf8"));
+  assert.equal(audit.status, "abandoned");
+  assert.equal(audit.action, "abandon_repair");
+  assert.equal(audit.repairSha, fixture.repairSha);
+  assert.equal(audit.targetSha, fixture.targetSha);
+  assert.equal(audit.lineageReason, "REPAIR_CONTEXT_UNKNOWN");
+  assert.match(audit.reason, /lacks US context/);
+
+  // A fresh Gate R can bind the same failed target after the old attempt is
+  // explicitly tombstoned; the old evidence itself remains immutable history.
+  const freshRepairSha = await commitFile(
+    fixture.repoRoot,
+    "fresh-repair.txt",
+    "fresh repair",
+    "fix[58]: fresh repair attempt"
+  );
+  await attachCommitEvidence({
+    repoRoot: fixture.repoRoot,
+    sha: freshRepairSha,
+    gateId: "R",
+    repairsSha: fixture.targetSha,
+    branch: "main",
+    usId: "58",
+  });
+  const freshAuthorization = await getRepairAuthorization({
+    repoRoot: fixture.repoRoot,
+    targetSha: fixture.targetSha,
+  });
+  assert.equal(freshAuthorization.commitSha, freshRepairSha);
+  assert.equal(freshAuthorization.state, "bound_to_commit");
+});
+
+test("abandonRepairAttempt: rechaza intento publicado sin alterar su evidencia", async (t) => {
+  const fixture = await createRepairRecoveryFixture(t);
+  const remoteRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-ledger-remote-"));
+  t.after(() => fs.rm(remoteRoot, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", remoteRoot], { cwd: fixture.repoRoot });
+  execFileSync("git", ["remote", "add", "origin", remoteRoot], { cwd: fixture.repoRoot });
+  execFileSync("git", ["push", "--set-upstream", "origin", "main"], { cwd: fixture.repoRoot });
+  execFileSync("git", ["fetch", "origin"], { cwd: fixture.repoRoot });
+
+  const result = await abandonRepairAttempt({
+    ...fixture,
+    reason: "Attempt was already published to the remote",
+  });
+
+  assert.equal(result.abandoned, false);
+  assert.equal(result.reason, "REPAIR_ATTEMPT_PUSHED");
+  assert.equal(await fs.stat(path.join(fixture.repoRoot, REPAIR_AUDIT_DIR)).then(() => true).catch(() => false), false);
+  const entry = await getCommitEvidence({ repoRoot: fixture.repoRoot, commitSha: fixture.repairSha });
+  assert.equal(entry.repairStatus, "unverified");
+  assert.equal(entry.repairAuthState, "bound_to_commit");
+});
+
+test("abandonRepairAttempt: rechaza contexto válido y no crea tombstone", async (t) => {
+  const fixture = await createRepairRecoveryFixture(t, { repairUsId: "58" });
+  await resetToTarget(fixture.repoRoot, fixture.targetSha);
+
+  const result = await abandonRepairAttempt({
+    ...fixture,
+    reason: "Context is valid and must be repaired normally",
+  });
+
+  assert.equal(result.abandoned, false);
+  assert.equal(result.reason, "REPAIR_CONTEXT_VALID");
+  assert.equal(await fs.stat(path.join(fixture.repoRoot, REPAIR_AUDIT_DIR)).then(() => true).catch(() => false), false);
+});
+
+test("abandonRepairAttempt: rechaza el intento que sigue siendo HEAD", async (t) => {
+  const fixture = await createRepairRecoveryFixture(t);
+
+  const result = await abandonRepairAttempt({
+    ...fixture,
+    reason: "Current HEAD must be repaired or reset explicitly",
+  });
+
+  assert.equal(result.abandoned, false);
+  assert.equal(result.reason, "REPAIR_ATTEMPT_CURRENT");
+});
+
+test("abandonRepairAttempt: rechaza target declarado incorrecto", async (t) => {
+  const fixture = await createRepairRecoveryFixture(t);
+  const incorrectTargetSha = await commitFile(
+    fixture.repoRoot,
+    "other-target.txt",
+    "other",
+    "chore: unrelated target"
+  );
+
+  const result = await abandonRepairAttempt({
+    ...fixture,
+    targetSha: incorrectTargetSha,
+    reason: "Requested target does not match repair declaration",
+  });
+
+  assert.equal(result.abandoned, false);
+  assert.equal(result.reason, "REPAIR_TARGET_MISMATCH");
+  assert.equal(await fs.stat(path.join(fixture.repoRoot, REPAIR_AUDIT_DIR)).then(() => true).catch(() => false), false);
+});
 
 test("resolveRepairChain: reparación válida pasa a validated y marca target en supersededFailures", async (t) => {
   const repoRoot = await createTempGitRepo(t);

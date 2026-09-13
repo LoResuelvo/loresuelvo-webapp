@@ -309,6 +309,29 @@ test("server.mjs publica schema canónico de acknowledgement y valida payload", 
     assert.strictEqual(decisionMapSchema.additionalProperties.minLength, 12);
     assert.strictEqual(decisionArraySchema.items.type, "object");
 
+    const recoveryTool = toolsResponse.tools.find((tool) => tool.name === "delivery_repair_abandon");
+    assert.ok(recoveryTool, "delivery_repair_abandon tool must be listed");
+    assert.deepStrictEqual(
+      recoveryTool.inputSchema.required,
+      ["repairSha", "targetSha", "reason"]
+    );
+    assert.strictEqual(recoveryTool.annotations.destructiveHint, true);
+    assert.strictEqual(recoveryTool.annotations.idempotentHint, false);
+    assert.strictEqual(recoveryTool.inputSchema.properties.repairSha.minLength, 40);
+    assert.strictEqual(recoveryTool.inputSchema.properties.targetSha.maxLength, 40);
+
+    const invalidRecoveryCall = await client.callTool({
+      name: "delivery_repair_abandon",
+      arguments: {
+        repairSha: "a".repeat(40),
+        targetSha: "b".repeat(40),
+        reason: "short",
+      },
+    });
+    assert.strictEqual(invalidRecoveryCall.isError, true);
+    const invalidRecoveryResult = JSON.parse(invalidRecoveryCall.content[0].text);
+    assert.strictEqual(invalidRecoveryResult.reason, "INVALID_ARGUMENTS");
+
     // Call tool with invalid acknowledgement (justification < 12 chars in decisions)
     const badCall = await client.callTool({
       name: "delivery_prepare",

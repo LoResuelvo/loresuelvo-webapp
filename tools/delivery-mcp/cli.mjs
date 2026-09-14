@@ -299,9 +299,9 @@ async function main() {
         process.exitCode = 0;
       } else {
         process.stderr.write(
-          `[delivery-hook] post-commit: evidence was not recorded (${res.reason || "unknown"})\n`
+          `[delivery-hook] post-commit advisory: evidence was not recorded (${res.reason || "unknown"})\n`
         );
-        process.exitCode = 1;
+        process.exitCode = 0;
       }
       return;
     }

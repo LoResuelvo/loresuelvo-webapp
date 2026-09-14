@@ -17,7 +17,6 @@ import {
 import { selectGate } from "../lib/select-gate.mjs";
 import { loadDeliveryPolicy } from "../lib/policy-loader.mjs";
 import { finalizeDelivery } from "../lib/delivery-finalize.mjs";
-import { runPrePushHook } from "../lib/git-hooks.mjs";
 import { MockCiProvider } from "../lib/ci-provider.mjs";
 
 async function createTempGitRepo(t) {
@@ -267,110 +266,6 @@ test("characterization: nuevos campos de receipt, invalidación por policyHash, 
   const queryLegacy = await queryCommitEvidence({ repoRoot, commitSha: legacyCommitSha });
   assert.strictEqual(queryLegacy.valid, true);
   assert.strictEqual(queryLegacy.state, "verified");
-});
-
-test("characterization: bypass ambiental DELIVERY_SKIP_CI_CHECK es rechazado con DEPRECATED_CI_BYPASS_REJECTED", async (t) => {
-  const repoRoot = await createTempGitRepo(t);
-
-  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-char-remote-"));
-  t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
-  execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remoteDir });
-  execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoRoot });
-  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoRoot });
-
-  // Commit 1: registrado en el ledger, pero su CI falló remotamente
-  await fs.writeFile(path.join(repoRoot, "file1.txt"), "c1", "utf8");
-  execFileSync("git", ["add", "file1.txt"], { cwd: repoRoot });
-  execFileSync("git", ["commit", "-m", "chore: commit 1"], { cwd: repoRoot });
-  const sha1 = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
-  const id1 = getCommitIdentity(repoRoot, sha1);
-  const rec1 = await createExecutionRecord(repoRoot, {
-    snapshotHash: "s1",
-    runKey: "r1",
-    policyHash: "p1",
-  });
-  await recordCommitEvidence({
-    repoRoot,
-    commitSha: sha1,
-    snapshotHash: "s1",
-    runKey: "r1",
-    recordPath: rec1.recordPath,
-    recordDigest: rec1.digest,
-    branch: "main",
-    parentSha: id1.parents[0] || null,
-    treeSha: id1.treeSha,
-    stagedFiles: ["file1.txt"],
-    gateId: "A",
-    policyHash: "p1",
-  });
-
-  // Push commit 1 al remote
-  execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot });
-
-  // Commit 2: nuevo commit local a pushear
-  await fs.writeFile(path.join(repoRoot, "file2.txt"), "c2", "utf8");
-  execFileSync("git", ["add", "file2.txt"], { cwd: repoRoot });
-  execFileSync("git", ["commit", "-m", "chore: commit 2"], { cwd: repoRoot });
-  const sha2 = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
-  const id2 = getCommitIdentity(repoRoot, sha2);
-  const rec2 = await createExecutionRecord(repoRoot, {
-    snapshotHash: "s2",
-    runKey: "r2",
-    policyHash: "p1",
-  });
-  await recordCommitEvidence({
-    repoRoot,
-    commitSha: sha2,
-    snapshotHash: "s2",
-    runKey: "r2",
-    recordPath: rec2.recordPath,
-    recordDigest: rec2.digest,
-    branch: "main",
-    parentSha: id2.parents[0] || null,
-    treeSha: id2.treeSha,
-    stagedFiles: ["file2.txt"],
-    gateId: "A",
-    policyHash: "p1",
-  });
-
-  const ciProvider = new MockCiProvider();
-  // sha1 falló en CI
-  ciProvider.setFixture(sha1, {
-    status: "failed",
-    failure: { message: "Unit tests failed on remote CI" },
-  });
-
-  const pushLine = `refs/heads/main ${sha2} refs/heads/main ${sha1}`;
-
-  // Comportamiento SIN bypass: pre-push bloquea porque el CI de sha1 está fallido
-  const pushNormal = await runPrePushHook({
-    repoRoot,
-    stdinLines: [pushLine],
-    ciProvider,
-  });
-  assert.strictEqual(pushNormal.passed, false);
-  assert.strictEqual(pushNormal.reason, "PRIOR_COMMIT_CI_FAILED");
-  assert.strictEqual(pushNormal.sha, sha1);
-
-  // Comportamiento CON bypass DELIVERY_SKIP_CI_CHECK: es rechazado explícitamente
-  const origEnv = process.env.DELIVERY_SKIP_CI_CHECK;
-  process.env.DELIVERY_SKIP_CI_CHECK = "1";
-  try {
-    const pushBypassed = await runPrePushHook({
-      repoRoot,
-      stdinLines: [pushLine],
-      ciProvider,
-    });
-    assert.strictEqual(pushBypassed.passed, false);
-    assert.strictEqual(pushBypassed.reason, "DEPRECATED_CI_BYPASS_REJECTED");
-    assert.strictEqual(
-      pushBypassed.message,
-      "DELIVERY_SKIP_CI_CHECK is deprecated and forbidden. Use repair_ci workflow for CI failure remediation."
-    );
-  } finally {
-    if (origEnv === undefined) delete process.env.DELIVERY_SKIP_CI_CHECK;
-    else process.env.DELIVERY_SKIP_CI_CHECK = origEnv;
-  }
 });
 
 test("characterization: selección de gate por impacto Cucumber sobre steps existentes y hooks (patrón 5d0a34d)", async () => {

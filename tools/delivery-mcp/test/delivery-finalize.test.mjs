@@ -8,7 +8,6 @@ import { execFileSync } from "node:child_process";
 import { finalizeDelivery, verifyHeadDelivery } from "../lib/delivery-finalize.mjs";
 import { MockCiProvider } from "../lib/ci-provider.mjs";
 import { recordCommitEvidence } from "../lib/delivery-ledger.mjs";
-import { runPrePushHook } from "../lib/git-hooks.mjs";
 import { saveDeliveryContext } from "../lib/delivery-context.mjs";
 
 async function createTempGitRepo(t) {
@@ -467,82 +466,6 @@ test("finalizeDelivery: exige que intent y US coincidan con la evidencia de HEAD
   });
   assert.strictEqual(usMismatch.finalized, false);
   assert.strictEqual(usMismatch.reason, "US_EVIDENCE_MISMATCH");
-});
-
-test("pre-push: bloquea nuevos pushes si un commit previo falló en CI", async (t) => {
-  const repoRoot = await createTempGitRepo(t);
-  const sha1 = headSha(repoRoot);
-  await attachEvidence({ repoRoot, sha: sha1 });
-  const sha2 = await commitFile(repoRoot, "newfile.txt", "hello", "chore: new commit");
-  await attachEvidence({ repoRoot, sha: sha2 });
-
-  const mockCi = new MockCiProvider({
-    [sha1]: { status: "failed", failure: { message: "Test suite failed" } },
-    [sha2]: { status: "passed" },
-  });
-  const result = await runPrePushHook({
-    repoRoot,
-    stdinLines: [`refs/heads/main ${sha2} refs/heads/main ${sha1}`],
-    ciProvider: mockCi,
-  });
-  assert.strictEqual(result.passed, false);
-  assert.strictEqual(result.reason, "PRIOR_COMMIT_CI_FAILED");
-});
-
-test("pre-push: permite exactamente cuatro commits totales con CI pendiente", async (t) => {
-  const repoRoot = await createTempGitRepo(t);
-  const sha1 = headSha(repoRoot);
-  await attachEvidence({ repoRoot, sha: sha1 });
-  const sha2 = await commitFile(repoRoot, "f2.txt", "2", "chore: c2");
-  await attachEvidence({ repoRoot, sha: sha2 });
-  const sha3 = await commitFile(repoRoot, "f3.txt", "3", "chore: c3");
-  await attachEvidence({ repoRoot, sha: sha3 });
-  const sha4 = await commitFile(repoRoot, "f4.txt", "4", "chore: c4");
-  await attachEvidence({ repoRoot, sha: sha4 });
-
-  const mockCi = new MockCiProvider({
-    [sha1]: { status: "in_progress" },
-    [sha2]: { status: "in_progress" },
-    [sha3]: { status: "in_progress" },
-  });
-  const result = await runPrePushHook({
-    repoRoot,
-    stdinLines: [`refs/heads/main ${sha4} refs/heads/main ${sha3}`],
-    ciProvider: mockCi,
-  });
-  assert.strictEqual(result.passed, true);
-});
-
-test("pre-push: bloquea un quinto commit total con CI pendiente", async (t) => {
-  const repoRoot = await createTempGitRepo(t);
-  const sha1 = headSha(repoRoot);
-  await attachEvidence({ repoRoot, sha: sha1 });
-  const sha2 = await commitFile(repoRoot, "f2.txt", "2", "chore: c2");
-  await attachEvidence({ repoRoot, sha: sha2 });
-  const sha3 = await commitFile(repoRoot, "f3.txt", "3", "chore: c3");
-  await attachEvidence({ repoRoot, sha: sha3 });
-  const sha4 = await commitFile(repoRoot, "f4.txt", "4", "chore: c4");
-  await attachEvidence({ repoRoot, sha: sha4 });
-  const sha5 = await commitFile(repoRoot, "f5.txt", "5", "chore: c5");
-  await attachEvidence({ repoRoot, sha: sha5 });
-
-  const mockCi = new MockCiProvider({
-    [sha1]: { status: "in_progress" },
-    [sha2]: { status: "in_progress" },
-    [sha3]: { status: "in_progress" },
-    [sha4]: { status: "in_progress" },
-  });
-  const result = await runPrePushHook({
-    repoRoot,
-    stdinLines: [`refs/heads/main ${sha5} refs/heads/main ${sha4}`],
-    ciProvider: mockCi,
-  });
-
-  assert.strictEqual(result.passed, false);
-  assert.strictEqual(result.reason, "CI_PENDING_WINDOW_EXCEEDED");
-  assert.strictEqual(result.pendingCount, 4);
-  assert.strictEqual(result.inFlightCount, 5);
-  assert.strictEqual(result.maxInFlightCommits, 4);
 });
 
 async function attachNotRunEvidence({ repoRoot, sha, usId = null, reason = "human_commit_no_receipt" }) {

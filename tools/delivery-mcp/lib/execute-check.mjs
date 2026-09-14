@@ -152,7 +152,7 @@ async function executeCommandCheck({ check, repoRoot, logPath, limits = {} }) {
 
   const child = spawn(check.command, check.args, {
     cwd: repoRoot,
-    env: process.env,
+    env: { ...process.env, DELIVERY_RUN_ACTIVE: "1" },
     shell: false,
     stdio: ["ignore", "pipe", "pipe"],
     detached: process.platform !== "win32",

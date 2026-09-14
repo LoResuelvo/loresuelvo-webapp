@@ -485,7 +485,7 @@ test("jobs: integración MCP delivery_prepare y delivery_job_wait", async () => 
 
     // 2. delivery_prepare with mode: 'job' returns job_started or no_changes
     // Avoid spawning nested job workers if already running inside an active delivery worker
-    if (!process.env.DELIVERY_JOB_ID) {
+    if (!process.env.DELIVERY_JOB_ID && !process.env.DELIVERY_RUN_ACTIVE) {
       const prepResult = await client.callTool({
         name: "delivery_prepare",
         arguments: { intent: "prepare_commit", mode: "job" },

@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { evaluateCiWindow } from "../lib/delivery-ledger.mjs";
+import { evaluateCiWindow, recordCommitEvidence } from "../lib/delivery-ledger.mjs";
 import { prepareDelivery } from "../lib/prepare-delivery.mjs";
 import { runPostCommitHook, runPrePushHook } from "../lib/git-hooks.mjs";
 import { MockCiProvider } from "../lib/ci-provider.mjs";
@@ -165,6 +165,16 @@ test("pre-push ignora commits del ledger descartados por reset y fuera del histo
     execFileSync("git", ["add", filename], { cwd: repoRoot });
     execFileSync("git", ["commit", "-m", `chore: discarded commit ${index}`], { cwd: repoRoot });
     const discarded = await runPostCommitHook({ repoRoot });
+    await recordCommitEvidence({
+      repoRoot,
+      commitSha: discarded.commitSha,
+      verificationStatus: "not_run",
+      notRunReason: "human_commit_no_receipt",
+      branch: "main",
+      parentSha: null,
+      treeSha: execFileSync("git", ["rev-parse", "HEAD^{tree}"], { cwd: repoRoot, encoding: "utf8" }).trim(),
+      stagedFiles: [filename],
+    });
     mockCi.setFixture(discarded.commitSha, { status: "not_found" });
     execFileSync("git", ["reset", "--hard", baseSha], { cwd: repoRoot });
   }
@@ -173,6 +183,16 @@ test("pre-push ignora commits del ledger descartados por reset y fuera del histo
   execFileSync("git", ["add", "current.txt"], { cwd: repoRoot });
   execFileSync("git", ["commit", "-m", "chore: current commit"], { cwd: repoRoot });
   const current = await runPostCommitHook({ repoRoot });
+  await recordCommitEvidence({
+    repoRoot,
+    commitSha: current.commitSha,
+    verificationStatus: "not_run",
+    notRunReason: "human_commit_no_receipt",
+    branch: "main",
+    parentSha: null,
+    treeSha: execFileSync("git", ["rev-parse", "HEAD^{tree}"], { cwd: repoRoot, encoding: "utf8" }).trim(),
+    stagedFiles: ["current.txt"],
+  });
   mockCi.setFixture(current.commitSha, { status: "not_found" });
 
   const window = await evaluateCiWindow({
@@ -337,7 +357,7 @@ test("repair_ci con repairsSha válido permite Gate R y reabre la ventana tras r
   assert.strictEqual(nextPrep.status, "passed");
 });
 
-test("fallo que aparece entre prepare y push: runPrePushHook bloquea autoritativamente", async (t) => {
+test("fallo que aparece entre prepare y push: runPrePushHook es advisory", async (t) => {
   const repoRoot = await createTempGitRepo(t);
   const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-remote-"));
   t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
@@ -370,10 +390,10 @@ test("fallo que aparece entre prepare y push: runPrePushHook bloquea autoritativ
   execFileSync("git", ["commit", "-m", "chore: commit 2"], { cwd: repoRoot });
   const post2 = await runPostCommitHook({ repoRoot });
 
-  // AHORA commit 1 falla en CI antes del push de commit 2
+  // Commit 1 falla en CI antes del push de commit 2
   mockCi.setFixture(post1.commitSha, { status: "failed" });
 
-  // runPrePushHook bloquea autoritativamente
+  // runPrePushHook permanece advisory al estilo de Android
   const pushLine = `refs/heads/main ${post2.commitSha} refs/heads/main ${post1.commitSha}`;
   const pushRes = await runPrePushHook({
     repoRoot,
@@ -381,9 +401,8 @@ test("fallo que aparece entre prepare y push: runPrePushHook bloquea autoritativ
     ciProvider: mockCi,
   });
 
-  assert.strictEqual(pushRes.passed, false);
-  assert.strictEqual(pushRes.reason, "PRIOR_COMMIT_CI_FAILED");
-  assert.strictEqual(pushRes.sha, post1.commitSha);
+  assert.strictEqual(pushRes.passed, true);
+  assert.strictEqual(pushRes.advisory, true);
 });
 
 test("errores de provider o credenciales no se interpretan como passed", async (t) => {

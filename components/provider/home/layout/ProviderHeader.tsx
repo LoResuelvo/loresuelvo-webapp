@@ -33,14 +33,6 @@ export default function ProviderHeader({ session, categoryName }: ProviderHeader
 
   return (
     <header className="h-20 border-b border-slate-200 bg-brand-neutral/30 flex items-center justify-end px-8 gap-6 sticky top-0 z-10">
-      {categoryName && (
-        <span
-          data-testid="provider-category"
-          className="text-small font-semibold text-brand-secondary bg-brand-secondary/10 px-3 py-1 rounded-full"
-        >
-          {categoryName}
-        </span>
-      )}
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setIsOpen(!isOpen)}

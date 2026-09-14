@@ -4,6 +4,7 @@ import { Auth0Adapter } from "./auth0-adapter";
 import { DevAuthAdapter } from "./dev-adapter";
 import { getAuthService } from "./index";
 import { AuthSession } from "./types";
+import { E2E_SCENARIO_COOKIE, E2E_SESSION_COOKIE } from "../api/e2e-stubs-utils";
 
 // Declare mock stores inside vi.hoisted so they are initialized before mocks are executed
 const { mockCookiesStore, mockAuth0 } = vi.hoisted(() => {
@@ -12,6 +13,7 @@ const { mockCookiesStore, mockAuth0 } = vi.hoisted(() => {
       get: vi.fn(),
       set: vi.fn(),
       has: vi.fn(),
+      getAll: vi.fn(),
     },
     mockAuth0: {
       getSession: vi.fn(),
@@ -162,7 +164,10 @@ describe("DevAuthAdapter", () => {
   });
 
   it("should delegate getSession to MockAuthAdapter if e2e session cookie is present", async () => {
-    mockCookiesStore.has.mockImplementation((name) => name === MOCK_SESSION_COOKIE);
+    mockCookiesStore.getAll.mockReturnValue([
+      { name: E2E_SESSION_COOKIE },
+      { name: E2E_SCENARIO_COOKIE },
+    ]);
     const mockSession = { user: { id: "mock" } };
     mockCookiesStore.get.mockReturnValue({ value: encodeURIComponent(JSON.stringify(mockSession)) });
 
@@ -172,7 +177,7 @@ describe("DevAuthAdapter", () => {
   });
 
   it("should delegate getSession to Auth0Adapter if e2e session cookie is missing", async () => {
-    mockCookiesStore.has.mockReturnValue(false);
+    mockCookiesStore.getAll.mockReturnValue([]);
     mockAuth0.getSession.mockResolvedValue(null);
 
     const session = await adapter.getSession();
@@ -181,7 +186,10 @@ describe("DevAuthAdapter", () => {
   });
 
   it("should delegate updateSession to MockAuthAdapter if e2e cookie is present", async () => {
-    mockCookiesStore.has.mockImplementation((name) => name === MOCK_SESSION_COOKIE);
+    mockCookiesStore.getAll.mockReturnValue([
+      { name: E2E_SESSION_COOKIE },
+      { name: E2E_SCENARIO_COOKIE },
+    ]);
     const mockSession = { user: { id: "mock" } };
     mockCookiesStore.get.mockReturnValue({ value: encodeURIComponent(JSON.stringify(mockSession)) });
 
@@ -191,7 +199,7 @@ describe("DevAuthAdapter", () => {
   });
 
   it("should delegate updateSession to Auth0Adapter if e2e cookie is missing", async () => {
-    mockCookiesStore.has.mockReturnValue(false);
+    mockCookiesStore.getAll.mockReturnValue([]);
     const originalAuth0Session = { user: { sub: "123" } };
     mockAuth0.getSession.mockResolvedValue(originalAuth0Session);
 

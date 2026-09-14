@@ -137,11 +137,12 @@ export function VideoViewerModal({
       title={originalName || t.messaging.videoViewer.title}
       closeLabel={t.messaging.videoViewer.closeLabel}
       variant="dark"
-      className="w-[95vw] max-w-4xl h-[85vh] max-h-[90vh] bg-black text-white border border-slate-800 rounded-2xl overflow-hidden p-0"
+      className="w-[95vw] max-w-4xl max-h-[90vh] bg-transparent text-white border-transparent shadow-none overflow-hidden p-0"
+      bodyClassName="flex-none overflow-hidden"
     >
       <div
         data-testid="video-viewer-modal"
-        className="w-full h-full flex flex-col items-center justify-center bg-black relative p-3 overflow-hidden"
+        className="w-full aspect-video flex flex-col items-center justify-center bg-transparent relative overflow-hidden"
       >
         {hasError ? (
           <VideoPlaybackError onRetry={handleRetry} onClose={handleClose} />

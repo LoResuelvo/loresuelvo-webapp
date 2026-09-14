@@ -13,6 +13,7 @@ interface ModalProps {
   closeLabel?: string;
   children: React.ReactNode;
   className?: string;
+  bodyClassName?: string;
   overlayClassName?: string;
   footer?: React.ReactNode;
   variant?: "default" | "dark";
@@ -26,6 +27,7 @@ export function Modal({
   closeLabel = "Cerrar",
   children,
   className,
+  bodyClassName,
   overlayClassName,
   footer,
   variant = "default",
@@ -84,7 +86,7 @@ export function Modal({
           </div>
 
           {/* Body */}
-          <div className="overflow-y-auto flex-1 min-h-0">
+          <div className={cn("overflow-y-auto flex-1 min-h-0", bodyClassName)}>
             {children}
           </div>
 

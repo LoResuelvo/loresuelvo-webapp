@@ -1,6 +1,7 @@
 import type { ApiStub } from "./types";
 
 export const E2E_SESSION_COOKIE = "__e2e_session";
+export const E2E_SCENARIO_COOKIE = "__e2e_scenario";
 const E2E_API_STUBS_COOKIE_PREFIX = "__e2e_api_stubs_";
 const E2E_COOKIE_DOMAIN = "localhost";
 const E2E_COOKIE_PATH = "/";
@@ -13,6 +14,15 @@ export interface Cookie {
   domain?: string;
   path?: string;
   expires?: number;
+}
+
+export function hasActiveE2EContext(
+  cookies: readonly Pick<Cookie, "name">[],
+): boolean {
+  return (
+    cookies.some((cookie) => cookie.name === E2E_SESSION_COOKIE) &&
+    cookies.some((cookie) => cookie.name === E2E_SCENARIO_COOKIE)
+  );
 }
 
 export function parseE2EStubsFromCookies(cookies: Cookie[]): ApiStub[] {

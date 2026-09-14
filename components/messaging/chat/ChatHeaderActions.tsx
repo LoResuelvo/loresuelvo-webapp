@@ -66,7 +66,7 @@ export function ChatHeaderActions({
         </Button>
       ) : (
         <>
-          {jobRequest && (
+          {jobRequest && (!pending || !isProvider || !onAccept) && (
             <Button
               variant="brandSecondary"
               onClick={onViewJobRequest}

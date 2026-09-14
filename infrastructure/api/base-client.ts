@@ -1,6 +1,10 @@
 import { getAuthService } from "@/infrastructure/auth";
 import type { ApiStub } from "./types";
-import { parseE2EStubsFromCookies } from "./e2e-stubs-utils";
+import {
+  E2E_SCENARIO_COOKIE,
+  hasActiveE2EContext,
+  parseE2EStubsFromCookies,
+} from "./e2e-stubs-utils";
 import { logger } from "@/infrastructure/logging/logger";
 import { getApiUrl } from "@/infrastructure/config/server-env";
 import { usesE2EAdapters } from "@/infrastructure/config/runtime-env";
@@ -42,10 +46,9 @@ export class ApiClient {
     try {
       const { cookies } = await import("next/headers");
       const cookieStore = await cookies();
-
-      if (!cookieStore.has("__e2e_session")) return null;
-      
       const allCookies = cookieStore.getAll().map(c => ({ name: c.name, value: c.value }));
+      if (!hasActiveE2EContext(allCookies)) return null;
+
       const stubs = parseE2EStubsFromCookies(allCookies);
 
       if (stubs.length === 0) return null;
@@ -86,8 +89,9 @@ export class ApiClient {
       try {
         const { cookies } = await import("next/headers");
         const cookieStore = await cookies();
-        if (cookieStore.has("__e2e_session")) {
-          const scenarioCookie = cookieStore.get("__e2e_scenario");
+        const allCookies = cookieStore.getAll();
+        if (hasActiveE2EContext(allCookies)) {
+          const scenarioCookie = cookieStore.get(E2E_SCENARIO_COOKIE);
           const scenarioInfo = scenarioCookie ? decodeURIComponent(scenarioCookie.value) : "Unknown Scenario";
           logger.warn(`[ApiClient] [E2E] [${scenarioInfo}] No stub provided for ${options.method || "GET"} ${endpoint}`);
           throw new ApiClientError(404, "Not Found", `[${scenarioInfo}] No E2E stub found for ${options.method || "GET"} ${endpoint}`, null);

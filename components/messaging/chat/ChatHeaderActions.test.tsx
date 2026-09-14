@@ -90,4 +90,33 @@ describe("ChatHeaderActions", () => {
     fireEvent.click(button);
     expect(handleAccept).toHaveBeenCalledTimes(1);
   });
+
+  it("renders only one request button for a provider with a pending job request", () => {
+    const handleAccept = vi.fn();
+    const handleViewJobRequest = vi.fn();
+
+    render(
+      <ChatHeaderActions
+        conversationState={{
+          pending: true,
+          isProvider: true,
+        }}
+        jobRequest={{
+          title: "Reparación",
+          description: "Descripción",
+        }}
+        actions={{
+          onAccept: handleAccept,
+          onViewJobRequest: handleViewJobRequest,
+        }}
+      />
+    );
+
+    const buttons = screen.getAllByRole("button", { name: /ver solicitud/i });
+    expect(buttons).toHaveLength(1);
+
+    fireEvent.click(buttons[0]);
+    expect(handleAccept).toHaveBeenCalledTimes(1);
+    expect(handleViewJobRequest).not.toHaveBeenCalled();
+  });
 });

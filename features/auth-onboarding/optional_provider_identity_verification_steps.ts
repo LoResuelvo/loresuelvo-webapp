@@ -258,6 +258,54 @@ When(
   },
 );
 
+Given(
+  "el servicio de verificación no está disponible",
+  async function (this: CustomWorld) {
+    await this.stubPost(
+      "/providers/me/identity-verification-sessions",
+      503,
+      { error: "Identity verification service unavailable" },
+    );
+  },
+);
+
+Then("veo un error de verificación controlado", async function (this: CustomWorld) {
+  const error = this.page
+    .getByRole("alert")
+    .filter({ hasText: t.onboarding.identityVerification.errorTemporary })
+    .first();
+  await error.waitFor(visibleTimeout);
+  assert.equal(
+    await error.textContent(),
+    t.onboarding.identityVerification.errorTemporary,
+  );
+});
+
+Then(
+  "veo opciones para reintentar o continuar más tarde",
+  async function (this: CustomWorld) {
+    for (const action of [
+      t.onboarding.identityVerification.verifyNow,
+      t.onboarding.identityVerification.later,
+    ]) {
+      const button = this.page.getByRole("button", { name: action }).first();
+      await button.waitFor(visibleTimeout);
+      assert.ok(await button.isVisible(), `No se muestra la opción "${action}"`);
+    }
+  },
+);
+
+Then(
+  "no se me solicita completar nuevamente el perfil",
+  async function (this: CustomWorld) {
+    assert.equal(
+      await this.page.getByRole("heading", { name: t.onboarding.profileForm.title }).count(),
+      0,
+      "Se volvió a mostrar el formulario de perfil",
+    );
+  },
+);
+
 Given("la API puede iniciar mi verificación", async function (this: CustomWorld) {
   await this.stubPost("/providers/me/identity-verification-sessions", 200, {
     session_id: "identity-session-1",
@@ -277,13 +325,11 @@ Given("la API puede iniciar mi verificación", async function (this: CustomWorld
 When('elijo "Verificar ahora"', async function (this: CustomWorld) {
   const button = this.page.getByRole("button", { name: "Verificar ahora" }).first();
   await button.waitFor(visibleTimeout);
-  await Promise.all([
-    this.page.waitForURL("https://verify.example/session-1", { timeout: 10000 }),
-    button.click(),
-  ]);
+  await button.click();
 });
 
 Then("soy dirigido al flujo alojado de Didit", async function (this: CustomWorld) {
+  await this.page.waitForURL("https://verify.example/session-1", { timeout: 10000 });
   assert.equal(new URL(this.page.url()).origin, "https://verify.example");
   assert.match(this.page.url(), /\/session-1$/);
 });

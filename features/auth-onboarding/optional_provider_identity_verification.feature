@@ -62,7 +62,6 @@ Feature: US-58 Verificar opcionalmente identidad del prestador
       | kyc_expired |
       | unverified  |
 
-  @wip
   Scenario: 08-VIP Informar un error de inicio sin perder la cuenta
     Given mi cuenta de prestador ya fue creada y veo la invitación de identidad
     And el servicio de verificación no está disponible

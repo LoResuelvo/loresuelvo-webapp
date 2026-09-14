@@ -1096,7 +1096,577 @@ Then("veo un único mensaje enviado con el video y su texto", async function (th
   assert.ok(await textEl.isVisible());
 });
 
+// 50.2.10 Steps
+Given(
+  "que el chat contiene un video de 17 segundos {string} con el texto {string}",
+  async function (this: VideoWorld, origen: string, texto: string) {
+    const isOwn = origen === "enviado por mí";
+    this.currentRole = "consumer";
+
+    await this.setSession("consumer", {
+      id: "consumer-001",
+      email: "ana@example.com",
+      firstName: "Ana",
+      lastName: "Pérez",
+      isOnboarded: true,
+    });
+
+    const fileId = "video-historical-001";
+    const videoUrl = "https://mock-video.test/historical.mp4";
+
+    const msg: any = {
+      id: 301,
+      sender_role: isOwn ? "consumer" : "provider",
+      created_on: new Date().toISOString(),
+      content: texto || "",
+      video: {
+        id: fileId,
+        url: videoUrl,
+        original_name: "perdida.mp4",
+        duration_seconds: 17,
+        mime_type: "video/mp4",
+      },
+    };
+
+    await this.stubGet("/conversations", [
+      aConversation({
+        id: 1,
+        status: "accepted",
+        counterpart: aCounterpart({
+          id: 1,
+          role: "provider",
+          name: "Juan",
+          surname: "Gómez",
+        }),
+      }),
+    ]);
+    await this.stubGet(
+      "/conversations/1",
+      aConversationDetail({
+        id: 1,
+        status: "accepted",
+        counterpart: aCounterpart({
+          id: 1,
+          role: "provider",
+          name: "Juan",
+          surname: "Gómez",
+        }),
+        messages: [msg],
+      })
+    );
+    await this.stubGet("/job-requests", []);
+    await this.stubGet("/service-proposals", []);
+    await this.stubPost("/ws-tickets", 201, aWsTicket());
+  }
+);
+
+When("abro nuevamente ese chat", async function (this: CustomWorld) {
+  await this.page.goto(
+    APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
+    { waitUntil: "networkidle" }
+  );
+  await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
+});
+
+Then(
+  "veo el video como mensaje {string} con miniatura, botón de reproducción y duración {string}",
+  async function (this: CustomWorld, tipo: string, duracion: string) {
+    const messageList = this.page.locator('[data-testid="messages-list"]');
+    const bubble = messageList.locator(`[data-message-type="${tipo}"]`).first();
+    await bubble.waitFor(visibleTimeout);
+    assert.ok(await bubble.isVisible());
+
+    const player = bubble.getByTestId("video-message-player");
+    await player.waitFor(visibleTimeout);
+    assert.ok(await player.isVisible());
+
+    const thumbnail = player.getByTestId("video-thumbnail");
+    assert.ok(await thumbnail.isVisible());
+
+    const playButton = player.getByTestId("video-play-button");
+    assert.ok(await playButton.isVisible());
+
+    const durationBadge = player.getByTestId("video-duration");
+    assert.strictEqual((await durationBadge.textContent())?.trim(), duracion);
+  }
+);
+
+Then(
+  "se muestra el texto {string} cuando no está vacío",
+  async function (this: CustomWorld, texto: string) {
+    if (texto && texto.trim().length > 0) {
+      const messageList = this.page.locator('[data-testid="messages-list"]');
+      const textEl = messageList.getByText(texto);
+      await textEl.waitFor(visibleTimeout);
+      assert.ok(await textEl.isVisible());
+    }
+  }
+);
+
+Then("el video no comienza a reproducirse automáticamente", async function (this: CustomWorld) {
+  const messageList = this.page.locator('[data-testid="messages-list"]');
+  const video = messageList.locator("video").first();
+  await video.waitFor(visibleTimeout);
+  const isPaused = await video.evaluate((v: HTMLVideoElement) => v.paused);
+  assert.strictEqual(isPaused, true);
+});
+
+const MOCK_VALID_MP4_BASE64 =
+  "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";
+
+const MOCK_VALID_MP4_BUFFER = Buffer.from(MOCK_VALID_MP4_BASE64, "base64");
+
+async function stubPlayableVideoRoute(page: CustomWorld["page"]) {
+  await page.unroute("**/mock-video.test/**").catch(() => {});
+  await page.route("**/mock-video.test/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "video/mp4",
+      body: MOCK_VALID_MP4_BUFFER,
+    });
+  });
+}
+
+// 50.2.11 Steps
+Given(
+  "que veo un video {string} que se puede reproducir",
+  async function (this: VideoWorld, orientacion: string) {
+    const isVertical = orientacion === "vertical";
+    const width = isVertical ? 1080 : 1920;
+    const height = isVertical ? 1920 : 1080;
+
+    await this.setSession("consumer", {
+      id: "consumer-001",
+      email: "ana@example.com",
+      firstName: "Ana",
+      lastName: "Pérez",
+      isOnboarded: true,
+    });
+
+    const fileId = "video-orientation-001";
+    const videoUrl = "https://mock-video.test/orientation.mp4";
+
+    const msg: any = {
+      id: 401,
+      sender_role: "consumer",
+      created_on: new Date().toISOString(),
+      content: "",
+      video: {
+        id: fileId,
+        url: videoUrl,
+        original_name: "video.mp4",
+        duration_seconds: 17,
+        width,
+        height,
+        mime_type: "video/mp4",
+      },
+    };
+
+    await this.stubGet("/conversations", [
+      aConversation({
+        id: 1,
+        status: "accepted",
+        counterpart: aCounterpart({
+          id: 1,
+          role: "provider",
+          name: "Juan",
+          surname: "Gómez",
+        }),
+      }),
+    ]);
+    await this.stubGet(
+      "/conversations/1",
+      aConversationDetail({
+        id: 1,
+        status: "accepted",
+        counterpart: aCounterpart({
+          id: 1,
+          role: "provider",
+          name: "Juan",
+          surname: "Gómez",
+        }),
+        messages: [msg],
+      })
+    );
+    await this.stubGet("/job-requests", []);
+    await this.stubGet("/service-proposals", []);
+    await this.stubPost("/ws-tickets", 201, aWsTicket());
+
+    await stubPlayableVideoRoute(this.page);
+
+    await this.page.goto(
+      APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
+      { waitUntil: "networkidle" }
+    );
+    await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
+  }
+);
+
+Given("que uso una pantalla {string}", async function (this: CustomWorld, pantalla: string) {
+  if (pantalla === "mobile angosta") {
+    await this.page.setViewportSize({ width: 360, height: 640 });
+  } else if (pantalla === "tablet") {
+    await this.page.setViewportSize({ width: 768, height: 1024 });
+  } else {
+    await this.page.setViewportSize({ width: 1440, height: 900 });
+  }
+});
+
+When("activo el botón de reproducción del video", async function (this: CustomWorld) {
+  const playButton = this.page.getByTestId("video-play-button").first();
+  await playButton.waitFor(visibleTimeout);
+  await playButton.focus();
+  await playButton.click();
+});
+
+Then("se abre un visor amplio sobre fondo oscuro", async function (this: CustomWorld) {
+  const viewer = this.page.getByTestId("video-viewer-modal");
+  await viewer.waitFor(visibleTimeout);
+  assert.ok(await viewer.isVisible());
+});
+
+Then(
+  "puedo reproducir, pausar, avanzar y ajustar el volumen con los controles del video",
+  async function (this: CustomWorld) {
+    const viewer = this.page.getByTestId("video-viewer-modal");
+    const video = viewer.locator("video");
+    await video.waitFor(visibleTimeout);
+    const hasControls = await video.evaluate((v: HTMLVideoElement) => v.controls);
+    assert.strictEqual(hasControls, true);
+    const playsInline = await video.evaluate((v: HTMLVideoElement) => v.playsInline);
+    assert.strictEqual(playsInline, true);
+  }
+);
+
+Then("veo el video completo conservando su proporción", async function (this: CustomWorld) {
+  const viewer = this.page.getByTestId("video-viewer-modal");
+  const video = viewer.locator("video");
+  await video.waitFor(visibleTimeout);
+  const className = await video.getAttribute("class");
+  assert.ok(className?.includes("object-contain"), "El video no tiene object-contain");
+});
+
+Then(
+  "los controles y el cierre quedan accesibles sin desplazamiento horizontal",
+  async function (this: CustomWorld) {
+    const hasHorizontalOverflow = await this.page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth
+    );
+    assert.strictEqual(hasHorizontalOverflow, false, "Hay desplazamiento horizontal");
+
+    const closeButton = this.page.getByRole("button", { name: /Cerrar visor/i }).first();
+    await closeButton.waitFor(visibleTimeout);
+    assert.ok(await closeButton.isVisible());
+  }
+);
+
+// 50.2.12 Steps
+Given("que abrí el visor desde el botón de un video", async function (this: CustomWorld) {
+  await this.setSession("consumer", {
+    id: "consumer-001",
+    email: "ana@example.com",
+    firstName: "Ana",
+    lastName: "Pérez",
+    isOnboarded: true,
+  });
+
+  const msg: any = {
+    id: 501,
+    sender_role: "consumer",
+    created_on: new Date().toISOString(),
+    content: "",
+    video: {
+      id: "video-close-001",
+      url: "https://mock-video.test/video-close.mp4",
+      original_name: "video.mp4",
+      duration_seconds: 17,
+      mime_type: "video/mp4",
+    },
+  };
+
+  await this.stubGet("/conversations", [
+    aConversation({
+      id: 1,
+      status: "accepted",
+      counterpart: aCounterpart({ id: 1, role: "provider", name: "Juan", surname: "Gómez" }),
+    }),
+  ]);
+  await this.stubGet(
+    "/conversations/1",
+    aConversationDetail({
+      id: 1,
+      status: "accepted",
+      counterpart: aCounterpart({ id: 1, role: "provider", name: "Juan", surname: "Gómez" }),
+      messages: [msg],
+    })
+  );
+  await this.stubGet("/job-requests", []);
+  await this.stubGet("/service-proposals", []);
+  await this.stubPost("/ws-tickets", 201, aWsTicket());
+
+  await stubPlayableVideoRoute(this.page);
+
+  await this.page.goto(
+    APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
+    { waitUntil: "networkidle" }
+  );
+  const playButton = this.page.getByTestId("video-play-button").first();
+  await playButton.waitFor(visibleTimeout);
+  await playButton.focus();
+  await playButton.click();
+
+  const viewer = this.page.getByTestId("video-viewer-modal");
+  await viewer.waitFor(visibleTimeout);
+});
+
+Given("que el video está reproduciéndose", async function (this: CustomWorld) {
+  const viewer = this.page.getByTestId("video-viewer-modal");
+  const video = viewer.locator("video");
+  await video.waitFor(visibleTimeout);
+  await video.evaluate((v: HTMLVideoElement) => {
+    Object.defineProperty(v, "paused", { value: false, configurable: true });
+  });
+});
+
+When("cierro el visor usando {string}", async function (this: CustomWorld, accion: string) {
+  if (accion === "botón de cerrar") {
+    const closeBtn = this.page.getByRole("button", { name: /Cerrar visor/i }).first();
+    await closeBtn.waitFor(visibleTimeout);
+    await closeBtn.click();
+  } else if (accion === "tecla Escape") {
+    await this.page.keyboard.press("Escape");
+  }
+});
+
+Then(
+  "desaparece el visor y deja de escucharse o reproducirse el video",
+  async function (this: CustomWorld) {
+    const viewer = this.page.getByTestId("video-viewer-modal");
+    await viewer.waitFor({ state: "detached", timeout: 5000 });
+    assert.strictEqual(await viewer.count(), 0);
+  }
+);
+
+Then("el foco vuelve al botón que abrió el visor", async function (this: CustomWorld) {
+  const playButton = this.page.getByTestId("video-play-button").first();
+  const isFocused = await playButton.evaluate((btn) => document.activeElement === btn);
+  assert.ok(isFocused, "El foco no volvió al botón que abrió el visor");
+});
+
+// 50.2.13 Steps
+Given("que veo la tarjeta de un video del chat", async function (this: VideoWorld) {
+  await this.setSession("consumer", {
+    id: "consumer-001",
+    email: "ana@example.com",
+    firstName: "Ana",
+    lastName: "Pérez",
+    isOnboarded: true,
+  });
+
+  const fileId = "video-error-001";
+  const videoUrl = "https://mock-video.test/error-video.mp4";
+
+  const msg: any = {
+    id: 601,
+    sender_role: "consumer",
+    created_on: new Date().toISOString(),
+    content: "",
+    video: {
+      id: fileId,
+      url: videoUrl,
+      original_name: "video.mp4",
+      duration_seconds: 17,
+      mime_type: "video/mp4",
+    },
+  };
+
+  await this.stubGet("/conversations", [
+    aConversation({
+      id: 1,
+      status: "accepted",
+      counterpart: aCounterpart({ id: 1, role: "provider", name: "Juan", surname: "Gómez" }),
+    }),
+  ]);
+  await this.stubGet(
+    "/conversations/1",
+    aConversationDetail({
+      id: 1,
+      status: "accepted",
+      counterpart: aCounterpart({ id: 1, role: "provider", name: "Juan", surname: "Gómez" }),
+      messages: [msg],
+    })
+  );
+  await this.stubGet("/job-requests", []);
+  await this.stubGet("/service-proposals", []);
+  await this.stubPost("/ws-tickets", 201, aWsTicket());
+
+  await this.page.goto(
+    APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
+    { waitUntil: "networkidle" }
+  );
+  await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
+});
+
+Given(
+  "que el video no se puede reproducir por {string}",
+  async function (this: CustomWorld, _problema: string) {
+    await this.page.unroute("**/mock-video.test/**").catch(() => {});
+    await this.page.route("**/mock-video.test/**", async (route) => {
+      await route.abort("failed");
+    });
+  }
+);
+
+When("abro el video", async function (this: CustomWorld) {
+  const playButton = this.page.getByTestId("video-play-button").first();
+  await playButton.waitFor(visibleTimeout);
+  await playButton.click();
+});
+
+Then(
+  "veo un mensaje en español indicando que no se pudo cargar o reproducir el video",
+  async function (this: CustomWorld) {
+    const errorNotice = this.page.getByTestId("video-playback-error");
+    await errorNotice.waitFor(visibleTimeout);
+    const text = (await errorNotice.textContent()) || "";
+    assert.ok(
+      text.toLowerCase().includes("no se pudo cargar o reproducir el video"),
+      `Texto "${text}" no contiene el mensaje esperado`
+    );
+  }
+);
+
+Then("puedo reintentar o cerrar el visor", async function (this: CustomWorld) {
+  const retryButton = this.page.getByTestId("video-retry-button");
+  await retryButton.waitFor(visibleTimeout);
+  assert.ok(await retryButton.isVisible());
+
+  const closeButton = this.page.getByTestId("video-close-button");
+  await closeButton.waitFor(visibleTimeout);
+  assert.ok(await closeButton.isVisible());
+});
+
+// 50.2.14 Steps
+Given("que el visor muestra un error de reproducción", async function (this: VideoWorld) {
+  await this.setSession("consumer", {
+    id: "consumer-001",
+    email: "ana@example.com",
+    firstName: "Ana",
+    lastName: "Pérez",
+    isOnboarded: true,
+  });
+
+  const fileId = "video-retry-playback-001";
+  const videoUrl = "https://mock-video.test/retry-playback.mp4";
+
+  const msg: any = {
+    id: 701,
+    sender_role: "consumer",
+    created_on: new Date().toISOString(),
+    content: "",
+    video: {
+      id: fileId,
+      url: videoUrl,
+      original_name: "video.mp4",
+      duration_seconds: 17,
+      mime_type: "video/mp4",
+    },
+  };
+
+  await this.stubGet("/conversations", [
+    aConversation({
+      id: 1,
+      status: "accepted",
+      counterpart: aCounterpart({ id: 1, role: "provider", name: "Juan", surname: "Gómez" }),
+    }),
+  ]);
+  await this.stubGet(
+    "/conversations/1",
+    aConversationDetail({
+      id: 1,
+      status: "accepted",
+      counterpart: aCounterpart({ id: 1, role: "provider", name: "Juan", surname: "Gómez" }),
+      messages: [msg],
+    })
+  );
+  await this.stubGet("/job-requests", []);
+  await this.stubGet("/service-proposals", []);
+  await this.stubPost("/ws-tickets", 201, aWsTicket());
+
+  await this.page.unroute("**/mock-video.test/**").catch(() => {});
+  await this.page.route("**/mock-video.test/**", async (route) => {
+    await route.abort("failed");
+  });
+
+  await this.page.goto(
+    APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
+    { waitUntil: "networkidle" }
+  );
+  const playButton = this.page.getByTestId("video-play-button").first();
+  await playButton.waitFor(visibleTimeout);
+  await playButton.click();
+
+  const errorNotice = this.page.getByTestId("video-playback-error");
+  await errorNotice.waitFor(visibleTimeout);
+});
+
+Given(
+  "que el video está {string} al volver a cargarlo",
+  async function (this: CustomWorld, disponibilidad: string) {
+    if (disponibilidad === "disponible nuevamente") {
+      await this.page.unroute("**/mock-video.test/**").catch(() => {});
+      await this.page.route("**/mock-video.test/**", async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "video/mp4",
+          body: MOCK_VALID_MP4_BUFFER,
+        });
+      });
+    } else {
+      await this.page.unroute("**/mock-video.test/**");
+      await this.page.route("**/mock-video.test/**", async (route) => {
+        await route.abort("failed");
+      });
+    }
+  }
+);
+
+When("reintento cargar el video", async function (this: CustomWorld) {
+  const retryBtn = this.page.getByTestId("video-retry-button");
+  await retryBtn.waitFor(visibleTimeout);
+  await retryBtn.click();
+});
+
+Then("veo {string}", async function (this: CustomWorld, resultado: string) {
+  if (resultado === "el video listo para reproducir") {
+    const errorNotice = this.page.getByTestId("video-playback-error");
+    await errorNotice.waitFor({ state: "detached", timeout: 5000 });
+    assert.strictEqual(await errorNotice.count(), 0);
+
+    const player = this.page.getByTestId("video-viewer-player");
+    await player.waitFor(visibleTimeout);
+    assert.ok(await player.isVisible());
+  } else if (resultado === "un error con las opciones de volver a intentar o cerrar") {
+    const errorNotice = this.page.getByTestId("video-playback-error");
+    await errorNotice.waitFor(visibleTimeout);
+    assert.ok(await errorNotice.isVisible());
+
+    const retryBtn = this.page.getByTestId("video-retry-button");
+    assert.ok(await retryBtn.isVisible());
+    const closeBtn = this.page.getByTestId("video-close-button");
+    assert.ok(await closeBtn.isVisible());
+  }
+});
+
+Then("no se crea ningún mensaje nuevo", async function (this: CustomWorld) {
+  const messageList = this.page.locator('[data-testid="messages-list"]');
+  const players = messageList.getByTestId("video-message-player");
+  assert.strictEqual(await players.count(), 1);
+});
+
 After(async function (this: VideoWorld) {
+  await this.page?.unroute("**/mock-video.test/**").catch(() => {});
+  await this.page?.setViewportSize({ width: 1280, height: 720 }).catch(() => {});
   if (this.tempVideoPath && fs.existsSync(this.tempVideoPath)) {
     try {
       fs.unlinkSync(this.tempVideoPath);

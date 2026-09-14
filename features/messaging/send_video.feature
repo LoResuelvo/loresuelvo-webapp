@@ -120,7 +120,6 @@ Feature: 50.2 Enviar videos por el chat web
         Then veo un único mensaje enviado con el video y su texto
         And se vacían el campo de texto y la selección de video
 
-    @wip
     Scenario Outline: 50.2.10-WEB Consultar videos del historial
         Given que el chat contiene un video de 17 segundos "<origen>" con el texto "<texto>"
         When abro nuevamente ese chat
@@ -135,7 +134,6 @@ Feature: 50.2 Enviar videos por el chat web
             | recibido        | recibido |                               |
             | recibido        | recibido | Así quedaría la reparación    |
 
-    @wip
     Scenario Outline: 50.2.11-WEB Abrir y reproducir un video en el visor
         Given que veo un video "<orientacion>" que se puede reproducir
         And que uso una pantalla "<pantalla>"
@@ -154,7 +152,6 @@ Feature: 50.2 Enviar videos por el chat web
             | horizontal  | desktop        |
             | vertical    | desktop        |
 
-    @wip
     Scenario Outline: 50.2.12-WEB Cerrar el visor y detener la reproducción
         Given que abrí el visor desde el botón de un video
         And que el video está reproduciéndose
@@ -167,7 +164,6 @@ Feature: 50.2 Enviar videos por el chat web
             | botón de cerrar |
             | tecla Escape    |
 
-    @wip
     Scenario Outline: 50.2.13-WEB Informar que un video no puede reproducirse
         Given que veo la tarjeta de un video del chat
         And que el video no se puede reproducir por "<problema>"
@@ -182,7 +178,6 @@ Feature: 50.2 Enviar videos por el chat web
             | se perdió la conexión             |
             | el navegador no puede reproducirlo|
 
-    @wip
     Scenario Outline: 50.2.14-WEB Reintentar la reproducción de un video
         Given que el visor muestra un error de reproducción
         And que el video está "<disponibilidad>" al volver a cargarlo

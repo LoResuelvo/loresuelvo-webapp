@@ -37,6 +37,7 @@ export default function MessageBubble({
     <div className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}>
       <div
         data-testid={`message-bubble-${id}`}
+        data-message-type={isOwnMessage ? "propio" : "recibido"}
         className={`rounded-2xl p-4 max-w-md ${
           isOwnMessage
             ? "bg-brand-primary text-white rounded-tr-sm"

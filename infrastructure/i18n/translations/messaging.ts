@@ -44,6 +44,12 @@ export const messaging = {
   videoSidebarPreview: {
     label: "Video",
   },
+  videoViewer: {
+    title: "Visor de video",
+    closeLabel: "Cerrar visor",
+    retryLabel: "Volver a intentar",
+    playbackError: "No se pudo cargar o reproducir el video.",
+  },
   videoAttachment: {
     invalidFormat: "Formato no permitido: se requiere un video MP4.",
     emptyFile: "El archivo está vacío.",

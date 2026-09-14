@@ -55,4 +55,40 @@ describe("IdentityVerificationStep", () => {
       }),
     ).not.toBeInTheDocument();
   });
+
+  it.each([
+    ["in_review", t.onboarding.identityVerification.pendingTitle],
+    ["declined", t.onboarding.identityVerification.declinedTitle],
+    ["abandoned", t.onboarding.identityVerification.abandonedTitle],
+    ["expired", t.onboarding.identityVerification.expiredTitle],
+  ] as const)("renders the %s result", (status, title) => {
+    render(
+      <IdentityVerificationStep
+        status={status}
+        onVerifyNow={vi.fn()}
+        onLater={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: t.onboarding.identityVerification.verifyNow })).not.toBeInTheDocument();
+  });
+
+  it("offers a refresh action only for a pending result", () => {
+    const onRefresh = vi.fn();
+    render(
+      <IdentityVerificationStep
+        status="in_review"
+        onVerifyNow={vi.fn()}
+        onLater={vi.fn()}
+        onRefresh={onRefresh}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: t.onboarding.identityVerification.refresh }),
+    );
+
+    expect(onRefresh).toHaveBeenCalledOnce();
+  });
 });

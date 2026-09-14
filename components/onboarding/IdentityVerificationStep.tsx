@@ -21,6 +21,7 @@ type IdentityVerificationStepProps = Omit<
 /** Selects the identity presentation; onboarding owns the transitions. */
 export function IdentityVerificationStep({
   status = "unverified",
+  isLoading = false,
   isRefreshing = false,
   timedOut = false,
   onRefresh,
@@ -34,6 +35,7 @@ export function IdentityVerificationStep({
     return (
       <IdentityVerificationResult
         status={status}
+        isLoading={isLoading}
         error={invitationProps.error}
         isRefreshing={isRefreshing}
         timedOut={timedOut}
@@ -43,5 +45,11 @@ export function IdentityVerificationStep({
     );
   }
 
-  return <IdentityVerificationInvitation {...invitationProps} status={status} />;
+  return (
+    <IdentityVerificationInvitation
+      {...invitationProps}
+      status={status}
+      isLoading={isLoading}
+    />
+  );
 }

@@ -28,4 +28,29 @@ describe("useIdentityVerificationStatus", () => {
     expect(readStatus).toHaveBeenCalledTimes(2);
     expect(result.current.error).toBeNull();
   });
+
+  it("does not read while disabled and starts when enabled", async () => {
+    const readStatus = vi.fn().mockResolvedValue({
+      success: true as const,
+      data: { status: "approved" as const },
+    });
+    const { result, rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) =>
+        useIdentityVerificationStatus({
+          readStatus,
+          initialStatus: "in_review",
+          enabled,
+        }),
+      { initialProps: { enabled: false } },
+    );
+
+    expect(result.current.status).toBe("in_review");
+    expect(result.current.isLoading).toBe(false);
+    expect(readStatus).not.toHaveBeenCalled();
+
+    rerender({ enabled: true });
+
+    await waitFor(() => expect(result.current.status).toBe("approved"));
+    expect(readStatus).toHaveBeenCalledOnce();
+  });
 });

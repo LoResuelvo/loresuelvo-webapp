@@ -183,6 +183,25 @@ Given(
   },
 );
 
+Given("veo mi verificación pendiente", async function (this: CustomWorld) {
+  await stubRegisteredProviderIdentity(this, "in_review");
+  await this.page.goto(`${APP_URL}${ROUTES.onboarding}?stage=identity`);
+  await this.page.getByTestId("identity-verification-result").waitFor(visibleTimeout);
+});
+
+Given(
+  "la API ahora informa mi identidad aprobada",
+  async function (this: CustomWorld) {
+    await this.stubGet(
+      "/me",
+      aCurrentUser("provider", {
+        identity_verification_status: "approved",
+        identity_verified_on: "2026-09-13T12:00:00Z",
+      }),
+    );
+  },
+);
+
 When(
   "ingreso al paso de identidad del onboarding",
   async function (this: CustomWorld) {
@@ -190,6 +209,14 @@ When(
     await this.page.getByTestId("identity-verification-step").waitFor(visibleTimeout);
   },
 );
+
+When("elijo actualizar el estado", async function (this: CustomWorld) {
+  const button = this.page
+    .getByRole("button", { name: t.onboarding.identityVerification.refresh })
+    .first();
+  await button.waitFor(visibleTimeout);
+  await button.click();
+});
 
 Given("la API puede iniciar mi verificación", async function (this: CustomWorld) {
   await this.stubPost("/providers/me/identity-verification-sessions", 200, {

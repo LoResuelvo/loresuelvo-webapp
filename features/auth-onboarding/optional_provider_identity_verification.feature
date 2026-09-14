@@ -41,7 +41,6 @@ Feature: US-58 Verificar opcionalmente identidad del prestador
       | abandoned | verificación abandonada |
       | expired   | sesión vencida         |
 
-  @wip
   Scenario: 06-VIP Actualizar un resultado pendiente
     Given veo mi verificación pendiente
     And la API ahora informa mi identidad aprobada

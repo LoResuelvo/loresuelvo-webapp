@@ -13,6 +13,7 @@ interface UseIdentityVerificationStatusOptions {
   readStatus: () => Promise<IdentityVerificationStatusReadResult>;
   initialStatus?: IdentityVerificationStatus | null;
   pollPending?: boolean;
+  enabled?: boolean;
 }
 
 const emptyState: IdentityVerificationStatusControllerState = {
@@ -27,15 +28,26 @@ export function useIdentityVerificationStatus({
   readStatus,
   initialStatus = null,
   pollPending = false,
+  enabled = true,
 }: UseIdentityVerificationStatusOptions) {
   const [state, setState] = useState<IdentityVerificationStatusControllerState>(() => ({
     ...emptyState,
     status: initialStatus ?? null,
-    isLoading: initialStatus == null,
+    isLoading: enabled && initialStatus == null,
   }));
   const controllerRef = useRef<IdentityVerificationStatusController | null>(null);
 
   useEffect(() => {
+    if (!enabled) {
+      controllerRef.current?.dispose();
+      controllerRef.current = null;
+      setState({
+        ...emptyState,
+        status: initialStatus ?? null,
+      });
+      return;
+    }
+
     const controller = createIdentityVerificationStatusController({
       readStatus,
       initialStatus,
@@ -51,7 +63,7 @@ export function useIdentityVerificationStatus({
         controllerRef.current = null;
       }
     };
-  }, [initialStatus, pollPending, readStatus]);
+  }, [enabled, initialStatus, pollPending, readStatus]);
 
   const refresh = useCallback(() => {
     controllerRef.current?.refresh();

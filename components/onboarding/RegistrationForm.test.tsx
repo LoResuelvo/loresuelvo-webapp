@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import RegistrationForm from "@/components/onboarding/RegistrationForm";
 import { submitRegistration } from "@/app/onboarding/actions";
+import { readIdentityVerificationStatusAction } from "@/app/onboarding/identity-status-actions";
 import type { AuthSession } from "@/infrastructure/auth/types";
 import { t } from "@/infrastructure/i18n/translations";
 
@@ -28,6 +29,13 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/app/onboarding/mercado-pago-actions", () => ({
   startMercadoPagoConnectionAction: vi.fn(),
+}));
+
+vi.mock("@/app/onboarding/identity-status-actions", () => ({
+  readIdentityVerificationStatusAction: vi.fn().mockResolvedValue({
+    success: true,
+    data: { status: "unverified" },
+  }),
 }));
 
 vi.mock("@/app/actions/coverage-zones", () => ({
@@ -381,6 +389,54 @@ describe("RegistrationForm", () => {
           name: t.onboarding.identityVerification.verifyNow,
         }),
       ).not.toBeInTheDocument();
+    });
+
+    it("refreshes a pending identity result from the onboarding stage", async () => {
+      const mockReadStatus = vi.mocked(readIdentityVerificationStatusAction);
+      mockReadStatus
+        .mockResolvedValueOnce({
+          success: true,
+          data: { status: "in_review" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { status: "approved" },
+        });
+      const providerSession: AuthSession = {
+        user: {
+          id: "provider-001",
+          email: "prestador@loresuelvo.test",
+          firstName: "Carlos",
+          lastName: "López",
+          isOnboarded: true,
+          role: "provider",
+        },
+        accessToken: "mock-access-token",
+      };
+
+      render(
+        <RegistrationForm
+          session={providerSession}
+          initialStep="identity"
+          initialIdentityStatus="in_review"
+        />,
+      );
+
+      await waitFor(() => expect(mockReadStatus).toHaveBeenCalledOnce());
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: t.onboarding.identityVerification.refresh,
+        }),
+      );
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole("heading", {
+            name: t.onboarding.identityVerification.verifiedTitle,
+          }),
+        ).toBeInTheDocument(),
+      );
+      expect(mockReadStatus).toHaveBeenCalledTimes(2);
     });
   })
 });

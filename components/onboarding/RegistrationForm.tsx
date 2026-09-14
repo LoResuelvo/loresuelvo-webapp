@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { useRegistrationForm } from "./useRegistrationForm";
 import { IdentityVerificationStep } from "./IdentityVerificationStep";
 import { useIdentityVerification } from "./useIdentityVerification";
+import { useIdentityVerificationStatus } from "./useIdentityVerificationStatus";
+import { readIdentityVerificationStatusAction } from "@/app/onboarding/identity-status-actions";
 import type { GoogleMapsRuntimeConfig } from "@/infrastructure/config/public-runtime-config";
 import type { IdentityVerificationStatus } from "@/domain/identity-verification/types";
 import type { RegistrationStep } from "./useRegistrationForm";
@@ -38,6 +40,14 @@ export default function RegistrationForm({
     handleFinalSubmit,
   } = useRegistrationForm(session, initialStep);
   const identity = useIdentityVerification(initialIdentityStatus);
+  const identityStatus = useIdentityVerificationStatus({
+    readStatus: readIdentityVerificationStatusAction,
+    initialStatus: initialIdentityStatus,
+    enabled: step === "identity" && role === "provider",
+  });
+  const displayedIdentityStatus =
+    identityStatus.status ??
+    (identityStatus.isLoading || identityStatus.error ? null : identity.status);
 
   return (
     <div
@@ -68,9 +78,12 @@ export default function RegistrationForm({
         <IdentityVerificationStep
           onVerifyNow={identity.start}
           onLater={() => setStep("mercadoPago")}
-          status={identity.status}
-          isLoading={identity.isStarting}
-          error={identity.error}
+          status={displayedIdentityStatus}
+          isLoading={identity.isStarting || identityStatus.isLoading}
+          isRefreshing={identityStatus.isRefreshing}
+          timedOut={identityStatus.timedOut}
+          onRefresh={identityStatus.refresh}
+          error={identity.error ?? identityStatus.error}
         />
       )}
       {step === "mercadoPago" && role === "provider" && (

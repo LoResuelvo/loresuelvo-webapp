@@ -100,6 +100,28 @@ describe("MessageInput", () => {
     expect(onAttachFiles).toHaveBeenCalledWith([file]);
   });
 
+  it("shows an error when attaching an image larger than 5MB", () => {
+    const onAttachFiles = vi.fn();
+    render(
+      <MessageInput
+        value=""
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        disabled={false}
+        onAttachFiles={onAttachFiles}
+      />
+    );
+
+    const largeFile = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "archivo-pesado.jpg", {
+      type: "image/jpeg",
+    });
+    const input = document.querySelector('input[accept="image/jpeg, image/png, image/webp"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [largeFile] } });
+
+    expect(onAttachFiles).not.toHaveBeenCalled();
+    expect(screen.getByText(t.messaging.fileTooLarge)).toBeInTheDocument();
+  });
+
   it("shows an accessible audio preview after selecting audio", () => {
     render(
       <MessageInput

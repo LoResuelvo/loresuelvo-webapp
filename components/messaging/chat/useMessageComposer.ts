@@ -56,14 +56,19 @@ export function filterValidImageFiles(files: FileList | File[]): {
 } {
   const fileArray = Array.from(files);
   const validFiles: File[] = [];
+  let errorKey: "fileTooLarge" | "photoInvalidFormat" | null = null;
   for (const file of fileArray) {
-    if (file.size > 5 * 1024 * 1024) return { validFiles: [], errorKey: "fileTooLarge" };
+    if (file.size > 5 * 1024 * 1024) {
+      errorKey = "fileTooLarge";
+      continue;
+    }
     if (!["image/jpeg", "image/png", "image/webp", "image/jpg"].includes(file.type)) {
-      return { validFiles: [], errorKey: "photoInvalidFormat" };
+      errorKey = "photoInvalidFormat";
+      continue;
     }
     validFiles.push(file);
   }
-  return { validFiles, errorKey: null };
+  return { validFiles, errorKey };
 }
 
 function processImageFilesChange(
@@ -161,11 +166,15 @@ export function useMessageComposer({
     : null;
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (hasVideo) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return setError(t.messaging.videoAttachment.incompatibleAttachment);
+    }
+    const { errorKey, validCount } = processImageFilesChange(files, onAttachFiles);
     if (fileInputRef.current) fileInputRef.current.value = "";
-    if (hasVideo) return setError(t.messaging.videoAttachment.incompatibleAttachment);
-    const { errorKey, validCount } = processImageFilesChange(e.target.files, onAttachFiles);
-    if (errorKey) setError(t.messaging[errorKey]);
-    else if (validCount > 0) setError(null);
+    if (validCount > 0) setError(null);
+    else if (errorKey) setError(t.messaging[errorKey]);
   };
 
   const handleRecordAudio = () => {
@@ -196,26 +205,18 @@ export function useMessageComposer({
 
   return {
     error, setError, previewImage, setPreviewImage, fileInputRef, inputRef,
-    attachedAudio: audioAttachment.attachedAudio,
-    attachedVideo: videoAttachment.attachedVideo,
-    audioInputRef: audioAttachment.audioInputRef,
-    videoInputRef: videoAttachment.videoInputRef,
-    isRecording: recorder.isRecording,
-    isPaused: recorder.isPaused,
-    elapsedSeconds: recorder.elapsedSeconds,
-    audioUrl: recorder.audioUrl,
-    recorderErrorMessage,
-    hasAudio, hasVideo, canSendDirectly,
+    attachedAudio: audioAttachment.attachedAudio, attachedVideo: videoAttachment.attachedVideo,
+    audioInputRef: audioAttachment.audioInputRef, videoInputRef: videoAttachment.videoInputRef,
+    isRecording: recorder.isRecording, isPaused: recorder.isPaused,
+    elapsedSeconds: recorder.elapsedSeconds, audioUrl: recorder.audioUrl,
+    recorderErrorMessage, hasAudio, hasVideo, canSendDirectly,
     handleFileChange,
     handleAudioChange: audioAttachment.handleAudioChange,
     handleVideoChange: videoAttachment.handleVideoChange,
     handleAudioDurationLoaded: audioAttachment.handleAudioDurationLoaded,
-    removeAudio: audioAttachment.removeAudio,
-    removeVideo: videoAttachment.removeVideo,
+    removeAudio: audioAttachment.removeAudio, removeVideo: videoAttachment.removeVideo,
     handleRecordAudio, handleSend,
-    pauseRecording: recorder.pauseRecording,
-    resumeRecording: recorder.resumeRecording,
-    stopRecording: recorder.stopRecording,
-    cancelRecording: recorder.cancelRecording,
+    pauseRecording: recorder.pauseRecording, resumeRecording: recorder.resumeRecording,
+    stopRecording: recorder.stopRecording, cancelRecording: recorder.cancelRecording,
   };
 }

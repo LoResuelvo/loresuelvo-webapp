@@ -2,6 +2,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import RegistrationForm from "@/components/onboarding/RegistrationForm";
 import { submitRegistration } from "@/app/onboarding/actions";
+import type { AuthSession } from "@/infrastructure/auth/types";
+import { t } from "@/infrastructure/i18n/translations";
 
 
 // Mock of the Server Action to avoid Auth0 alerts and verify submission in isolation
@@ -346,6 +348,39 @@ describe("RegistrationForm", () => {
       expect(submittedFormData.get("role")).toBe("consumer");
       expect(submittedFormData.get("street")).toBe("Av. Rivadavia");
       expect(submittedFormData.get("streetNumber")).toBe("5100");
+    });
+
+    it("renders the approved identity state from the initial onboarding snapshot", () => {
+      const providerSession: AuthSession = {
+        user: {
+          id: "provider-001",
+          email: "prestador@loresuelvo.test",
+          firstName: "Carlos",
+          lastName: "López",
+          isOnboarded: true,
+          role: "provider",
+        },
+        accessToken: "mock-access-token",
+      };
+
+      render(
+        <RegistrationForm
+          session={providerSession}
+          initialStep="identity"
+          initialIdentityStatus="approved"
+        />,
+      );
+
+      expect(
+        screen.getByRole("heading", {
+          name: t.onboarding.identityVerification.verifiedTitle,
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", {
+          name: t.onboarding.identityVerification.verifyNow,
+        }),
+      ).not.toBeInTheDocument();
     });
   })
 });

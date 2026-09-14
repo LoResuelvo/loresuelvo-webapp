@@ -176,6 +176,21 @@ Given(
   },
 );
 
+Given(
+  "soy un prestador registrado cuya identidad está aprobada en la API",
+  async function (this: CustomWorld) {
+    await stubRegisteredProviderIdentity(this, "approved", "2026-09-13T12:00:00Z");
+  },
+);
+
+When(
+  "ingreso al paso de identidad del onboarding",
+  async function (this: CustomWorld) {
+    await this.page.goto(`${APP_URL}${ROUTES.onboarding}?stage=identity`);
+    await this.page.getByTestId("identity-verification-step").waitFor(visibleTimeout);
+  },
+);
+
 Given("la API puede iniciar mi verificación", async function (this: CustomWorld) {
   await this.stubPost("/providers/me/identity-verification-sessions", 200, {
     session_id: "identity-session-1",
@@ -204,4 +219,23 @@ When('elijo "Verificar ahora"', async function (this: CustomWorld) {
 Then("soy dirigido al flujo alojado de Didit", async function (this: CustomWorld) {
   assert.equal(new URL(this.page.url()).origin, "https://verify.example");
   assert.match(this.page.url(), /\/session-1$/);
+});
+
+Then("veo la confirmación de identidad verificada", async function (this: CustomWorld) {
+  const confirmation = this.page
+    .getByText(t.onboarding.identityVerification.verifiedDescription)
+    .first();
+  await confirmation.waitFor({ state: "visible", timeout: 10000 });
+  assert.ok(await confirmation.isVisible(), "No se confirma la identidad verificada");
+});
+
+Then("no veo una acción para iniciar otra sesión", async function (this: CustomWorld) {
+  const startAction = this.page.getByRole("button", {
+    name: t.onboarding.identityVerification.verifyNow,
+  });
+  assert.equal(
+    await startAction.count(),
+    0,
+    "Se muestra una acción para iniciar otra sesión de verificación",
+  );
 });

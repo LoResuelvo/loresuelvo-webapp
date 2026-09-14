@@ -68,6 +68,7 @@ export default function RegistrationForm({
         <IdentityVerificationStep
           onVerifyNow={identity.start}
           onLater={() => setStep("mercadoPago")}
+          status={identity.status}
           isLoading={identity.isStarting}
           error={identity.error}
         />

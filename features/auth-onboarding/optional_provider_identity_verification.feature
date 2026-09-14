@@ -22,7 +22,6 @@ Feature: US-58 Verificar opcionalmente identidad del prestador
     When elijo "Verificar ahora"
     Then soy dirigido al flujo alojado de Didit
 
-  @wip
   Scenario: 04-VIP Reconocer una identidad ya aprobada
     Given soy un prestador registrado cuya identidad está aprobada en la API
     When ingreso al paso de identidad del onboarding

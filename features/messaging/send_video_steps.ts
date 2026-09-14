@@ -1,5 +1,8 @@
-import { Given, Then, When } from "@cucumber/cucumber";
+import { After, Given, Then, When } from "@cucumber/cucumber";
 import assert from "assert";
+import fs from "fs";
+import os from "os";
+import path from "path";
 import { APP_URL, CustomWorld, visibleTimeout } from "../support/world";
 import {
   aConversation,
@@ -19,9 +22,21 @@ interface VideoFixtureInfo {
   height?: number;
 }
 
+interface InvalidFileSpec {
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  duration?: number;
+  width?: number;
+  height?: number;
+  corrupted?: boolean;
+}
+
 interface VideoWorld extends CustomWorld {
   videoFixtures?: Record<string, VideoFixtureInfo>;
   currentVideoFileName?: string;
+  invalidVideoSpec?: InvalidFileSpec;
+  tempVideoPath?: string;
 }
 
 async function stubActiveVideoChat(world: CustomWorld) {
@@ -269,4 +284,132 @@ Then(
 Then("todavía no se ha enviado ningún video", async function (this: CustomWorld) {
   const videoBubbles = this.page.locator('[data-testid="messages-list"] [data-testid="video-bubble"]');
   assert.strictEqual(await videoBubbles.count(), 0);
+});
+
+Given("que estoy en un chat activo con un borrador de texto", async function (this: CustomWorld) {
+  await openActiveVideoChat(this);
+  const input = this.page.getByPlaceholder("Escribe un mensaje...");
+  await input.waitFor(visibleTimeout);
+  await input.fill("Mi borrador de texto");
+});
+
+Given("que el archivo seleccionado presenta {string}", async function (this: VideoWorld, problema: string) {
+  let spec: InvalidFileSpec = {
+    name: "archivo-invalido.mp4",
+    mimeType: "video/mp4",
+    sizeBytes: 1024,
+    duration: 17,
+    width: 1920,
+    height: 1080,
+  };
+
+  switch (problema) {
+    case "formato WebM":
+      spec = { name: "video.webm", mimeType: "video/webm", sizeBytes: 1024, duration: 17, width: 1920, height: 1080 };
+      break;
+    case "archivo vacío":
+      spec = { name: "vacio.mp4", mimeType: "video/mp4", sizeBytes: 0, duration: 17, width: 1920, height: 1080 };
+      break;
+    case "tamaño de 52428801 bytes":
+      spec = { name: "pesado.mp4", mimeType: "video/mp4", sizeBytes: 52428801, duration: 17, width: 1920, height: 1080 };
+      break;
+    case "duración de 121 segundos":
+      spec = { name: "largo.mp4", mimeType: "video/mp4", sizeBytes: 1024, duration: 121, width: 1920, height: 1080 };
+      break;
+    case "ancho de 1921 píxeles":
+      spec = { name: "ancho.mp4", mimeType: "video/mp4", sizeBytes: 1024, duration: 17, width: 1921, height: 1080 };
+      break;
+    case "alto de 1921 píxeles":
+      spec = { name: "alto.mp4", mimeType: "video/mp4", sizeBytes: 1024, duration: 17, width: 1080, height: 1921 };
+      break;
+    case "archivo dañado o ilegible":
+      spec = { name: "danado.mp4", mimeType: "video/mp4", sizeBytes: 1024, corrupted: true };
+      break;
+    case "duración desconocida o inválida":
+      spec = { name: "duracion-invalida.mp4", mimeType: "video/mp4", sizeBytes: 1024, duration: 0, width: 1920, height: 1080 };
+      break;
+    default:
+      throw new Error(`Problema no reconocido: ${problema}`);
+  }
+
+  this.invalidVideoSpec = spec;
+
+  await this.page.evaluate(
+    ({ spec }) => {
+      const wnd = window as unknown as {
+        __e2eVideoMetadata?: Record<string, { duration?: number; width?: number; height?: number; shouldFail?: boolean }>;
+      };
+      wnd.__e2eVideoMetadata = wnd.__e2eVideoMetadata || {};
+      if (spec.corrupted) {
+        wnd.__e2eVideoMetadata[spec.name] = { shouldFail: true, duration: 0, width: 0, height: 0 };
+      } else {
+        wnd.__e2eVideoMetadata[spec.name] = {
+          duration: spec.duration ?? 17,
+          width: spec.width ?? 1920,
+          height: spec.height ?? 1080,
+        };
+      }
+    },
+    { spec }
+  );
+});
+
+When("intento adjuntar el archivo", async function (this: VideoWorld) {
+  const spec = this.invalidVideoSpec;
+  if (!spec) throw new Error("No hay especificación de archivo inválido");
+
+  const videoInput = this.page.locator('input[accept="video/mp4"]');
+  await videoInput.waitFor({ state: "attached", timeout: 5000 });
+
+  if (spec.sizeBytes > 50 * 1024 * 1024) {
+    const tempFilePath = path.join(os.tmpdir(), `test-video-${Date.now()}-${spec.name}`);
+    const fd = fs.openSync(tempFilePath, "w");
+    fs.ftruncateSync(fd, spec.sizeBytes);
+    fs.closeSync(fd);
+    this.tempVideoPath = tempFilePath;
+    await videoInput.setInputFiles(tempFilePath);
+  } else {
+    await videoInput.setInputFiles({
+      name: spec.name,
+      mimeType: spec.mimeType,
+      buffer: Buffer.alloc(spec.sizeBytes, 1),
+    });
+  }
+});
+
+Then("veo un mensaje en español que indica {string}", async function (this: CustomWorld, motivo: string) {
+  const errorNotice = this.page.locator("div.text-red-500");
+  await errorNotice.waitFor(visibleTimeout);
+  const text = (await errorNotice.textContent()) || "";
+  assert.ok(
+    text.toLowerCase().includes(motivo.toLowerCase()),
+    `Mensaje esperado "${motivo}" no encontrado en "${text}"`
+  );
+});
+
+Then("el archivo no queda disponible para enviar", async function (this: CustomWorld) {
+  const preview = this.page.getByTestId("video-preview");
+  assert.strictEqual(await preview.count(), 0);
+});
+
+Then("se conserva mi borrador de texto", async function (this: CustomWorld) {
+  const input = this.page.getByPlaceholder("Escribe un mensaje...");
+  await input.waitFor(visibleTimeout);
+  assert.strictEqual(await input.inputValue(), "Mi borrador de texto");
+});
+
+Then("puedo seleccionar otro video", async function (this: CustomWorld) {
+  const videoInput = this.page.locator('input[accept="video/mp4"]');
+  await videoInput.waitFor({ state: "attached", timeout: 5000 });
+  assert.ok(await videoInput.isEnabled());
+});
+
+After(async function (this: VideoWorld) {
+  if (this.tempVideoPath && fs.existsSync(this.tempVideoPath)) {
+    try {
+      fs.unlinkSync(this.tempVideoPath);
+    } catch {
+      // ignore
+    }
+  }
 });

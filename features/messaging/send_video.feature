@@ -32,7 +32,6 @@ Feature: 50.2 Enviar videos por el chat web
         And se conserva el texto "La pérdida está aquí"
         And todavía no se ha enviado ningún video
 
-    @wip
     Scenario Outline: 50.2.4-WEB Informar por qué un archivo no puede adjuntarse
         Given que estoy en un chat activo con un borrador de texto
         And que el archivo seleccionado presenta "<problema>"

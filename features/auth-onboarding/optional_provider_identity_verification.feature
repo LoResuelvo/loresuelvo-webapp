@@ -28,7 +28,6 @@ Feature: US-58 Verificar opcionalmente identidad del prestador
     Then veo la confirmación de identidad verificada
     And no veo una acción para iniciar otra sesión
 
-  @wip
   Scenario Outline: 05-VIP Mostrar el resultado al regresar de Didit
     Given la API informa mi identidad en estado <estado>
     When regreso a la página de resultado de identidad

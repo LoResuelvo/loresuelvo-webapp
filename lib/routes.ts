@@ -7,6 +7,7 @@ export const ROUTES = {
     logout: "/auth/logout",
   },
   onboarding: "/onboarding",
+  onboardingIdentityVerificationReturn: "/onboarding/identity-verification/return",
   payments: {
     success: "/payments/success",
     pending: "/payments/pending",

@@ -239,3 +239,38 @@ Then("no veo una acción para iniciar otra sesión", async function (this: Custo
     "Se muestra una acción para iniciar otra sesión de verificación",
   );
 });
+
+Given(
+  "la API informa mi identidad en estado {word}",
+  async function (this: CustomWorld, status: string) {
+    await stubRegisteredProviderIdentity(this, status);
+  },
+);
+
+When(
+  "regreso a la página de resultado de identidad",
+  async function (this: CustomWorld) {
+    await this.page.goto(
+      `${APP_URL}${ROUTES.onboardingIdentityVerificationReturn}?status=approved&session_token=ignored-token`,
+    );
+    await this.page.getByTestId("identity-verification-result").waitFor(visibleTimeout);
+  },
+);
+
+Then(
+  /^veo el mensaje correspondiente a (.+)$/,
+  async function (this: CustomWorld, result: string) {
+    const titles: Record<string, string> = {
+      "identidad verificada": t.onboarding.identityVerification.verifiedTitle,
+      "verificación pendiente": t.onboarding.identityVerification.pendingTitle,
+      "verificación rechazada": t.onboarding.identityVerification.declinedTitle,
+      "verificación abandonada": t.onboarding.identityVerification.abandonedTitle,
+      "sesión vencida": t.onboarding.identityVerification.expiredTitle,
+    };
+    const title = titles[result];
+    assert.ok(title, `No hay un resultado de identidad configurado para "${result}"`);
+    const heading = this.page.getByRole("heading", { name: title, exact: true });
+    await heading.waitFor({ state: "visible", timeout: 10000 });
+    assert.ok(await heading.isVisible(), `No se muestra el resultado "${result}"`);
+  },
+);

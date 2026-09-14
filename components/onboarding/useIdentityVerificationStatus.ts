@@ -31,6 +31,7 @@ export function useIdentityVerificationStatus({
   const [state, setState] = useState<IdentityVerificationStatusControllerState>(() => ({
     ...emptyState,
     status: initialStatus ?? null,
+    isLoading: initialStatus == null,
   }));
   const controllerRef = useRef<IdentityVerificationStatusController | null>(null);
 

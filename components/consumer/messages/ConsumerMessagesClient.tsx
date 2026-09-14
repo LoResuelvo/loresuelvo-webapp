@@ -86,6 +86,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
                 }
                 footer={
                   <MessageInput
+                    key={selectedContact.id}
                     ref={inputRef}
                     value={messageInput}
                     onChange={setMessageInput}

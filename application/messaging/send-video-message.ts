@@ -8,7 +8,8 @@ export type VideoUploadFailureStage =
   | "PUT"
   | "confirm"
   | "send"
-  | "invalidCodec";
+  | "invalidCodec"
+  | "pendingLimit";
 
 export class VideoUploadError extends Error {
   constructor(public readonly stage: VideoUploadFailureStage, cause?: unknown) {
@@ -42,6 +43,24 @@ function isCodecError(error: unknown): boolean {
       const body = (error as { body?: unknown }).body;
       if (typeof body === "object" && body !== null) {
         return /codec/i.test(JSON.stringify(body));
+      }
+    }
+  }
+  return false;
+}
+
+function isPendingLimitError(error: unknown): boolean {
+  if (!error) return false;
+  if (typeof error === "string") return /l[íi]mite/i.test(error);
+  if (error instanceof Error) {
+    if (/l[íi]mite/i.test(error.message)) return true;
+    if ("cause" in error && isPendingLimitError(error.cause)) return true;
+    if ("status" in error && (error as { status?: number }).status === 429) return true;
+    if ("statusCode" in error && (error as { statusCode?: number }).statusCode === 429) return true;
+    if ("body" in error) {
+      const body = (error as { body?: unknown }).body;
+      if (typeof body === "object" && body !== null) {
+        return /l[íi]mite/i.test(JSON.stringify(body));
       }
     }
   }
@@ -85,6 +104,9 @@ export async function sendVideoMessage(
       content: params.content?.trim() || undefined,
     });
   } catch (error) {
+    if (isPendingLimitError(error)) {
+      throw new VideoUploadError("pendingLimit", error);
+    }
     if (isCodecError(error)) {
       throw new VideoUploadError("invalidCodec", error);
     }

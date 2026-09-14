@@ -68,6 +68,7 @@ function MessageTextInputBar({
     onAttachFiles,
     onOpenServiceProposal,
     disableAudio = false,
+    disableVideo = false,
   } = props;
 
   return (
@@ -81,6 +82,7 @@ function MessageTextInputBar({
           showProposalOption={!!onOpenServiceProposal}
           disabled={disabled || attachedFiles.length >= 5 || composer.hasAudio}
           audioDisabled={disableAudio}
+          videoDisabled={disableVideo}
         />
       )}
 

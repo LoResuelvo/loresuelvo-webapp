@@ -12,7 +12,9 @@ export interface ClientConversationCommandRepositoryActions {
   create: (command: CreateConversationCommand) => Promise<CreatedConversation>;
   sendMessage: (command: SendConversationMessageCommand) => Promise<Message>;
   sendAudioMessage?: (command: SendConversationAudioCommand) => Promise<Message>;
-  sendVideoMessage?: (command: SendConversationVideoCommand) => Promise<Message>;
+  sendVideoMessage?: (
+    command: SendConversationVideoCommand
+  ) => Promise<Message | { success: boolean; data?: Message; error?: string; status?: number }>;
 }
 
 export class ClientConversationCommandRepository implements ConversationCommandRepository {
@@ -37,6 +39,17 @@ export class ClientConversationCommandRepository implements ConversationCommandR
     if (!this.actions.sendVideoMessage) {
       throw new Error("Video messaging is not configured for this repository");
     }
-    return this.actions.sendVideoMessage(command);
+    const result = await this.actions.sendVideoMessage(command);
+    if (result && typeof result === "object" && "success" in result) {
+      if (!result.success) {
+        const error = new Error(result.error || "Error al enviar video");
+        if (result.status) {
+          (error as unknown as { status: number }).status = result.status;
+        }
+        throw error;
+      }
+      return (result as { success: true; data: Message }).data;
+    }
+    return result as Message;
   }
 }

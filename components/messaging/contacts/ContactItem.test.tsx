@@ -63,4 +63,24 @@ describe("ContactItem", () => {
     expect(micIcon).toBeInTheDocument();
     expect(screen.getByText("Audio · 0:18")).toBeInTheDocument();
   });
+
+  it("renders a video icon when lastMessage is a video preview", () => {
+    const { container } = render(
+      <ContactItem
+        id="conv-1"
+        providerId="1"
+        providerName="Juan"
+        providerSurname="Perez"
+        lastMessage="Video · 0:17"
+        lastMessageAt="10:00"
+        pending={false}
+        isSelected={false}
+        onClick={vi.fn()}
+      />
+    );
+
+    const videoIcon = container.querySelector("svg.lucide-video");
+    expect(videoIcon).toBeInTheDocument();
+    expect(screen.getByText("Video · 0:17")).toBeInTheDocument();
+  });
 });

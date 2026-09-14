@@ -43,9 +43,23 @@ export async function sendAudioMessage(command: SendConversationAudioCommand): P
   return repository.sendAudioMessage(command);
 }
 
-export async function sendVideoMessage(command: SendConversationVideoCommand): Promise<Message> {
-  const repository = new ApiConversationCommandRepository();
-  return repository.sendVideoMessage(command);
+export type SendVideoMessageActionResult =
+  | { success: true; data: Message }
+  | { success: false; error: string; status?: number };
+
+export async function sendVideoMessage(
+  command: SendConversationVideoCommand
+): Promise<Message | SendVideoMessageActionResult> {
+  try {
+    const repository = new ApiConversationCommandRepository();
+    const message = await repository.sendVideoMessage(command);
+    return { success: true, data: message };
+  } catch (error: unknown) {
+    const err = error as { message?: string; status?: number; statusCode?: number };
+    const message = err?.message || "Error al enviar mensaje con video";
+    const status = err?.status || err?.statusCode;
+    return { success: false, error: message, status };
+  }
 }
 
 export async function getJobRequestForConversation(conversationId: string): Promise<JobRequestSummary | null> {

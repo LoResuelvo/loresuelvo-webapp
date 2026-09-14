@@ -43,6 +43,7 @@ interface VideoWorld extends CustomWorld {
   currentActualAttachment?: string;
   currentNuevoAttachment?: string;
   currentRole?: "consumer" | "provider";
+  videoWsServer?: import("playwright").WebSocketRoute | null;
 }
 
 async function stubActiveVideoChat(world: CustomWorld) {
@@ -1222,6 +1223,11 @@ async function stubPlayableVideoRoute(page: CustomWorld["page"]) {
     await route.fulfill({
       status: 200,
       contentType: "video/mp4",
+      headers: {
+        "Accept-Ranges": "bytes",
+        "Content-Length": String(MOCK_VALID_MP4_BUFFER.length),
+        "Access-Control-Allow-Origin": "*",
+      },
       body: MOCK_VALID_MP4_BUFFER,
     });
   });
@@ -1655,6 +1661,22 @@ Then("veo {string}", async function (this: CustomWorld, resultado: string) {
     assert.ok(await retryBtn.isVisible());
     const closeBtn = this.page.getByTestId("video-close-button");
     assert.ok(await closeBtn.isVisible());
+  } else if (resultado === "la nueva tarjeta de video en el chat") {
+    const videoPlayer = this.page.getByTestId("video-message-player").first();
+    await videoPlayer.waitFor(visibleTimeout);
+    assert.ok(await videoPlayer.isVisible());
+  } else if (resultado === "que el chat que estoy mirando no cambia") {
+    assert.strictEqual(await this.page.getByTestId("video-message-player").count(), 0);
+  } else if (resultado === "el mensaje propio de video enviado") {
+    const videoPlayer = this.page.getByTestId("video-message-player").first();
+    await videoPlayer.waitFor(visibleTimeout);
+    assert.ok(await videoPlayer.isVisible());
+  } else if (resultado === "un aviso de que alcancé el límite de mensajes pendientes") {
+    const errorNotice = this.page.locator("div.text-red-500").first();
+    await errorNotice.waitFor(visibleTimeout);
+    assert.ok(await errorNotice.isVisible());
+    const text = (await errorNotice.textContent()) || "";
+    assert.ok(text.toLowerCase().includes("límite"));
   }
 });
 
@@ -1664,14 +1686,835 @@ Then("no se crea ningún mensaje nuevo", async function (this: CustomWorld) {
   assert.strictEqual(await players.count(), 1);
 });
 
+// --- Scenarios 50.2.15 to 50.2.20 ---
+
+Given("que estoy usando la sección de mensajes", async function (this: CustomWorld) {
+  // Session initialization is handled in subsequent contextual steps
+});
+
+Given(
+  "que la conversación que recibirá el video está {string}",
+  async function (this: VideoWorld, estado: string) {
+    await this.setSession("consumer", {
+      id: "consumer-001",
+      email: "ana@example.com",
+      firstName: "Ana",
+      lastName: "Pérez",
+      isOnboarded: true,
+    });
+
+    const targetConversation = aConversation({
+      id: 1,
+      status: "accepted",
+      counterpart: aCounterpart({
+        id: 1,
+        role: "provider",
+        name: "Juan",
+        surname: "Gómez",
+      }),
+      last_message: aConversationMessage({
+        id: 1,
+        sender_role: "consumer",
+        content: "Hola Juan",
+      }),
+    });
+
+    if (estado === "abierta") {
+      await this.stubGet("/conversations", [targetConversation]);
+      await this.stubGet(
+        "/conversations/1",
+        aConversationDetail({
+          id: 1,
+          status: "accepted",
+          counterpart: aCounterpart({
+            id: 1,
+            role: "provider",
+            name: "Juan",
+            surname: "Gómez",
+          }),
+          messages: [
+            aConversationMessage({
+              id: 1,
+              sender_role: "consumer",
+              content: "Hola Juan",
+            }),
+          ],
+        })
+      );
+      await this.stubGet("/job-requests", []);
+      await this.stubGet("/service-proposals", []);
+      await this.stubPost("/ws-tickets", 201, aWsTicket());
+
+      this.videoWsServer = null;
+      await this.page.routeWebSocket(/.*\/ws.*/, (ws) => {
+        this.videoWsServer = ws;
+        ws.onMessage(() => {});
+      });
+
+      await this.page.goto(
+        APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
+        { waitUntil: "networkidle" }
+      );
+      await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
+    } else {
+      const otherConversation = aConversation({
+        id: 2,
+        status: "accepted",
+        counterpart: aCounterpart({
+          id: 2,
+          role: "provider",
+          name: "Carlos",
+          surname: "Ramos",
+        }),
+        last_message: aConversationMessage({
+          id: 2,
+          sender_role: "consumer",
+          content: "Hola Carlos",
+        }),
+      });
+
+      await this.stubGet("/conversations", [otherConversation, targetConversation]);
+      await this.stubGet(
+        "/conversations/1",
+        aConversationDetail({
+          id: 1,
+          status: "accepted",
+          counterpart: aCounterpart({
+            id: 1,
+            role: "provider",
+            name: "Juan",
+            surname: "Gómez",
+          }),
+          messages: [
+            aConversationMessage({
+              id: 1,
+              sender_role: "consumer",
+              content: "Hola Juan",
+            }),
+          ],
+        })
+      );
+      await this.stubGet(
+        "/conversations/2",
+        aConversationDetail({
+          id: 2,
+          status: "accepted",
+          counterpart: aCounterpart({
+            id: 2,
+            role: "provider",
+            name: "Carlos",
+            surname: "Ramos",
+          }),
+          messages: [
+            aConversationMessage({
+              id: 2,
+              sender_role: "consumer",
+              content: "Hola Carlos",
+            }),
+          ],
+        })
+      );
+      await this.stubGet("/job-requests", []);
+      await this.stubGet("/service-proposals", []);
+      await this.stubPost("/ws-tickets", 201, aWsTicket());
+
+      this.videoWsServer = null;
+      await this.page.routeWebSocket(/.*\/ws.*/, (ws) => {
+        this.videoWsServer = ws;
+        ws.onMessage(() => {});
+      });
+
+      await this.page.goto(
+        APP_URL + ROUTES.consumer.messages + "?provider_id=2&name=Carlos&surname=Ramos",
+        { waitUntil: "networkidle" }
+      );
+      await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
+    }
+  }
+);
+
+When(
+  "la otra persona envía un video de 18 segundos a esa conversación",
+  async function (this: VideoWorld) {
+    let attempts = 0;
+    while (!this.videoWsServer && attempts < 25) {
+      await this.page.waitForTimeout(200);
+      attempts += 1;
+    }
+    assert.ok(this.videoWsServer, "No se conectó el WebSocket determinista del escenario");
+
+    await this.page.unroute("**/mock-video.test/**").catch(() => {});
+    await this.page.route("**/mock-video.test/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "video/mp4",
+        body: MOCK_VALID_MP4_BUFFER,
+      });
+    });
+
+    await this.stubGet(
+      "/conversations/1",
+      aConversationDetail({
+        id: 1,
+        status: "accepted",
+        counterpart: aCounterpart({
+          id: 1,
+          role: "provider",
+          name: "Juan",
+          surname: "Gómez",
+        }),
+        messages: [
+          aConversationMessage({
+            id: 1,
+            sender_role: "consumer",
+            content: "Hola Juan",
+          }),
+          {
+            id: 501,
+            sender_role: "provider",
+            content: "",
+            created_on: new Date().toISOString(),
+            video: {
+              id: "video-ws-501",
+              url: "https://mock-video.test/realtime-video.mp4",
+              original_name: "problema-tubo.mp4",
+              duration_seconds: 18,
+              mime_type: "video/mp4",
+              thumbnail_url: "https://mock-video.test/ws-thumb.jpg",
+              width: 1920,
+              height: 1080,
+            },
+          },
+        ],
+      })
+    );
+
+    this.videoWsServer.send(
+      JSON.stringify({
+        type: "conversation.message.created",
+        conversation_id: 1,
+        message: {
+          id: 501,
+          sender_role: "provider",
+          content: "",
+          created_on: new Date().toISOString(),
+          video: {
+            id: "video-ws-501",
+            url: "https://mock-video.test/realtime-video.mp4",
+            original_name: "problema-tubo.mp4",
+            duration_seconds: 18,
+            mime_type: "video/mp4",
+            thumbnail_url: "https://mock-video.test/ws-thumb.jpg",
+            width: 1920,
+            height: 1080,
+          },
+        },
+      })
+    );
+  }
+);
+
+Then(
+  "esa conversación muestra {string} como último mensaje en la lista",
+  async function (this: CustomWorld, preview: string) {
+    const juanContact = this.page.getByTestId("contact-item").filter({ hasText: "Juan Gómez" }).first();
+    await juanContact.waitFor(visibleTimeout);
+    const lastMessage = juanContact.getByTestId("last-message");
+    await lastMessage.waitFor(visibleTimeout);
+    let matched = false;
+    for (let i = 0; i < 25; i++) {
+      if ((await lastMessage.textContent())?.trim() === preview) {
+        matched = true;
+        break;
+      }
+      await this.page.waitForTimeout(100);
+    }
+    assert.strictEqual((await lastMessage.textContent())?.trim(), preview);
+  }
+);
+
+Then("puedo consultar el video desde su conversación", async function (this: CustomWorld) {
+  const currentUrl = this.page.url();
+  if (!currentUrl.includes("provider_id=1")) {
+    const juanContact = this.page.getByTestId("contact-item").filter({ hasText: "Juan Gómez" }).first();
+    await juanContact.click();
+  }
+  const player = this.page.locator('[data-testid="messages-list"]').getByTestId("video-message-player").first();
+  await player.waitFor(visibleTimeout);
+  assert.ok(await player.isVisible());
+  assert.ok((await player.textContent())?.includes("0:18"));
+});
+
+Given(
+  "que el último mensaje de una conversación es un video de 17 segundos {string}",
+  async function (this: CustomWorld, acompanamiento: string) {
+    const content = acompanamiento === "con texto" ? "Mirá el video adjunto" : "";
+    await this.setSession("consumer", {
+      id: "consumer-001",
+      email: "ana@example.com",
+      firstName: "Ana",
+      lastName: "Pérez",
+      isOnboarded: true,
+    });
+
+    await this.stubGet("/conversations", [
+      aConversation({
+        id: 1,
+        status: "accepted",
+        counterpart: aCounterpart({
+          id: 1,
+          role: "provider",
+          name: "Juan",
+          surname: "Gómez",
+        }),
+        last_message: {
+          id: 50,
+          sender_role: "provider",
+          content,
+          created_on: new Date().toISOString(),
+          video: {
+            id: "video-sidebar-001",
+            url: "https://mock-video.test/sidebar-video.mp4",
+            original_name: "video.mp4",
+            duration_seconds: 17,
+            mime_type: "video/mp4",
+            thumbnail_url: "https://mock-video.test/thumb.jpg",
+            width: 1920,
+            height: 1080,
+          },
+        },
+      }),
+    ]);
+    await this.stubGet("/job-requests", []);
+    await this.stubGet("/service-proposals", []);
+    await this.stubPost("/ws-tickets", 201, aWsTicket());
+  }
+);
+
+When("consulto la lista de conversaciones", async function (this: CustomWorld) {
+  await this.page.goto(APP_URL + ROUTES.consumer.messages, { waitUntil: "networkidle" });
+  await this.page.getByTestId("contact-item").first().waitFor(visibleTimeout);
+});
+
+Then(
+  "esa conversación muestra el ícono de video y el texto {string}",
+  async function (this: CustomWorld, expectedPreview: string) {
+    const contactItem = this.page.getByTestId("contact-item").first();
+    await contactItem.waitFor(visibleTimeout);
+    const videoIcon = contactItem.getByTestId("video-icon");
+    await videoIcon.waitFor(visibleTimeout);
+    assert.ok(await videoIcon.isVisible(), "El ícono de video no es visible");
+    const lastMessage = contactItem.getByTestId("last-message");
+    await lastMessage.waitFor(visibleTimeout);
+    assert.strictEqual(await lastMessage.textContent(), expectedPreview);
+  }
+);
+
+Given(
+  "que estoy autenticado como consumidor en una conversación pendiente existente",
+  async function (this: CustomWorld) {
+    await this.setSession("consumer", {
+      id: "consumer-001",
+      email: "ana@example.com",
+      firstName: "Ana",
+      lastName: "Pérez",
+      isOnboarded: true,
+    });
+  }
+);
+
+Given(
+  "que ya envié {int} mensajes en esa conversación",
+  async function (this: VideoWorld, count: number) {
+    const messages = Array.from({ length: count }, (_, i) =>
+      aConversationMessage({
+        id: i + 1,
+        sender_role: "consumer",
+        content: `Mensaje previo ${i + 1}`,
+        created_on: new Date(Date.now() - (count - i) * 60000).toISOString(),
+      })
+    );
+
+    await this.stubGet("/conversations", [
+      aConversation({
+        id: 1,
+        status: "pending",
+        counterpart: aCounterpart({
+          id: 1,
+          role: "provider",
+          name: "Juan",
+          surname: "Gómez",
+        }),
+        last_message: messages[messages.length - 1],
+      }),
+    ]);
+
+    await this.stubGet(
+      "/conversations/1",
+      aConversationDetail({
+        id: 1,
+        status: "pending",
+        counterpart: aCounterpart({
+          id: 1,
+          role: "provider",
+          name: "Juan",
+          surname: "Gómez",
+        }),
+        messages,
+      })
+    );
+
+    await this.stubGet("/job-requests", []);
+    await this.stubGet("/service-proposals", []);
+    await this.stubPost("/ws-tickets", 201, aWsTicket());
+
+    await this.stubPost(
+      "/files/presign",
+      200,
+      aPresignedUpload({
+        file_id: "video-file-pending",
+        key: "conversation_message_video/video-file-pending",
+        upload_url: "https://mock-upload.test/pending-video",
+      })
+    );
+    await this.page.route("https://mock-upload.test/pending-video", async (route) => {
+      await route.fulfill({ status: 204 });
+    });
+    await this.stubPost(
+      "/files/video-file-pending/confirm",
+      200,
+      aConfirmedFile({
+        id: "video-file-pending",
+        url: "https://mock-video.test/pending-video.mp4",
+        original_name: "video-17s.mp4",
+      })
+    );
+
+    if (count >= 5) {
+      await this.stubPost(
+        "/conversations/1/messages",
+        429,
+        { error: "Alcanzaste el límite de mensajes pendientes." }
+      );
+    } else {
+      await this.stubPost(
+        "/conversations/1/messages",
+        201,
+        {
+          id: 99,
+          sender_role: "consumer",
+          content: "Texto con video",
+          created_on: new Date().toISOString(),
+          video: {
+            id: "video-file-pending",
+            url: "https://mock-video.test/pending-video.mp4",
+            original_name: "video-17s.mp4",
+            duration_seconds: 17,
+            mime_type: "video/mp4",
+            thumbnail_url: "https://mock-video.test/pending-thumb.jpg",
+            width: 1920,
+            height: 1080,
+          },
+        }
+      );
+    }
+
+    await this.page.goto(
+      APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
+      { waitUntil: "networkidle" }
+    );
+    await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
+  }
+);
+
+Given(
+  "que tengo un video permitido con un texto listo para enviar",
+  async function (this: VideoWorld) {
+    await attachVideoFile(this, "video-17s.mp4");
+    const preview = this.page.getByTestId("video-preview");
+    await preview.waitFor(visibleTimeout);
+
+    const input = this.page.getByPlaceholder("Escribe un mensaje...");
+    await input.waitFor(visibleTimeout);
+    await input.fill("Texto con video");
+  }
+);
+
+Then("el borrador queda {string}", async function (this: CustomWorld, borrador: string) {
+  const input = this.page.getByPlaceholder("Escribe un mensaje...");
+  const preview = this.page.getByTestId("video-preview");
+
+  if (borrador === "vacío") {
+    await preview.waitFor({ state: "detached", timeout: 5000 });
+    assert.strictEqual(await preview.count(), 0);
+    assert.strictEqual(await input.inputValue(), "");
+  } else if (borrador === "conservado con video y texto") {
+    await preview.waitFor(visibleTimeout);
+    assert.ok(await preview.isVisible());
+    assert.strictEqual(await input.inputValue(), "Texto con video");
+  }
+});
+
+Given(
+  "que estoy en una conversación pendiente como consumidor",
+  async function (this: CustomWorld) {
+    await this.setSession("consumer", {
+      id: "consumer-001",
+      email: "ana@example.com",
+      firstName: "Ana",
+      lastName: "Pérez",
+      isOnboarded: true,
+    });
+  }
+);
+
+Given(
+  "que un envío de video fue rechazado por el límite de mensajes sin crear un mensaje",
+  async function (this: VideoWorld) {
+    const messages = Array.from({ length: 5 }, (_, i) =>
+      aConversationMessage({
+        id: i + 1,
+        sender_role: "consumer",
+        content: `Mensaje previo ${i + 1}`,
+        created_on: new Date(Date.now() - (5 - i) * 60000).toISOString(),
+      })
+    );
+
+    await this.stubGet("/conversations", [
+      aConversation({
+        id: 1,
+        status: "pending",
+        counterpart: aCounterpart({
+          id: 1,
+          role: "provider",
+          name: "Juan",
+          surname: "Gómez",
+        }),
+        last_message: messages[messages.length - 1],
+      }),
+    ]);
+
+    await this.stubGet(
+      "/conversations/1",
+      aConversationDetail({
+        id: 1,
+        status: "pending",
+        counterpart: aCounterpart({
+          id: 1,
+          role: "provider",
+          name: "Juan",
+          surname: "Gómez",
+        }),
+        messages,
+      })
+    );
+
+    await this.stubGet("/job-requests", []);
+    await this.stubGet("/service-proposals", []);
+    await this.stubPost("/ws-tickets", 201, aWsTicket());
+
+    await this.stubPost(
+      "/files/presign",
+      200,
+      aPresignedUpload({
+        file_id: "video-pending-retry",
+        key: "conversation_message_video/video-pending-retry",
+        upload_url: "https://mock-upload.test/pending-retry-video",
+      })
+    );
+    await this.page.route("https://mock-upload.test/pending-retry-video", async (route) => {
+      await route.fulfill({ status: 204 });
+    });
+    await this.stubPost(
+      "/files/video-pending-retry/confirm",
+      200,
+      aConfirmedFile({
+        id: "video-pending-retry",
+        url: "https://mock-video.test/pending-retry.mp4",
+        original_name: "video-17s.mp4",
+      })
+    );
+
+    await this.stubPost(
+      "/conversations/1/messages",
+      429,
+      { error: "Alcanzaste el límite de mensajes pendientes." }
+    );
+
+    await this.page.goto(
+      APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
+      { waitUntil: "networkidle" }
+    );
+    await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
+
+    await attachVideoFile(this, "video-17s.mp4");
+    const preview = this.page.getByTestId("video-preview");
+    await preview.waitFor(visibleTimeout);
+
+    const input = this.page.getByPlaceholder("Escribe un mensaje...");
+    await input.waitFor(visibleTimeout);
+    await input.fill("Texto con video");
+
+    const sendButton = this.page.getByRole("button", { name: /Enviar mensaje/i });
+    await sendButton.click();
+
+    const errorNotice = this.page.locator("div.text-red-500").first();
+    await errorNotice.waitFor(visibleTimeout);
+    assert.ok(await errorNotice.isVisible());
+  }
+);
+
+Given(
+  "que conservé el video y el texto y ahora hay cupo",
+  async function (this: CustomWorld) {
+    const preview = this.page.getByTestId("video-preview");
+    assert.ok(await preview.isVisible());
+    const input = this.page.getByPlaceholder("Escribe un mensaje...");
+    assert.strictEqual(await input.inputValue(), "Texto con video");
+
+    await this.stubPost(
+      "/conversations/1/messages",
+      201,
+      {
+        id: 100,
+        sender_role: "consumer",
+        content: "Texto con video",
+        created_on: new Date().toISOString(),
+        video: {
+          id: "video-pending-retry",
+          url: "https://mock-video.test/pending-retry.mp4",
+          original_name: "video-17s.mp4",
+          duration_seconds: 17,
+          mime_type: "video/mp4",
+          thumbnail_url: "https://mock-video.test/pending-thumb.jpg",
+          width: 1920,
+          height: 1080,
+        },
+      }
+    );
+  }
+);
+
+Then("veo un único mensaje enviado con el video y el texto", async function (this: CustomWorld) {
+  const messageList = this.page.locator('[data-testid="messages-list"]');
+  const player = messageList.getByTestId("video-message-player");
+  await player.waitFor(visibleTimeout);
+  assert.strictEqual(await player.count(), 1);
+
+  const textEl = messageList.getByText("Texto con video");
+  await textEl.waitFor(visibleTimeout);
+  assert.ok(await textEl.isVisible());
+});
+
+Given(
+  "que estoy autenticado como prestador en una conversación pendiente",
+  async function (this: CustomWorld) {
+    await this.setSession("provider", {
+      id: "provider-001",
+      email: "juan@example.com",
+      firstName: "Juan",
+      lastName: "Gómez",
+      isOnboarded: true,
+    });
+
+    await this.stubGet("/conversations", [
+      aConversation({
+        id: 1,
+        status: "pending",
+        counterpart: aCounterpart({
+          id: 1,
+          role: "consumer",
+          name: "Ana",
+          surname: "Pérez",
+        }),
+      }),
+    ]);
+
+    await this.stubGet(
+      "/conversations/1",
+      aConversationDetail({
+        id: 1,
+        status: "pending",
+        counterpart: aCounterpart({
+          id: 1,
+          role: "consumer",
+          name: "Ana",
+          surname: "Pérez",
+        }),
+        messages: [],
+      })
+    );
+
+    await this.stubGet("/job-requests", []);
+    await this.stubGet("/service-proposals", []);
+    await this.stubPost("/ws-tickets", 201, aWsTicket());
+
+    await this.page.goto(
+      APP_URL + ROUTES.provider.messages + "?consumer_id=1&name=Ana&surname=Pérez",
+      { waitUntil: "networkidle" }
+    );
+    await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
+  }
+);
+
+When("intento adjuntar un video", async function (this: CustomWorld) {
+  const menuButton = this.page.getByRole("button", { name: "Abrir menú de acciones" });
+  await menuButton.waitFor(visibleTimeout);
+  await menuButton.click();
+});
+
+Then("veo que debo aceptar la solicitud antes de enviar mensajes", async function (this: CustomWorld) {
+  const banner = this.page.getByText(/aceptar.*solicitud|solicitud.*aceptar/i).first();
+  await banner.waitFor(visibleTimeout);
+  assert.ok(await banner.isVisible());
+});
+
+Then("no puedo iniciar el envío del video", async function (this: CustomWorld) {
+  const attachVideo = this.page.getByRole("menuitem", { name: "Adjuntar video" });
+  await attachVideo.waitFor(visibleTimeout);
+  assert.ok(await attachVideo.isDisabled(), "La opción de adjuntar video no está deshabilitada");
+  assert.strictEqual(await this.page.getByTestId("video-preview").count(), 0);
+});
+
+Given(
+  "que tengo un video seleccionado en el chat con {string}",
+  async function (this: VideoWorld, providerName: string) {
+    await this.setSession("consumer", {
+      id: "consumer-001",
+      email: "ana@example.com",
+      firstName: "Ana",
+      lastName: "Pérez",
+      isOnboarded: true,
+    });
+
+    const [name, surname] = providerName.split(" ");
+
+    await this.stubGet("/conversations", [
+      aConversation({
+        id: 1,
+        status: "accepted",
+        counterpart: aCounterpart({
+          id: 1,
+          role: "provider",
+          name: name || "Juan",
+          surname: surname || "Gómez",
+        }),
+        last_message: aConversationMessage({
+          id: 1,
+          sender_role: "consumer",
+          content: "Hola Juan",
+        }),
+      }),
+      aConversation({
+        id: 2,
+        status: "accepted",
+        counterpart: aCounterpart({
+          id: 2,
+          role: "provider",
+          name: "María",
+          surname: "López",
+        }),
+        last_message: aConversationMessage({
+          id: 2,
+          sender_role: "consumer",
+          content: "Hola María",
+        }),
+      }),
+    ]);
+
+    await this.stubGet(
+      "/conversations/1",
+      aConversationDetail({
+        id: 1,
+        status: "accepted",
+        counterpart: aCounterpart({
+          id: 1,
+          role: "provider",
+          name: name || "Juan",
+          surname: surname || "Gómez",
+        }),
+        messages: [
+          aConversationMessage({
+            id: 1,
+            sender_role: "consumer",
+            content: "Hola Juan",
+          }),
+        ],
+      })
+    );
+
+    await this.stubGet(
+      "/conversations/2",
+      aConversationDetail({
+        id: 2,
+        status: "accepted",
+        counterpart: aCounterpart({
+          id: 2,
+          role: "provider",
+          name: "María",
+          surname: "López",
+        }),
+        messages: [
+          aConversationMessage({
+            id: 2,
+            sender_role: "consumer",
+            content: "Hola María",
+          }),
+        ],
+      })
+    );
+
+    await this.stubGet("/job-requests", []);
+    await this.stubGet("/service-proposals", []);
+    await this.stubPost("/ws-tickets", 201, aWsTicket());
+
+    await this.page.goto(
+      APP_URL + ROUTES.consumer.messages + `?provider_id=1&name=${encodeURIComponent(name || "Juan")}&surname=${encodeURIComponent(surname || "Gómez")}`,
+      { waitUntil: "networkidle" }
+    );
+    await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
+
+    await attachVideoFile(this, "video-17s.mp4");
+    const preview = this.page.getByTestId("video-preview");
+    await preview.waitFor(visibleTimeout);
+    assert.ok(await preview.isVisible());
+  }
+);
+
+When("cambio al chat con otra persona", async function (this: CustomWorld) {
+  const otherContact = this.page.getByTestId("contact-item").filter({ hasText: "María López" }).first();
+  await otherContact.waitFor(visibleTimeout);
+  await otherContact.click();
+  const messageList = this.page.locator('[data-testid="messages-list"]');
+  await messageList.getByText("Hola María").waitFor(visibleTimeout);
+});
+
+Then(
+  "el video de {string} no aparece en el campo de mensaje del nuevo chat",
+  async function (this: CustomWorld, _providerName: string) {
+    const preview = this.page.getByTestId("video-preview");
+    await preview.waitFor({ state: "detached", timeout: 5000 }).catch(() => {});
+    assert.strictEqual(await preview.count(), 0);
+  }
+);
+
+Then(
+  "no se envía ningún video a la otra persona por cambiar de chat",
+  async function (this: CustomWorld) {
+    const messageList = this.page.locator('[data-testid="messages-list"]');
+    const players = messageList.getByTestId("video-message-player");
+    assert.strictEqual(await players.count(), 0);
+  }
+);
+
 After(async function (this: VideoWorld) {
-  await this.page?.unroute("**/mock-video.test/**").catch(() => {});
-  await this.page?.setViewportSize({ width: 1280, height: 720 }).catch(() => {});
+  this.videoWsServer = null;
   if (this.tempVideoPath && fs.existsSync(this.tempVideoPath)) {
     try {
       fs.unlinkSync(this.tempVideoPath);
     } catch {
       // ignore
     }
+    this.tempVideoPath = undefined;
   }
 });

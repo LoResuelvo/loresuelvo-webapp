@@ -190,7 +190,6 @@ Feature: 50.2 Enviar videos por el chat web
             | disponible nuevamente| el video listo para reproducir                               |
             | todavía inaccesible  | un error con las opciones de volver a intentar o cerrar       |
 
-    @wip
     Scenario Outline: 50.2.15-WEB Recibir un video sin recargar la página
         Given que estoy usando la sección de mensajes
         And que la conversación que recibirá el video está "<estado>"
@@ -204,7 +203,6 @@ Feature: 50.2 Enviar videos por el chat web
             | abierta                   | la nueva tarjeta de video en el chat           |
             | fuera del chat que miro   | que el chat que estoy mirando no cambia        |
 
-    @wip
     Scenario Outline: 50.2.16-WEB Reconocer un video en la lista de conversaciones
         Given que el último mensaje de una conversación es un video de 17 segundos "<acompanamiento>"
         When consulto la lista de conversaciones
@@ -215,7 +213,6 @@ Feature: 50.2 Enviar videos por el chat web
             | sin texto      |
             | con texto      |
 
-    @wip
     Scenario Outline: 50.2.17-WEB Enviar un video como consumidor en una conversación pendiente
         Given que estoy autenticado como consumidor en una conversación pendiente existente
         And que ya envié <cantidad> mensajes en esa conversación
@@ -229,7 +226,6 @@ Feature: 50.2 Enviar videos por el chat web
             | 4        | el mensaje propio de video enviado                    | vacío                          |
             | 5        | un aviso de que alcancé el límite de mensajes pendientes| conservado con video y texto   |
 
-    @wip
     Scenario: 50.2.18-WEB Reintentar tras alcanzar el límite de mensajes pendientes
         Given que estoy en una conversación pendiente como consumidor
         And que un envío de video fue rechazado por el límite de mensajes sin crear un mensaje
@@ -238,14 +234,12 @@ Feature: 50.2 Enviar videos por el chat web
         Then veo un único mensaje enviado con el video y el texto
         And se vacían el campo de texto y la selección de video
 
-    @wip
     Scenario: 50.2.19-WEB Bloquear al prestador hasta aceptar la solicitud
         Given que estoy autenticado como prestador en una conversación pendiente
         When intento adjuntar un video
         Then veo que debo aceptar la solicitud antes de enviar mensajes
         And no puedo iniciar el envío del video
 
-    @wip
     Scenario: 50.2.20-WEB Evitar trasladar un video pendiente a otro chat
         Given que tengo un video seleccionado en el chat con "Juan Gómez"
         When cambio al chat con otra persona

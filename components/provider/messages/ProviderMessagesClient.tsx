@@ -115,6 +115,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
                 }
                 footer={
                   <MessageInput
+                    key={selectedContact.id}
                     ref={inputRef}
                     value={messageInput}
                     onChange={setMessageInput}
@@ -131,6 +132,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
                         : undefined
                     }
                     disableAudio={isContactPending}
+                    disableVideo={isContactPending}
                   />
                 }
               >

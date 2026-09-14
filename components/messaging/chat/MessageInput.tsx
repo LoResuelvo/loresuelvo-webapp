@@ -20,6 +20,8 @@ export interface MessageInputProps {
   onRemoveFile?: (index: number) => void;
   onOpenServiceProposal?: () => void;
   disableAudio?: boolean;
+  disableVideo?: boolean;
+  conversationId?: string;
 }
 
 export interface MessageInputHandle {
@@ -70,7 +72,9 @@ const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>((props, r
       </div>
 
       {errorMessage && (
-        <div className="px-4 pb-2 text-red-500 text-sm font-medium">{errorMessage}</div>
+        <div data-testid="video-upload-error" className="px-4 pb-2 text-red-500 text-sm font-medium">
+          {errorMessage}
+        </div>
       )}
 
       <ImagePreviewModal

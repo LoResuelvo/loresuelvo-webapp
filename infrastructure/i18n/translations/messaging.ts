@@ -66,6 +66,7 @@ export const messaging = {
       confirm: "No se pudo completar la carga del video.",
       send: "No se pudo enviar el mensaje.",
       invalidCodec: "Se requiere MP4 H.264 con audio AAC opcional.",
+      pendingLimit: "Alcanzaste el límite de mensajes pendientes.",
     },
   },
   audioPlayer: {

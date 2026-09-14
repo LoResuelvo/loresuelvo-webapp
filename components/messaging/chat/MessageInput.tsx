@@ -6,12 +6,14 @@ import { MessageHiddenInputs } from "./MessageHiddenInputs";
 import { MessageComposerControls } from "./MessageComposerControls";
 import { useMessageComposer } from "./useMessageComposer";
 import type { AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
+import type { VideoUploadFailureStage } from "@/application/messaging/send-video-message";
 
 export interface MessageInputProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
   onSendAudio?: (file: File) => Promise<boolean | AudioUploadFailureStage> | boolean | AudioUploadFailureStage;
+  onSendVideo?: (file: File, content?: string) => Promise<boolean | VideoUploadFailureStage> | boolean | VideoUploadFailureStage;
   disabled: boolean;
   attachedFiles?: File[];
   onAttachFiles?: (files: File[]) => void;

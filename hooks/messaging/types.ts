@@ -5,6 +5,7 @@ import type { ConversationCommandRepository } from "@/ports/messaging/conversati
 import type { FileUploadRepository } from "@/ports/files/file-upload-repository";
 import type { OfflineQueueRepository } from "@/ports/shared/offline-queue-repository";
 import type { AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
+import type { VideoUploadFailureStage } from "@/application/messaging/send-video-message";
 
 export interface BaseConversationContact {
   id: string;
@@ -46,4 +47,5 @@ export interface UseMessagingCoreReturn<TContact extends BaseConversationContact
   setActiveConversationId: (id: string | null) => void;
   handleSendMessage: () => Promise<void>;
   handleSendAudio: (file: File) => Promise<boolean | AudioUploadFailureStage>;
+  handleSendVideo: (file: File, content?: string) => Promise<boolean | VideoUploadFailureStage>;
 }

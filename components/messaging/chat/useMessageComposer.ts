@@ -4,12 +4,14 @@ import { useAudioAttachment, type AttachedAudio } from "@/hooks/audio/useAudioAt
 import { useVideoAttachment, type AttachedVideo } from "@/hooks/video/useVideoAttachment";
 import { t } from "@/infrastructure/i18n/translations";
 import type { AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
+import type { VideoUploadFailureStage } from "@/application/messaging/send-video-message";
 
 export interface UseMessageComposerOptions {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
   onSendAudio?: (file: File) => Promise<boolean | AudioUploadFailureStage> | boolean | AudioUploadFailureStage;
+  onSendVideo?: (file: File, content?: string) => Promise<boolean | VideoUploadFailureStage> | boolean | VideoUploadFailureStage;
   disabled?: boolean;
   attachedFiles?: File[];
   onAttachFiles?: (files: File[]) => void;
@@ -83,17 +85,36 @@ function processImageFilesChange(
 
 async function executeComposerSend({
   audioFile,
+  videoFile,
+  content,
   onSendAudio,
+  onSendVideo,
   onSend,
   onSuccess,
   onError,
 }: {
   audioFile?: File | null;
+  videoFile?: File | null;
+  content?: string;
   onSendAudio?: (file: File) => Promise<boolean | AudioUploadFailureStage> | boolean | AudioUploadFailureStage;
+  onSendVideo?: (file: File, content?: string) => Promise<boolean | VideoUploadFailureStage> | boolean | VideoUploadFailureStage;
   onSend: () => void;
   onSuccess: () => void;
   onError: (msg: string) => void;
 }) {
+  if (videoFile && onSendVideo) {
+    try {
+      const sent = await onSendVideo(videoFile, content);
+      if (sent !== true) {
+        if (sent) onError(t.messaging.videoUpload.errors[sent]);
+        return;
+      }
+      onSuccess();
+    } catch {
+      onError(t.messaging.videoUpload.errors.send);
+    }
+    return;
+  }
   if (audioFile && onSendAudio) {
     try {
       const sent = await onSendAudio(audioFile);
@@ -116,6 +137,7 @@ export function useMessageComposer({
   onChange,
   onSend,
   onSendAudio,
+  onSendVideo,
   attachedFiles = [],
   onAttachFiles,
   onRemoveFile,
@@ -191,12 +213,16 @@ export function useMessageComposer({
   const handleSend = () =>
     executeComposerSend({
       audioFile: audioAttachment.attachedAudio?.file ?? recorder.audioFile,
+      videoFile: videoAttachment.attachedVideo?.file,
+      content: value,
       onSendAudio,
+      onSendVideo,
       onSend,
       onSuccess: () => {
         audioAttachment.removeAudio();
         recorder.cancelRecording();
         videoAttachment.removeVideo();
+        onChange("");
       },
       onError: setError,
     });

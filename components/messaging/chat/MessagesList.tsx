@@ -165,6 +165,7 @@ export default function MessagesList({
             isOwnMessage={isOwnMessage}
             images={msg.images}
             audio={msg.audio}
+            video={msg.video}
           />
         );
       })}

@@ -74,5 +74,6 @@ export function useMessagingCore<TContact extends BaseConversationContact>({
     setActiveConversationId,
     handleSendMessage: outbox.handleSendMessage,
     handleSendAudio: outbox.handleSendAudio,
+    handleSendVideo: outbox.handleSendVideo,
   };
 }

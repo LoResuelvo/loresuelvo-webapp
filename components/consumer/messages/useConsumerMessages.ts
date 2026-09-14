@@ -8,6 +8,7 @@ import {
   createConversation,
   sendMessage,
   sendAudioMessage as sendAudioMessageAction,
+  sendVideoMessage as sendVideoMessageAction,
   getServiceProposalsAction,
 } from "@/app/consumidor/mensajes/actions";
 import {
@@ -25,6 +26,7 @@ const conversationRepository = new ClientConversationCommandRepository({
   create: createConversation,
   sendMessage,
   sendAudioMessage: sendAudioMessageAction,
+  sendVideoMessage: sendVideoMessageAction,
 });
 const fileRepository = clientFileUploadRepository;
 const offlineQueueRepo = new LocalOfflineQueueRepository();
@@ -123,6 +125,7 @@ export function useConsumerMessages(
     toggleMessageExpanded: core.toggleMessageExpanded,
     handleSendMessage: core.handleSendMessage,
     handleSendAudio: core.handleSendAudio,
+    handleSendVideo: core.handleSendVideo,
     handleContactClick,
     viewMessages: core.viewMessages,
     contactsWithUnread,

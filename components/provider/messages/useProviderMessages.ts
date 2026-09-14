@@ -9,6 +9,7 @@ import {
   createConversation,
   sendMessage,
   sendAudioMessage as sendAudioMessageAction,
+  sendVideoMessage as sendVideoMessageAction,
   getServiceProposalsAction,
 } from "@/app/prestador/mensajes/actions";
 import type { ProviderWorkRequest } from "@/domain/provider/types";
@@ -25,6 +26,7 @@ const conversationRepository = new ClientConversationCommandRepository({
   create: createConversation,
   sendMessage,
   sendAudioMessage: sendAudioMessageAction,
+  sendVideoMessage: sendVideoMessageAction,
 });
 const fileRepository = clientFileUploadRepository;
 const offlineQueueRepo = new LocalOfflineQueueRepository();
@@ -154,6 +156,7 @@ export function useProviderMessages(
     messagesEndRef: core.messagesEndRef,
     handleSendMessage: core.handleSendMessage,
     handleSendAudio: core.handleSendAudio,
+    handleSendVideo: core.handleSendVideo,
     handleContactClick,
     handleAccept,
     handleReject,

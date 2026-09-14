@@ -1,12 +1,21 @@
 import { useRef } from "react";
 import { sendMessageWithAttachments } from "@/application/messaging/send-message-with-attachments";
 import { AudioUploadError, sendAudioMessage, type AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
+import { VideoUploadError, sendVideoMessage, type VideoUploadFailureStage } from "@/application/messaging/send-video-message";
+import { formatMessagePreview } from "@/lib/messaging/message-preview";
 import type { Message } from "@/domain/messaging/types";
 import type { FileUploadRepository } from "@/ports/files/file-upload-repository";
 import type { OfflineQueueRepository } from "@/ports/shared/offline-queue-repository";
 import type { ConversationCommandRepository } from "@/ports/messaging/conversation-command-repository";
 import { t } from "@/infrastructure/i18n/translations";
 import type { AuthSession } from "@/infrastructure/auth/types";
+import {
+  getSenderId,
+  formatTextPreview,
+  createOptimisticTextMessage,
+  createOptimisticAudioMessage,
+  createOptimisticVideoMessage,
+} from "./outbox-optimistic-messages";
 
 interface UseMessageOutboxConfig {
   session: AuthSession | null;
@@ -34,52 +43,6 @@ interface UseMessageOutboxConfig {
   preserveDraftForSubmission: (text: string, files: File[]) => void;
   discardConversationDraft: (conversationId: string) => void;
   markConversationJustCreated: () => void;
-}
-
-function getSenderId(session: AuthSession | null, myUserId: string): string {
-  return session?.user?.id ?? myUserId;
-}
-
-function formatTextPreview(content: string): string {
-  return content.length > 40 ? `${content.slice(0, 40)}…` : content;
-}
-
-function createOptimisticTextMessage(
-  id: string,
-  content: string | undefined,
-  files: File[],
-  senderId: string,
-  createdOn: string
-): Message {
-  return {
-    id,
-    content,
-    senderId,
-    sentAt: "Ahora",
-    createdOn,
-    images: files.map((file) => ({
-      id: `temp-img-${Math.random()}`,
-      url: URL.createObjectURL(file),
-      originalName: file.name,
-    })),
-  };
-}
-
-function createOptimisticAudioMessage(id: string, file: File, senderId: string, createdOn: string, url: string): Message {
-  return {
-    id,
-    senderId,
-    sentAt: "Ahora",
-    createdOn,
-    audio: {
-      id,
-      url,
-      originalName: file.name,
-      durationSeconds: 0,
-      mimeType: file.type,
-      sizeBytes: file.size,
-    },
-  };
 }
 
 /**
@@ -164,7 +127,7 @@ export function useMessageOutbox(config: UseMessageOutboxConfig) {
       optimisticUrl
     );
     config.addLocalMessage(optimisticMessage);
-    config.updateContactPreview("🎤 Audio");
+    config.updateContactPreview("🎤 Audio"); // TODO: sacar el emoji de audio
 
     try {
       const { message } = await sendAudioMessage(config.conversationRepository, config.fileRepository, {
@@ -187,5 +150,56 @@ export function useMessageOutbox(config: UseMessageOutboxConfig) {
     }
   };
 
-  return { handleSendMessage, handleSendAudio };
+  const handleSendVideo = async (
+    file: File,
+    content?: string
+  ): Promise<boolean | VideoUploadFailureStage> => {
+    if (!config.selectedCounterpartId || !config.currentConversationId || !/^\d+$/.test(config.currentConversationId)) return false;
+    if (!beginSending()) return false;
+
+    const trimmedContent = content?.trim() || undefined;
+    const id = `local-video-${config.now().getTime()}`;
+    const optimisticUrl = URL.createObjectURL(file);
+    const optimisticMessage = createOptimisticVideoMessage(
+      id,
+      file,
+      trimmedContent,
+      getSenderId(config.session, config.myUserId),
+      config.now().toISOString(),
+      optimisticUrl
+    );
+    config.addLocalMessage(optimisticMessage);
+    config.updateContactPreview(
+      formatMessagePreview({
+        video: {
+          id,
+          original_name: file.name,
+          duration_seconds: 17,
+        },
+      })
+    );
+
+    try {
+      const { message } = await sendVideoMessage(config.conversationRepository, config.fileRepository, {
+        conversationId: config.currentConversationId,
+        counterpartId: Number(config.selectedCounterpartId),
+        myUserId: getSenderId(config.session, config.myUserId),
+        myRole: config.myRole,
+        file,
+        content: trimmedContent,
+      });
+      config.replaceLocalMessage(id, message);
+      URL.revokeObjectURL(optimisticUrl);
+      return true;
+    } catch (error) {
+      console.error("Error sending video message:", error);
+      config.removeLocalMessage(id);
+      URL.revokeObjectURL(optimisticUrl);
+      return error instanceof VideoUploadError ? error.stage : "send";
+    } finally {
+      finishSending();
+    }
+  };
+
+  return { handleSendMessage, handleSendAudio, handleSendVideo };
 }

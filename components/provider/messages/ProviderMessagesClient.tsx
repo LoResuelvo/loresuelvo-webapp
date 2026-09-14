@@ -40,6 +40,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
     messagesEndRef,
     handleSendMessage,
     handleSendAudio,
+    handleSendVideo,
     handleContactClick,
     handleAccept,
     handleReject,
@@ -119,6 +120,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
                     onChange={setMessageInput}
                     onSend={handleSendMessage}
                     onSendAudio={handleSendAudio}
+                    onSendVideo={handleSendVideo}
                     disabled={isSending}
                     attachedFiles={attachedFiles}
                     onAttachFiles={(files) => setAttachedFiles(prev => [...prev, ...files].slice(0, 5))}

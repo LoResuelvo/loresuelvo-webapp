@@ -38,6 +38,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
     toggleMessageExpanded,
     handleSendMessage,
     handleSendAudio,
+    handleSendVideo,
     handleContactClick,
     viewMessages,
     contactsWithUnread,
@@ -90,6 +91,7 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
                     onChange={setMessageInput}
                     onSend={handleSendMessage}
                     onSendAudio={handleSendAudio}
+                    onSendVideo={handleSendVideo}
                     disabled={isSending}
                     attachedFiles={attachedFiles}
                     onAttachFiles={(files) => setAttachedFiles(prev => [...prev, ...files].slice(0, 5))}

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { ImagePreviewModal } from "@/components/messaging/media/ImagePreviewModal";
 import { AudioPlayer } from "@/components/messaging/media/AudioPlayer";
+import { VideoPlayer } from "@/components/messaging/media/VideoPlayer";
 
 interface MessageBubbleProps {
   id: string;
@@ -15,6 +16,7 @@ interface MessageBubbleProps {
   isOwnMessage?: boolean;
   images?: { id: string; url: string; originalName: string }[];
   audio?: { id: string; url: string; originalName: string; durationSeconds: number };
+  video?: { id: string; url: string; originalName: string; durationSeconds: number; thumbnailUrl?: string };
 }
 
 export default function MessageBubble({
@@ -27,6 +29,7 @@ export default function MessageBubble({
   isOwnMessage = true,
   images,
   audio,
+  video,
 }: MessageBubbleProps) {
   const [previewImage, setPreviewImage] = useState<{url: string, name: string} | null>(null);
 
@@ -66,6 +69,17 @@ export default function MessageBubble({
               src={audio.url}
               originalName={audio.originalName}
               durationSeconds={audio.durationSeconds}
+              isOwnMessage={isOwnMessage}
+            />
+          </div>
+        )}
+        {video && (
+          <div className="mb-2" data-testid={`video-message-${id}`}>
+            <VideoPlayer
+              src={video.url}
+              originalName={video.originalName}
+              durationSeconds={video.durationSeconds}
+              thumbnailUrl={video.thumbnailUrl}
               isOwnMessage={isOwnMessage}
             />
           </div>

@@ -92,4 +92,27 @@ describe("MessageBubble", () => {
     expect(screen.getByRole("button", { name: "Reproducir audio audio.webm" })).toBeInTheDocument();
     expect(screen.getByText("0:18")).toBeInTheDocument();
   });
+
+  it("renders a video player, play button and duration", () => {
+    render(
+      <MessageBubble
+        id="msg-video"
+        sentAt="10:00"
+        isExpanded={false}
+        showExpandButton={false}
+        onToggleExpand={vi.fn()}
+        video={{
+          id: "video-1",
+          url: "https://example.com/video.mp4",
+          originalName: "video.mp4",
+          durationSeconds: 17,
+        }}
+      />
+    );
+
+    expect(screen.getByTestId("video-message-msg-video")).toBeInTheDocument();
+    expect(screen.getByTestId("video-thumbnail")).toHaveAttribute("src", "https://example.com/video.mp4");
+    expect(screen.getByRole("button", { name: "Reproducir video" })).toBeInTheDocument();
+    expect(screen.getByText("0:17")).toBeInTheDocument();
+  });
 });

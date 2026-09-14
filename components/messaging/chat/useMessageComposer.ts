@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ChangeEvent, type RefObject } from "react";
+import { useRef, useState, type ChangeEvent, type RefObject } from "react";
 import { useAudioRecorder, type AudioRecorderError } from "@/hooks/audio/useAudioRecorder";
-import { validateAudioDuration, validateAudioFile } from "@/lib/audio/audio-validation";
+import { useAudioAttachment, type AttachedAudio } from "@/hooks/audio/useAudioAttachment";
+import { useVideoAttachment, type AttachedVideo } from "@/hooks/video/useVideoAttachment";
 import { t } from "@/infrastructure/i18n/translations";
 import type { AudioUploadFailureStage } from "@/application/messaging/send-audio-message";
 
@@ -19,11 +20,13 @@ export interface UseMessageComposerOptions {
 export interface UseMessageComposerReturn {
   error: string | null;
   setError: (error: string | null) => void;
-  attachedAudio: { file: File; url: string } | null;
+  attachedAudio: AttachedAudio | null;
+  attachedVideo: AttachedVideo | null;
   previewImage: { url: string; name: string } | null;
   setPreviewImage: (preview: { url: string; name: string } | null) => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
   audioInputRef: RefObject<HTMLInputElement | null>;
+  videoInputRef: RefObject<HTMLInputElement | null>;
   inputRef: RefObject<HTMLInputElement | null>;
   isRecording: boolean;
   isPaused: boolean;
@@ -31,17 +34,76 @@ export interface UseMessageComposerReturn {
   audioUrl: string | null;
   recorderErrorMessage: string | null;
   hasAudio: boolean;
+  hasVideo: boolean;
   canSendDirectly: boolean;
   handleFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
   handleAudioChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  handleVideoChange: (e: ChangeEvent<HTMLInputElement>) => Promise<void>;
   handleAudioDurationLoaded: (duration: number) => void;
   removeAudio: () => void;
+  removeVideo: () => void;
   handleRecordAudio: () => void;
   handleSend: () => Promise<void>;
   pauseRecording: () => void;
   resumeRecording: () => void;
   stopRecording: () => void;
   cancelRecording: () => void;
+}
+
+export function filterValidImageFiles(files: FileList | File[]): {
+  validFiles: File[];
+  errorKey: "fileTooLarge" | "photoInvalidFormat" | null;
+} {
+  const fileArray = Array.from(files);
+  const validFiles: File[] = [];
+  for (const file of fileArray) {
+    if (file.size > 5 * 1024 * 1024) return { validFiles: [], errorKey: "fileTooLarge" };
+    if (!["image/jpeg", "image/png", "image/webp", "image/jpg"].includes(file.type)) {
+      return { validFiles: [], errorKey: "photoInvalidFormat" };
+    }
+    validFiles.push(file);
+  }
+  return { validFiles, errorKey: null };
+}
+
+function processImageFilesChange(
+  files: FileList | null,
+  onAttachFiles?: (files: File[]) => void
+): { errorKey: "fileTooLarge" | "photoInvalidFormat" | null; validCount: number } {
+  if (!files || !onAttachFiles) return { errorKey: null, validCount: 0 };
+  const { validFiles, errorKey } = filterValidImageFiles(files);
+  if (validFiles.length > 0) onAttachFiles(validFiles);
+  return { errorKey, validCount: validFiles.length };
+}
+
+async function executeComposerSend({
+  audioFile,
+  onSendAudio,
+  onSend,
+  onSuccess,
+  onError,
+}: {
+  audioFile?: File | null;
+  onSendAudio?: (file: File) => Promise<boolean | AudioUploadFailureStage> | boolean | AudioUploadFailureStage;
+  onSend: () => void;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+}) {
+  if (audioFile && onSendAudio) {
+    try {
+      const sent = await onSendAudio(audioFile);
+      if (sent !== true) {
+        if (sent) onError(t.messaging.audioUpload.errors[sent]);
+        return;
+      }
+      onSuccess();
+    } catch {
+      onError(t.messaging.audioUpload.errors.send);
+    }
+    return;
+  }
+  onSend();
+  onSuccess();
 }
 
 export function useMessageComposer({
@@ -55,168 +117,105 @@ export function useMessageComposer({
   disableAudio = false,
 }: UseMessageComposerOptions): UseMessageComposerReturn {
   const [error, setError] = useState<string | null>(null);
-  const [attachedAudio, setAttachedAudio] = useState<{ file: File; url: string } | null>(null);
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
-
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const audioInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const {
-    isRecording,
-    isPaused,
-    elapsedSeconds,
-    audioFile,
-    audioUrl,
-    error: recorderError,
-    startRecording,
-    pauseRecording,
-    resumeRecording,
-    stopRecording,
-    cancelRecording,
-  } = useAudioRecorder();
+  const recorder = useAudioRecorder();
 
-  const hasAudio = !!attachedAudio || !!audioFile || isRecording;
+  const clearInputs = () => {
+    onChange("");
+    for (let index = 0; index < attachedFiles.length; index += 1) onRemoveFile?.(0);
+  };
 
-  const recorderErrorMessage = recorderError
-    ? t.messaging.audioRecorder.errors[recorderError as AudioRecorderError]
+  const audioAttachment = useAudioAttachment({
+    disabled: disableAudio,
+    onError: setError,
+    onClearError: () => setError(null),
+    onBeforeAttach: () => {
+      if (!videoAttachment.attachedVideo) return true;
+      setError(t.messaging.videoAttachment.incompatibleAttachment);
+      return false;
+    },
+    onAudioAttached: () => {
+      recorder.cancelRecording();
+      clearInputs();
+    },
+  });
+
+  const hasAudio = !!audioAttachment.attachedAudio || !!recorder.audioFile || recorder.isRecording;
+
+  const videoAttachment = useVideoAttachment({
+    onBeforeSelect: () => {
+      if (!attachedFiles.length && !hasAudio) return true;
+      setError(t.messaging.videoAttachment.incompatibleAttachment);
+      return false;
+    },
+    onError: (err) => setError(t.messaging.videoAttachment[err]),
+  });
+
+  const hasVideo = !!videoAttachment.attachedVideo;
+
+  const recorderErrorMessage = recorder.error
+    ? t.messaging.audioRecorder.errors[recorder.error as AudioRecorderError]
     : null;
 
-  useEffect(() => {
-    return () => {
-      if (attachedAudio) URL.revokeObjectURL(attachedAudio.url);
-    };
-  }, [attachedAudio]);
-
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && onAttachFiles) {
-      const filesArray = Array.from(e.target.files);
-      const validFiles = filesArray.filter((file) => {
-        if (file.size > 5 * 1024 * 1024) {
-          setError(t.messaging.fileTooLarge);
-          return false;
-        }
-
-        const validTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
-        if (!validTypes.includes(file.type)) {
-          setError(t.messaging.photoInvalidFormat);
-          return false;
-        }
-
-        return true;
-      });
-      if (validFiles.length > 0) {
-        setError(null);
-        onAttachFiles(validFiles);
-      }
-    }
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  const handleAudioChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (disableAudio) return;
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const audioValidationError = validateAudioFile(file);
-    if (audioValidationError) {
-      setError(t.messaging.audioAttachment[audioValidationError]);
-      e.target.value = "";
-      return;
-    }
-
-    cancelRecording();
-    setAttachedAudio({ file, url: URL.createObjectURL(file) });
-    onChange("");
-    for (let index = 0; index < attachedFiles.length; index += 1) {
-      onRemoveFile?.(0);
-    }
-    setError(null);
-    e.target.value = "";
-  };
-
-  const handleAudioDurationLoaded = (duration: number) => {
-    const durationError = validateAudioDuration(duration);
-    if (durationError) {
-      setError(t.messaging.audioAttachment.durationTooLong);
-      setAttachedAudio(null);
-      cancelRecording();
-      return;
-    }
-
-    setError(null);
-  };
-
-  const removeAudio = () => {
-    setAttachedAudio(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (hasVideo) return setError(t.messaging.videoAttachment.incompatibleAttachment);
+    const { errorKey, validCount } = processImageFilesChange(e.target.files, onAttachFiles);
+    if (errorKey) setError(t.messaging[errorKey]);
+    else if (validCount > 0) setError(null);
   };
 
   const handleRecordAudio = () => {
     if (disableAudio) return;
-    void startRecording().then((started) => {
-      if (!started) return;
-      setAttachedAudio(null);
-      onChange("");
-      for (let index = 0; index < attachedFiles.length; index += 1) {
-        onRemoveFile?.(0);
+    if (hasVideo) return setError(t.messaging.videoAttachment.incompatibleAttachment);
+    void recorder.startRecording().then((started) => {
+      if (started) {
+        audioAttachment.removeAudio();
+        clearInputs();
       }
     });
   };
 
-  const handleSend = async () => {
-    const audioFileToSend = attachedAudio?.file ?? audioFile;
+  const handleSend = () =>
+    executeComposerSend({
+      audioFile: audioAttachment.attachedAudio?.file ?? recorder.audioFile,
+      onSendAudio,
+      onSend,
+      onSuccess: () => {
+        audioAttachment.removeAudio();
+        recorder.cancelRecording();
+        videoAttachment.removeVideo();
+      },
+      onError: setError,
+    });
 
-    if (audioFileToSend && onSendAudio) {
-      try {
-        const sent = await onSendAudio(audioFileToSend);
-        if (sent !== true) {
-          if (sent) setError(t.messaging.audioUpload.errors[sent]);
-          return;
-        }
-        setAttachedAudio(null);
-        cancelRecording();
-      } catch {
-        setError(t.messaging.audioUpload.errors.send);
-      }
-      return;
-    }
-
-    onSend();
-    setAttachedAudio(null);
-    cancelRecording();
-  };
-
-  const canSendDirectly =
-    !!value.trim() || attachedFiles.length > 0 || !!attachedAudio || !!audioFile;
+  const canSendDirectly = !!value.trim() || attachedFiles.length > 0 || hasAudio || hasVideo;
 
   return {
-    error,
-    setError,
-    attachedAudio,
-    previewImage,
-    setPreviewImage,
-    fileInputRef,
-    audioInputRef,
-    inputRef,
-    isRecording,
-    isPaused,
-    elapsedSeconds,
-    audioUrl,
+    error, setError, previewImage, setPreviewImage, fileInputRef, inputRef,
+    attachedAudio: audioAttachment.attachedAudio,
+    attachedVideo: videoAttachment.attachedVideo,
+    audioInputRef: audioAttachment.audioInputRef,
+    videoInputRef: videoAttachment.videoInputRef,
+    isRecording: recorder.isRecording,
+    isPaused: recorder.isPaused,
+    elapsedSeconds: recorder.elapsedSeconds,
+    audioUrl: recorder.audioUrl,
     recorderErrorMessage,
-    hasAudio,
-    canSendDirectly,
+    hasAudio, hasVideo, canSendDirectly,
     handleFileChange,
-    handleAudioChange,
-    handleAudioDurationLoaded,
-    removeAudio,
-    handleRecordAudio,
-    handleSend,
-    pauseRecording,
-    resumeRecording,
-    stopRecording,
-    cancelRecording,
+    handleAudioChange: audioAttachment.handleAudioChange,
+    handleVideoChange: videoAttachment.handleVideoChange,
+    handleAudioDurationLoaded: audioAttachment.handleAudioDurationLoaded,
+    removeAudio: audioAttachment.removeAudio,
+    removeVideo: videoAttachment.removeVideo,
+    handleRecordAudio, handleSend,
+    pauseRecording: recorder.pauseRecording,
+    resumeRecording: recorder.resumeRecording,
+    stopRecording: recorder.stopRecording,
+    cancelRecording: recorder.cancelRecording,
   };
 }

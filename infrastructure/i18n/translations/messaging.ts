@@ -32,7 +32,26 @@ export const messaging = {
     openMenu: "Abrir menú de acciones",
     attachImages: "Adjuntar imágenes",
     attachAudio: "Adjuntar audio",
+    attachVideo: "Adjuntar video",
     createProposal: "Crear propuesta de servicio",
+  },
+  videoPreview: {
+    playLabel: "Reproducir video",
+    pauseLabel: "Pausar video",
+    removeLabel: "Quitar video de la vista previa",
+    durationLabel: "Duración:",
+  },
+  videoSidebarPreview: {
+    label: "Video",
+  },
+  videoAttachment: {
+    invalidFormat: "Formato no permitido: se requiere un video MP4.",
+    emptyFile: "El archivo está vacío.",
+    tooLarge: "El video supera el máximo de 50 MiB.",
+    durationTooLong: "El video supera el máximo de 120 segundos.",
+    dimensionsTooLarge: "El video supera el máximo de 1920 píxeles por lado.",
+    corruptedOrUnreadable: "No se pudo preparar el video.",
+    incompatibleAttachment: "Debes quitar el adjunto actual para agregar el nuevo.",
   },
   audioPlayer: {
     playLabel: "Reproducir audio",

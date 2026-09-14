@@ -3,7 +3,6 @@ Feature: 50.2 Enviar videos por el chat web
     quiero enviar y reproducir videos
     para mostrar el problema o explicar el servicio
 
-    @wip
     Scenario Outline: 50.2.1-WEB Seleccionar y revisar un video permitido
         Given que estoy en un chat activo y abrí el menú de adjuntos
         And que el video "perdida.mp4" es MP4 H.264 con "<sonido>"
@@ -19,7 +18,6 @@ Feature: 50.2 Enviar videos por el chat web
             | sin audio | 1048576  | 17       | 1080  | 1920 |
             | audio AAC | 52428800 | 120      | 1920  | 1920 |
 
-    @wip
     Scenario: 50.2.2-WEB Quitar un video sin perder el texto
         Given que tengo seleccionado "perdida.mp4" con el texto "La pérdida está aquí"
         When quito el video de la vista previa
@@ -27,7 +25,6 @@ Feature: 50.2 Enviar videos por el chat web
         And se conserva el texto "La pérdida está aquí"
         And no se crea ningún mensaje de video
 
-    @wip
     Scenario: 50.2.3-WEB Reemplazar el video seleccionado
         Given que tengo seleccionado "perdida.mp4" con el texto "La pérdida está aquí"
         When selecciono otro video permitido llamado "detalle.mp4"

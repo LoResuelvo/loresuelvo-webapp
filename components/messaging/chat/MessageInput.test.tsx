@@ -2,10 +2,16 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeAll } from "vitest";
 import MessageInput, { MessageInputHandle } from "@/components/messaging/chat/MessageInput";
 import { t } from "@/infrastructure/i18n/translations";
+import * as videoValidation from "@/lib/video/video-validation";
 
 beforeAll(() => {
   global.URL.createObjectURL = vi.fn(() => "blob:mock-url");
   global.URL.revokeObjectURL = vi.fn();
+  vi.spyOn(videoValidation, "readVideoMetadata").mockResolvedValue({
+    duration: 17,
+    width: 1920,
+    height: 1080,
+  });
 });
 
 describe("MessageInput", () => {
@@ -589,5 +595,89 @@ describe("MessageInput", () => {
       Reflect.deleteProperty(navigator, "mediaDevices");
     }
     vi.unstubAllGlobals();
+  });
+
+  it("shows video preview when selecting a video and preserves accompanying text", async () => {
+    const onChange = vi.fn();
+    render(
+      <MessageInput
+        value="Texto de acompañamiento"
+        onChange={onChange}
+        onSend={vi.fn()}
+        disabled={false}
+        onAttachFiles={vi.fn()}
+      />
+    );
+
+    const videoInput = document.querySelector('input[accept="video/mp4"]') as HTMLInputElement;
+    expect(videoInput).toBeInTheDocument();
+
+    const file = new File(["video-bytes"], "perdida.mp4", { type: "video/mp4" });
+    fireEvent.change(videoInput, { target: { files: [file] } });
+
+    // Video preview should appear
+    await waitFor(() => {
+      expect(screen.getByTestId("video-preview")).toBeInTheDocument();
+      expect(screen.getByText("perdida.mp4")).toBeInTheDocument();
+    });
+
+    // Accompanying text input is still in the document
+    expect(screen.getByRole("textbox")).toHaveValue("Texto de acompañamiento");
+  });
+
+  it("removes video preview when remove button is clicked and preserves text", async () => {
+    render(
+      <MessageInput
+        value="La pérdida está aquí"
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        disabled={false}
+        onAttachFiles={vi.fn()}
+      />
+    );
+
+    const videoInput = document.querySelector('input[accept="video/mp4"]') as HTMLInputElement;
+    const file = new File(["video-bytes"], "perdida.mp4", { type: "video/mp4" });
+    fireEvent.change(videoInput, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("video-preview")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: t.messaging.videoPreview.removeLabel }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("video-preview")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("textbox")).toHaveValue("La pérdida está aquí");
+  });
+
+  it("prevents attaching images when a video is already attached", async () => {
+    const onAttachFiles = vi.fn();
+    render(
+      <MessageInput
+        value=""
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        disabled={false}
+        onAttachFiles={onAttachFiles}
+      />
+    );
+
+    const videoInput = document.querySelector('input[accept="video/mp4"]') as HTMLInputElement;
+    const videoFile = new File(["video-bytes"], "perdida.mp4", { type: "video/mp4" });
+    fireEvent.change(videoInput, { target: { files: [videoFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("video-preview")).toBeInTheDocument();
+    });
+
+    const imageInput = document.querySelector('input[accept="image/jpeg, image/png, image/webp"]') as HTMLInputElement;
+    const imageFile = new File(["img"], "foto.png", { type: "image/png" });
+    fireEvent.change(imageInput, { target: { files: [imageFile] } });
+
+    expect(onAttachFiles).not.toHaveBeenCalled();
+    expect(screen.getByText(t.messaging.videoAttachment.incompatibleAttachment)).toBeInTheDocument();
   });
 });

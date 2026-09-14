@@ -816,6 +816,16 @@ Then("el audio desaparece de la preview", async function (this: CustomWorld) {
 });
 
 Then("puedo reproducirlo antes de enviarlo", async function (this: CustomWorld) {
+  const videoPreview = this.page.getByTestId("video-preview");
+  if (await videoPreview.isVisible().catch(() => false)) {
+    const playButton = videoPreview.getByRole("button", { name: /Reproducir video/i });
+    await playButton.waitFor(visibleTimeout);
+    assert.ok(await playButton.isVisible());
+    const videoElement = videoPreview.locator("video");
+    await videoElement.waitFor({ state: "attached", timeout: 5000 });
+    assert.strictEqual(await videoElement.getAttribute("preload"), "metadata");
+    return;
+  }
   const playButton = this.page.getByRole("button", { name: /Reproducir audio/i }).first();
   await playButton.waitFor(visibleTimeout);
   assert.ok(await playButton.isVisible());

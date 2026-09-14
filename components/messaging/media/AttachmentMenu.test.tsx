@@ -158,4 +158,34 @@ describe("AttachmentMenu", () => {
     expect(screen.getByRole("menuitem", { name: "Adjuntar imágenes" })).toBeEnabled();
     expect(screen.getByRole("menuitem", { name: "Adjuntar audio" })).toBeDisabled();
   });
+
+  it("calls onAttachVideo and closes menu when selecting video", () => {
+    const onAttachVideo = vi.fn();
+    render(
+      <AttachmentMenu
+        onAttachImages={onAttachImages}
+        onAttachVideo={onAttachVideo}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Adjuntar video" }));
+
+    expect(onAttachVideo).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("disables video option when videoDisabled is true", () => {
+    const onAttachVideo = vi.fn();
+    render(
+      <AttachmentMenu
+        onAttachImages={onAttachImages}
+        onAttachVideo={onAttachVideo}
+        videoDisabled={true}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menú de acciones" }));
+    expect(screen.getByRole("menuitem", { name: "Adjuntar video" })).toBeDisabled();
+  });
 });

@@ -52,7 +52,6 @@ Feature: 50.2 Enviar videos por el chat web
             | archivo dañado o ilegible        | no se pudo preparar el video                 |
             | duración desconocida o inválida  | no se pudo preparar el video                 |
 
-    @wip
     Scenario Outline: 50.2.5-WEB Evitar combinar adjuntos incompatibles
         Given que estoy en un chat activo con "<actual>" seleccionado y un borrador de texto
         When intento agregar "<nuevo>"

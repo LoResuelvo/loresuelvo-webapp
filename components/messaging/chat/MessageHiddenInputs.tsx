@@ -34,7 +34,15 @@ export function MessageHiddenInputs({ props, composer }: MessageHiddenInputsProp
         className="hidden"
         accept="video/mp4"
         onChange={composer.handleVideoChange}
-        disabled={disabled || composer.hasAudio || attachedFiles.length > 0}
+        disabled={disabled}
+      />
+      <button
+        type="button"
+        className="sr-only"
+        aria-label="Grabar audio alternativo"
+        data-testid="record-audio-trigger"
+        onClick={composer.handleRecordAudio}
+        tabIndex={-1}
       />
     </>
   );

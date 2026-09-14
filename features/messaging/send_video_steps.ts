@@ -12,6 +12,7 @@ import {
   aWsTicket,
 } from "../support/factories";
 import { ROUTES } from "../../lib/routes";
+import { installMediaRecorderMock } from "./send_audio_steps";
 
 interface VideoFixtureInfo {
   name: string;
@@ -37,6 +38,8 @@ interface VideoWorld extends CustomWorld {
   currentVideoFileName?: string;
   invalidVideoSpec?: InvalidFileSpec;
   tempVideoPath?: string;
+  currentActualAttachment?: string;
+  currentNuevoAttachment?: string;
 }
 
 async function stubActiveVideoChat(world: CustomWorld) {
@@ -89,6 +92,7 @@ async function stubActiveVideoChat(world: CustomWorld) {
 
 async function openActiveVideoChat(world: CustomWorld) {
   await stubActiveVideoChat(world);
+  await installMediaRecorderMock(world);
   await world.page.goto(
     APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
     { waitUntil: "networkidle" }
@@ -402,6 +406,142 @@ Then("puedo seleccionar otro video", async function (this: CustomWorld) {
   const videoInput = this.page.locator('input[accept="video/mp4"]');
   await videoInput.waitFor({ state: "attached", timeout: 5000 });
   assert.ok(await videoInput.isEnabled());
+});
+
+Given(
+  "que estoy en un chat activo con {string} seleccionado y un borrador de texto",
+  async function (this: VideoWorld, actual: string) {
+    this.currentActualAttachment = actual;
+    await openActiveVideoChat(this);
+
+    if (actual === "video") {
+      const input = this.page.getByPlaceholder("Escribe un mensaje...");
+      await input.waitFor(visibleTimeout);
+      await input.fill("Mi borrador de texto");
+
+      await attachVideoFile(this, "actual.mp4");
+      const preview = this.page.getByTestId("video-preview");
+      await preview.waitFor(visibleTimeout);
+    } else if (actual === "imagen") {
+      const input = this.page.getByPlaceholder("Escribe un mensaje...");
+      await input.waitFor(visibleTimeout);
+      await input.fill("Mi borrador de texto");
+
+      const fileInput = this.page.locator('input[accept="image/jpeg, image/png, image/webp"]');
+      await fileInput.waitFor({ state: "attached", timeout: 5000 });
+      await fileInput.setInputFiles({
+        name: "perdida-actual.jpg",
+        mimeType: "image/jpeg",
+        buffer: Buffer.from("mock-image-data"),
+      });
+      const thumbnail = this.page.getByRole("img", { name: "perdida-actual.jpg" });
+      await thumbnail.waitFor(visibleTimeout);
+    } else if (actual === "audio adjunto") {
+      const audioInput = this.page.locator('input[accept="audio/webm"]');
+      await audioInput.waitFor({ state: "attached", timeout: 5000 });
+      await audioInput.setInputFiles({
+        name: "ruido-actual.webm",
+        mimeType: "audio/webm",
+        buffer: Buffer.from("mock-audio-data"),
+      });
+      await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+    } else if (actual === "audio grabado") {
+      const micBtn = this.page.getByRole("button", { name: "Grabar audio" });
+      await micBtn.waitFor(visibleTimeout);
+      await micBtn.click();
+      await this.page.getByTestId("audio-recording").waitFor(visibleTimeout);
+      await this.page.evaluate(() => {
+        (window as Window & { __e2eStopRecording?: () => void }).__e2eStopRecording?.();
+      });
+      await this.page.getByTestId("audio-preview").waitFor(visibleTimeout);
+    } else {
+      throw new Error(`Adjunto actual desconocido: ${actual}`);
+    }
+  }
+);
+
+When("intento agregar {string}", async function (this: VideoWorld, nuevo: string) {
+  this.currentNuevoAttachment = nuevo;
+  if (nuevo === "video") {
+    const videoInput = this.page.locator('input[accept="video/mp4"]');
+    await videoInput.waitFor({ state: "attached", timeout: 5000 });
+    await videoInput.setInputFiles({
+      name: "incompatible.mp4",
+      mimeType: "video/mp4",
+      buffer: Buffer.from("mock-video-data"),
+    });
+  } else if (nuevo === "imagen") {
+    const fileInput = this.page.locator('input[accept="image/jpeg, image/png, image/webp"]');
+    await fileInput.waitFor({ state: "attached", timeout: 5000 });
+    await fileInput.setInputFiles({
+      name: "incompatible.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("mock-image-data"),
+    });
+  } else if (nuevo === "audio adjunto") {
+    const audioInput = this.page.locator('input[accept="audio/webm"]');
+    await audioInput.waitFor({ state: "attached", timeout: 5000 });
+    await audioInput.setInputFiles({
+      name: "incompatible.webm",
+      mimeType: "audio/webm",
+      buffer: Buffer.from("mock-audio-data"),
+    });
+  } else if (nuevo === "audio grabado") {
+    const trigger = this.page.locator('[data-testid="record-audio-trigger"]');
+    if ((await trigger.count()) > 0) {
+      await trigger.evaluate((btn: HTMLElement) => btn.click());
+    } else {
+      const micBtn = this.page.getByRole("button", { name: "Grabar audio" });
+      if (await micBtn.isVisible().catch(() => false)) {
+        await micBtn.click();
+      }
+    }
+  } else {
+    throw new Error(`Adjunto nuevo desconocido: ${nuevo}`);
+  }
+});
+
+Then("veo que debo quitar el adjunto actual para agregar el nuevo", async function (this: CustomWorld) {
+  const errorNotice = this.page.locator("div.text-red-500");
+  await errorNotice.waitFor(visibleTimeout);
+  const text = (await errorNotice.textContent()) || "";
+  assert.ok(
+    text.includes("Debes quitar el adjunto actual para agregar el nuevo") ||
+    text.toLowerCase().includes("quitar el adjunto actual"),
+    `Mensaje de incompatibilidad no encontrado en "${text}"`
+  );
+});
+
+Then("se conservan el adjunto actual y mi borrador de texto", async function (this: VideoWorld) {
+  const actual = this.currentActualAttachment;
+  if (actual === "video") {
+    const videoPreview = this.page.getByTestId("video-preview");
+    assert.strictEqual(await videoPreview.count(), 1);
+    const input = this.page.getByPlaceholder("Escribe un mensaje...");
+    assert.strictEqual(await input.inputValue(), "Mi borrador de texto");
+  } else if (actual === "imagen") {
+    const imageThumbnail = this.page.getByRole("img", { name: "perdida-actual.jpg" });
+    assert.ok((await imageThumbnail.count()) > 0);
+    const input = this.page.getByPlaceholder("Escribe un mensaje...");
+    assert.strictEqual(await input.inputValue(), "Mi borrador de texto");
+  } else if (actual === "audio adjunto" || actual === "audio grabado") {
+    const audioPreview = this.page.getByTestId("audio-preview");
+    assert.strictEqual(await audioPreview.count(), 1);
+  }
+});
+
+Then("no se agrega el adjunto incompatible", async function (this: VideoWorld) {
+  const nuevo = this.currentNuevoAttachment;
+  if (nuevo === "video") {
+    const videoPreview = this.page.getByTestId("video-preview");
+    assert.strictEqual(await videoPreview.count(), 0);
+  } else if (nuevo === "imagen") {
+    const incompatibleImg = this.page.getByRole("img", { name: "incompatible.jpg" });
+    assert.strictEqual(await incompatibleImg.count(), 0);
+  } else if (nuevo === "audio adjunto" || nuevo === "audio grabado") {
+    const audioPreview = this.page.getByTestId("audio-preview");
+    assert.strictEqual(await audioPreview.count(), 0);
+  }
 });
 
 After(async function (this: VideoWorld) {

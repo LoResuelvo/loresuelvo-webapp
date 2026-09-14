@@ -190,7 +190,7 @@ async function stubAudioSidebarChat(world: CustomWorld) {
   await world.stubPost("/ws-tickets", 201, aWsTicket());
 }
 
-async function installMediaRecorderMock(world: CustomWorld) {
+export async function installMediaRecorderMock(world: CustomWorld) {
   await world.page.addInitScript(() => {
     let activeRecorder: TestMediaRecorder | null = null;
 

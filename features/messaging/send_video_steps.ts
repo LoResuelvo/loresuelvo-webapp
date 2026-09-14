@@ -101,6 +101,19 @@ async function openActiveVideoChat(world: CustomWorld) {
 }
 
 async function attachVideoFile(world: VideoWorld, fileName: string, sizeBytes?: number) {
+  await world.page.evaluate(
+    ({ name }) => {
+      const wnd = window as Window & {
+        __e2eVideoMetadata?: Record<string, { duration: number; width: number; height: number }>;
+      };
+      wnd.__e2eVideoMetadata = wnd.__e2eVideoMetadata || {};
+      if (!wnd.__e2eVideoMetadata[name]) {
+        wnd.__e2eVideoMetadata[name] = { duration: 17, width: 1920, height: 1080 };
+      }
+    },
+    { name: fileName }
+  );
+
   const messageInput = world.page.getByPlaceholder("Escribe un mensaje...");
   await messageInput.waitFor({ state: "visible", timeout: 5000 });
 

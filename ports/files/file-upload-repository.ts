@@ -2,6 +2,7 @@ export type FileUploadPurpose =
   | "profile_photo"
   | "conversation_message_image"
   | "conversation_message_audio"
+  | "conversation_message_video"
   | "job_request_image"
   | "work_order_completion_image";
 

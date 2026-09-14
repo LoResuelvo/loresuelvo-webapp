@@ -1,5 +1,5 @@
-import { ApiConversation, ApiConversationDetail, ApiConversationMessage } from "@/infrastructure/api/types";
-import { ConsumerConversationContact, ProviderConversationContact, ConversationDetailInfo, Message } from "@/domain/messaging/types";
+import { ApiConversation, ApiConversationDetail, ApiConversationMessage, ApiMessageVideo } from "@/infrastructure/api/types";
+import { ConsumerConversationContact, ProviderConversationContact, ConversationDetailInfo, Message, MessageVideo } from "@/domain/messaging/types";
 import { formatMessagePreview } from "@/lib/messaging/message-preview";
 import { formatConversationLastMessageDate } from "@/lib/date/date-utils";
 
@@ -12,6 +12,23 @@ export function formatToLocalTime(dateString: string | Date): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function mapApiVideoToDomain(video?: ApiMessageVideo): MessageVideo | undefined {
+  if (!video) return undefined;
+  return {
+    id: String(video.id),
+    url: video.url ?? "",
+    originalName: video.original_name,
+    durationSeconds: video.duration_seconds,
+    thumbnailUrl: video.thumbnail_url,
+    mimeType: video.mime_type,
+    sizeBytes: video.size_bytes,
+    width: video.width,
+    height: video.height,
+    codec: video.codec,
+    audioCodec: video.audio_codec,
+  };
 }
 
 export function transformApiMessageToDomain(
@@ -38,6 +55,7 @@ export function transformApiMessageToDomain(
       mimeType: apiMsg.audio.mime_type,
       sizeBytes: apiMsg.audio.size_bytes,
     } : undefined,
+    video: mapApiVideoToDomain(apiMsg.video),
     sentAt: formatToLocalTime(apiMsg.created_on),
     createdOn: apiMsg.created_on,
   };
@@ -127,6 +145,7 @@ export function transformApiToConversationDetail(api: ApiConversationDetail): Co
         mimeType: m.audio.mime_type,
         sizeBytes: m.audio.size_bytes,
       } : undefined,
+      video: mapApiVideoToDomain(m.video),
       sentAt: formatToLocalTime(m.created_on),
       createdOn: m.created_on,
     })) : [],

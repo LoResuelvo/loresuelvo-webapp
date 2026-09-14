@@ -16,7 +16,7 @@ interface PresignResponseDto {
 
 interface ConfirmResponseDto {
   id: string;
-  url: string;
+  url?: string;
   original_name: string;
 }
 
@@ -46,7 +46,7 @@ export class ApiFileUploadRepository implements FileUploadSessionRepository {
 
     return {
       fileId: result.id,
-      url: result.url,
+      url: result.url ?? "",
       originalName: result.original_name,
     };
   }

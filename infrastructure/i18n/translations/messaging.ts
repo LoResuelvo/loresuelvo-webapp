@@ -53,6 +53,15 @@ export const messaging = {
     corruptedOrUnreadable: "No se pudo preparar el video.",
     incompatibleAttachment: "Debes quitar el adjunto actual para agregar el nuevo.",
   },
+  videoUpload: {
+    errors: {
+      presign: "No se pudo iniciar la carga del video.",
+      PUT: "No se pudo cargar el video.",
+      confirm: "No se pudo completar la carga del video.",
+      send: "No se pudo enviar el mensaje.",
+      invalidCodec: "Se requiere MP4 H.264 con audio AAC opcional.",
+    },
+  },
   audioPlayer: {
     playLabel: "Reproducir audio",
     pauseLabel: "Pausar audio",

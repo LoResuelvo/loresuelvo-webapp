@@ -30,6 +30,7 @@ export interface ApiConversation {
     content?: string;
     images?: ApiMessageImage[];
     audio?: ApiMessageAudio;
+    video?: ApiMessageVideo;
     created_on: string;
   };
   updated_on: string;
@@ -98,12 +99,27 @@ export interface ApiMessageAudio {
   size_bytes?: number;
 }
 
+export interface ApiMessageVideo {
+  id: string;
+  url?: string;
+  original_name: string;
+  duration_seconds: number;
+  thumbnail_url?: string;
+  mime_type?: string;
+  size_bytes?: number;
+  width?: number;
+  height?: number;
+  codec?: string;
+  audio_codec?: string | null;
+}
+
 export interface ApiConversationMessage {
   id: number;
   sender_role: string;
   content?: string;
   images?: ApiMessageImage[];
   audio?: ApiMessageAudio;
+  video?: ApiMessageVideo;
   created_on: string;
 }
 

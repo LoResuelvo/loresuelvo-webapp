@@ -31,7 +31,7 @@ function snapshotAttachments(attachments: UploadedAiImageAttachment[]): {
     imageIds: attachments.map((attachment) => attachment.uploaded.fileId),
     images: attachments.map((attachment) => ({
       id: attachment.uploaded.fileId,
-      url: attachment.uploaded.url,
+      url: attachment.uploaded.url ?? "",
       originalName: attachment.uploaded.originalName || attachment.file.name,
     })),
   };

@@ -39,7 +39,7 @@ export function MessageHiddenInputs({ props, composer }: MessageHiddenInputsProp
       <button
         type="button"
         className="sr-only"
-        aria-label="Grabar audio alternativo"
+        aria-hidden="true"
         data-testid="record-audio-trigger"
         onClick={composer.handleRecordAudio}
         tabIndex={-1}

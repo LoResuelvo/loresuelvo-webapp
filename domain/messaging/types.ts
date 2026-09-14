@@ -15,11 +15,26 @@ export interface MessageAudio {
   sizeBytes?: number;
 }
 
+export interface MessageVideo {
+  id: string;
+  url: string;
+  originalName: string;
+  durationSeconds: number;
+  thumbnailUrl?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  width?: number;
+  height?: number;
+  codec?: string;
+  audioCodec?: string | null;
+}
+
 export interface Message {
   id: string;
   content?: string;
   images?: MessageImage[];
   audio?: MessageAudio;
+  video?: MessageVideo;
   senderId?: string;
   sentAt: string;
   createdOn?: string;

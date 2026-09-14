@@ -115,4 +115,51 @@ describe("useGoogleCoverageMap", () => {
     unmount();
     expect(mockRemoveListener).toHaveBeenCalledTimes(1);
   });
+
+  it("does not recreate the map instance when selectedZoneIds change", () => {
+    const mockMapInstance = {
+      getFeatureLayer: vi.fn().mockReturnValue({
+        addListener: vi.fn().mockReturnValue({ remove: vi.fn() }),
+        style: undefined,
+      }),
+    };
+
+    const mapConstructor = vi.fn(function () {
+      return mockMapInstance;
+    });
+
+    (window as unknown as TestWindow).google = {
+      maps: {
+        Map: mapConstructor,
+      },
+    };
+
+    const container = document.createElement("div");
+    const onToggleZone = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ selectedZoneIds }: { selectedZoneIds: number[] }) => {
+        const hook = useGoogleCoverageMap({
+          zones: mockZones,
+          selectedZoneIds,
+          onToggleZone,
+          apiKey: "mock-key",
+          mapId: "mock-map-id",
+        });
+        hook.containerRef.current = container;
+        return hook;
+      },
+      {
+        initialProps: { selectedZoneIds: [6] },
+      }
+    );
+
+    expect(mapConstructor).toHaveBeenCalledTimes(1);
+
+    // Cambiar la selección de zonas
+    rerender({ selectedZoneIds: [6, 14] });
+
+    // La instancia del mapa NO debe volver a crearse
+    expect(mapConstructor).toHaveBeenCalledTimes(1);
+  });
 });

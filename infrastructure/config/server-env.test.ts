@@ -47,4 +47,13 @@ describe("server environment", () => {
       })
     ).toEqual({ apiKey: "key", mapId: "map-id" });
   });
+
+  it("supports NEXT_PUBLIC fallback variables for Google Maps runtime values", () => {
+    expect(
+      getGoogleMapsRuntimeConfig({
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: " next-public-key ",
+        NEXT_PUBLIC_GOOGLE_MAPS_ID: " next-public-map-id ",
+      })
+    ).toEqual({ apiKey: "next-public-key", mapId: "next-public-map-id" });
+  });
 });

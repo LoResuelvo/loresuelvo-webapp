@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { Loader } from "@googlemaps/js-api-loader";
 import { CoverageZone } from "@/domain/provider/coverage-zone";
 
 export type MapCoverageZone = CoverageZone;
@@ -109,7 +110,7 @@ function checkFallbackStatus(apiKey?: string, mapId?: string): MapStatus | null 
     if (win.__MOCK_MAPS_CONFIG__ === "missing") return "unavailable";
     if (win.__MOCK_MAPS_ERROR__ === true) return "error";
   }
-  if (!apiKey || !mapId || !win?.google?.maps) return "unavailable";
+  if (!apiKey || !mapId) return "unavailable";
   return null;
 }
 
@@ -126,13 +127,32 @@ export function useGoogleCoverageMap({
   const mapInstanceRef = useRef<GoogleMapInstance | null>(null);
   const clickListenerRef = useRef<{ remove?: () => void } | null>(null);
 
-  const handlePolygonClick = useCallback(
-    (placeId: string) => {
-      const zone = zones.find((z) => z.boundary?.placeId === placeId);
-      if (zone && onToggleZone) onToggleZone(zone.id);
-    },
-    [zones, onToggleZone]
-  );
+  // Mantener referencias mutables para no recrear callbacks ni reiniciar el mapa
+  const zonesRef = useRef(zones);
+  zonesRef.current = zones;
+
+  const onToggleZoneRef = useRef(onToggleZone);
+  onToggleZoneRef.current = onToggleZone;
+
+  const handlePolygonClick = useCallback((placeId: string) => {
+    const zone = zonesRef.current.find((z) => z.boundary?.placeId === placeId);
+    if (zone && onToggleZoneRef.current) {
+      onToggleZoneRef.current(zone.id);
+    }
+  }, []);
+
+  const selectedZoneIdsRef = useRef(selectedZoneIds);
+  selectedZoneIdsRef.current = selectedZoneIds;
+
+  const setupMap = useCallback(() => {
+    if (!containerRef.current || mapInstanceRef.current) return;
+    const result = initGoogleMap(containerRef.current, mapId, handlePolygonClick);
+    if (result) {
+      mapInstanceRef.current = result.map;
+      clickListenerRef.current = result.clickListener;
+      updateMapFeatureStyle(result.map, zonesRef.current, selectedZoneIdsRef.current);
+    }
+  }, [mapId, handlePolygonClick]);
 
   useEffect(() => {
     const fallback = checkFallbackStatus(apiKey, mapId);
@@ -141,28 +161,49 @@ export function useGoogleCoverageMap({
       if (fallback === "error") setErrorMessage("No se pudo cargar Google Maps");
       return;
     }
-    try {
-      if (containerRef.current && !mapInstanceRef.current) {
-        const result = initGoogleMap(containerRef.current, mapId, handlePolygonClick);
-        if (result) {
-          mapInstanceRef.current = result.map;
-          clickListenerRef.current = result.clickListener;
-        }
+
+    let isCancelled = false;
+    const win = getMapsWindow();
+
+    if (win?.google?.maps?.Map) {
+      try {
+        setupMap();
+        setStatus("ready");
+      } catch {
+        setStatus("error");
+        setErrorMessage("No se pudo cargar Google Maps");
       }
-      setStatus("ready");
-    } catch {
-      setStatus("error");
-      setErrorMessage("No se pudo cargar Google Maps");
+    } else {
+      try {
+        const loader = new Loader({ apiKey: apiKey!, version: "weekly", libraries: ["maps"] });
+        loader
+          .load()
+          .then(() => {
+            if (isCancelled) return;
+            setupMap();
+            setStatus("ready");
+          })
+          .catch(() => {
+            if (isCancelled) return;
+            setStatus("unavailable");
+          });
+      } catch {
+        setStatus("unavailable");
+      }
     }
+
     return () => {
+      isCancelled = true;
       clickListenerRef.current?.remove?.();
       clickListenerRef.current = null;
       mapInstanceRef.current = null;
     };
-  }, [apiKey, mapId, handlePolygonClick]);
+  }, [apiKey, mapId, setupMap]);
 
   useEffect(() => {
-    updateMapFeatureStyle(mapInstanceRef.current, zones, selectedZoneIds);
+    if (mapInstanceRef.current) {
+      updateMapFeatureStyle(mapInstanceRef.current, zones, selectedZoneIds);
+    }
   }, [zones, selectedZoneIds]);
 
   return { containerRef, status, errorMessage, handlePolygonClick };

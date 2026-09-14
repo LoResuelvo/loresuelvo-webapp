@@ -58,7 +58,7 @@ export function getGoogleMapsRuntimeConfig(
   env: EnvSource = process.env
 ): GoogleMapsRuntimeConfig {
   return {
-    apiKey: optionalTrimmedValue(env.GOOGLE_MAPS_API_KEY),
-    mapId: optionalTrimmedValue(env.GOOGLE_MAPS_ID),
+    apiKey: optionalTrimmedValue(env.GOOGLE_MAPS_API_KEY || env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY),
+    mapId: optionalTrimmedValue(env.GOOGLE_MAPS_ID || env.NEXT_PUBLIC_GOOGLE_MAPS_ID),
   };
 }

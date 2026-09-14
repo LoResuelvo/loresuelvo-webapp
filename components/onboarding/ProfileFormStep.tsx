@@ -154,39 +154,6 @@ function extractFormData(e: ChangeEvent<HTMLFormElement>, role: string | null, z
   return formData;
 }
 
-function ProfileProviderFields({
-  categories,
-  categoryError,
-  onClearCategoryError,
-  coverage,
-  coverageError,
-  onToggleZone,
-  googleMapsConfig,
-}: {
-  categories: Category[];
-  categoryError: string | null;
-  onClearCategoryError: () => void;
-  coverage: ReturnType<typeof useCoverageZones>;
-  coverageError: string | null;
-  onToggleZone: (zoneId: number) => void;
-  googleMapsConfig: GoogleMapsRuntimeConfig;
-}) {
-  return (
-    <>
-      <CategorySelector categories={categories} error={categoryError} onChange={onClearCategoryError} />
-      <CoverageZoneSelector
-        zones={coverage.zones}
-        selectedZoneIds={coverage.selectedZoneIds}
-        isLoading={coverage.isLoading}
-        error={coverage.error}
-        validationError={coverageError}
-        onRetry={coverage.loadZones}
-        onToggleZone={onToggleZone}
-        googleMapsConfig={googleMapsConfig}
-      />
-    </>
-  );
-}
 
 export function ProfileFormStep({
   onBack, onSubmit, isLoading, error, role, categories, googleMapsConfig = {}, className,
@@ -209,41 +176,66 @@ export function ProfileFormStep({
       {error && <div className="mb-6 rounded-md bg-destructive/15 p-3 text-sm text-destructive">{error}</div>}
 
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-        {(role === "provider" || role === "consumer") && (
-          <AvatarUploader
-            onPhotoSelected={(file) => validation.setProfilePhotoError(file ? validateProfilePhoto(file, t.onboarding.profileForm) : null)}
-            error={validation.profilePhotoError}
-          />
-        )}
-        <ProfileNameFields
-          firstNameError={validation.firstNameError}
-          lastNameError={validation.lastNameError}
-          onClearFirstName={() => validation.clearFieldError("firstName")}
-          onClearLastName={() => validation.clearFieldError("lastName")}
-        />
         {role === "consumer" && (
-          <ProfileAddressFields
-            streetError={validation.streetError}
-            streetNumberError={validation.streetNumberError}
-            onClearStreet={() => validation.clearFieldError("street")}
-            onClearStreetNumber={() => validation.clearFieldError("streetNumber")}
-            googleMapsConfig={googleMapsConfig}
-          />
+          <>
+            <AvatarUploader
+              onPhotoSelected={(file) => validation.setProfilePhotoError(file ? validateProfilePhoto(file, t.onboarding.profileForm) : null)}
+              error={validation.profilePhotoError}
+            />
+            <ProfileNameFields
+              firstNameError={validation.firstNameError}
+              lastNameError={validation.lastNameError}
+              onClearFirstName={() => validation.clearFieldError("firstName")}
+              onClearLastName={() => validation.clearFieldError("lastName")}
+            />
+            <ProfileAddressFields
+              streetError={validation.streetError}
+              streetNumberError={validation.streetNumberError}
+              onClearStreet={() => validation.clearFieldError("street")}
+              onClearStreetNumber={() => validation.clearFieldError("streetNumber")}
+              googleMapsConfig={googleMapsConfig}
+            />
+          </>
         )}
+
         {role === "provider" && (
-          <ProfileProviderFields
-            categories={categories}
-            categoryError={validation.categoryError}
-            onClearCategoryError={() => validation.clearFieldError("categoryId")}
-            coverage={coverage}
-            coverageError={validation.coverageZonesError}
-            googleMapsConfig={googleMapsConfig}
-            onToggleZone={(zoneId) => {
-              validation.clearFieldError("coverageZones");
-              coverage.toggleZone(zoneId);
-            }}
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <div className="space-y-5">
+              <AvatarUploader
+                onPhotoSelected={(file) => validation.setProfilePhotoError(file ? validateProfilePhoto(file, t.onboarding.profileForm) : null)}
+                error={validation.profilePhotoError}
+              />
+              <ProfileNameFields
+                firstNameError={validation.firstNameError}
+                lastNameError={validation.lastNameError}
+                onClearFirstName={() => validation.clearFieldError("firstName")}
+                onClearLastName={() => validation.clearFieldError("lastName")}
+              />
+              <CategorySelector
+                categories={categories}
+                error={validation.categoryError}
+                onChange={() => validation.clearFieldError("categoryId")}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <CoverageZoneSelector
+                zones={coverage.zones}
+                selectedZoneIds={coverage.selectedZoneIds}
+                isLoading={coverage.isLoading}
+                error={coverage.error}
+                validationError={validation.coverageZonesError}
+                onRetry={coverage.loadZones}
+                onToggleZone={(zoneId) => {
+                  validation.clearFieldError("coverageZones");
+                  coverage.toggleZone(zoneId);
+                }}
+                googleMapsConfig={googleMapsConfig}
+              />
+            </div>
+          </div>
         )}
+
         <ProfileFormSubmit isLoading={isLoading} disabled={isSubmitDisabled} />
       </form>
     </div>

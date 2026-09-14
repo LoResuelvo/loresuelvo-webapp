@@ -50,11 +50,13 @@ export default function RegistrationForm({
     identityStatus.status ??
     (identityStatus.isLoading || identityStatus.error ? null : identity.status);
 
+  const isProviderProfile = step === "profile" && role === "provider";
+
   return (
     <div
       className={cn(
         "w-full rounded-2xl border border-border bg-white p-8 shadow-sm transition-all duration-300",
-        className
+        isProviderProfile ? "max-w-4xl" : (className || "max-w-[440px]")
       )}
     >
       {step === "role" && (

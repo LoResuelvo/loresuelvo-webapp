@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { t } from "@/infrastructure/i18n/translations";
 import { cn } from "@/lib/utils";
 import { CoverageZone } from "@/domain/provider/coverage-zone";
+import { getNeighborhoodsForZone } from "@/domain/provider/commune-neighborhoods";
 import { CoverageZoneMap } from "./CoverageZoneMap";
 import type { GoogleMapsRuntimeConfig } from "@/infrastructure/config/public-runtime-config";
 
@@ -102,7 +103,7 @@ function CoverageZoneList({
     <div
       role="group"
       aria-label={t.onboarding.coverageZones.title}
-      className="space-y-2 max-h-48 overflow-y-auto rounded-lg border border-border bg-brand-neutral/10 p-2"
+      className="space-y-2 max-h-40 md:max-h-44 overflow-y-auto rounded-lg border border-border bg-brand-neutral/10 p-2"
       data-testid="coverage-zones-list"
     >
       {zones.map((zone) => {
@@ -121,12 +122,23 @@ function CoverageZoneList({
             <input
               type="checkbox"
               name="coverageZones"
+              aria-label={zone.name}
               value={zone.id}
               checked={isSelected}
               onChange={() => onToggleZone?.(zone.id)}
-              className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+              className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary shrink-0 mt-0.5"
             />
-            <span className="flex-1">{zone.name}</span>
+            <div className="flex-1 min-w-0">
+              <span className="block font-medium">{zone.name}</span>
+              {getNeighborhoodsForZone(zone.name) && (
+                <span
+                  data-testid={`coverage-zone-neighborhoods-${zone.id}`}
+                  className="block text-xs text-muted-foreground truncate"
+                >
+                  {getNeighborhoodsForZone(zone.name)}
+                </span>
+              )}
+            </div>
           </label>
         );
       })}

@@ -100,4 +100,11 @@ describe("CoverageZoneSelector", () => {
       screen.getByText(MAP_UNAVAILABLE_MESSAGE)
     ).toBeInTheDocument();
   });
+
+  it("renders neighborhoods for each commune in the accessible list", () => {
+    render(<CoverageZoneSelector zones={mockZones} selectedZoneIds={[]} />);
+
+    expect(screen.getByTestId("coverage-zone-neighborhoods-6")).toHaveTextContent("Caballito");
+    expect(screen.getByTestId("coverage-zone-neighborhoods-14")).toHaveTextContent("Palermo");
+  });
 });

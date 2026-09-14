@@ -13,6 +13,7 @@ describe("sendMessageWithAttachments", () => {
       create: vi.fn(),
       sendMessage: vi.fn(),
       sendAudioMessage: vi.fn(),
+      sendVideoMessage: vi.fn(),
     };
 
     mockFileRepository = {

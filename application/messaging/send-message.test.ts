@@ -16,6 +16,7 @@ describe("send-message", () => {
     create: vi.fn(),
     sendMessage: vi.fn(),
     sendAudioMessage: vi.fn(),
+    sendVideoMessage: vi.fn(),
   };
 
   describe("createConversation", () => {

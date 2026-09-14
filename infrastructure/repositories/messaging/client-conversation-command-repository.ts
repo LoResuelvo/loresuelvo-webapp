@@ -5,12 +5,14 @@ import {
   CreatedConversation,
   SendConversationAudioCommand,
   SendConversationMessageCommand,
+  SendConversationVideoCommand,
 } from "@/ports/messaging/conversation-command-repository";
 
 export interface ClientConversationCommandRepositoryActions {
   create: (command: CreateConversationCommand) => Promise<CreatedConversation>;
   sendMessage: (command: SendConversationMessageCommand) => Promise<Message>;
   sendAudioMessage?: (command: SendConversationAudioCommand) => Promise<Message>;
+  sendVideoMessage?: (command: SendConversationVideoCommand) => Promise<Message>;
 }
 
 export class ClientConversationCommandRepository implements ConversationCommandRepository {
@@ -29,5 +31,12 @@ export class ClientConversationCommandRepository implements ConversationCommandR
       throw new Error("Audio messaging is not configured for this repository");
     }
     return this.actions.sendAudioMessage(command);
+  }
+
+  async sendVideoMessage(command: SendConversationVideoCommand): Promise<Message> {
+    if (!this.actions.sendVideoMessage) {
+      throw new Error("Video messaging is not configured for this repository");
+    }
+    return this.actions.sendVideoMessage(command);
   }
 }

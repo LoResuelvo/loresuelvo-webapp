@@ -87,6 +87,7 @@ describe("useMessagingCore outbox", () => {
           mimeType: "audio/webm",
         },
       }),
+      sendVideoMessage: vi.fn(),
     };
     fileRepository = {
       prepareUpload: vi.fn().mockResolvedValue({

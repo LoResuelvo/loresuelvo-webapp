@@ -12,6 +12,7 @@ describe("sendAudioMessage", () => {
       create: vi.fn(),
       sendMessage: vi.fn(),
       sendAudioMessage: vi.fn(),
+      sendVideoMessage: vi.fn(),
     };
     fileRepository = {
       prepareUpload: vi.fn(),

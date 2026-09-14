@@ -27,6 +27,7 @@ import {
   CreatedConversation,
   SendConversationAudioCommand,
   SendConversationMessageCommand,
+  SendConversationVideoCommand,
 } from "@/ports/messaging/conversation-command-repository";
 import { JobRequestSummary } from "@/ports/messaging/job-request-repository";
 import { logger } from "@/infrastructure/logging/logger";
@@ -49,6 +50,11 @@ export async function sendMessage(command: SendConversationMessageCommand): Prom
 export async function sendAudioMessage(command: SendConversationAudioCommand): Promise<Message> {
   const repository = new ApiConversationCommandRepository();
   return repository.sendAudioMessage(command);
+}
+
+export async function sendVideoMessage(command: SendConversationVideoCommand): Promise<Message> {
+  const repository = new ApiConversationCommandRepository();
+  return repository.sendVideoMessage(command);
 }
 
 export async function acceptJobRequest(jobRequestId: number): Promise<void> {

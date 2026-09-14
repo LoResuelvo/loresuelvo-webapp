@@ -7,6 +7,7 @@ import {
   CreatedConversation,
   SendConversationAudioCommand,
   SendConversationMessageCommand,
+  SendConversationVideoCommand,
 } from "@/ports/messaging/conversation-command-repository";
 import {
   createSyntheticMessage,
@@ -61,6 +62,27 @@ export class ApiConversationCommandRepository implements ConversationCommandRepo
       {
         audio_file_id: command.audioFileId,
       }
+    );
+
+    return transformApiMessageToDomain(
+      res,
+      command.currentUserId,
+      String(command.counterpartId),
+      command.currentUserRole
+    );
+  }
+
+  async sendVideoMessage(command: SendConversationVideoCommand): Promise<Message> {
+    const payload: Record<string, unknown> = {
+      video_file_id: command.videoFileId,
+    };
+    if (command.content !== undefined && command.content.trim().length > 0) {
+      payload.content = command.content;
+    }
+
+    const res = await api.post<ApiConversationMessage>(
+      `/conversations/${command.conversationId}/messages`,
+      payload
     );
 
     return transformApiMessageToDomain(

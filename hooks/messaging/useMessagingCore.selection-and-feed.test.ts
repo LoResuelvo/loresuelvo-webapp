@@ -98,6 +98,7 @@ describe("useMessagingCore selection and feed", () => {
         createdOn: new Date().toISOString(),
       } satisfies Message),
       sendAudioMessage: vi.fn(),
+      sendVideoMessage: vi.fn(),
     };
     fileRepository = {
       prepareUpload: vi.fn(),

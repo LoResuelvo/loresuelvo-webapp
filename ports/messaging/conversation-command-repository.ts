@@ -25,6 +25,15 @@ export interface SendConversationAudioCommand {
   audioFileId: string;
 }
 
+export interface SendConversationVideoCommand {
+  conversationId: string;
+  counterpartId: number;
+  currentUserId: string;
+  currentUserRole: "consumer" | "provider";
+  videoFileId: string;
+  content?: string;
+}
+
 export interface CreatedConversation {
   conversationId: string;
   message: Message;
@@ -34,4 +43,5 @@ export interface ConversationCommandRepository {
   create(command: CreateConversationCommand): Promise<CreatedConversation>;
   sendMessage(command: SendConversationMessageCommand): Promise<Message>;
   sendAudioMessage(command: SendConversationAudioCommand): Promise<Message>;
+  sendVideoMessage(command: SendConversationVideoCommand): Promise<Message>;
 }

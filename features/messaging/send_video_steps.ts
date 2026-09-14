@@ -10,6 +10,8 @@ import {
   aConversationMessage,
   aCounterpart,
   aWsTicket,
+  aPresignedUpload,
+  aConfirmedFile,
 } from "../support/factories";
 import { ROUTES } from "../../lib/routes";
 import { installMediaRecorderMock } from "./send_audio_steps";
@@ -657,18 +659,27 @@ Given(
     const fileId = isProvider ? "video-file-provider-001" : "video-file-001";
     const uploadUrl = `https://mock-upload.test/video-${fileId}`;
 
-    await this.stubPost("/files/presign", 200, {
-      file_id: fileId,
-      upload_url: uploadUrl,
-    });
+    await this.stubPost(
+      "/files/presign",
+      200,
+      aPresignedUpload({
+        file_id: fileId,
+        key: `conversation_message_video/${fileId}`,
+        upload_url: uploadUrl,
+      })
+    );
     await this.page.route(uploadUrl, async (route) => {
       await route.fulfill({ status: 204 });
     });
-    await this.stubPost(`/files/${fileId}/confirm`, 200, {
-      id: fileId,
-      url: "https://mock-video.test/perdida.mp4",
-      original_name: "perdida.mp4",
-    });
+    await this.stubPost(
+      `/files/${fileId}/confirm`,
+      200,
+      aConfirmedFile({
+        id: fileId,
+        url: "https://mock-video.test/perdida.mp4",
+        original_name: "perdida.mp4",
+      })
+    );
     await this.stubPost("/conversations/1/messages", 201, {
       id: 101,
       sender_role: isProvider ? "provider" : "consumer",
@@ -768,12 +779,321 @@ Then(
 );
 
 Then("se vacían el campo de texto y la selección de video", async function (this: CustomWorld) {
+  const preview = this.page.getByTestId("video-preview");
+  await preview.waitFor({ state: "detached", timeout: 10000 });
+  assert.strictEqual(await preview.count(), 0);
+
   const input = this.page.getByPlaceholder("Escribe un mensaje...");
   await input.waitFor(visibleTimeout);
-  assert.strictEqual(await input.inputValue(), "");
+  let value = await input.inputValue();
+  const start = Date.now();
+  while (value !== "" && Date.now() - start < 5000) {
+    await this.page.waitForTimeout(100);
+    value = await input.inputValue();
+  }
+  assert.strictEqual(value, "");
+});
 
-  const preview = this.page.getByTestId("video-preview");
-  assert.strictEqual(await preview.count(), 0);
+// 50.2.7 Steps
+Given("que tengo un video listo para enviar en un chat activo", async function (this: VideoWorld) {
+  this.currentRole = "consumer";
+  await openActiveVideoChat(this);
+  const fileName = "video-ready.mp4";
+  this.currentVideoFileName = fileName;
+  await this.page.evaluate(
+    ({ name }) => {
+      const wnd = window as unknown as {
+        __e2eVideoMetadata?: Record<string, { duration: number; width: number; height: number }>;
+      };
+      wnd.__e2eVideoMetadata = wnd.__e2eVideoMetadata || {};
+      wnd.__e2eVideoMetadata[name] = { duration: 17, width: 1920, height: 1080 };
+    },
+    { name: fileName }
+  );
+  await attachVideoFile(this, fileName, 1048576);
+});
+
+Given("que el envío tarda en completarse", async function (this: CustomWorld) {
+  const fileId = "video-delayed-001";
+  const uploadUrl = `https://mock-upload.test/delayed-video-${fileId}`;
+
+  await this.stubPost(
+    "/files/presign",
+    200,
+    aPresignedUpload({
+      file_id: fileId,
+      key: `conversation_message_video/${fileId}`,
+      upload_url: uploadUrl,
+    }),
+    2500
+  );
+  await this.page.route(uploadUrl, async (route) => {
+    await new Promise((r) => setTimeout(r, 2000));
+    await route.fulfill({ status: 204 });
+  });
+  await this.stubPost(
+    `/files/${fileId}/confirm`,
+    200,
+    aConfirmedFile({
+      id: fileId,
+      url: "https://mock-video.test/delayed.mp4",
+      original_name: "video-ready.mp4",
+    })
+  );
+  await this.stubPost("/conversations/1/messages", 201, {
+    id: 101,
+    sender_role: "consumer",
+    created_on: new Date().toISOString(),
+    video: {
+      id: fileId,
+      url: "https://mock-video.test/delayed.mp4",
+      original_name: "video-ready.mp4",
+      duration_seconds: 17,
+      mime_type: "video/mp4",
+    },
+  });
+});
+
+Then("veo una indicación de que el envío está en curso", async function (this: CustomWorld) {
+  const spinner = this.page.getByTestId("sending-spinner");
+  await spinner.waitFor({ state: "visible", timeout: 5000 });
+  assert.ok(await spinner.isVisible());
+});
+
+Then("no puedo iniciar otro envío mientras el actual está en curso", async function (this: CustomWorld) {
+  const sendButton = this.page.getByTestId("message-send-button");
+  assert.ok(await sendButton.isDisabled());
+});
+
+Then("el video todavía no aparece como enviado correctamente", async function (this: CustomWorld) {
+  const messageList = this.page.locator('[data-testid="messages-list"]');
+  assert.strictEqual(await messageList.locator('[data-testid="video-message-101"]').count(), 0);
+});
+
+// 50.2.8 Steps
+Given(
+  "que el servicio no puede enviar el mensaje debido a {string}",
+  async function (this: VideoWorld, situacion: string) {
+    const fileId = "video-fail-001";
+    const uploadUrl = `https://mock-upload.test/fail-${fileId}`;
+
+    if (situacion === "no se puede iniciar la carga") {
+      await this.stubPost("/files/presign", 500, { error: "Presign failure" });
+    } else if (situacion === "se interrumpe la transferencia") {
+      await this.stubPost(
+        "/files/presign",
+        200,
+        aPresignedUpload({
+          file_id: fileId,
+          key: `conversation_message_video/${fileId}`,
+          upload_url: uploadUrl,
+        })
+      );
+      await this.page.route(uploadUrl, async (route) => {
+        await route.fulfill({ status: 500, body: "Upload network error" });
+      });
+    } else if (situacion === "no se puede completar la carga") {
+      await this.stubPost(
+        "/files/presign",
+        200,
+        aPresignedUpload({
+          file_id: fileId,
+          key: `conversation_message_video/${fileId}`,
+          upload_url: uploadUrl,
+        })
+      );
+      await this.page.route(uploadUrl, async (route) => {
+        await route.fulfill({ status: 204 });
+      });
+      await this.stubPost(`/files/${fileId}/confirm`, 500, { error: "Confirm failed" });
+    } else if (situacion === "el chat rechaza el envío") {
+      await this.stubPost(
+        "/files/presign",
+        200,
+        aPresignedUpload({
+          file_id: fileId,
+          key: `conversation_message_video/${fileId}`,
+          upload_url: uploadUrl,
+        })
+      );
+      await this.page.route(uploadUrl, async (route) => {
+        await route.fulfill({ status: 204 });
+      });
+      await this.stubPost(
+        `/files/${fileId}/confirm`,
+        200,
+        aConfirmedFile({
+          id: fileId,
+          url: "https://mock-video.test/fail.mp4",
+          original_name: "perdida.mp4",
+        })
+      );
+      await this.stubPost("/conversations/1/messages", 500, { error: "Chat rejected" });
+    } else if (
+      situacion === "el video MP4 usa un codec distinto de H.264" ||
+      situacion === "la pista de audio usa un codec no permitido"
+    ) {
+      await this.stubPost(
+        "/files/presign",
+        200,
+        aPresignedUpload({
+          file_id: fileId,
+          key: `conversation_message_video/${fileId}`,
+          upload_url: uploadUrl,
+        })
+      );
+      await this.page.route(uploadUrl, async (route) => {
+        await route.fulfill({ status: 204 });
+      });
+      await this.stubPost(`/files/${fileId}/confirm`, 422, {
+        error: "Invalid codec: H.264 and AAC required",
+      });
+    } else {
+      throw new Error(`Situación no manejada: ${situacion}`);
+    }
+  }
+);
+
+Given("que la falla no crea un mensaje", async function (this: CustomWorld) {
+  // Assumption step
+});
+
+When("intento enviar el mensaje", async function (this: CustomWorld) {
+  const sendButton = this.page.getByRole("button", { name: /Enviar mensaje/i });
+  await sendButton.waitFor(visibleTimeout);
+  await sendButton.click();
+});
+
+Then("veo un error en español que explica {string}", async function (this: CustomWorld, motivo: string) {
+  const errorNotice = this.page.locator("div.text-red-500");
+  await errorNotice.waitFor(visibleTimeout);
+  const text = (await errorNotice.textContent()) || "";
+  assert.ok(
+    text.toLowerCase().includes(motivo.toLowerCase()),
+    `Error esperado "${motivo}" no encontrado en "${text}"`
+  );
+});
+
+Then(
+  "se conservan el video y el texto para reintentar o cambiar el archivo",
+  async function (this: CustomWorld) {
+    const preview = this.page.getByTestId("video-preview");
+    await preview.waitFor(visibleTimeout);
+    assert.strictEqual(await preview.count(), 1);
+
+    const input = this.page.getByPlaceholder("Escribe un mensaje...");
+    await input.waitFor(visibleTimeout);
+    assert.strictEqual(await input.inputValue(), "La pérdida está aquí");
+  }
+);
+
+Then("el campo de mensaje vuelve a estar habilitado", async function (this: CustomWorld) {
+  const input = this.page.getByPlaceholder("Escribe un mensaje...");
+  await input.waitFor(visibleTimeout);
+  assert.ok(await input.isEnabled());
+
+  const sendButton = this.page.getByTestId("message-send-button");
+  assert.ok(await sendButton.isEnabled());
+});
+
+Then("no queda ningún mensaje marcado como enviado correctamente", async function (this: CustomWorld) {
+  const messageList = this.page.locator('[data-testid="messages-list"]');
+  const players = messageList.getByTestId("video-message-player");
+  assert.strictEqual(await players.count(), 0);
+});
+
+// 50.2.9 Steps
+Given(
+  "que el primer envío del video y su texto falló sin crear un mensaje",
+  async function (this: VideoWorld) {
+    await openActiveVideoChat(this);
+    const fileName = "perdida.mp4";
+    this.currentVideoFileName = fileName;
+    await this.page.evaluate(
+      ({ name }) => {
+        const wnd = window as unknown as {
+          __e2eVideoMetadata?: Record<string, { duration: number; width: number; height: number }>;
+        };
+        wnd.__e2eVideoMetadata = wnd.__e2eVideoMetadata || {};
+        wnd.__e2eVideoMetadata[name] = { duration: 17, width: 1920, height: 1080 };
+      },
+      { name: fileName }
+    );
+    await attachVideoFile(this, fileName, 1048576);
+    const input = this.page.getByPlaceholder("Escribe un mensaje...");
+    await input.fill("La pérdida está aquí");
+
+    await this.stubPost("/files/presign", 500, { error: "Network error" });
+
+    const sendButton = this.page.getByRole("button", { name: /Enviar mensaje/i });
+    await sendButton.click();
+
+    const errorNotice = this.page.locator("div.text-red-500");
+    await errorNotice.waitFor(visibleTimeout);
+  }
+);
+
+Given(
+  "que el borrador permanece disponible y la causa de la falla se resolvió",
+  async function (this: CustomWorld) {
+    const preview = this.page.getByTestId("video-preview");
+    assert.strictEqual(await preview.count(), 1);
+
+    const fileId = "video-retry-001";
+    const uploadUrl = `https://mock-upload.test/retry-${fileId}`;
+
+    await this.stubPost(
+      "/files/presign",
+      200,
+      aPresignedUpload({
+        file_id: fileId,
+        key: `conversation_message_video/${fileId}`,
+        upload_url: uploadUrl,
+      })
+    );
+    await this.page.route(uploadUrl, async (route) => {
+      await route.fulfill({ status: 204 });
+    });
+    await this.stubPost(
+      `/files/${fileId}/confirm`,
+      200,
+      aConfirmedFile({
+        id: fileId,
+        url: "https://mock-video.test/perdida.mp4",
+        original_name: "perdida.mp4",
+      })
+    );
+    await this.stubPost("/conversations/1/messages", 201, {
+      id: 201,
+      sender_role: "consumer",
+      created_on: new Date().toISOString(),
+      content: "La pérdida está aquí",
+      video: {
+        id: fileId,
+        url: "https://mock-video.test/perdida.mp4",
+        original_name: "perdida.mp4",
+        duration_seconds: 17,
+        mime_type: "video/mp4",
+      },
+    });
+  }
+);
+
+When("reintento enviar el mensaje", async function (this: CustomWorld) {
+  const sendButton = this.page.getByRole("button", { name: /Enviar mensaje/i });
+  await sendButton.waitFor(visibleTimeout);
+  await sendButton.click();
+});
+
+Then("veo un único mensaje enviado con el video y su texto", async function (this: CustomWorld) {
+  const messageList = this.page.locator('[data-testid="messages-list"]');
+  const player = messageList.getByTestId("video-message-player");
+  await player.waitFor(visibleTimeout);
+  assert.strictEqual(await player.count(), 1);
+
+  const textEl = messageList.getByText("La pérdida está aquí");
+  await textEl.waitFor(visibleTimeout);
+  assert.ok(await textEl.isVisible());
 });
 
 After(async function (this: VideoWorld) {

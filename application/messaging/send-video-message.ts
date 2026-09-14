@@ -32,6 +32,22 @@ const STAGE_MAP: Record<"prepare" | "transfer" | "confirm", VideoUploadFailureSt
   confirm: "confirm",
 };
 
+function isCodecError(error: unknown): boolean {
+  if (!error) return false;
+  if (typeof error === "string") return /codec/i.test(error);
+  if (error instanceof Error) {
+    if (/codec/i.test(error.message)) return true;
+    if ("cause" in error && isCodecError(error.cause)) return true;
+    if ("body" in error) {
+      const body = (error as { body?: unknown }).body;
+      if (typeof body === "object" && body !== null) {
+        return /codec/i.test(JSON.stringify(body));
+      }
+    }
+  }
+  return false;
+}
+
 export async function sendVideoMessage(
   conversationRepository: ConversationCommandRepository,
   fileRepository: FileUploadRepository,
@@ -49,6 +65,9 @@ export async function sendVideoMessage(
       purpose: "conversation_message_video",
     });
   } catch (error) {
+    if (isCodecError(error)) {
+      throw new VideoUploadError("invalidCodec", error);
+    }
     if (error instanceof FileUploadError) {
       throw new VideoUploadError(STAGE_MAP[error.stage], error);
     }
@@ -66,6 +85,9 @@ export async function sendVideoMessage(
       content: params.content?.trim() || undefined,
     });
   } catch (error) {
+    if (isCodecError(error)) {
+      throw new VideoUploadError("invalidCodec", error);
+    }
     throw new VideoUploadError("send", error);
   }
 

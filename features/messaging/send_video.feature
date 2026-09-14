@@ -86,7 +86,6 @@ Feature: 50.2 Enviar videos por el chat web
             | consumidor | sin audio |                               |
             | prestador  | sin audio | Te muestro el resultado       |
 
-    @wip
     Scenario: 50.2.7-WEB Mostrar que el video se está enviando
         Given que tengo un video listo para enviar en un chat activo
         And que el envío tarda en completarse
@@ -95,7 +94,6 @@ Feature: 50.2 Enviar videos por el chat web
         And no puedo iniciar otro envío mientras el actual está en curso
         And el video todavía no aparece como enviado correctamente
 
-    @wip
     Scenario Outline: 50.2.8-WEB Conservar el borrador cuando el video no se envía
         Given que tengo seleccionado "perdida.mp4" con el texto "La pérdida está aquí"
         And que el servicio no puede enviar el mensaje debido a "<situacion>"
@@ -115,7 +113,6 @@ Feature: 50.2 Enviar videos por el chat web
             | el video MP4 usa un codec distinto de H.264 | se requiere MP4 H.264 con audio AAC opcional    |
             | la pista de audio usa un codec no permitido| se requiere MP4 H.264 con audio AAC opcional    |
 
-    @wip
     Scenario: 50.2.9-WEB Reintentar un envío fallido
         Given que el primer envío del video y su texto falló sin crear un mensaje
         And que el borrador permanece disponible y la causa de la falla se resolvió

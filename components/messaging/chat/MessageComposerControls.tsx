@@ -1,4 +1,4 @@
-import { Send, Mic } from "lucide-react";
+import { Send, Mic, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AudioRecordingControls } from "./AudioRecordingControls";
 import { AudioPreview } from "@/components/messaging/media/AudioPreview";
@@ -24,9 +24,15 @@ function MessageSendButton({ composer, disabled, disableAudio, hasContent }: Mes
         onClick={composer.handleSend}
         disabled={disabled || composer.isRecording || !hasContent}
         aria-label={t.messaging.sendLabel}
+        aria-busy={disabled}
+        data-testid="message-send-button"
         className="h-11 w-11 rounded-full p-0 flex items-center justify-center font-semibold shrink-0 bg-brand-primary text-white hover:bg-brand-primary/90 shadow-sm active:scale-95 transition-all cursor-pointer"
       >
-        <Send className="w-5 h-5" aria-hidden="true" />
+        {disabled ? (
+          <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" data-testid="sending-spinner" />
+        ) : (
+          <Send className="w-5 h-5" aria-hidden="true" />
+        )}
       </Button>
     );
   }

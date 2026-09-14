@@ -202,6 +202,23 @@ Given(
   },
 );
 
+Given(
+  "veo el resultado {word} de mi verificación",
+  async function (this: CustomWorld, status: string) {
+    await stubRegisteredProviderIdentity(
+      this,
+      status,
+      status === "approved" ? "2026-09-13T12:00:00Z" : null,
+    );
+    await this.page.goto(`${APP_URL}${ROUTES.onboarding}?stage=identity`);
+    await this.page
+      .getByTestId("identity-verification-step")
+      .or(this.page.getByTestId("identity-verification-result"))
+      .first()
+      .waitFor(visibleTimeout);
+  },
+);
+
 When(
   "ingreso al paso de identidad del onboarding",
   async function (this: CustomWorld) {
@@ -217,6 +234,29 @@ When("elijo actualizar el estado", async function (this: CustomWorld) {
   await button.waitFor(visibleTimeout);
   await button.click();
 });
+
+When(
+  "elijo continuar con el onboarding",
+  async function (this: CustomWorld) {
+    const continueButton = this.page
+      .getByRole("button", {
+        name: t.onboarding.identityVerification.continueOnboarding,
+      })
+      .first();
+
+    if ((await continueButton.count()) > 0) {
+      await continueButton.waitFor(visibleTimeout);
+      await continueButton.click();
+      return;
+    }
+
+    const laterButton = this.page
+      .getByRole("button", { name: t.onboarding.identityVerification.later })
+      .first();
+    await laterButton.waitFor(visibleTimeout);
+    await laterButton.click();
+  },
+);
 
 Given("la API puede iniciar mi verificación", async function (this: CustomWorld) {
   await this.stubPost("/providers/me/identity-verification-sessions", 200, {

@@ -47,7 +47,6 @@ Feature: US-58 Verificar opcionalmente identidad del prestador
     When elijo actualizar el estado
     Then veo la confirmación de identidad verificada
 
-  @wip
   Scenario Outline: 07-VIP Continuar a Mercado Pago desde cualquier resultado
     Given veo el resultado <estado> de mi verificación
     When elijo continuar con el onboarding

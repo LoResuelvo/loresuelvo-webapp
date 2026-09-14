@@ -19,6 +19,8 @@ export interface IdentityVerificationResultProps {
   timedOut?: boolean;
   error?: string | null;
   onRefresh?: () => void;
+  onContinue?: () => void;
+  isContinuing?: boolean;
   className?: string;
 }
 
@@ -95,6 +97,8 @@ function ResultDetails({
   canRefresh,
   isRefreshing,
   onRefresh,
+  onContinue,
+  isContinuing,
 }: {
   kind: IdentityVerificationResultKind;
   description: string;
@@ -103,6 +107,8 @@ function ResultDetails({
   canRefresh: boolean;
   isRefreshing: boolean;
   onRefresh?: () => void;
+  onContinue?: () => void;
+  isContinuing: boolean;
 }) {
   const tone =
     kind === "declined" || kind === "abandoned" || kind === "expired"
@@ -138,6 +144,20 @@ function ResultDetails({
             : t.onboarding.identityVerification.refresh}
         </Button>
       )}
+
+      {onContinue && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="full"
+          onClick={onContinue}
+          disabled={isContinuing}
+        >
+          {isContinuing
+            ? t.onboarding.identityVerification.continuing
+            : t.onboarding.identityVerification.continueOnboarding}
+        </Button>
+      )}
     </div>
   );
 }
@@ -148,6 +168,8 @@ function ResultState({
   timedOut,
   error,
   onRefresh,
+  onContinue,
+  isContinuing = false,
   className,
 }: Omit<IdentityVerificationResultProps, "isLoading"> & {
   status: IdentityVerificationStatus;
@@ -181,6 +203,8 @@ function ResultState({
         canRefresh={Boolean(canRefresh)}
         isRefreshing={isRefreshing}
         onRefresh={onRefresh}
+        onContinue={onContinue}
+        isContinuing={isContinuing}
       />
     </div>
   );
@@ -193,6 +217,8 @@ export function IdentityVerificationResult({
   timedOut = false,
   error = null,
   onRefresh,
+  onContinue,
+  isContinuing = false,
   className,
 }: IdentityVerificationResultProps) {
   if (isLoading && status === null) {
@@ -210,6 +236,8 @@ export function IdentityVerificationResult({
       timedOut={timedOut}
       error={error}
       onRefresh={onRefresh}
+      onContinue={onContinue}
+      isContinuing={isContinuing}
       className={className}
     />
   );

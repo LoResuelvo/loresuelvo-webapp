@@ -7,6 +7,10 @@ export const ROUTES = {
     logout: "/auth/logout",
   },
   onboarding: "/onboarding",
+  onboardingStages: {
+    identity: "identity",
+    mercadoPago: "mercado-pago",
+  },
   onboardingIdentityVerificationReturn: "/onboarding/identity-verification/return",
   payments: {
     success: "/payments/success",

@@ -7,6 +7,7 @@ import { submitRegistration } from "@/app/onboarding/actions";
 import { clientFileUploadRepository } from "@/app/files/client-file-upload";
 import { executeFileUpload } from "@/application/files/execute-file-upload";
 import { t } from "@/infrastructure/i18n/translations";
+import { ROUTES } from "@/lib/routes";
 
 export type RegistrationStep = "role" | "profile" | "identity" | "mercadoPago";
 
@@ -78,6 +79,18 @@ export function useRegistrationForm(
     }
   }
 
+  function goToMercadoPago() {
+    setStep("mercadoPago");
+
+    if (typeof window !== "undefined") {
+      window.history.replaceState(
+        null,
+        "",
+        `${ROUTES.onboarding}?stage=${ROUTES.onboardingStages.mercadoPago}`,
+      );
+    }
+  }
+
   return {
     step,
     setStep,
@@ -86,5 +99,6 @@ export function useRegistrationForm(
     isLoading,
     error,
     handleFinalSubmit,
+    goToMercadoPago,
   };
 }

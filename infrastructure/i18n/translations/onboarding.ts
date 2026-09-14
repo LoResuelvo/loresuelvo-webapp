@@ -82,6 +82,8 @@ export const onboarding = {
     accountCreated: "Tu cuenta ya fue creada.",
     verifyNow: "Verificar ahora",
     later: "Más tarde",
+    continueOnboarding: "Continuar con el onboarding",
+    continuing: "Continuando…",
     starting: "Iniciando verificación…",
     errorSessionExpired: "Tu sesión venció. Iniciá sesión nuevamente para verificar tu identidad.",
     errorIneligible: "Tu cuenta no puede iniciar esta verificación.",

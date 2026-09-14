@@ -91,4 +91,24 @@ describe("IdentityVerificationStep", () => {
 
     expect(onRefresh).toHaveBeenCalledOnce();
   });
+
+  it("exposes continuation for an approved identity", () => {
+    const onContinue = vi.fn();
+    render(
+      <IdentityVerificationStep
+        status="approved"
+        onVerifyNow={vi.fn()}
+        onLater={vi.fn()}
+        onContinue={onContinue}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: t.onboarding.identityVerification.continueOnboarding,
+      }),
+    );
+
+    expect(onContinue).toHaveBeenCalledOnce();
+  });
 });

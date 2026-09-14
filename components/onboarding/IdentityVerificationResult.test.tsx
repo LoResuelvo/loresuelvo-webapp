@@ -57,4 +57,22 @@ describe("IdentityVerificationResult", () => {
       screen.queryByRole("button", { name: t.onboarding.identityVerification.refresh }),
     ).not.toBeInTheDocument();
   });
+
+  it("exposes the continuation action for a non-approved result", () => {
+    const onContinue = vi.fn();
+    render(
+      <IdentityVerificationResult
+        status="declined"
+        onContinue={onContinue}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: t.onboarding.identityVerification.continueOnboarding,
+      }),
+    );
+
+    expect(onContinue).toHaveBeenCalledOnce();
+  });
 });

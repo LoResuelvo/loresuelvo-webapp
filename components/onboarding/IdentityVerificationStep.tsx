@@ -16,6 +16,8 @@ type IdentityVerificationStepProps = Omit<
   isRefreshing?: boolean;
   timedOut?: boolean;
   onRefresh?: () => void;
+  onContinue?: () => void;
+  isContinuing?: boolean;
 };
 
 /** Selects the identity presentation; onboarding owns the transitions. */
@@ -25,10 +27,18 @@ export function IdentityVerificationStep({
   isRefreshing = false,
   timedOut = false,
   onRefresh,
+  onContinue,
+  isContinuing = false,
   ...invitationProps
 }: IdentityVerificationStepProps) {
   if (status === "approved") {
-    return <IdentityVerificationApproved className={invitationProps.className} />;
+    return (
+      <IdentityVerificationApproved
+        className={invitationProps.className}
+        onContinue={onContinue}
+        isContinuing={isContinuing}
+      />
+    );
   }
 
   if (status !== "unverified") {
@@ -40,6 +50,8 @@ export function IdentityVerificationStep({
         isRefreshing={isRefreshing}
         timedOut={timedOut}
         onRefresh={onRefresh}
+        onContinue={onContinue}
+        isContinuing={isContinuing}
         className={invitationProps.className}
       />
     );

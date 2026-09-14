@@ -7,13 +7,20 @@ import { ApiUserRepository } from "@/infrastructure/repositories/onboarding/api-
 import type { IdentityVerificationStatus } from "@/domain/identity-verification/types";
 import type { ProviderCurrentUser } from "@/domain/user/types";
 import type { RegistrationStep } from "@/components/onboarding/useRegistrationForm";
+import { ROUTES } from "@/lib/routes";
 
 interface OnboardingPageProps {
   searchParams?: Promise<{ stage?: string | string[] }>;
 }
 
 function hasIdentityStage(stage: string | string[] | undefined): boolean {
-  return stage === "identity" || (Array.isArray(stage) && stage[0] === "identity");
+  return stage === ROUTES.onboardingStages.identity ||
+    (Array.isArray(stage) && stage[0] === ROUTES.onboardingStages.identity);
+}
+
+function hasMercadoPagoStage(stage: string | string[] | undefined): boolean {
+  return stage === ROUTES.onboardingStages.mercadoPago ||
+    (Array.isArray(stage) && stage[0] === ROUTES.onboardingStages.mercadoPago);
 }
 
 export default async function OnboardingPage({ searchParams }: OnboardingPageProps) {
@@ -21,12 +28,13 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
   const categoryRepo = new ApiCategoryRepository();
   const categories = await getConsumerHome(categoryRepo);
   const googleMapsConfig = getGoogleMapsRuntimeConfig();
+  const requestedStage = (await searchParams)?.stage;
 
   let initialStep: RegistrationStep | undefined;
   let initialIdentityStatus: IdentityVerificationStatus | null = "unverified";
 
   if (
-    hasIdentityStage((await searchParams)?.stage) &&
+    hasIdentityStage(requestedStage) &&
     session?.user.role === "provider" &&
     session.user.isOnboarded
   ) {
@@ -40,6 +48,11 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
     } catch {
       initialIdentityStatus = null;
     }
+  } else if (
+    hasMercadoPagoStage(requestedStage) &&
+    session?.user.role === "provider"
+  ) {
+    initialStep = "mercadoPago";
   }
 
   return (

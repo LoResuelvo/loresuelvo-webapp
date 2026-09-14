@@ -38,6 +38,7 @@ export default function RegistrationForm({
     isLoading,
     error,
     handleFinalSubmit,
+    goToMercadoPago,
   } = useRegistrationForm(session, initialStep);
   const identity = useIdentityVerification(initialIdentityStatus);
   const identityStatus = useIdentityVerificationStatus({
@@ -77,7 +78,8 @@ export default function RegistrationForm({
       {step === "identity" && role === "provider" && (
         <IdentityVerificationStep
           onVerifyNow={identity.start}
-          onLater={() => setStep("mercadoPago")}
+          onLater={goToMercadoPago}
+          onContinue={goToMercadoPago}
           status={displayedIdentityStatus}
           isLoading={identity.isStarting || identityStatus.isLoading}
           isRefreshing={identityStatus.isRefreshing}

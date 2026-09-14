@@ -68,7 +68,6 @@ Feature: 50.2 Enviar videos por el chat web
             | video         | audio adjunto |
             | video         | audio grabado |
 
-    @wip
     Scenario Outline: 50.2.6-WEB Enviar un video en un chat activo
         Given que estoy autenticado como "<rol>" en un chat activo
         And que tengo seleccionado un video permitido de 17 segundos con "<sonido>"

@@ -40,6 +40,7 @@ interface VideoWorld extends CustomWorld {
   tempVideoPath?: string;
   currentActualAttachment?: string;
   currentNuevoAttachment?: string;
+  currentRole?: "consumer" | "provider";
 }
 
 async function stubActiveVideoChat(world: CustomWorld) {
@@ -260,7 +261,7 @@ Then("se conserva el texto {string}", async function (this: CustomWorld, text: s
 });
 
 Then("no se crea ningún mensaje de video", async function (this: CustomWorld) {
-  const videoBubbles = this.page.locator('[data-testid="messages-list"] [data-testid="video-bubble"]');
+  const videoBubbles = this.page.locator('[data-testid="messages-list"] [data-testid="video-message-player"]');
   assert.strictEqual(await videoBubbles.count(), 0);
 });
 
@@ -555,6 +556,224 @@ Then("no se agrega el adjunto incompatible", async function (this: VideoWorld) {
     const audioPreview = this.page.getByTestId("audio-preview");
     assert.strictEqual(await audioPreview.count(), 0);
   }
+});
+
+Given(
+  "que estoy autenticado como {string} en un chat activo",
+  async function (this: VideoWorld, rol: string) {
+    const isProvider = rol.toLowerCase().includes("prestador");
+    this.currentRole = isProvider ? "provider" : "consumer";
+
+    if (isProvider) {
+      await this.setSession("provider", {
+        id: "provider-001",
+        email: "juan@example.com",
+        firstName: "Juan",
+        lastName: "Gómez",
+        isOnboarded: true,
+      });
+
+      await this.stubGet("/conversations", [
+        aConversation({
+          id: 1,
+          status: "accepted",
+          counterpart: aCounterpart({
+            id: 1,
+            role: "consumer",
+            name: "Ana",
+            surname: "Pérez",
+          }),
+        }),
+      ]);
+      await this.stubGet(
+        "/conversations/1",
+        aConversationDetail({
+          id: 1,
+          status: "accepted",
+          counterpart: aCounterpart({
+            id: 1,
+            role: "consumer",
+            name: "Ana",
+            surname: "Pérez",
+          }),
+          messages: [],
+        })
+      );
+      await this.stubGet("/job-requests", []);
+      await this.stubGet("/service-proposals", []);
+      await this.stubPost("/ws-tickets", 201, aWsTicket());
+
+      await this.page.goto(
+        APP_URL + ROUTES.provider.messages + "?consumer_id=1",
+        { waitUntil: "networkidle" }
+      );
+    } else {
+      await this.setSession("consumer", {
+        id: "consumer-001",
+        email: "ana@example.com",
+        firstName: "Ana",
+        lastName: "Pérez",
+        isOnboarded: true,
+      });
+
+      await this.stubGet("/conversations", [
+        aConversation({
+          id: 1,
+          status: "accepted",
+          counterpart: aCounterpart({
+            id: 1,
+            role: "provider",
+            name: "Juan",
+            surname: "Gómez",
+          }),
+        }),
+      ]);
+      await this.stubGet(
+        "/conversations/1",
+        aConversationDetail({
+          id: 1,
+          status: "accepted",
+          counterpart: aCounterpart({
+            id: 1,
+            role: "provider",
+            name: "Juan",
+            surname: "Gómez",
+          }),
+          messages: [],
+        })
+      );
+      await this.stubGet("/job-requests", []);
+      await this.stubGet("/service-proposals", []);
+      await this.stubPost("/ws-tickets", 201, aWsTicket());
+
+      await this.page.goto(
+        APP_URL + ROUTES.consumer.messages + "?provider_id=1&name=Juan&surname=Gómez",
+        { waitUntil: "networkidle" }
+      );
+    }
+
+    await this.page.locator('[data-testid="messages-list"]').waitFor(visibleTimeout);
+
+    const fileId = isProvider ? "video-file-provider-001" : "video-file-001";
+    const uploadUrl = `https://mock-upload.test/video-${fileId}`;
+
+    await this.stubPost("/files/presign", 200, {
+      file_id: fileId,
+      upload_url: uploadUrl,
+    });
+    await this.page.route(uploadUrl, async (route) => {
+      await route.fulfill({ status: 204 });
+    });
+    await this.stubPost(`/files/${fileId}/confirm`, 200, {
+      id: fileId,
+      url: "https://mock-video.test/perdida.mp4",
+      original_name: "perdida.mp4",
+    });
+    await this.stubPost("/conversations/1/messages", 201, {
+      id: 101,
+      sender_role: isProvider ? "provider" : "consumer",
+      created_on: new Date().toISOString(),
+      video: {
+        id: fileId,
+        url: "https://mock-video.test/perdida.mp4",
+        original_name: "perdida.mp4",
+        duration_seconds: 17,
+        mime_type: "video/mp4",
+      },
+    });
+  }
+);
+
+Given(
+  "que tengo seleccionado un video permitido de 17 segundos con {string}",
+  async function (this: VideoWorld, _sound: string) {
+    const fileName = "video-17s.mp4";
+    this.currentVideoFileName = fileName;
+    await this.page.evaluate(
+      ({ name }) => {
+        const wnd = window as unknown as {
+          __e2eVideoMetadata?: Record<string, { duration: number; width: number; height: number }>;
+        };
+        wnd.__e2eVideoMetadata = wnd.__e2eVideoMetadata || {};
+        wnd.__e2eVideoMetadata[name] = { duration: 17, width: 1920, height: 1080 };
+      },
+      { name: fileName }
+    );
+    await attachVideoFile(this, fileName, 1048576);
+  }
+);
+
+Given(
+  "que el campo de texto contiene {string}",
+  async function (this: VideoWorld, texto: string) {
+    if (texto && texto.trim().length > 0) {
+      const input = this.page.getByPlaceholder("Escribe un mensaje...");
+      await input.waitFor(visibleTimeout);
+      await input.fill(texto);
+
+      const isProvider = this.currentRole === "provider";
+      const fileId = isProvider ? "video-file-provider-001" : "video-file-001";
+      await this.stubPost("/conversations/1/messages", 201, {
+        id: 101,
+        sender_role: isProvider ? "provider" : "consumer",
+        created_on: new Date().toISOString(),
+        content: texto,
+        video: {
+          id: fileId,
+          url: "https://mock-video.test/perdida.mp4",
+          original_name: "perdida.mp4",
+          duration_seconds: 17,
+          mime_type: "video/mp4",
+        },
+      });
+    }
+  }
+);
+
+When("envío el mensaje", async function (this: CustomWorld) {
+  const sendButton = this.page.getByRole("button", { name: /Enviar mensaje/i });
+  await sendButton.waitFor(visibleTimeout);
+  await sendButton.click();
+});
+
+Then(
+  "veo un único mensaje propio con miniatura, botón de reproducción y duración {string}",
+  async function (this: CustomWorld, duracion: string) {
+    const messageList = this.page.locator('[data-testid="messages-list"]');
+    const player = messageList.getByTestId("video-message-player");
+    await player.waitFor(visibleTimeout);
+    assert.strictEqual(await player.count(), 1);
+
+    const thumbnail = player.getByTestId("video-thumbnail");
+    assert.ok(await thumbnail.isVisible());
+
+    const playButton = player.getByTestId("video-play-button");
+    assert.ok(await playButton.isVisible());
+
+    const durationBadge = player.getByTestId("video-duration");
+    assert.strictEqual((await durationBadge.textContent())?.trim(), duracion);
+  }
+);
+
+Then(
+  "el mensaje muestra el texto {string} cuando no está vacío",
+  async function (this: CustomWorld, texto: string) {
+    if (texto && texto.trim().length > 0) {
+      const messageList = this.page.locator('[data-testid="messages-list"]');
+      const textEl = messageList.getByText(texto);
+      await textEl.waitFor(visibleTimeout);
+      assert.ok(await textEl.isVisible());
+    }
+  }
+);
+
+Then("se vacían el campo de texto y la selección de video", async function (this: CustomWorld) {
+  const input = this.page.getByPlaceholder("Escribe un mensaje...");
+  await input.waitFor(visibleTimeout);
+  assert.strictEqual(await input.inputValue(), "");
+
+  const preview = this.page.getByTestId("video-preview");
+  assert.strictEqual(await preview.count(), 0);
 });
 
 After(async function (this: VideoWorld) {

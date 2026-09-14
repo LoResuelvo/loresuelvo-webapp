@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Loader } from "@googlemaps/js-api-loader";
 import { CoverageZone } from "@/domain/provider/coverage-zone";
+import { MapInstance, MapService, MapServiceStatus } from "@/ports/maps/map-service";
+import { getMapService } from "@/infrastructure/maps";
 
 export type MapCoverageZone = CoverageZone;
 
@@ -12,198 +13,65 @@ export interface UseGoogleCoverageMapOptions {
   onToggleZone?: (zoneId: number) => void;
   apiKey?: string;
   mapId?: string;
+  mapService?: MapService;
 }
 
-export type MapStatus = "idle" | "ready" | "unavailable" | "error";
+export type MapStatus = MapServiceStatus;
 
-interface GoogleFeatureEvent {
-  feature?: {
-    placeId?: string;
-  };
+function handleInitError(err: unknown): { status: MapStatus; message?: string } {
+  const msg = err instanceof Error ? err.message : "";
+  return msg === "MAP_ERROR"
+    ? { status: "error", message: "No se pudo cargar el mapa" }
+    : { status: "unavailable" };
 }
 
-interface GoogleFeatureLayer {
-  addListener?: (event: string, handler: (e: GoogleFeatureEvent) => void) => { remove?: () => void };
-  style?: (options: { feature: { placeId: string } }) => Record<string, unknown>;
-}
-
-export interface GoogleMapInstance {
-  getFeatureLayer?: (layerId: string) => GoogleFeatureLayer | undefined;
-}
-
-interface MockMapsWindow {
-  google?: {
-    maps?: {
-      Map: new (
-        container: HTMLElement,
-        options: { mapId?: string; center?: { lat: number; lng: number }; zoom?: number }
-      ) => GoogleMapInstance;
-    };
-  };
-  __MOCK_MAPS_CONFIG__?: string;
-  __MOCK_MAPS_ERROR__?: boolean;
-}
-
-function getMapsWindow(): MockMapsWindow | null {
-  if (typeof window === "undefined") return null;
-  return window as unknown as MockMapsWindow;
-}
-
-function computeFeatureStyle(
-  zones: MapCoverageZone[],
-  selectedZoneIds: number[],
-  placeId?: string
-) {
-  const isSelected = zones.some(
-    (z) => z.boundary?.placeId === placeId && selectedZoneIds.includes(z.id)
-  );
-  return {
-    fillColor: isSelected ? "#0D9488" : "#94A3B8",
-    fillOpacity: isSelected ? 0.6 : 0.2,
-    strokeColor: isSelected ? "#0F766E" : "#64748B",
-    strokeWeight: isSelected ? 2 : 1,
-  };
-}
-
-function initGoogleMap(
-  container: HTMLDivElement,
-  mapId: string | undefined,
-  onPlaceClick: (placeId: string) => void
-) {
-  const win = getMapsWindow();
-  const MapConstructor = win?.google?.maps?.Map;
-  if (!MapConstructor) return null;
-
-  const map = new MapConstructor(container, {
-    mapId,
-    center: { lat: -34.6037, lng: -58.3816 },
-    zoom: 12,
-  });
-
-  const featureLayer = map.getFeatureLayer?.("ADMINISTRATIVE_AREA_LEVEL_2");
-  let clickListener: { remove?: () => void } | null = null;
-  if (featureLayer?.addListener) {
-    clickListener = featureLayer.addListener("click", (event: GoogleFeatureEvent) => {
-      const placeId = event?.feature?.placeId;
-      if (placeId) onPlaceClick(placeId);
-    });
-  }
-
-  return { map, clickListener };
-}
-
-function updateMapFeatureStyle(
-  map: GoogleMapInstance | null,
-  zones: MapCoverageZone[],
-  selectedZoneIds: number[]
-) {
-  const featureLayer = map?.getFeatureLayer?.("ADMINISTRATIVE_AREA_LEVEL_2");
-  if (featureLayer?.style !== undefined) {
-    featureLayer.style = (options: { feature: { placeId: string } }) =>
-      computeFeatureStyle(zones, selectedZoneIds, options?.feature?.placeId);
-  }
-}
-
-function checkFallbackStatus(apiKey?: string, mapId?: string): MapStatus | null {
-  const win = getMapsWindow();
-  if (win) {
-    if (win.__MOCK_MAPS_CONFIG__ === "missing") return "unavailable";
-    if (win.__MOCK_MAPS_ERROR__ === true) return "error";
-  }
-  if (!apiKey || !mapId) return "unavailable";
-  return null;
-}
-
-export function useGoogleCoverageMap({
-  zones,
-  selectedZoneIds,
-  onToggleZone,
-  apiKey,
-  mapId,
-}: UseGoogleCoverageMapOptions) {
+export function useGoogleCoverageMap(options: UseGoogleCoverageMapOptions) {
+  const { zones, selectedZoneIds, onToggleZone, apiKey, mapId, mapService } = options;
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [status, setStatus] = useState<MapStatus>("idle");
+  const [status, setStatus] = useState<MapStatus>(!apiKey && !mapId ? "unavailable" : "idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const mapInstanceRef = useRef<GoogleMapInstance | null>(null);
-  const clickListenerRef = useRef<{ remove?: () => void } | null>(null);
+  const mapInstanceRef = useRef<MapInstance | null>(null);
 
-  // Mantener referencias mutables para no recrear callbacks ni reiniciar el mapa
   const zonesRef = useRef(zones);
   zonesRef.current = zones;
-
   const onToggleZoneRef = useRef(onToggleZone);
   onToggleZoneRef.current = onToggleZone;
-
-  const handlePolygonClick = useCallback((placeId: string) => {
-    const zone = zonesRef.current.find((z) => z.boundary?.placeId === placeId);
-    if (zone && onToggleZoneRef.current) {
-      onToggleZoneRef.current(zone.id);
-    }
-  }, []);
-
   const selectedZoneIdsRef = useRef(selectedZoneIds);
   selectedZoneIdsRef.current = selectedZoneIds;
 
-  const setupMap = useCallback(() => {
-    if (!containerRef.current || mapInstanceRef.current) return;
-    const result = initGoogleMap(containerRef.current, mapId, handlePolygonClick);
-    if (result) {
-      mapInstanceRef.current = result.map;
-      clickListenerRef.current = result.clickListener;
-      updateMapFeatureStyle(result.map, zonesRef.current, selectedZoneIdsRef.current);
-    }
-  }, [mapId, handlePolygonClick]);
+  const handlePolygonClick = useCallback((placeId: string) => {
+    const zone = zonesRef.current.find((z) => z.boundary?.placeId === placeId);
+    if (zone && onToggleZoneRef.current) onToggleZoneRef.current(zone.id);
+  }, []);
 
   useEffect(() => {
-    const fallback = checkFallbackStatus(apiKey, mapId);
-    if (fallback) {
-      setStatus(fallback);
-      if (fallback === "error") setErrorMessage("No se pudo cargar Google Maps");
-      return;
-    }
+    let cancelled = false;
+    const service = mapService || getMapService();
+    if (!containerRef.current || mapInstanceRef.current) return;
+    if (!apiKey || !mapId) return setStatus("unavailable");
 
-    let isCancelled = false;
-    const win = getMapsWindow();
-
-    if (win?.google?.maps?.Map) {
-      try {
-        setupMap();
-        setStatus("ready");
-      } catch {
-        setStatus("error");
-        setErrorMessage("No se pudo cargar Google Maps");
-      }
-    } else {
-      try {
-        const loader = new Loader({ apiKey: apiKey!, version: "weekly", libraries: ["maps"] });
-        loader
-          .load()
-          .then(() => {
-            if (isCancelled) return;
-            setupMap();
-            setStatus("ready");
-          })
-          .catch(() => {
-            if (isCancelled) return;
-            setStatus("unavailable");
-          });
-      } catch {
-        setStatus("unavailable");
-      }
-    }
+    service.init(containerRef.current, { apiKey, mapId }).then((inst) => {
+      if (cancelled) return inst.destroy();
+      mapInstanceRef.current = inst;
+      inst.onPolygonClick(handlePolygonClick);
+      inst.updateZones(zonesRef.current, selectedZoneIdsRef.current);
+      setStatus("ready");
+    }).catch((err: unknown) => {
+      if (cancelled) return;
+      const res = handleInitError(err);
+      setStatus(res.status);
+      if (res.message) setErrorMessage(res.message);
+    });
 
     return () => {
-      isCancelled = true;
-      clickListenerRef.current?.remove?.();
-      clickListenerRef.current = null;
+      cancelled = true;
+      mapInstanceRef.current?.destroy();
       mapInstanceRef.current = null;
     };
-  }, [apiKey, mapId, setupMap]);
+  }, [apiKey, mapId, mapService, handlePolygonClick]);
 
   useEffect(() => {
-    if (mapInstanceRef.current) {
-      updateMapFeatureStyle(mapInstanceRef.current, zones, selectedZoneIds);
-    }
+    mapInstanceRef.current?.updateZones(zones, selectedZoneIds);
   }, [zones, selectedZoneIds]);
 
   return { containerRef, status, errorMessage, handlePolygonClick };

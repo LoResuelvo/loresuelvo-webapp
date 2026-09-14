@@ -1,6 +1,8 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { useGoogleCoverageMap } from "./useGoogleCoverageMap";
+import { GoogleMapsAdapter } from "@/infrastructure/maps/google-maps-adapter";
+import { setMapService } from "@/infrastructure/maps";
 
 interface TestWindow {
   google?: {
@@ -18,9 +20,11 @@ describe("useGoogleCoverageMap", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    setMapService(new GoogleMapsAdapter());
   });
 
   afterEach(() => {
+    setMapService(null);
     delete (window as unknown as TestWindow).google;
   });
 
@@ -75,7 +79,7 @@ describe("useGoogleCoverageMap", () => {
     expect(onToggleZone).not.toHaveBeenCalled();
   });
 
-  it("initializes map and attaches listener to FeatureLayer when google maps is present", () => {
+  it("initializes map and attaches listener to FeatureLayer when google maps is present", async () => {
     const mockRemoveListener = vi.fn();
     const mockAddListener = vi.fn().mockReturnValue({ remove: mockRemoveListener });
     const mockFeatureLayer = {
@@ -109,14 +113,17 @@ describe("useGoogleCoverageMap", () => {
       return hook;
     });
 
-    expect(result.current.status).toBe("ready");
+    await vi.waitFor(() => {
+      expect(result.current.status).toBe("ready");
+    });
+
     expect(mockMapInstance.getFeatureLayer).toHaveBeenCalledWith("ADMINISTRATIVE_AREA_LEVEL_2");
 
     unmount();
     expect(mockRemoveListener).toHaveBeenCalledTimes(1);
   });
 
-  it("does not recreate the map instance when selectedZoneIds change", () => {
+  it("does not recreate the map instance when selectedZoneIds change", async () => {
     const mockMapInstance = {
       getFeatureLayer: vi.fn().mockReturnValue({
         addListener: vi.fn().mockReturnValue({ remove: vi.fn() }),
@@ -154,7 +161,9 @@ describe("useGoogleCoverageMap", () => {
       }
     );
 
-    expect(mapConstructor).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(mapConstructor).toHaveBeenCalledTimes(1);
+    });
 
     // Cambiar la selección de zonas
     rerender({ selectedZoneIds: [6, 14] });

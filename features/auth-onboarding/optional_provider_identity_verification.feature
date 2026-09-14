@@ -76,7 +76,6 @@ Feature: US-58 Verificar opcionalmente identidad del prestador
     When reintento iniciar la verificación
     Then soy dirigido al flujo alojado de Didit
 
-  @wip
   Scenario Outline: 10-VIP Recuperar el estado al recargar o volver a ingresar
     Given mi cuenta de prestador ya existe
     And la API informa el estado <estado>

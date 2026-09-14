@@ -115,6 +115,27 @@ async function waitForTemporaryIdentityError(world: CustomWorld): Promise<void> 
   );
 }
 
+type ScenarioOnboardingStage = "identidad" | "mercado-pago";
+
+function onboardingStageUrl(world: CustomWorld): string {
+  assert.ok(world.onboardingStage, "No se configuró la etapa del onboarding");
+  const routeStage =
+    world.onboardingStage === "identidad"
+      ? ROUTES.onboardingStages.identity
+      : ROUTES.onboardingStages.mercadoPago;
+  return `${APP_URL}${ROUTES.onboarding}?stage=${routeStage}`;
+}
+
+async function assertNoProfileForm(world: CustomWorld): Promise<void> {
+  assert.equal(
+    await world.page
+      .getByRole("heading", { name: t.onboarding.profileForm.title, exact: true })
+      .count(),
+    0,
+    "Se volvió a mostrar el formulario de perfil",
+  );
+}
+
 Given(
   "completé los datos, la foto, el rubro y las zonas obligatorios del prestador",
   async function (this: CustomWorld) {
@@ -348,6 +369,79 @@ Given(
     await waitForTemporaryIdentityError(this);
   },
 );
+
+Given("mi cuenta de prestador ya existe", async function (this: CustomWorld) {
+  await stubRegisteredProviderIdentity(this, "unverified");
+});
+
+Given("la API informa el estado {word}", async function (this: CustomWorld, status: string) {
+  await stubRegisteredProviderIdentity(this, status);
+});
+
+Given(
+  /^estoy en la etapa (.+) del onboarding$/,
+  async function (this: CustomWorld, stage: string) {
+    const normalizedStage = stage.trim() as ScenarioOnboardingStage;
+    assert.ok(
+      normalizedStage === "identidad" || normalizedStage === "mercado-pago",
+      `Etapa de onboarding no reconocida: "${stage}"`,
+    );
+    this.onboardingStage = normalizedStage;
+  },
+);
+
+When("recargo la página", async function (this: CustomWorld) {
+  await this.page.goto(onboardingStageUrl(this));
+  await this.page.reload();
+});
+
+When("vuelvo al onboarding después de autenticarme", async function (this: CustomWorld) {
+  await this.page.goto(onboardingStageUrl(this));
+});
+
+Then("veo la invitación de identidad", async function (this: CustomWorld) {
+  const invitation = this.page.getByTestId("identity-verification-step").first();
+  await invitation.waitFor(visibleTimeout);
+  await this.page
+    .getByRole("heading", { name: t.onboarding.identityVerification.title, exact: true })
+    .waitFor(visibleTimeout);
+  assert.ok(await invitation.isVisible(), "No se muestra la invitación de identidad");
+});
+
+Then("veo identidad verificada", async function (this: CustomWorld) {
+  const identityStep = this.page.getByTestId("identity-verification-step").first();
+  await identityStep.waitFor(visibleTimeout);
+  const title = this.page.getByRole("heading", {
+    name: t.onboarding.identityVerification.verifiedTitle,
+    exact: true,
+  });
+  await title.waitFor(visibleTimeout);
+  assert.ok(await title.isVisible(), "No se muestra la identidad verificada");
+});
+
+Then("veo verificación pendiente", async function (this: CustomWorld) {
+  const result = this.page.getByTestId("identity-verification-result").first();
+  await result.waitFor(visibleTimeout);
+  const title = this.page.getByRole("heading", {
+    name: t.onboarding.identityVerification.pendingTitle,
+    exact: true,
+  });
+  await title.waitFor(visibleTimeout);
+  assert.ok(await title.isVisible(), "No se muestra la verificación pendiente");
+});
+
+Then("veo la conexión de Mercado Pago", async function (this: CustomWorld) {
+  const title = this.page.getByRole("heading", {
+    name: t.onboarding.mercadoPago.title,
+    exact: true,
+  });
+  await title.waitFor(visibleTimeout);
+  assert.ok(await title.isVisible(), "No se muestra la conexión de Mercado Pago");
+});
+
+Then("no se me solicita crear la cuenta nuevamente", async function (this: CustomWorld) {
+  await assertNoProfileForm(this);
+});
 
 When("reintento iniciar la verificación", async function (this: CustomWorld) {
   await clickVerifyNow(this);

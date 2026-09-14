@@ -82,6 +82,39 @@ async function submitProviderProfile(world: CustomWorld): Promise<void> {
   await submitButton.click();
 }
 
+async function showProviderIdentityInvitation(world: CustomWorld): Promise<void> {
+  await prepareProviderProfile(world);
+  await stubProviderRegistration(world);
+  await submitProviderProfile(world);
+  await world.page.getByTestId("identity-verification-step").waitFor(visibleTimeout);
+}
+
+async function clickVerifyNow(world: CustomWorld): Promise<void> {
+  const button = world.page.getByRole("button", { name: "Verificar ahora" }).first();
+  await button.waitFor(visibleTimeout);
+  await button.click();
+}
+
+async function stubUnavailableIdentityService(world: CustomWorld): Promise<void> {
+  await world.stubPost(
+    "/providers/me/identity-verification-sessions",
+    503,
+    { error: "Identity verification service unavailable" },
+  );
+}
+
+async function waitForTemporaryIdentityError(world: CustomWorld): Promise<void> {
+  const error = world.page
+    .getByRole("alert")
+    .filter({ hasText: t.onboarding.identityVerification.errorTemporary })
+    .first();
+  await error.waitFor(visibleTimeout);
+  assert.equal(
+    await error.textContent(),
+    t.onboarding.identityVerification.errorTemporary,
+  );
+}
+
 Given(
   "completé los datos, la foto, el rubro y las zonas obligatorios del prestador",
   async function (this: CustomWorld) {
@@ -131,11 +164,7 @@ Then("veo el paso de conexión con Mercado Pago", async function (this: CustomWo
 Given(
   "mi cuenta de prestador ya fue creada y veo la invitación de identidad",
   async function (this: CustomWorld) {
-    await prepareProviderProfile(this);
-    await stubProviderRegistration(this);
-    await submitProviderProfile(this);
-    const invitation = this.page.getByTestId("identity-verification-step");
-    await invitation.waitFor({ state: "visible", timeout: 10000 });
+    await showProviderIdentityInvitation(this);
   }
 );
 
@@ -261,24 +290,12 @@ When(
 Given(
   "el servicio de verificación no está disponible",
   async function (this: CustomWorld) {
-    await this.stubPost(
-      "/providers/me/identity-verification-sessions",
-      503,
-      { error: "Identity verification service unavailable" },
-    );
+    await stubUnavailableIdentityService(this);
   },
 );
 
 Then("veo un error de verificación controlado", async function (this: CustomWorld) {
-  const error = this.page
-    .getByRole("alert")
-    .filter({ hasText: t.onboarding.identityVerification.errorTemporary })
-    .first();
-  await error.waitFor(visibleTimeout);
-  assert.equal(
-    await error.textContent(),
-    t.onboarding.identityVerification.errorTemporary,
-  );
+  await waitForTemporaryIdentityError(this);
 });
 
 Then(
@@ -322,10 +339,22 @@ Given("la API puede iniciar mi verificación", async function (this: CustomWorld
   });
 });
 
+Given(
+  "el inicio anterior falló sin crear una sesión y veo el error",
+  async function (this: CustomWorld) {
+    await showProviderIdentityInvitation(this);
+    await stubUnavailableIdentityService(this);
+    await clickVerifyNow(this);
+    await waitForTemporaryIdentityError(this);
+  },
+);
+
+When("reintento iniciar la verificación", async function (this: CustomWorld) {
+  await clickVerifyNow(this);
+});
+
 When('elijo "Verificar ahora"', async function (this: CustomWorld) {
-  const button = this.page.getByRole("button", { name: "Verificar ahora" }).first();
-  await button.waitFor(visibleTimeout);
-  await button.click();
+  await clickVerifyNow(this);
 });
 
 Then("soy dirigido al flujo alojado de Didit", async function (this: CustomWorld) {

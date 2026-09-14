@@ -4,6 +4,24 @@ import { aCoverageZone, aCategory, anApiError, aProvider, aPresignedUpload, aCon
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 
+const identityVerificationSessionEndpoint = "/providers/me/identity-verification-sessions";
+
+async function stubAvailableIdentityVerificationService(world: CustomWorld): Promise<void> {
+  await world.stubPost(identityVerificationSessionEndpoint, 200, {
+    session_id: "identity-session-1",
+    session_token: "temporary-session-token",
+    verification_url: "https://verify.example/session-1",
+    status: "not_started",
+  });
+  await world.page.route("https://verify.example/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<html><body>Didit hosted verification</body></html>",
+    });
+  });
+}
+
 Given(
   "la API dispone de las comunas habilitadas {string} y {string}",
   async function (this: CustomWorld, zone1: string, zone2: string) {
@@ -125,6 +143,11 @@ Given("la consulta de zonas falló y veo su estado de error", async function (th
 });
 
 Given("la API vuelve a estar disponible", async function (this: CustomWorld) {
+  if (await this.hasApiStub("POST", identityVerificationSessionEndpoint)) {
+    await stubAvailableIdentityVerificationService(this);
+    return;
+  }
+
   const zones = [
     aCoverageZone({ id: 6, name: "Comuna 6" }),
     aCoverageZone({ id: 14, name: "Comuna 14" }),
@@ -587,5 +610,4 @@ Given(
 );
 
 // End of US-35.5 coverage zones acceptance steps
-
 

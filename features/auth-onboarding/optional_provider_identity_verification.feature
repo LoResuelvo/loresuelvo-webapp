@@ -70,7 +70,6 @@ Feature: US-58 Verificar opcionalmente identidad del prestador
     And veo opciones para reintentar o continuar más tarde
     And no se me solicita completar nuevamente el perfil
 
-  @wip
   Scenario: 09-VIP Reintentar después de un error de inicio
     Given el inicio anterior falló sin crear una sesión y veo el error
     And la API vuelve a estar disponible

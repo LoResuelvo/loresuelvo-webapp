@@ -10,14 +10,6 @@ export async function getCurrentUser(
   if (!session?.accessToken) {
     throw new Error("User is unauthenticated");
   }
-  const currentUser = await userRepository.getCurrentUser();
 
-  await authService.updateSession({
-    firstName: currentUser.firstName,
-    lastName: currentUser.lastName,
-    profilePhotoUrl: currentUser.profilePhoto?.url,
-    role: currentUser.role,
-  });
-
-  return currentUser;
+  return userRepository.getCurrentUser();
 }

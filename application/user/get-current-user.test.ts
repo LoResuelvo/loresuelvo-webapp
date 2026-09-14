@@ -5,7 +5,7 @@ import { AuthService } from "@/ports/onboarding/auth-service";
 import { CurrentUser } from "@/domain/user/types";
 
 describe("getCurrentUser", () => {
-  it("fetches current user profile and updates session", async () => {
+  it("fetches current user profile without mutating the session", async () => {
     const mockUser: CurrentUser = {
       id: 1,
       firstName: "Ana",
@@ -36,12 +36,7 @@ describe("getCurrentUser", () => {
     const result = await getCurrentUser(mockUserRepo, mockAuthService);
 
     expect(mockUserRepo.getCurrentUser).toHaveBeenCalledOnce();
-    expect(mockAuthService.updateSession).toHaveBeenCalledWith({
-      firstName: "Ana",
-      lastName: "Pérez",
-      profilePhotoUrl: "https://example.com/avatar.png",
-      role: "consumer",
-    });
+    expect(mockAuthService.updateSession).not.toHaveBeenCalled();
     expect(result).toEqual(mockUser);
   });
 

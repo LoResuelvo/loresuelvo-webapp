@@ -21,9 +21,9 @@ function substituteDisplay(display, parameters) {
   });
 }
 
-function buildGate(policy, gateId, reasonCodes, parameters = {}, extraCheckIds = []) {
+function buildGate(policy, gateId, reasonCodes, parameters = {}, requiredCheckIds = []) {
   const definition = policyGate(policy, gateId);
-  const checkIds = [...new Set([...definition.checkIds, ...extraCheckIds])];
+  const checkIds = [...new Set([...definition.checkIds, ...requiredCheckIds])];
   const checks = checkIds.map((checkId) => {
     const check = policy.checkCatalog[checkId];
     if (!check) throw new Error(`Delivery policy does not define check ${checkId}`);
@@ -38,6 +38,21 @@ function buildGate(policy, gateId, reasonCodes, parameters = {}, extraCheckIds =
     parameters,
     postPushChecks: definition.postPushChecks || [],
   };
+}
+
+function requiredCheckIdsForDiff(classified, intent) {
+  const requiredCheckIds = [];
+
+  if (classified.hasDeliveryTooling) requiredCheckIds.push("delivery_unit");
+  if (
+    intent === "prepare_commit" &&
+    classified.hasGate0Trigger &&
+    (classified.hasIsolatedProduction || classified.hasDeliveryTooling)
+  ) {
+    requiredCheckIds.push("typecheck_cucumber");
+  }
+
+  return requiredCheckIds;
 }
 
 function uniqueFeaturePaths(paths) {
@@ -181,10 +196,11 @@ export function selectGate({
     );
   }
   let gate;
+  const requiredCheckIds = requiredCheckIdsForDiff(classified, intent);
 
   const closesHighRiskScenario = intent === "close_scenario" && classified.hasGateCTrigger;
   if (intent === "repair_ci") {
-    gate = buildGate(policy, "R", ["INTENT_REPAIR_CI"]);
+    gate = buildGate(policy, "R", ["INTENT_REPAIR_CI"], {}, requiredCheckIds);
     if (!repairsSha) {
       if (status !== "blocked") status = "needs_input";
       pushDiagnostic(
@@ -209,7 +225,8 @@ export function selectGate({
         intent,
         targetScenario: scenarioName || null,
         featureFile: featureFile || (scopeFeatures.length === 1 ? scopeFeatures[0] : ""),
-      }
+      },
+      requiredCheckIds
     );
     if (scopeFeatures.length === 0 && status !== "blocked") {
       status = "needs_input";
@@ -220,15 +237,27 @@ export function selectGate({
       );
     }
   } else if (classified.hasGateCTrigger) {
-    gate = buildGate(policy, "C", ["SHARED_OR_HIGH_RISK_CHANGES"]);
+    gate = buildGate(
+      policy,
+      "C",
+      ["SHARED_OR_HIGH_RISK_CHANGES"],
+      {},
+      requiredCheckIds
+    );
   } else if (intent === "close_scenario") {
     const featureCandidates = uniqueFeaturePaths([featureFile, ...stagedFiles]);
     const targetFeature = featureCandidates.length === 1 ? featureCandidates[0] : "";
-    gate = buildGate(policy, "B", ["INTENT_CLOSE_SCENARIO_LOW_RISK"], {
-      featureFile: targetFeature,
-      targetScenario: scenarioName || null,
-      intent,
-    });
+    gate = buildGate(
+      policy,
+      "B",
+      ["INTENT_CLOSE_SCENARIO_LOW_RISK"],
+      {
+        featureFile: targetFeature,
+        targetScenario: scenarioName || null,
+        intent,
+      },
+      requiredCheckIds
+    );
     if (!targetFeature && status !== "blocked") {
       status = "needs_input";
       pushDiagnostic(
@@ -242,24 +271,21 @@ export function selectGate({
       );
     }
   } else if (classified.hasOnlyGate0) {
-    gate = buildGate(policy, "0", ["E2E_STEPS_OR_FEATURES_ONLY"]);
+    gate = buildGate(policy, "0", ["E2E_STEPS_OR_FEATURES_ONLY"], {}, requiredCheckIds);
   } else if (classified.hasIsolatedProduction || classified.hasDeliveryTooling) {
-    const extraCheckIds = [];
     const reasonCodes = [];
     if (classified.hasIsolatedProduction) reasonCodes.push("ISOLATED_PRODUCTION_CODE");
     if (classified.hasDeliveryTooling) {
       reasonCodes.push("DELIVERY_TOOLING_CHANGED");
-      extraCheckIds.push("delivery_unit");
     }
     if (classified.hasGate0Trigger) reasonCodes.push("INCLUDES_E2E_STEPS_OR_SUPPORT");
-    if (classified.hasGate0Trigger) extraCheckIds.push("typecheck_cucumber");
-    gate = buildGate(policy, "A", reasonCodes, {}, extraCheckIds);
+    gate = buildGate(policy, "A", reasonCodes, {}, requiredCheckIds);
   } else if (classified.hasOnlyDocsOrConfig) {
-    gate = buildGate(policy, "NONE", ["DOCS_CONFIG_TESTS_OR_STYLES_ONLY"]);
+    gate = buildGate(policy, "NONE", ["DOCS_CONFIG_TESTS_OR_STYLES_ONLY"], {}, requiredCheckIds);
   } else if (classified.hasGate0Trigger) {
-    gate = buildGate(policy, "0", ["E2E_STEPS_OR_FEATURES_INCLUDED"]);
+    gate = buildGate(policy, "0", ["E2E_STEPS_OR_FEATURES_INCLUDED"], {}, requiredCheckIds);
   } else {
-    gate = buildGate(policy, "NONE", ["NON_FUNCTIONAL_CHANGES"]);
+    gate = buildGate(policy, "NONE", ["NON_FUNCTIONAL_CHANGES"], {}, requiredCheckIds);
   }
 
   // Impact analysis: Cucumber and TypeScript dependencies
@@ -377,7 +403,13 @@ export function selectGate({
     if (impactPriority > currentPriority) {
       if (effectiveImpact.gate === "B") {
         const targetFeature = effectiveImpact.parameters?.featureFile || featureFile;
-        gate = buildGate(policy, "B", effectiveImpact.reasonCodes, { featureFile: targetFeature });
+        gate = buildGate(
+          policy,
+          "B",
+          effectiveImpact.reasonCodes,
+          { featureFile: targetFeature },
+          requiredCheckIds
+        );
         if (!targetFeature && status !== "blocked") {
           status = "needs_input";
           pushDiagnostic(
@@ -387,13 +419,31 @@ export function selectGate({
           );
         }
       } else if (effectiveImpact.gate === "C") {
-        gate = buildGate(policy, "C", effectiveImpact.reasonCodes, gate.parameters);
+        gate = buildGate(
+          policy,
+          "C",
+          effectiveImpact.reasonCodes,
+          gate.parameters,
+          requiredCheckIds
+        );
       } else if (effectiveImpact.gate === "D") {
-        gate = buildGate(policy, "D", effectiveImpact.reasonCodes, gate.parameters);
+        gate = buildGate(
+          policy,
+          "D",
+          effectiveImpact.reasonCodes,
+          gate.parameters,
+          requiredCheckIds
+        );
       } else if (effectiveImpact.gate === "A") {
-        gate = buildGate(policy, "A", effectiveImpact.reasonCodes, gate.parameters, ["unit", "typecheck_app"]);
+        gate = buildGate(
+          policy,
+          "A",
+          effectiveImpact.reasonCodes,
+          gate.parameters,
+          requiredCheckIds
+        );
       } else if (effectiveImpact.gate === "0") {
-        gate = buildGate(policy, "0", effectiveImpact.reasonCodes);
+        gate = buildGate(policy, "0", effectiveImpact.reasonCodes, {}, requiredCheckIds);
       }
     } else if (impactPriority === currentPriority && effectiveImpact.gate === gate.id) {
       if (effectiveImpact.reasonCodes?.length > 0) {
@@ -402,7 +452,7 @@ export function selectGate({
           gate.id,
           [...new Set([...effectiveImpact.reasonCodes, ...gate.reasonCodes])],
           { ...gate.parameters, ...(effectiveImpact.parameters || {}) },
-          gate.checkIds
+          requiredCheckIds
         );
       }
     }

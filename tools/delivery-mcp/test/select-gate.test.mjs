@@ -232,6 +232,138 @@ test("selectGate: cambios del delivery runner ejecutan sus tests en Gate A y wor
   }
 });
 
+test("selectGate: tooling promovido a Gate C conserva delivery_unit", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: { stagedFiles: ["tools/delivery-mcp/lib/select-gate.mjs"] },
+    cucumberImpact: {
+      gate: "NONE",
+      reasonCodes: [],
+      consumerCount: 0,
+      affectedFeatures: 0,
+      confidence: "high",
+    },
+    typeScriptImpact: {
+      gate: "C",
+      reasonCodes: ["MULTIPLE_FLOW_CONSUMERS"],
+      consumerCount: 2,
+      affectedFeatures: 2,
+      confidence: "high",
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "C");
+  assert.deepStrictEqual(result.gate.checkIds, [
+    "lint",
+    "typecheck_app",
+    "typecheck_cucumber",
+    "unit",
+    "e2e_full",
+    "delivery_unit",
+  ]);
+});
+
+test("selectGate: tooling promovido a Gate B conserva checks obligatorios del diff", () => {
+  const result = selectGate({
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: [
+        "tools/delivery-mcp/lib/select-gate.mjs",
+        "features/auth/login_steps.ts",
+      ],
+    },
+    cucumberImpact: {
+      gate: "B",
+      reasonCodes: ["SINGLE_FEATURE_STEP_CONSUMER"],
+      consumerCount: 1,
+      affectedFeatures: 1,
+      confidence: "high",
+      parameters: { featureFile: "features/auth/login.feature" },
+    },
+    typeScriptImpact: {
+      gate: "NONE",
+      reasonCodes: [],
+      consumerCount: 0,
+      affectedFeatures: 0,
+      confidence: "high",
+    },
+  });
+
+  assert.strictEqual(result.gate.id, "B");
+  assert.deepStrictEqual(result.gate.checkIds, [
+    "e2e_feature",
+    "delivery_unit",
+    "typecheck_cucumber",
+  ]);
+});
+
+test("selectGate: tooling en cierres de batch o US conserva delivery_unit", () => {
+  for (const intent of ["close_batch", "close_us"]) {
+    const result = selectGate({
+      intent,
+      scopeFiles: ["features/order/order.feature"],
+      snapshot: { stagedFiles: ["tools/delivery-mcp/lib/select-gate.mjs"] },
+      cucumberImpact: {
+        gate: "NONE",
+        reasonCodes: [],
+        consumerCount: 0,
+        affectedFeatures: 0,
+        confidence: "high",
+      },
+      typeScriptImpact: {
+        gate: "NONE",
+        reasonCodes: [],
+        consumerCount: 0,
+        affectedFeatures: 0,
+        confidence: "high",
+      },
+    });
+
+    assert.strictEqual(result.gate.id, "D");
+    assert.ok(result.gate.checkIds.includes("delivery_unit"), `${intent} must run delivery_unit`);
+  }
+});
+
+test("selectGate: checks promovidos conservan orden estable y no se duplican", () => {
+  const input = {
+    intent: "prepare_commit",
+    snapshot: {
+      stagedFiles: [
+        "tools/delivery-mcp/lib/select-gate.mjs",
+        "features/auth/login_steps.ts",
+      ],
+    },
+    cucumberImpact: {
+      gate: "C",
+      reasonCodes: ["SHARED_STEP_CONSUMERS"],
+      consumerCount: 2,
+      affectedFeatures: 2,
+      confidence: "high",
+    },
+    typeScriptImpact: {
+      gate: "NONE",
+      reasonCodes: [],
+      consumerCount: 0,
+      affectedFeatures: 0,
+      confidence: "high",
+    },
+  };
+
+  const firstCheckIds = selectGate(input).gate.checkIds;
+  const secondCheckIds = selectGate(input).gate.checkIds;
+
+  assert.deepStrictEqual(firstCheckIds, [
+    "lint",
+    "typecheck_app",
+    "typecheck_cucumber",
+    "unit",
+    "e2e_full",
+    "delivery_unit",
+  ]);
+  assert.deepStrictEqual(secondCheckIds, firstCheckIds);
+  assert.strictEqual(new Set(firstCheckIds).size, firstCheckIds.length);
+});
+
 test("selectGate: cualquier archivo bajo workflows es HUMAN_ONLY aunque no sea YAML", () => {
   for (const file of [".github/workflows/generated", ".github/workflows/build.json"]) {
     const result = selectGate({

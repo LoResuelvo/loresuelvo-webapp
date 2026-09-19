@@ -28,6 +28,8 @@ npm run delivery:prepare -- --intent prepare_commit --message '<mensaje propuest
 
 La política versionada en `.delivery/policy.v1.json` es la única fuente de clasificación, selección y orden de checks. La CLI y MCP comparten exactamente el mismo núcleo. Los comandos de las secciones siguientes documentan qué protege cada gate y sirven para diagnóstico focalizado; no deben ejecutarse manualmente como una lista pre-commit.
 
+La selección compone los checks base del gate con los checks obligatorios derivados del diff, en ese orden y sin duplicados. Una promoción por impacto no elimina esos checks: los cambios de tooling conservan `delivery_unit`, y una mezcla que requiere validar steps conserva `typecheck_cucumber` aunque el gate efectivo sea B o C.
+
 ### Evidencia de delivery, diagnósticos compactos y modo Jobs
 - **Evidencia y ledger**: La evidencia autoritativa para autorizar commits se almacena en `.delivery/runtime/runs/` y se registra en el ledger de delivery (`.delivery/runtime/ledger.json`). Queda ligada criptográficamente a HEAD, árbol staged, política, intent y alcance.
 - **Diagnóstico compacto**: El runner ejecuta en fail-fast y devuelve diagnósticos acotados y procesados, sin volcados masivos de stdout/stderr. Cada resultado incluye la propiedad `logPath` apuntando al log completo persistente en `.delivery/runtime/logs/`; dicho archivo se consulta únicamente de forma excepcional ante diagnósticos donde el resumen procesado no alcance.

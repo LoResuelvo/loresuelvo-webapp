@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -12,6 +13,19 @@ import {
   resolveImportSpecifier,
   TYPESCRIPT_IMPACT_INDEX_PATH,
 } from "../lib/dependency-impact.mjs";
+
+function commitFixtureHead(repoRoot) {
+  const runGit = (args) =>
+    execFileSync("git", args, {
+      cwd: repoRoot,
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+  runGit(["init", "-q", "-b", "main"]);
+  runGit(["config", "user.name", "Delivery Test"]);
+  runGit(["config", "user.email", "delivery-test@example.invalid"]);
+  runGit(["add", "."]);
+  runGit(["commit", "-q", "-m", "test: create fixture head"]);
+}
 
 async function createTempFixtureRepo(t) {
   const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ts-impact-test-"));
@@ -491,6 +505,7 @@ test("dependency-impact: stepConsumers cuentan features reales aunque compartan 
     `Feature: First\nScenario: First\nGiven primer flujo\n`, "utf8");
   await fs.writeFile(path.join(repoRoot, "features", "shared", "second.feature"),
     `Feature: Second\nScenario: Second\nGiven segundo flujo\n`, "utf8");
+  commitFixtureHead(repoRoot);
 
   const result = analyzeTypeScriptImpact({ repoRoot, files: ["domain/calculator.ts"] });
   assert.strictEqual(result.gate, "C");

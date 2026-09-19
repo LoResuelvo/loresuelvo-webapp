@@ -1,5 +1,4 @@
 import { execFileSync } from "node:child_process";
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -8,19 +7,32 @@ import {
   ParameterTypeRegistry,
 } from "@cucumber/cucumber-expressions";
 import { normalizePath } from "./classify-files.mjs";
+import {
+  CUCUMBER_HEAD_INDEX_PATH,
+  CUCUMBER_IMPACT_INDEX_PATH,
+  CUCUMBER_IMPACT_SCHEMA_VERSION,
+  computeIndexFingerprint,
+  getGitHeadIdentity,
+  listGitHeadFiles,
+  readGitHeadFile,
+  sha256,
+  writeIndexAtomically,
+} from "./cucumber-index-storage.mjs";
 import { findRepoRoot } from "./repo-root.mjs";
 
-export const CUCUMBER_IMPACT_INDEX_PATH = ".delivery/runtime/indexes/cucumber-impact-v1.json";
+export { CUCUMBER_IMPACT_INDEX_PATH } from "./cucumber-index-storage.mjs";
 
 const STEP_KEYWORD_REGEX = /^\s*(Given|When|Then|And|But|Dado|Cuando|Entonces|Y|Pero)\s+(.+)$/;
 const SCENARIO_REGEX = /^\s*(?:Scenario|Scenario Outline|Escenario|Esquema del escenario):\s*(.+)$/i;
 const FEATURE_REGEX = /^\s*Feature:\s*(.+)$/i;
 const BACKGROUND_REGEX = /^\s*Background:/i;
+const SOURCE_FILE_REGEX = /\.(ts|tsx|js|mjs|cjs)$/;
+const IMPORT_REGEX = /(?:import|export)\s+(?:[\s\S]*?from\s+)?["'](\.[^"']+)["']|require\s*\(\s*["'](\.[^"']+)["']\s*\)/g;
 
 export function computeFileHash(filePath) {
   try {
     const content = fs.readFileSync(filePath);
-    return crypto.createHash("sha256").update(content).digest("hex");
+    return sha256(content);
   } catch {
     return null;
   }
@@ -73,7 +85,7 @@ export function findReachableSupportFiles(repoRoot) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         collectSupport(full);
-      } else if (/\.(ts|tsx|js|mjs|cjs)$/.test(entry.name)) {
+      } else if (SOURCE_FILE_REGEX.test(entry.name)) {
         const rel = normalizePath(path.relative(repoRoot, full));
         supportFiles.push(rel);
         reachableFiles.add(rel);
@@ -84,7 +96,6 @@ export function findReachableSupportFiles(repoRoot) {
 
   collectSupport(supportDir);
 
-  const importRegex = /(?:import|export)\s+(?:[\s\S]*?from\s+)?["'](\.[^"']+)["']|require\s*\(\s*["'](\.[^"']+)["']\s*\)/g;
   const visited = new Set(queue);
 
   while (queue.length > 0) {
@@ -97,7 +108,7 @@ export function findReachableSupportFiles(repoRoot) {
     }
 
     let match;
-    while ((match = importRegex.exec(content)) !== null) {
+    while ((match = IMPORT_REGEX.exec(content)) !== null) {
       const specifier = match[1] || match[2];
       if (!specifier) continue;
 
@@ -141,6 +152,55 @@ export function findReachableSupportFiles(repoRoot) {
 
   return {
     supportFiles: supportFiles.sort(),
+    reachableFiles: [...reachableFiles].sort(),
+  };
+}
+
+function importedFileCandidates(currentFile, specifier) {
+  const targetBase = path.posix.normalize(path.posix.join(path.posix.dirname(currentFile), specifier));
+  return [
+    targetBase,
+    `${targetBase}.ts`,
+    `${targetBase}.tsx`,
+    `${targetBase}.js`,
+    `${targetBase}.mjs`,
+    `${targetBase}.cjs`,
+    `${targetBase}.d.ts`,
+    path.posix.join(targetBase, "index.ts"),
+    path.posix.join(targetBase, "index.js"),
+  ];
+}
+
+function findReachableSupportFilesInSnapshot({ allFiles, readFile }) {
+  const availableFiles = new Set(allFiles.map(normalizePath));
+  const supportFiles = [...availableFiles]
+    .filter((file) => file.startsWith("features/support/") && SOURCE_FILE_REGEX.test(file))
+    .sort();
+  const reachableFiles = new Set(supportFiles);
+  const queue = [...supportFiles];
+
+  while (queue.length > 0) {
+    const currentFile = queue.shift();
+    const content = readFile(currentFile);
+    if (content === null) continue;
+
+    let match;
+    while ((match = IMPORT_REGEX.exec(content)) !== null) {
+      const specifier = match[1] || match[2];
+      if (!specifier) continue;
+
+      const importedFile = importedFileCandidates(currentFile, specifier).find((candidate) =>
+        availableFiles.has(candidate)
+      );
+      if (importedFile && !reachableFiles.has(importedFile)) {
+        reachableFiles.add(importedFile);
+        queue.push(importedFile);
+      }
+    }
+  }
+
+  return {
+    supportFiles,
     reachableFiles: [...reachableFiles].sort(),
   };
 }
@@ -358,68 +418,54 @@ export function matchDefinitionsAgainstFeatureSteps(stepDefinitions, allSteps) {
   }
 }
 
-export function buildCucumberImpactIndex({ repoRoot = findRepoRoot() } = {}) {
-  const root = path.resolve(repoRoot);
-  const featuresDir = path.join(root, "features");
-
-  const featureFiles = findFeatureFiles(featuresDir, root);
-  const stepFiles = findStepFiles(featuresDir, root);
-  const { supportFiles, reachableFiles } = findReachableSupportFiles(root);
-
+function buildCucumberIndex({
+  featureFiles,
+  stepFiles,
+  supportFiles,
+  reachableSupportFiles,
+  readFile,
+  identity,
+}) {
   const fileHashes = {};
-
-  for (const file of featureFiles) {
-    const hash = computeFileHash(path.resolve(root, file));
-    if (hash) fileHashes[file] = hash;
-  }
-  for (const file of stepFiles) {
-    const hash = computeFileHash(path.resolve(root, file));
-    if (hash) fileHashes[file] = hash;
-  }
-  for (const file of reachableFiles) {
-    const hash = computeFileHash(path.resolve(root, file));
-    if (hash) fileHashes[file] = hash;
+  const indexedFiles = new Set([...featureFiles, ...stepFiles, ...reachableSupportFiles]);
+  for (const file of indexedFiles) {
+    const content = readFile(file);
+    if (content !== null) fileHashes[file] = sha256(content);
   }
 
-  // 1. Extract all steps from all feature files
   const allSteps = [];
   const scenarioNames = new Set();
   for (const file of featureFiles) {
-    try {
-      const content = fs.readFileSync(path.resolve(root, file), "utf8");
-      const steps = extractStepsFromFeature(content, file);
-      for (const s of steps) {
-        allSteps.push(s);
-        scenarioNames.add(`${s.featureFile}#${s.scenario}`);
-      }
-    } catch {
-      // ignore unreadable files
+    const content = readFile(file);
+    if (content === null) continue;
+    const steps = extractStepsFromFeature(content, file);
+    for (const step of steps) {
+      allSteps.push(step);
+      scenarioNames.add(`${step.featureFile}#${step.scenario}`);
     }
   }
 
-  // 2. Extract step definitions from all step files
   const stepDefinitions = [];
   for (const file of stepFiles) {
-    try {
-      const content = fs.readFileSync(path.resolve(root, file), "utf8");
-      const defs = extractStepDefinitionsFromSource(content, file);
-      stepDefinitions.push(...defs);
-    } catch {
-      // ignore unreadable files
-    }
+    const content = readFile(file);
+    if (content === null) continue;
+    stepDefinitions.push(...extractStepDefinitionsFromSource(content, file));
   }
 
-  // 3. Compile and match step definitions with feature steps
   matchDefinitionsAgainstFeatureSteps(stepDefinitions, allSteps);
 
-  const index = {
-    schemaVersion: 1,
+  return {
+    schemaVersion: CUCUMBER_IMPACT_SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
+    identity: {
+      ...identity,
+      fingerprint: computeIndexFingerprint(fileHashes),
+    },
     fileHashes,
     featureFiles,
     stepFiles,
     supportFiles,
-    reachableSupportFiles: reachableFiles,
+    reachableSupportFiles,
     stepDefinitions,
     summary: {
       totalFeatures: featureFiles.length,
@@ -427,23 +473,161 @@ export function buildCucumberImpactIndex({ repoRoot = findRepoRoot() } = {}) {
       totalSteps: allSteps.length,
       totalStepDefinitions: stepDefinitions.length,
       totalSupportFiles: supportFiles.length,
-      totalReachableSupportFiles: reachableFiles.length,
+      totalReachableSupportFiles: reachableSupportFiles.length,
     },
   };
+}
+
+function readWorkingTreeFile(repoRoot, relativePath) {
+  try {
+    return fs.readFileSync(path.resolve(repoRoot, relativePath), "utf8");
+  } catch {
+    return null;
+  }
+}
+
+function buildHeadCucumberImpactIndex(repoRoot) {
+  const identity = getGitHeadIdentity(repoRoot);
+  const allFiles = listGitHeadFiles(repoRoot);
+  const fileContents = new Map();
+  const featureFiles = allFiles.filter(
+    (file) => file.startsWith("features/") && file.endsWith(".feature")
+  );
+  const stepFiles = allFiles.filter(
+    (file) =>
+      file.startsWith("features/") &&
+      !file.startsWith("features/support/") &&
+      file.endsWith(".ts") &&
+      !file.endsWith(".d.ts")
+  );
+  const readFile = (file) => {
+    if (!fileContents.has(file)) {
+      fileContents.set(file, readBaseFileFromGit(repoRoot, file));
+    }
+    return fileContents.get(file);
+  };
+  const { supportFiles, reachableFiles } = findReachableSupportFilesInSnapshot({
+    allFiles,
+    readFile,
+  });
+
+  return buildCucumberIndex({
+    featureFiles,
+    stepFiles,
+    supportFiles,
+    reachableSupportFiles: reachableFiles,
+    readFile,
+    identity: { source: "head", ...identity },
+  });
+}
+
+export function buildCucumberImpactIndex({ repoRoot = findRepoRoot() } = {}) {
+  const root = path.resolve(repoRoot);
+  const featuresDir = path.join(root, "features");
+  const featureFiles = findFeatureFiles(featuresDir, root);
+  const stepFiles = findStepFiles(featuresDir, root);
+  const { supportFiles, reachableFiles } = findReachableSupportFiles(root);
+  const identity = getGitHeadIdentity(root);
+  const index = buildCucumberIndex({
+    featureFiles,
+    stepFiles,
+    supportFiles,
+    reachableSupportFiles: reachableFiles,
+    readFile: (file) => readWorkingTreeFile(root, file),
+    identity: { source: "working_tree", ...identity },
+  });
 
   const targetPath = path.resolve(root, CUCUMBER_IMPACT_INDEX_PATH);
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  fs.writeFileSync(targetPath, JSON.stringify(index, null, 2), "utf8");
+  writeIndexAtomically(targetPath, index);
 
   return index;
 }
 
+function isCucumberImpactIndex(index) {
+  const summaryFields = [
+    "totalFeatures",
+    "totalScenarios",
+    "totalSteps",
+    "totalStepDefinitions",
+    "totalSupportFiles",
+    "totalReachableSupportFiles",
+  ];
+  const hasValidSummary = summaryFields.every((field) => Number.isInteger(index?.summary?.[field]));
+  const hasValidFileHashes =
+    index?.fileHashes &&
+    !Array.isArray(index.fileHashes) &&
+    Object.values(index.fileHashes).every((hash) => /^[a-f0-9]{64}$/.test(hash));
+
+  return Boolean(
+    index &&
+      index.schemaVersion === CUCUMBER_IMPACT_SCHEMA_VERSION &&
+      typeof index.generatedAt === "string" &&
+      index.identity &&
+      ["head", "working_tree"].includes(index.identity.source) &&
+      typeof index.identity.branch === "string" &&
+      index.identity.branch.length > 0 &&
+      /^[a-f0-9]{40,64}$/.test(index.identity.headSha) &&
+      /^[a-f0-9]{40,64}$/.test(index.identity.headTree) &&
+      /^[a-f0-9]{64}$/.test(index.identity.fingerprint) &&
+      hasValidFileHashes &&
+      Array.isArray(index.featureFiles) &&
+      Array.isArray(index.stepFiles) &&
+      Array.isArray(index.supportFiles) &&
+      Array.isArray(index.reachableSupportFiles) &&
+      Array.isArray(index.stepDefinitions) &&
+      hasValidSummary
+  );
+}
+
+function hasExpectedHeadIdentity(index, headIdentity) {
+  return (
+    index.identity.branch === headIdentity.branch &&
+    index.identity.headSha === headIdentity.headSha &&
+    index.identity.headTree === headIdentity.headTree
+  );
+}
+
+function loadOrBuildHeadCucumberImpactIndex(repoRoot) {
+  const targetPath = path.resolve(repoRoot, CUCUMBER_HEAD_INDEX_PATH);
+  const headIdentity = getGitHeadIdentity(repoRoot);
+
+  if (fs.existsSync(targetPath)) {
+    try {
+      const cached = JSON.parse(fs.readFileSync(targetPath, "utf8"));
+      if (
+        isCucumberImpactIndex(cached) &&
+        cached.identity.source === "head" &&
+        hasExpectedHeadIdentity(cached, headIdentity) &&
+        cached.identity.fingerprint === computeIndexFingerprint(cached.fileHashes)
+      ) {
+        return cached;
+      }
+    } catch {
+      // Partial, corrupt, or incompatible cache -> rebuild from immutable HEAD blobs.
+    }
+  }
+
+  const index = buildHeadCucumberImpactIndex(repoRoot);
+  writeIndexAtomically(targetPath, index);
+  return index;
+}
+
 export function isCacheValid({ repoRoot, cachedIndex }) {
-  if (!cachedIndex || cachedIndex.schemaVersion !== 1 || !cachedIndex.fileHashes) {
+  if (!isCucumberImpactIndex(cachedIndex) || cachedIndex.identity.source !== "working_tree") {
     return false;
   }
 
   const root = path.resolve(repoRoot);
+  let headIdentity;
+  try {
+    headIdentity = getGitHeadIdentity(root);
+  } catch {
+    return false;
+  }
+  if (!hasExpectedHeadIdentity(cachedIndex, headIdentity)) return false;
+  if (cachedIndex.identity.fingerprint !== computeIndexFingerprint(cachedIndex.fileHashes)) {
+    return false;
+  }
 
   for (const [relPath, expectedHash] of Object.entries(cachedIndex.fileHashes)) {
     const fullPath = path.resolve(root, relPath);
@@ -531,37 +715,25 @@ export function isFileInGitHead(repoRoot, relativePath) {
 }
 
 export function readBaseFileFromGit(repoRoot, relativePath) {
-  try {
-    const stdout = execFileSync("git", ["show", `HEAD:${relativePath}`], {
-      cwd: repoRoot,
-      encoding: "utf8",
-      stdio: ["pipe", "pipe", "ignore"],
-    });
-    return stdout;
-  } catch {
-    return null;
-  }
+  return readGitHeadFile(repoRoot, relativePath);
 }
 
-export function getBaseCucumberIndex({ repoRoot, index = null, baseIndex = null }) {
-  if (baseIndex) return baseIndex;
-  if (index) return index;
-
+export function getBaseCucumberIndex({ repoRoot, baseIndex = null }) {
   const root = path.resolve(repoRoot);
-  const targetPath = path.resolve(root, CUCUMBER_IMPACT_INDEX_PATH);
-  if (fs.existsSync(targetPath)) {
-    try {
-      const raw = fs.readFileSync(targetPath, "utf8");
-      const cached = JSON.parse(raw);
-      if (cached && cached.schemaVersion === 1 && Array.isArray(cached.stepDefinitions)) {
-        return cached;
-      }
-      return { corrupt: true };
-    } catch {
+  if (baseIndex?.corrupt) return baseIndex;
+
+  try {
+    const headIndex = loadOrBuildHeadCucumberImpactIndex(root);
+    if (!baseIndex) return headIndex;
+    if (!isCucumberImpactIndex(baseIndex)) return { corrupt: true };
+    if (!hasExpectedHeadIdentity(baseIndex, headIndex.identity)) return { corrupt: true };
+    if (baseIndex.identity.fingerprint !== headIndex.identity.fingerprint) {
       return { corrupt: true };
     }
+    return headIndex;
+  } catch {
+    return { corrupt: true };
   }
-  return null;
 }
 
 export function analyzeCucumberImpact({
@@ -574,7 +746,7 @@ export function analyzeCucumberImpact({
   const root = path.resolve(repoRoot);
   const normalizedFiles = files.map(normalizePath);
 
-  const effBaseIndex = getBaseCucumberIndex({ repoRoot: root, index, baseIndex });
+  const effBaseIndex = getBaseCucumberIndex({ repoRoot: root, baseIndex });
   if (effBaseIndex?.corrupt) {
     return {
       gate: "C",
@@ -584,10 +756,22 @@ export function analyzeCucumberImpact({
       confidence: "low",
     };
   }
-  const impactIndex = effBaseIndex || loadOrBuildCucumberImpactIndex({ repoRoot: root, force });
+  const impactIndex = index || loadOrBuildCucumberImpactIndex({ repoRoot: root, force });
+  if (!isCucumberImpactIndex(impactIndex)) {
+    return {
+      gate: "C",
+      reasonCodes: ["AMBIGUOUS_STEP_IMPACT"],
+      consumerCount: 0,
+      affectedFeatures: 0,
+      confidence: "low",
+    };
+  }
 
   // 1. Global Cucumber support changed
-  const supportTouched = normalizedFiles.some((f) => isCucumberSupportFile(f, impactIndex));
+  const supportTouched = normalizedFiles.some(
+    (file) =>
+      isCucumberSupportFile(file, impactIndex) || isCucumberSupportFile(file, effBaseIndex)
+  );
   if (supportTouched) {
     return {
       gate: "C",
@@ -599,7 +783,9 @@ export function analyzeCucumberImpact({
   }
 
   // 2. Filter step definition files
-  const modifiedStepFiles = normalizedFiles.filter((f) => isStepDefinitionFile(f, impactIndex));
+  const modifiedStepFiles = normalizedFiles.filter(
+    (file) => isStepDefinitionFile(file, impactIndex) || isStepDefinitionFile(file, effBaseIndex)
+  );
 
   if (modifiedStepFiles.length === 0) {
     const affectedFeatureFiles = normalizedFiles.filter((f) => f.endsWith(".feature"));
@@ -624,7 +810,6 @@ export function analyzeCucumberImpact({
   }
 
   // 4. Compare definitions for each modified step file
-  let unreconstructibleBase = false;
   let hasAmbiguousDefs = false;
   const allDeletedDefs = [];
   const allCurrentDefs = [];
@@ -646,45 +831,22 @@ export function analyzeCucumberImpact({
     }
 
     // Retrieve base definitions
-    let bDefs = null;
-    if (effBaseIndex?.stepDefinitions) {
-      bDefs = effBaseIndex.stepDefinitions.filter((d) => normalizePath(d.file) === normalizePath(stepFile));
-    }
-    if (!bDefs || bDefs.length === 0) {
-      const gitContent = readBaseFileFromGit(root, stepFile);
-      if (gitContent !== null) {
-        bDefs = extractStepDefinitionsFromSource(gitContent, stepFile);
-        matchDefinitionsAgainstFeatureSteps(bDefs, allSteps);
-      }
-    }
+    const bDefs = effBaseIndex.stepDefinitions.filter(
+      (definition) => normalizePath(definition.file) === normalizePath(stepFile)
+    );
 
-    if (bDefs === null) {
-      if (!fileExists) {
-        unreconstructibleBase = true;
-      } else {
-        bDefs = curDefs;
-      }
-    }
+    if (bDefs.some((definition) => definition.ambiguous)) hasAmbiguousDefs = true;
+    if (curDefs.some((definition) => definition.ambiguous)) hasAmbiguousDefs = true;
 
-    if (bDefs) {
-      if (bDefs.some((d) => d.ambiguous)) hasAmbiguousDefs = true;
-      if (curDefs.some((d) => d.ambiguous)) hasAmbiguousDefs = true;
-
-      const fileDeletedDefs = bDefs.filter((b) => !curDefs.some((c) => isSameStepDefinition(b, c)));
-      allDeletedDefs.push(...fileDeletedDefs);
-    }
+    const fileDeletedDefs = bDefs.filter(
+      (baseDefinition) =>
+        !curDefs.some((currentDefinition) =>
+          isSameStepDefinition(baseDefinition, currentDefinition)
+        )
+    );
+    allDeletedDefs.push(...fileDeletedDefs);
 
     allCurrentDefs.push(...curDefs);
-  }
-
-  if (unreconstructibleBase) {
-    return {
-      gate: "C",
-      reasonCodes: ["AMBIGUOUS_STEP_IMPACT"],
-      consumerCount: 0,
-      affectedFeatures: 0,
-      confidence: "low",
-    };
   }
 
   if (hasAmbiguousDefs) {

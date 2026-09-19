@@ -1,18 +1,40 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFile, execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
+import { pathToFileURL } from "node:url";
 import {
   buildCucumberImpactIndex,
   loadOrBuildCucumberImpactIndex,
   analyzeCucumberImpact,
+  getBaseCucumberIndex,
   isCacheValid,
   extractStepsFromFeature,
   extractStepDefinitionsFromSource,
   findReachableSupportFiles,
   CUCUMBER_IMPACT_INDEX_PATH,
 } from "../lib/impact-index.mjs";
+
+const execFileAsync = promisify(execFile);
+
+function git(repoRoot, args) {
+  return execFileSync("git", args, {
+    cwd: repoRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+}
+
+function commitFixtureHead(repoRoot) {
+  git(repoRoot, ["init", "-q", "-b", "main"]);
+  git(repoRoot, ["config", "user.name", "Delivery Test"]);
+  git(repoRoot, ["config", "user.email", "delivery-test@example.invalid"]);
+  git(repoRoot, ["add", "."]);
+  git(repoRoot, ["commit", "-q", "-m", "test: create fixture head"]);
+}
 
 async function createTempFixtureRepo(t) {
   const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "cucumber-impact-test-"));
@@ -112,6 +134,8 @@ Given(DYNAMIC, async function () {});
 `,
     "utf8"
   );
+
+  commitFixtureHead(repoRoot);
 
   return repoRoot;
 }
@@ -214,6 +238,152 @@ test("impact-index: validación de caché por hashes e invalidación automática
     regenerated.fileHashes["features/auth/auth_steps.ts"],
     index1.fileHashes["features/auth/auth_steps.ts"]
   );
+});
+
+test("impact-index: reemplazar una expresión compartida sin base inyectada conserva consumidores de HEAD", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+
+  await fs.writeFile(
+    path.join(repoRoot, "features", "auth", "auth_steps.ts"),
+    `import { Given, When, Then } from "@cucumber/cucumber";
+Given("una sesión completamente nueva", async function () {});
+When("hago clic en el botón {string}", async function (btn: string) {});
+Then("veo mi nombre {string} en el encabezado", async function (name: string) {});
+`,
+    "utf8"
+  );
+
+  const impact = analyzeCucumberImpact({
+    repoRoot,
+    files: ["features/auth/auth_steps.ts"],
+  });
+
+  assert.strictEqual(impact.gate, "C");
+  assert.deepStrictEqual(impact.reasonCodes, ["DELETED_SHARED_STEP_CONSUMERS"]);
+  assert.strictEqual(impact.affectedFeatures, 2);
+
+  const currentIndex = JSON.parse(
+    await fs.readFile(path.join(repoRoot, CUCUMBER_IMPACT_INDEX_PATH), "utf8")
+  );
+  assert.strictEqual(currentIndex.identity.source, "working_tree");
+  assert.notStrictEqual(currentIndex.identity.fingerprint, currentIndex.identity.headTree);
+});
+
+test("impact-index: borrar un step compartido sin base inyectada conserva el impacto de HEAD", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+
+  await fs.writeFile(
+    path.join(repoRoot, "features", "auth", "auth_steps.ts"),
+    `import { When, Then } from "@cucumber/cucumber";
+When("hago clic en el botón {string}", async function (btn: string) {});
+Then("veo mi nombre {string} en el encabezado", async function (name: string) {});
+`,
+    "utf8"
+  );
+
+  const impact = analyzeCucumberImpact({
+    repoRoot,
+    files: ["features/auth/auth_steps.ts"],
+  });
+
+  assert.strictEqual(impact.gate, "C");
+  assert.deepStrictEqual(impact.reasonCodes, ["DELETED_SHARED_STEP_CONSUMERS"]);
+  assert.strictEqual(impact.affectedFeatures, 2);
+});
+
+test("impact-index: primera ejecución sin caché separa identidad HEAD de fingerprint current", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+  const headSha = git(repoRoot, ["rev-parse", "HEAD"]);
+  const headTree = git(repoRoot, ["rev-parse", "HEAD^{tree}"]);
+
+  await fs.appendFile(
+    path.join(repoRoot, "features", "orders", "checkout_steps.ts"),
+    "\n// working tree only\n",
+    "utf8"
+  );
+
+  analyzeCucumberImpact({
+    repoRoot,
+    files: ["features/orders/checkout_steps.ts"],
+  });
+
+  const baseIndex = getBaseCucumberIndex({ repoRoot });
+  const currentIndex = JSON.parse(
+    await fs.readFile(path.join(repoRoot, CUCUMBER_IMPACT_INDEX_PATH), "utf8")
+  );
+  assert.deepStrictEqual(baseIndex.identity, {
+    source: "head",
+    branch: "main",
+    headSha,
+    headTree,
+    fingerprint: baseIndex.identity.fingerprint,
+  });
+  assert.match(baseIndex.identity.fingerprint, /^[a-f0-9]{64}$/);
+  assert.deepStrictEqual(currentIndex.identity, {
+    source: "working_tree",
+    branch: "main",
+    headSha,
+    headTree,
+    fingerprint: currentIndex.identity.fingerprint,
+  });
+  assert.match(currentIndex.identity.fingerprint, /^[a-f0-9]{64}$/);
+  assert.notStrictEqual(currentIndex.identity.fingerprint, baseIndex.identity.fingerprint);
+});
+
+test("impact-index: caché de otro HEAD o branch se invalida aunque no cambien archivos Cucumber", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+  const cachedIndex = buildCucumberImpactIndex({ repoRoot });
+
+  git(repoRoot, ["switch", "-q", "-c", "other-branch"]);
+  assert.strictEqual(isCacheValid({ repoRoot, cachedIndex }), false);
+
+  git(repoRoot, ["switch", "-q", "main"]);
+  await fs.writeFile(path.join(repoRoot, "README.md"), "new head\n", "utf8");
+  git(repoRoot, ["add", "README.md"]);
+  git(repoRoot, ["commit", "-q", "-m", "docs: advance fixture head"]);
+  assert.strictEqual(isCacheValid({ repoRoot, cachedIndex }), false);
+});
+
+test("impact-index: escritores concurrentes publican únicamente JSON completo y válido", async (t) => {
+  const repoRoot = await createTempFixtureRepo(t);
+  const cachePath = path.join(repoRoot, CUCUMBER_IMPACT_INDEX_PATH);
+  await fs.mkdir(path.dirname(cachePath), { recursive: true });
+  await fs.writeFile(cachePath, '{"schemaVersion":1,"identity":{"source":"working_tree"}}');
+  const moduleUrl = pathToFileURL(
+    path.resolve("tools/delivery-mcp/lib/impact-index.mjs")
+  ).href;
+  const script = `
+    import {
+      getBaseCucumberIndex,
+      loadOrBuildCucumberImpactIndex,
+    } from ${JSON.stringify(moduleUrl)};
+    const repoRoot = ${JSON.stringify(repoRoot)};
+    const base = getBaseCucumberIndex({ repoRoot });
+    const current = loadOrBuildCucumberImpactIndex({ repoRoot });
+    process.stdout.write(JSON.stringify({ base: base.identity, current: current.identity }));
+  `;
+
+  const results = await Promise.all(
+    Array.from({ length: 4 }, () =>
+      execFileAsync(process.execPath, ["--input-type=module", "-e", script], {
+        cwd: repoRoot,
+      })
+    )
+  );
+
+  for (const result of results) {
+    const identities = JSON.parse(result.stdout);
+    assert.strictEqual(identities.base.source, "head");
+    assert.match(identities.base.fingerprint, /^[a-f0-9]{64}$/);
+    assert.strictEqual(identities.current.source, "working_tree");
+    assert.match(identities.current.fingerprint, /^[a-f0-9]{64}$/);
+  }
+
+  const persisted = JSON.parse(
+    await fs.readFile(cachePath, "utf8")
+  );
+  assert.ok(Array.isArray(persisted.stepDefinitions));
+  assert.match(persisted.identity.fingerprint, /^[a-f0-9]{64}$/);
 });
 
 test("impact-index: invalidación de caché cuando se agrega un nuevo archivo de feature o step", async (t) => {
@@ -407,7 +577,7 @@ test("impact-index: reemplazo de regex/texto evalúa impacto de definición ante
   assert.strictEqual(impact.parameters?.featureFile, "features/orders/checkout.feature");
 });
 
-test("impact-index: archivo de steps eliminado con índice base no reconstruible -> Gate C (AMBIGUOUS_STEP_IMPACT)", async (t) => {
+test("impact-index: archivo de steps eliminado sin base inyectada se reconstruye desde HEAD", async (t) => {
   const repoRoot = await createTempFixtureRepo(t);
 
   // Delete step file without base index
@@ -419,9 +589,9 @@ test("impact-index: archivo de steps eliminado con índice base no reconstruible
     baseIndex: null,
   });
 
-  assert.strictEqual(impact.gate, "C");
-  assert.deepStrictEqual(impact.reasonCodes, ["AMBIGUOUS_STEP_IMPACT"]);
-  assert.strictEqual(impact.confidence, "low");
+  assert.strictEqual(impact.gate, "B");
+  assert.deepStrictEqual(impact.reasonCodes, ["DELETED_STEP_SINGLE_FEATURE_CONSUMER"]);
+  assert.strictEqual(impact.confidence, "high");
 });
 
 test("impact-index: índice base corrupto -> Gate C (AMBIGUOUS_STEP_IMPACT)", async (t) => {

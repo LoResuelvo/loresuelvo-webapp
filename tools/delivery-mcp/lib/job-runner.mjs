@@ -1,10 +1,15 @@
 #!/usr/bin/env node
 import { findRepoRoot } from "./repo-root.mjs";
-import { getDeliveryJob, updateDeliveryJob, readProcessIdentity } from "./jobs.mjs";
+import {
+  getDeliveryJob,
+  updateDeliveryJob,
+  readProcessIdentity,
+  validateJobSubject,
+} from "./jobs.mjs";
 import { prepareDelivery } from "./prepare-delivery.mjs";
 import { finalizeDelivery, verifyHeadDelivery } from "./delivery-finalize.mjs";
 import { redactSecrets } from "./redact-secrets.mjs";
-import { testDelivery } from "./test-delivery.mjs";
+import { computeRepositoryInputFingerprint, testDelivery } from "./test-delivery.mjs";
 
 async function run() {
   const jobId = process.argv[2];
@@ -23,6 +28,42 @@ async function run() {
 
   if (["passed", "failed", "timed_out", "cancelled"].includes(job.status)) {
     process.exit(0);
+  }
+
+  let subjectValidation;
+  try {
+    subjectValidation = await validateJobSubject({
+      repoRoot: root,
+      subject: job.subject,
+      computeWorkingTreeFingerprint: computeRepositoryInputFingerprint,
+    });
+  } catch (error) {
+    subjectValidation = {
+      valid: false,
+      code: error.code || "JOB_SUBJECT_READ_FAILED",
+      message: redactSecrets(String(error.message || "Unable to validate delivery job subject"))
+        .split("\n")[0]
+        .slice(0, 240),
+      expected: job.subject || null,
+      actual: null,
+    };
+  }
+  if (!subjectValidation.valid) {
+    await updateDeliveryJob({
+      repoRoot: root,
+      jobId,
+      updates: {
+        status: "failed",
+        finishedAt: new Date().toISOString(),
+        error: {
+          code: subjectValidation.code,
+          message: subjectValidation.message,
+          expected: subjectValidation.expected,
+          actual: subjectValidation.actual,
+        },
+      },
+    });
+    return;
   }
 
   const workerToken = process.env.DELIVERY_JOB_TOKEN || job.workerToken || null;

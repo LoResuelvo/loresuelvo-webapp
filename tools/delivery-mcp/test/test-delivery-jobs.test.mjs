@@ -112,6 +112,17 @@ test("delivery_test job ejecuta un worker real y es recuperable mediante wait", 
   assert.strictEqual(started.mode, "unit");
   assert.match(started.jobId, /^job-/);
 
+  const duplicate = await testDelivery({
+    repoRoot,
+    mode: "unit",
+    testFiles: [fixture],
+    executionMode: "job",
+    force: true,
+    timeoutMs: 30000,
+  });
+  assert.strictEqual(duplicate.jobId, started.jobId);
+  assert.ok(["running", "job_started"].includes(duplicate.status));
+
   const completed = await waitForJob({
     repoRoot,
     jobId: started.jobId,

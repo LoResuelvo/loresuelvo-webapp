@@ -5,7 +5,12 @@ import { validateExecutionResult } from "./validate-schema.mjs";
 import { recordPreparedEvidence, verifyPreparedEvidence, evaluateCiWindow } from "./delivery-ledger.mjs";
 import { saveDeliveryContext } from "./delivery-context.mjs";
 import { computeRunKey } from "./delivery-evidence.mjs";
-import { createDeliveryJob, spawnJobWorker, findActiveDeliveryJob } from "./jobs.mjs";
+import {
+  createDeliveryJob,
+  createStagedSnapshotJobSubject,
+  spawnJobWorker,
+  findActiveDeliveryJob,
+} from "./jobs.mjs";
 import { buildRequiredAcknowledgement } from "./format-result.mjs";
 
 export { buildRequiredAcknowledgement } from "./format-result.mjs";
@@ -303,7 +308,7 @@ export async function prepareDelivery({
         force,
       },
       runKey,
-      snapshotHash: inspection.snapshotHash,
+      subject: createStagedSnapshotJobSubject(snapshot),
       gateId: inspection.gate.id,
     });
 

@@ -21,7 +21,12 @@ import {
 } from "./impact-index.mjs";
 import { loadOrBuildTypeScriptImpactIndex } from "./dependency-impact.mjs";
 import { isProductionSourceFile, normalizePath } from "./classify-files.mjs";
-import { createDeliveryJob, findActiveDeliveryJob, spawnJobWorker } from "./jobs.mjs";
+import {
+  createDeliveryJob,
+  createWorkingTreeJobSubject,
+  findActiveDeliveryJob,
+  spawnJobWorker,
+} from "./jobs.mjs";
 
 const ALLOWED_TEST_EXTENSIONS = new Set([
   ".test.ts",
@@ -493,7 +498,7 @@ function hashBuffer(buffer) {
  * editing a tracked source file leaves the path/status unchanged and would
  * otherwise allow a stale green TDD result to be reused.
  */
-async function computeRepositoryInputFingerprint(repoRoot, { policyHash = null } = {}) {
+export async function computeRepositoryInputFingerprint(repoRoot, { policyHash = null } = {}) {
   const headResult = await runGit(["rev-parse", "HEAD"], repoRoot);
   const statusResult = await runGit(["status", "--porcelain", "-z", "--untracked-files=all"], repoRoot);
   const headSha = headResult.error ? "NO_GIT_HEAD" : headResult.stdout.toString("utf8").trim();
@@ -660,7 +665,7 @@ async function enqueueTestDeliveryJob({
       executionMode: "sync",
     },
     runKey,
-    snapshotHash: inputFingerprint?.hash || null,
+    subject: createWorkingTreeJobSubject(inputFingerprint),
     gateId: `TEST_${mode}`,
   });
 

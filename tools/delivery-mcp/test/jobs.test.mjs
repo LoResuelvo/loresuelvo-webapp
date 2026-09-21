@@ -15,14 +15,35 @@ import {
   waitForJob,
   cancelDeliveryJob,
   cleanupOrphanedDeliveryJobs,
+  createHeadJobSubject,
+  createStagedSnapshotJobSubject,
+  createWorkingTreeJobSubject,
   isProcessAlive,
+  validateJobSubject,
   validateJobId,
 } from "../lib/jobs.mjs";
+import { computeRepositoryInputFingerprint } from "../lib/test-delivery.mjs";
 import { prepareDelivery } from "../lib/prepare-delivery.mjs";
 import { verifyPreparedEvidence } from "../lib/delivery-ledger.mjs";
 import { captureGitSnapshot } from "../lib/git-snapshot.mjs";
 import { inspectDelivery } from "../lib/inspect-delivery.mjs";
 import { computeRunKey } from "../lib/delivery-evidence.mjs";
+import { findRepoRoot } from "../lib/repo-root.mjs";
+
+async function runJobWorker(repoRoot, jobId) {
+  const runnerPath = path.resolve(findRepoRoot(), "tools/delivery-mcp/lib/job-runner.mjs");
+  await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [runnerPath, jobId, repoRoot], {
+      cwd: repoRoot,
+      stdio: "ignore",
+    });
+    child.once("error", reject);
+    child.once("exit", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`job worker exited with code ${code}`));
+    });
+  });
+}
 
 async function createTempGitRepo(t) {
   const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-jobs-test-"));
@@ -320,6 +341,115 @@ test("jobs: deduplicación de job activo para el mismo snapshot", async (t) => {
   assert.strictEqual(secondCall.status, "running");
   assert.strictEqual(secondCall.jobId, activeJob.jobId);
   assert.ok(secondCall.message.includes("already running"));
+});
+
+test("jobs: rechaza un HEAD distinto entre enqueue y worker", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const queuedHead = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  }).trim();
+  const subject = createHeadJobSubject(queuedHead);
+  const job = await createDeliveryJob({ repoRoot, type: "finalize", subject });
+
+  await fs.writeFile(path.join(repoRoot, "README.md"), "# Advanced\n", "utf8");
+  execFileSync("git", ["add", "README.md"], { cwd: repoRoot });
+  execFileSync("git", ["commit", "-m", "docs: advance head"], { cwd: repoRoot });
+
+  const validation = await validateJobSubject({ repoRoot, subject: job.subject });
+  assert.strictEqual(validation.valid, false);
+  assert.strictEqual(validation.code, "JOB_HEAD_MISMATCH");
+  await runJobWorker(repoRoot, job.jobId);
+  const failed = await getDeliveryJob({ repoRoot, jobId: job.jobId });
+  assert.strictEqual(failed.status, "failed");
+  assert.strictEqual(failed.error.code, "JOB_HEAD_MISMATCH");
+  assert.strictEqual(failed.result, null);
+});
+
+test("jobs: rechaza un staging distinto entre enqueue y worker", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.writeFile(path.join(repoRoot, "README.md"), "# Staged H0\n", "utf8");
+  execFileSync("git", ["add", "README.md"], { cwd: repoRoot });
+  const snapshot = await captureGitSnapshot({ cwd: repoRoot });
+  const subject = createStagedSnapshotJobSubject(snapshot);
+  const job = await createDeliveryJob({ repoRoot, type: "prepare", subject });
+
+  await fs.writeFile(path.join(repoRoot, "extra.txt"), "staged H1\n", "utf8");
+  execFileSync("git", ["add", "extra.txt"], { cwd: repoRoot });
+
+  const validation = await validateJobSubject({ repoRoot, subject: job.subject });
+  assert.strictEqual(validation.valid, false);
+  assert.strictEqual(validation.code, "JOB_STAGED_SNAPSHOT_MISMATCH");
+  await runJobWorker(repoRoot, job.jobId);
+  const failed = await getDeliveryJob({ repoRoot, jobId: job.jobId });
+  assert.strictEqual(failed.status, "failed");
+  assert.strictEqual(failed.error.code, "JOB_STAGED_SNAPSHOT_MISMATCH");
+  assert.strictEqual(failed.result, null);
+});
+
+test("jobs: rechaza drift de un input relevante de delivery_test", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const queuedFingerprint = await computeRepositoryInputFingerprint(repoRoot);
+  const subject = createWorkingTreeJobSubject(queuedFingerprint);
+  const job = await createDeliveryJob({ repoRoot, type: "test", subject });
+
+  await fs.writeFile(path.join(repoRoot, "README.md"), "# Working tree H1\n", "utf8");
+
+  const validation = await validateJobSubject({
+    repoRoot,
+    subject: job.subject,
+    computeWorkingTreeFingerprint: computeRepositoryInputFingerprint,
+  });
+  assert.strictEqual(validation.valid, false);
+  assert.strictEqual(validation.code, "JOB_WORKTREE_INPUT_MISMATCH");
+  await runJobWorker(repoRoot, job.jobId);
+  const failed = await getDeliveryJob({ repoRoot, jobId: job.jobId });
+  assert.strictEqual(failed.status, "failed");
+  assert.strictEqual(failed.error.code, "JOB_WORKTREE_INPUT_MISMATCH");
+  assert.strictEqual(failed.result, null);
+});
+
+test("jobs: finalize persiste headSha separado de snapshotHash", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const headSha = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  }).trim();
+  const subject = createHeadJobSubject(headSha);
+
+  const job = await createDeliveryJob({ repoRoot, type: "finalize", subject });
+
+  assert.strictEqual(job.subject.kind, "head");
+  assert.strictEqual(job.headSha, headSha);
+  assert.strictEqual(job.snapshotHash, null);
+});
+
+test("jobs: sujeto idéntico conserva deduplicación y resultado normal", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  await fs.writeFile(path.join(repoRoot, "README.md"), "# Stable staging\n", "utf8");
+  execFileSync("git", ["add", "README.md"], { cwd: repoRoot });
+  const snapshot = await captureGitSnapshot({ cwd: repoRoot });
+  const subject = createStagedSnapshotJobSubject(snapshot);
+  const job = await createDeliveryJob({
+    repoRoot,
+    type: "prepare",
+    runKey: "stable-subject",
+    subject,
+  });
+
+  const active = await findActiveDeliveryJob({ repoRoot, runKey: "stable-subject" });
+  assert.strictEqual(active.jobId, job.jobId);
+  assert.deepStrictEqual(await validateJobSubject({ repoRoot, subject }), {
+    valid: true,
+  });
+
+  await updateDeliveryJob({
+    repoRoot,
+    jobId: job.jobId,
+    updates: { status: "passed", result: { status: "passed" } },
+  });
+  const completed = await waitForJob({ repoRoot, jobId: job.jobId, timeoutMs: 100 });
+  assert.strictEqual(completed.status, "passed");
 });
 
 test("jobs: el worker ejecuta su snapshot sin deduplicarse contra sí mismo", async (t) => {

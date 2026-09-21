@@ -4,6 +4,12 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { findRepoRoot, assertSafeRepoPath } from "./repo-root.mjs";
 import { redactSecrets } from "./redact-secrets.mjs";
+export {
+  createHeadJobSubject,
+  createStagedSnapshotJobSubject,
+  createWorkingTreeJobSubject,
+  validateJobSubject,
+} from "./job-subject.mjs";
 
 const JOB_ID_REGEX = /^[A-Za-z0-9_-]+$/;
 const JOBS_DIR = ".delivery/runtime/jobs";
@@ -170,6 +176,7 @@ export async function createDeliveryJob({
   params = {},
   runKey = null,
   snapshotHash = null,
+  subject = null,
   gateId = null,
   queueLeaseMs = DEFAULT_JOB_QUEUE_LEASE_MS,
 }) {
@@ -190,7 +197,11 @@ export async function createDeliveryJob({
     workerToken: crypto.randomBytes(16).toString("hex"),
     workerIdentity: null,
     runKey,
-    snapshotHash,
+    subject,
+    headSha: subject?.headSha || null,
+    stagedTreeSha: subject?.stagedTreeSha || null,
+    snapshotHash: subject ? subject.snapshotHash : snapshotHash,
+    inputFingerprint: subject?.inputFingerprint || null,
     gateId,
     params,
     result: null,

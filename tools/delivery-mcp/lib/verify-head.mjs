@@ -10,7 +10,12 @@ import {
   loadEvidenceRecord,
 } from "./delivery-ledger.mjs";
 import { saveDeliveryContext } from "./delivery-context.mjs";
-import { createDeliveryJob, spawnJobWorker, findActiveDeliveryJob } from "./jobs.mjs";
+import {
+  createDeliveryJob,
+  createHeadJobSubject,
+  spawnJobWorker,
+  findActiveDeliveryJob,
+} from "./jobs.mjs";
 
 function normalizeUsId(usId) {
   if (!usId || typeof usId !== "string") return null;
@@ -245,7 +250,7 @@ export async function verifyHeadDelivery({
         mode: "sync",
       },
       runKey,
-      snapshotHash: snapshot.snapshotHash,
+      subject: createHeadJobSubject(headSha),
       gateId: "D",
     });
     await spawnJobWorker({ repoRoot: root, jobId: job.jobId });

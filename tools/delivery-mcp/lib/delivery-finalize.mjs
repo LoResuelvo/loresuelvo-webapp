@@ -13,7 +13,12 @@ import { inspectCi } from "./ci-provider.mjs";
 import { loadDeliveryPolicy } from "./policy-loader.mjs";
 import { summarizeFailureOutput } from "./execute-check.mjs";
 import { redactSecrets } from "./redact-secrets.mjs";
-import { createDeliveryJob, spawnJobWorker, findActiveDeliveryJob } from "./jobs.mjs";
+import {
+  createDeliveryJob,
+  createHeadJobSubject,
+  spawnJobWorker,
+  findActiveDeliveryJob,
+} from "./jobs.mjs";
 
 const BATCH_PENDING_CI_STATUSES = new Set(["queued", "in_progress", "not_found"]);
 // A missing run is not in flight: polling it forever can turn a provider
@@ -432,7 +437,7 @@ export async function finalizeDelivery({
           mode: "sync",
         },
         runKey: jobRunKey,
-        snapshotHash: headSha,
+        subject: createHeadJobSubject(headSha),
         gateId: "D",
       });
 

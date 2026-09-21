@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -11,7 +12,83 @@ import {
   parseTestCounts,
   executeProcessDefault,
 } from "../lib/test-delivery.mjs";
+import * as cucumberImpact from "../lib/impact-index.mjs";
 import { findRepoRoot } from "../lib/repo-root.mjs";
+
+function fixtureGit(repoRoot, args) {
+  return execFileSync("git", args, {
+    cwd: repoRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+}
+
+async function createAffectedStepsFixture(t) {
+  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-affected-steps-"));
+  t.after(() => fs.rm(repoRoot, { recursive: true, force: true }));
+
+  await fs.mkdir(path.join(repoRoot, ".delivery", "schemas"), { recursive: true });
+  await fs.mkdir(path.join(repoRoot, "features", "auth"), { recursive: true });
+  await fs.mkdir(path.join(repoRoot, "features", "orders"), { recursive: true });
+  await fs.copyFile(
+    path.resolve(findRepoRoot(), ".delivery", "policy.v1.json"),
+    path.join(repoRoot, ".delivery", "policy.v1.json")
+  );
+  await fs.copyFile(
+    path.resolve(findRepoRoot(), ".delivery", "schemas", "policy.schema.json"),
+    path.join(repoRoot, ".delivery", "schemas", "policy.schema.json")
+  );
+  await fs.writeFile(
+    path.join(repoRoot, "features", "auth", "login.feature"),
+    "Feature: Login\nScenario: Login\n  Given una cuenta compartida\n  When inicio sesión\n",
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(repoRoot, "features", "orders", "checkout.feature"),
+    "Feature: Checkout\nScenario: Checkout\n  Given una cuenta compartida\n",
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(repoRoot, "features", "auth", "single_steps.ts"),
+    'import { When } from "@cucumber/cucumber";\nWhen("inicio sesión", async function () {});\n',
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(repoRoot, "features", "shared_steps.ts"),
+    'import { Given } from "@cucumber/cucumber";\nGiven("una cuenta compartida", async function () {});\n',
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(repoRoot, "features", "auth", "single_steps.test.ts"),
+    "export const neighboringUnitTest = true;\n",
+    "utf8"
+  );
+
+  fixtureGit(repoRoot, ["init", "-q", "-b", "main"]);
+  fixtureGit(repoRoot, ["config", "user.name", "Delivery Test"]);
+  fixtureGit(repoRoot, ["config", "user.email", "delivery-test@example.invalid"]);
+  fixtureGit(repoRoot, ["add", "."]);
+  fixtureGit(repoRoot, ["commit", "-q", "-m", "test: create affected fixture"]);
+
+  return repoRoot;
+}
+
+function createAffectedExecutor(calls) {
+  return async (options) => {
+    calls.push(options);
+    const isFeature = options.args?.some((arg) => arg.startsWith("E2E_FILE="));
+    return {
+      passed: true,
+      timedOut: false,
+      exitCode: 0,
+      durationMs: 10,
+      rawOutput: isFeature ? "1 scenario (1 passed)" : "Tests  1 passed (1)",
+      summaryLines: [],
+      locations: [],
+      logPath: options.logPath,
+    };
+  };
+}
 
 test("Unit test focalizado válido y exitoso", async () => {
   const repoRoot = findRepoRoot();
@@ -253,6 +330,159 @@ test("affected con cambio unitario, Cucumber y cambio ambiguo", async () => {
   assert.ok(["passed", "failed"].includes(affectedResult.status));
   assert.strictEqual(affectedResult.mode, "affected");
   assert.ok(Array.isArray(affectedResult.diagnostics));
+});
+
+test("affected ejecuta la feature consumidora de un step", async (t) => {
+  const repoRoot = await createAffectedStepsFixture(t);
+  await fs.appendFile(
+    path.join(repoRoot, "features", "auth", "single_steps.ts"),
+    "// implementación ajustada\n",
+    "utf8"
+  );
+  const calls = [];
+
+  const result = await testDelivery({
+    repoRoot,
+    mode: "affected",
+    executionMode: "sync",
+    force: true,
+    executeFn: createAffectedExecutor(calls),
+  });
+
+  assert.strictEqual(result.status, "passed", JSON.stringify(result));
+  assert.deepStrictEqual(result.selectedFeatureFiles, ["features/auth/login.feature"]);
+  assert.ok(
+    calls.some((call) => call.args?.includes("E2E_FILE=features/auth/login.feature")),
+    "affected must execute the feature that consumes the changed step"
+  );
+});
+
+test("affected resuelve todas las features de un step compartido", async (t) => {
+  const repoRoot = await createAffectedStepsFixture(t);
+  await fs.appendFile(
+    path.join(repoRoot, "features", "shared_steps.ts"),
+    "// implementación compartida ajustada\n",
+    "utf8"
+  );
+  const calls = [];
+
+  const result = await testDelivery({
+    repoRoot,
+    mode: "affected",
+    executionMode: "sync",
+    force: true,
+    executeFn: createAffectedExecutor(calls),
+  });
+
+  assert.strictEqual(result.status, "passed", JSON.stringify(result));
+  assert.deepStrictEqual(result.selectedFeatureFiles, [
+    "features/auth/login.feature",
+    "features/orders/checkout.feature",
+  ]);
+  assert.ok(calls.some((call) => call.args?.includes("E2E_FILE=features/auth/login.feature")));
+  assert.ok(calls.some((call) => call.args?.includes("E2E_FILE=features/orders/checkout.feature")));
+});
+
+test("affected conserva el E2E consumidor aunque el step tenga unit test vecino", async (t) => {
+  const repoRoot = await createAffectedStepsFixture(t);
+  await fs.appendFile(
+    path.join(repoRoot, "features", "auth", "single_steps.ts"),
+    "// cambio cubierto por unit y E2E\n",
+    "utf8"
+  );
+  const calls = [];
+
+  const result = await testDelivery({
+    repoRoot,
+    mode: "affected",
+    executionMode: "sync",
+    force: true,
+    executeFn: createAffectedExecutor(calls),
+  });
+
+  assert.strictEqual(result.status, "passed", JSON.stringify(result));
+  assert.deepStrictEqual(result.selectedFeatureFiles, ["features/auth/login.feature"]);
+  assert.ok(result.selectedUnitTestFiles.includes("features/auth/single_steps.test.ts"));
+  assert.ok(calls.some((call) => call.args?.includes("E2E_FILE=features/auth/login.feature")));
+});
+
+test("affected deriva un step nuevo sin consumidores a compatibilidad por política", async (t) => {
+  const repoRoot = await createAffectedStepsFixture(t);
+  await fs.writeFile(
+    path.join(repoRoot, "features", "unused_steps.ts"),
+    'import { Given } from "@cucumber/cucumber";\nGiven("un step nuevo sin consumidores", async function () {});\n',
+    "utf8"
+  );
+  const calls = [];
+
+  const result = await testDelivery({
+    repoRoot,
+    mode: "affected",
+    executionMode: "sync",
+    force: true,
+    executeFn: createAffectedExecutor(calls),
+  });
+
+  assert.strictEqual(result.status, "passed", JSON.stringify(result));
+  assert.deepStrictEqual(result.selectedFeatureFiles, []);
+  assert.deepStrictEqual(result.selectedCheckIds, ["steps_compatibility"]);
+  assert.ok(calls.some((call) => call.args?.includes("test-e2e-steps-compatible")));
+});
+
+test("affected bloquea un mapeo de step ambiguo con diagnóstico accionable", async (t) => {
+  const repoRoot = await createAffectedStepsFixture(t);
+  await fs.writeFile(
+    path.join(repoRoot, "features", "ambiguous_steps.ts"),
+    'import { Given } from "@cucumber/cucumber";\nconst expression = "dinámica";\nGiven(expression, async function () {});\n',
+    "utf8"
+  );
+
+  const result = await testDelivery({
+    repoRoot,
+    mode: "affected",
+    executionMode: "sync",
+    force: true,
+    executeFn: createAffectedExecutor([]),
+  });
+
+  assert.strictEqual(result.status, "blocked");
+  assert.deepStrictEqual(result.selectedFeatureFiles, []);
+  const diagnostic = result.diagnostics.find((item) => item.code === "AMBIGUOUS_STEP_IMPACT");
+  assert.ok(diagnostic);
+  assert.match(diagnostic.message, /features\/ambiguous_steps\.ts/);
+  assert.match(diagnostic.message, /mode: 'scenario'|steps_compatibility/);
+});
+
+test("affected comparte formatos Cucumber soportados y rechaza los demás", async (t) => {
+  const repoRoot = await createAffectedStepsFixture(t);
+  assert.deepStrictEqual(cucumberImpact.SUPPORTED_CUCUMBER_STEP_EXTENSIONS, [".ts"]);
+  assert.ok(
+    cucumberImpact
+      .findStepFiles(path.join(repoRoot, "features"), repoRoot)
+      .includes("features/auth/single_steps.ts")
+  );
+
+  await fs.writeFile(
+    path.join(repoRoot, "features", "unsupported_steps.js"),
+    'Given("un formato no soportado", async function () {});\n',
+    "utf8"
+  );
+  const result = await testDelivery({
+    repoRoot,
+    mode: "affected",
+    executionMode: "sync",
+    force: true,
+    executeFn: createAffectedExecutor([]),
+  });
+
+  assert.strictEqual(result.status, "blocked");
+  assert.deepStrictEqual(result.selectedFeatureFiles, []);
+  const diagnostic = result.diagnostics.find(
+    (item) => item.code === "UNSUPPORTED_CUCUMBER_STEP_FORMAT"
+  );
+  assert.ok(diagnostic);
+  assert.match(diagnostic.message, /features\/unsupported_steps\.js/);
+  assert.match(diagnostic.message, /\.ts/);
 });
 
 test("Working tree sin cambios", async () => {

@@ -16,8 +16,7 @@ import {
 import { parseDiagnostics } from "./parse-diagnostics.mjs";
 import { parsePorcelainStatus, runGit } from "./git-snapshot.mjs";
 import {
-  loadOrBuildCucumberImpactIndex,
-  findFeatureFiles,
+  SUPPORTED_CUCUMBER_STEP_EXTENSIONS,
   analyzeCucumberImpact,
 } from "./impact-index.mjs";
 import { loadOrBuildTypeScriptImpactIndex } from "./dependency-impact.mjs";
@@ -37,6 +36,7 @@ const ALLOWED_TEST_EXTENSIONS = new Set([
 
 const FEATURE_PATH_REGEX = /^[A-Za-z0-9._/-]+\.feature$/;
 const SAFE_PATH_CHARS_REGEX = /^[A-Za-z0-9._/-]+$/;
+const CUCUMBER_STEP_CANDIDATE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs"]);
 const DEFAULT_TEST_TIMEOUT_MS = 180000;
 const TDD_RUNTIME_DIR = ".delivery/runtime/tdd";
 const CACHE_INPUT_EXCLUDED_PREFIXES = [
@@ -596,7 +596,14 @@ function invalidExecutionModeResult(mode, executionMode) {
   };
 }
 
-function queuedTestResult({ mode, executionMode, jobId, status = "job_started", message }) {
+function queuedTestResult({
+  mode,
+  executionMode,
+  jobId,
+  status = "job_started",
+  message,
+  selection,
+}) {
   return {
     status,
     mode,
@@ -607,6 +614,7 @@ function queuedTestResult({ mode, executionMode, jobId, status = "job_started", 
     counts: { passed: 0, failed: 0, skipped: 0 },
     diagnostics: [],
     message,
+    ...(selection || {}),
   };
 }
 
@@ -621,6 +629,7 @@ async function enqueueTestDeliveryJob({
   timeoutMs,
   cacheKey,
   inputFingerprint,
+  selection,
 }) {
   const runKey = `delivery-test-${cacheKey}`;
   const activeJob = await findActiveDeliveryJob({ repoRoot, runKey });
@@ -631,6 +640,7 @@ async function enqueueTestDeliveryJob({
       jobId: activeJob.jobId,
       status: "running",
       message: `delivery_test job '${activeJob.jobId}' is already running. Use delivery_job_wait to await completion.`,
+      selection,
     });
   }
 
@@ -660,6 +670,7 @@ async function enqueueTestDeliveryJob({
     executionMode: "job",
     jobId: job.jobId,
     message: `delivery_test '${mode}' started as recoverable background job '${job.jobId}'. Use delivery_job_wait to await completion.`,
+    selection,
   });
 }
 
@@ -868,34 +879,28 @@ export function findRelatedUnitTestsForSource(repoRoot, sourceFile) {
   return results.sort();
 }
 
-export function findAffectedFeaturesForSteps(repoRoot, stepFiles) {
-  const results = [];
+export function resolveAffectedFeaturesForSteps(repoRoot, stepFiles) {
   try {
     const impact = analyzeCucumberImpact({ repoRoot, files: stepFiles });
-    if (impact?.affectedFeatureFiles && Array.isArray(impact.affectedFeatureFiles)) {
-      results.push(...impact.affectedFeatureFiles);
-    }
-  } catch {
-    // Best effort
+    return {
+      featureFiles: [...new Set(impact.affectedFeatureFiles || [])].sort(),
+      gate: impact.gate,
+      confidence: impact.confidence,
+      reasonCodes: [...(impact.reasonCodes || [])],
+    };
+  } catch (error) {
+    return {
+      featureFiles: [],
+      gate: "C",
+      confidence: "low",
+      reasonCodes: ["AMBIGUOUS_STEP_IMPACT"],
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
+}
 
-  if (results.length === 0) {
-    try {
-      const cukeIndex = loadOrBuildCucumberImpactIndex({ repoRoot });
-      for (const stepFile of stepFiles) {
-        const norm = normalizePath(stepFile);
-        for (const [feat, featData] of Object.entries(cukeIndex?.features || {})) {
-          if (featData?.stepFiles?.includes?.(norm) || featData?.matchedSteps?.some?.((s) => s.stepFile === norm)) {
-            if (!results.includes(feat)) results.push(feat);
-          }
-        }
-      }
-    } catch {
-      // Best effort
-    }
-  }
-
-  return results.sort();
+export function findAffectedFeaturesForSteps(repoRoot, stepFiles) {
+  return resolveAffectedFeaturesForSteps(repoRoot, stepFiles).featureFiles;
 }
 
 export async function testDelivery({
@@ -1579,6 +1584,9 @@ export async function testDelivery({
       durationMs: 0,
       cached: false,
       counts: { passed: 0, failed: 0, skipped: 0 },
+      selectedFeatureFiles: [],
+      selectedUnitTestFiles: [],
+      selectedCheckIds: [],
       diagnostics: [
         {
           code: "GIT_STATUS_FAILED",
@@ -1605,6 +1613,9 @@ export async function testDelivery({
       durationMs: 0,
       cached: false,
       counts: { passed: 0, failed: 0, skipped: 0 },
+      selectedFeatureFiles: [],
+      selectedUnitTestFiles: [],
+      selectedCheckIds: [],
       diagnostics: [
         {
           code: "NO_CHANGES",
@@ -1617,8 +1628,23 @@ export async function testDelivery({
 
   // Separate changed files
   const changedFeatures = allChangedFiles.filter((f) => f.endsWith(".feature"));
-  const changedSteps = allChangedFiles.filter((f) => f.startsWith("features/") && f.endsWith(".ts"));
   const changedUnitTests = allChangedFiles.filter((f) => getTestExtension(f) !== null);
+  const changedSteps = allChangedFiles.filter(
+    (file) =>
+      file.startsWith("features/") &&
+      getTestExtension(file) === null &&
+      SUPPORTED_CUCUMBER_STEP_EXTENSIONS.includes(path.posix.extname(file))
+  );
+  const unsupportedCucumberStepFiles = allChangedFiles.filter((file) => {
+    if (!file.startsWith("features/") || file.endsWith(".feature") || getTestExtension(file)) {
+      return false;
+    }
+    const extension = path.posix.extname(file);
+    return (
+      CUCUMBER_STEP_CANDIDATE_EXTENSIONS.has(extension) &&
+      !SUPPORTED_CUCUMBER_STEP_EXTENSIONS.includes(extension)
+    );
+  });
   const changedProductionFiles = allChangedFiles.filter(
     (f) => !f.startsWith("features/") && getTestExtension(f) === null && isProductionSourceFile(f)
   );
@@ -1630,15 +1656,42 @@ export async function testDelivery({
       !isProductionSourceFile(f)
   );
 
+  if (unsupportedCucumberStepFiles.length > 0) {
+    return {
+      status: "blocked",
+      mode: "affected",
+      durationMs: 0,
+      cached: false,
+      counts: { passed: 0, failed: 0, skipped: 0 },
+      selectedFeatureFiles: [],
+      selectedUnitTestFiles: [],
+      selectedCheckIds: [],
+      diagnostics: [
+        {
+          code: "UNSUPPORTED_CUCUMBER_STEP_FORMAT",
+          message: `Unsupported Cucumber source format in ${unsupportedCucumberStepFiles
+            .sort()
+            .join(", ")}. Supported step extensions: ${SUPPORTED_CUCUMBER_STEP_EXTENSIONS.join(", ")}`,
+          retryable: false,
+        },
+      ],
+    };
+  }
+
   // Resolve affected features
   const resolvedFeatures = new Set(changedFeatures);
+  let cucumberResolution = null;
   if (changedSteps.length > 0) {
-    const fromSteps = findAffectedFeaturesForSteps(repoRoot, changedSteps);
-    for (const feat of fromSteps) resolvedFeatures.add(feat);
+    cucumberResolution = resolveAffectedFeaturesForSteps(repoRoot, changedSteps);
+    for (const feat of cucumberResolution.featureFiles) resolvedFeatures.add(feat);
   }
 
   // Resolve affected unit tests
   const resolvedUnitTests = new Set(changedUnitTests);
+  for (const stepFile of changedSteps) {
+    const related = findRelatedUnitTestsForSource(repoRoot, stepFile);
+    for (const test of related) resolvedUnitTests.add(test);
+  }
   for (const prodFile of changedProductionFiles) {
     const related = findRelatedUnitTestsForSource(repoRoot, prodFile);
     for (const test of related) resolvedUnitTests.add(test);
@@ -1647,6 +1700,44 @@ export async function testDelivery({
     const related = findRelatedUnitTestsForSource(repoRoot, otherFile);
     for (const test of related) resolvedUnitTests.add(test);
   }
+
+  const selectedFeatureFiles = [...resolvedFeatures].sort();
+  const selectedUnitTestFiles = [...resolvedUnitTests].sort();
+  let affectedPolicyCheckIds = [];
+  if (
+    cucumberResolution?.gate === "0" &&
+    cucumberResolution.reasonCodes.includes("NEW_STEP_NO_CONSUMERS")
+  ) {
+    try {
+      const policy = await loadDeliveryPolicy({ repoRoot });
+      affectedPolicyCheckIds = [...(policy.gates?.["0"]?.checkIds || [])];
+    } catch (error) {
+      return {
+        status: "error",
+        mode: "affected",
+        durationMs: 0,
+        cached: false,
+        counts: { passed: 0, failed: 0, skipped: 0 },
+        selectedFeatureFiles,
+        selectedUnitTestFiles,
+        selectedCheckIds: [],
+        diagnostics: [
+          {
+            code: "POLICY_ERROR",
+            message: redactSecrets(error instanceof Error ? error.message : String(error)),
+            retryable: false,
+          },
+        ],
+      };
+    }
+  }
+  const selectedCheckIds = [
+    ...new Set([
+      ...(selectedUnitTestFiles.length > 0 ? ["unit"] : []),
+      ...affectedPolicyCheckIds,
+      ...(selectedFeatureFiles.length > 0 ? ["e2e_feature"] : []),
+    ]),
+  ];
 
   let inputFingerprint;
   try {
@@ -1671,13 +1762,43 @@ export async function testDelivery({
     if (cached) return cached;
   }
 
+  if (cucumberResolution?.confidence === "low") {
+    const result = {
+      status: "blocked",
+      mode: "affected",
+      durationMs: 0,
+      cached: false,
+      counts: { passed: 0, failed: 0, skipped: 0 },
+      selectedFeatureFiles,
+      selectedUnitTestFiles,
+      selectedCheckIds: [],
+      diagnostics: [
+        {
+          code: "AMBIGUOUS_STEP_IMPACT",
+          message: `Unable to map changed Cucumber steps ${changedSteps
+            .sort()
+            .join(", ")} to consumer features with high confidence. Select a feature explicitly with mode: 'scenario' or run diagnostic check 'steps_compatibility'.`,
+          retryable: false,
+        },
+      ],
+    };
+    await writeTddCache(repoRoot, cacheKey, result);
+    return result;
+  }
+
   // Check ambiguity
   const hasAmbiguousChange =
-    (resolvedUnitTests.size === 0 && resolvedFeatures.size === 0) ||
+    (resolvedUnitTests.size === 0 &&
+      resolvedFeatures.size === 0 &&
+      affectedPolicyCheckIds.length === 0) ||
     (changedProductionFiles.length > 0 && resolvedUnitTests.size === 0) ||
     unmappedOrConfigFiles.some((f) => f === "package.json" || f.startsWith("tsconfig") || f.includes(".delivery/policy"));
 
-  if (resolvedUnitTests.size === 0 && resolvedFeatures.size === 0) {
+  if (
+    resolvedUnitTests.size === 0 &&
+    resolvedFeatures.size === 0 &&
+    affectedPolicyCheckIds.length === 0
+  ) {
     // Report clear diagnostic state
     const result = {
       status: "blocked",
@@ -1685,6 +1806,9 @@ export async function testDelivery({
       durationMs: 0,
       cached: false,
       counts: { passed: 0, failed: 0, skipped: 0 },
+      selectedFeatureFiles,
+      selectedUnitTestFiles,
+      selectedCheckIds,
       diagnostics: [
         {
           code: "AMBIGUOUS_AFFECTED_SCOPE",
@@ -1713,6 +1837,11 @@ export async function testDelivery({
       timeoutMs,
       cacheKey,
       inputFingerprint,
+      selection: {
+        selectedFeatureFiles,
+        selectedUnitTestFiles,
+        selectedCheckIds,
+      },
     });
   }
 
@@ -1743,6 +1872,35 @@ export async function testDelivery({
       overallStatus = "failed";
       if (!primaryFailure && unitResult.failure) primaryFailure = unitResult.failure;
     } else if (unitResult.status === "blocked" && overallStatus === "passed") {
+      overallStatus = "blocked";
+    }
+  }
+
+  // A new step without consumers follows Gate 0 policy instead of being
+  // mistaken for an unmapped affected scope.
+  for (const checkId of affectedPolicyCheckIds) {
+    const policyCheckResult = await testDelivery({
+      repoRoot,
+      mode: "diagnostic",
+      checkId,
+      force,
+      timeoutMs,
+      executeFn,
+      workerJobId,
+    });
+    totalDurationMs += policyCheckResult.durationMs || 0;
+    combinedCounts.passed += policyCheckResult.counts?.passed || 0;
+    combinedCounts.failed += policyCheckResult.counts?.failed || 0;
+    combinedCounts.skipped += policyCheckResult.counts?.skipped || 0;
+    if (policyCheckResult.diagnostics) {
+      allDiagnostics.push(...policyCheckResult.diagnostics);
+    }
+    if (policyCheckResult.status === "failed" || policyCheckResult.status === "error") {
+      overallStatus = "failed";
+      if (!primaryFailure && policyCheckResult.failure) {
+        primaryFailure = policyCheckResult.failure;
+      }
+    } else if (policyCheckResult.status === "blocked" && overallStatus === "passed") {
       overallStatus = "blocked";
     }
   }
@@ -1788,6 +1946,9 @@ export async function testDelivery({
     durationMs: totalDurationMs,
     cached: false,
     counts: combinedCounts,
+    selectedFeatureFiles,
+    selectedUnitTestFiles,
+    selectedCheckIds,
     ...(primaryFailure ? { failure: primaryFailure } : {}),
     diagnostics: allDiagnostics,
   };

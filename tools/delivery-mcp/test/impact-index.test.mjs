@@ -430,6 +430,10 @@ test("impact-index: analyzeCucumberImpact clasifica correctamente soporte, compa
   assert.strictEqual(impactShared.gate, "C");
   assert.deepStrictEqual(impactShared.reasonCodes, ["SHARED_STEP_CONSUMERS"]);
   assert.strictEqual(impactShared.affectedFeatures, 2);
+  assert.deepStrictEqual(impactShared.affectedFeatureFiles, [
+    "features/auth/login.feature",
+    "features/orders/checkout.feature",
+  ]);
   assert.strictEqual(impactShared.confidence, "high");
 
   // 3. Modificar step consumido por una única feature -> Gate B (SINGLE_FEATURE_STEP_CONSUMER)
@@ -440,6 +444,9 @@ test("impact-index: analyzeCucumberImpact clasifica correctamente soporte, compa
   assert.strictEqual(impactSingle.gate, "B");
   assert.deepStrictEqual(impactSingle.reasonCodes, ["SINGLE_FEATURE_STEP_CONSUMER"]);
   assert.strictEqual(impactSingle.affectedFeatures, 1);
+  assert.deepStrictEqual(impactSingle.affectedFeatureFiles, [
+    "features/orders/checkout.feature",
+  ]);
   assert.strictEqual(impactSingle.parameters?.featureFile, "features/orders/checkout.feature");
   assert.strictEqual(impactSingle.confidence, "high");
 
@@ -451,6 +458,7 @@ test("impact-index: analyzeCucumberImpact clasifica correctamente soporte, compa
   assert.strictEqual(impactUnused.gate, "0");
   assert.deepStrictEqual(impactUnused.reasonCodes, ["NEW_STEP_NO_CONSUMERS"]);
   assert.strictEqual(impactUnused.affectedFeatures, 0);
+  assert.deepStrictEqual(impactUnused.affectedFeatureFiles, []);
   assert.strictEqual(impactUnused.consumerCount, 0);
   assert.strictEqual(impactUnused.confidence, "high");
 

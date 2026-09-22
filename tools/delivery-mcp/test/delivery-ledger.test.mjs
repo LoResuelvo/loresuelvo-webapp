@@ -1576,6 +1576,30 @@ test("getLedgerState: detecta LEDGER_INCONSISTENT ante divergencia entre consoli
   assert.strictEqual(state.reason, "ENTRY_MISMATCH");
 });
 
+for (const [field, divergent] of [
+  ["scopeFiles", ["features/other.feature"]],
+  ["intent", "close_us"],
+  ["policyHash", "a".repeat(64)],
+  ["recordDigest", "b".repeat(64)],
+]) {
+  test(`getLedgerState rejects ${field} divergence between stores`, async (t) => {
+    const repoRoot = await createTempGitRepo(t);
+    const sha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+    const identity = getCommitIdentity(repoRoot, sha);
+    const evidence = await createMockEvidenceRecord(repoRoot, sha, "A");
+    await recordCommitEvidence({ repoRoot, commitSha: sha, verificationStatus: "passed",
+      ...evidence, branch: "main", parentSha: identity.parents[0] || null,
+      treeSha: identity.treeSha, stagedFiles: ["README.md"], gateId: "A" });
+    const individualPath = path.join(repoRoot, LEDGER_DIR, `${sha}.json`);
+    const individual = JSON.parse(await fs.readFile(individualPath, "utf8"));
+    individual[field] = divergent;
+    await fs.writeFile(individualPath, `${JSON.stringify(individual, null, 2)}\n`);
+    const state = await getLedgerState({ repoRoot });
+    assert.equal(state.state, field === "recordDigest" ? LEDGER_STATES.LEDGER_CORRUPT : LEDGER_STATES.LEDGER_INCONSISTENT);
+    if (field !== "recordDigest") assert.equal(state.reason, "ENTRY_MISMATCH");
+  });
+}
+
 test("rebuildLedgerFromIndividualRecords: reconstrucción concurrente segura mediante writeJsonAtomic", async (t) => {
   const repoRoot = await createTempGitRepo(t);
   await fs.writeFile(path.join(repoRoot, "test5.txt"), "5", "utf8");

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { findRepoRoot, assertSafeRepoPath } from "./repo-root.mjs";
 import { loadDeliveryPolicy } from "./policy-loader.mjs";
-import { captureGitSnapshot, extractUsId } from "./git-snapshot.mjs";
+import { captureGitSnapshot, extractUsId, readHeadSubject, headSubjectDrift } from "./git-snapshot.mjs";
 import { runGate } from "./run-gate.mjs";
 import {
   recordCommitEvidence,
@@ -103,6 +103,28 @@ export async function verifyHeadDelivery({
     };
   }
 
+  let subject;
+  try {
+    subject = await readHeadSubject(root);
+  } catch (error) {
+    return { verified: false, status: "blocked", reason: error?.code || "GIT_ERROR",
+      message: "Cannot capture the HEAD verification subject" };
+  }
+  const rejectSubjectDrift = async () => {
+    let drift;
+    try {
+      drift = headSubjectDrift(subject, await readHeadSubject(root));
+    } catch (error) {
+      drift = error?.code || "GIT_ERROR";
+    }
+    return drift ? { verified: false, status: "blocked", reason: drift,
+      message: `Delivery subject changed during HEAD verification (${drift})` } : null;
+  };
+  const initialDrift = headSubjectDrift(
+    { headSha, branch: snapshot.branch, treeSha: snapshot.stagedTreeSha }, subject
+  );
+  if (initialDrift) return { verified: false, status: "blocked", reason: initialDrift };
+
   const parentsLine = execFileSync("git", ["rev-list", "--parents", "-n", "1", headSha], {
     cwd: root,
     encoding: "utf8",
@@ -141,9 +163,11 @@ export async function verifyHeadDelivery({
       const matchesScope =
         evidenceScope.length > 0 &&
         (requestedScope.length === 0 || samePaths(requestedScope, evidenceScope));
-      const matchesUs = !requestedUsId || !evidenceUsId || requestedUsId === evidenceUsId;
+      const matchesUs = !requestedUsId || requestedUsId === evidenceUsId;
 
       if (isGateD && matchesIntent && matchesPolicy && matchesScope && matchesUs) {
+        const drift = await rejectSubjectDrift();
+        if (drift) return drift;
         return {
           verified: true,
           status: "passed",
@@ -334,6 +358,9 @@ export async function verifyHeadDelivery({
     };
   }
 
+  const driftBeforeRecord = await rejectSubjectDrift();
+  if (driftBeforeRecord) return driftBeforeRecord;
+
   // 6. Record evidence in the ledger tied directly to headSha
   const treeSha = execFileSync("git", ["rev-parse", `${headSha}^{tree}`], {
     cwd: root,
@@ -376,6 +403,9 @@ export async function verifyHeadDelivery({
   } catch {
     // context saving is best-effort
   }
+
+  const driftBeforeReturn = await rejectSubjectDrift();
+  if (driftBeforeReturn) return driftBeforeReturn;
 
   return {
     verified: true,

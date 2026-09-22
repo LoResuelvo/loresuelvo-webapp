@@ -149,6 +149,113 @@ async function finalizeInIsolatedRepo(options) {
   });
 }
 
+function appendEmptyCommits(repoRoot, count) {
+  for (let index = 0; index < count; index += 1) {
+    execFileSync("git", ["commit", "--allow-empty", "-m", `chore: filler ${index}`], { cwd: repoRoot });
+  }
+}
+
+test("finalizeDelivery includes the oldest commit in a US with more than 200 commits", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const oldSha = await commitFile(repoRoot, "old.txt", "old", "feat[91]: old work");
+  const ciFixtures = {};
+  for (let index = 0; index < 201; index += 1) {
+    execFileSync("git", ["commit", "--allow-empty", "-m", `feat[91]: work ${index}`], { cwd: repoRoot });
+    const sha = headSha(repoRoot);
+    await attachEvidence({ repoRoot, sha, usId: "91" });
+    ciFixtures[sha] = { status: "passed" };
+  }
+  const featurePath = "features/long.feature";
+  const sha = await commitFile(repoRoot, featurePath, "Feature: Long\n", "test[91]: close story");
+  await attachEvidence({ repoRoot, sha, gateId: "D", scopeFeatures: [featurePath], usId: "91" });
+  ciFixtures[sha] = { status: "passed" };
+  const result = await finalizeInIsolatedRepo({ repoRoot, usId: "91", scopeFiles: [featurePath],
+    ciProvider: new MockCiProvider(ciFixtures) });
+  assert.equal(result.reason, "MISSING_COMMIT_EVIDENCE");
+  assert.equal(result.sha, oldSha);
+});
+
+test("finalizeDelivery includes repair target older than 200 ancestors", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const target = await commitFile(repoRoot, "old.txt", "old", "feat[92]: broken work");
+  await attachEvidence({ repoRoot, sha: target, usId: "92" });
+  appendEmptyCommits(repoRoot, 201);
+  const repair = await commitFile(repoRoot, "repair.txt", "fixed", "fix[92]: repair work");
+  await attachEvidence({ repoRoot, sha: repair, gateId: "R", usId: "92", repairsSha: target });
+  const featurePath = "features/repair.feature";
+  const sha = await commitFile(repoRoot, featurePath, "Feature: Repair\n", "test[92]: close story");
+  await attachEvidence({ repoRoot, sha, gateId: "D", scopeFeatures: [featurePath], usId: "92" });
+  const result = await finalizeInIsolatedRepo({ repoRoot, usId: "92", scopeFiles: [featurePath],
+    ciProvider: new MockCiProvider({ [target]: { status: "failed" }, [repair]: { status: "passed" }, [sha]: { status: "passed" } }) });
+  assert.equal(result.finalized, true);
+  assert.ok(result.shas.includes(target));
+  assert.ok(result.supersededFailures.includes(target));
+});
+
+for (const drift of ["head", "branch"]) {
+  test(`finalizeDelivery rejects ${drift} drift during CI wait`, async (t) => {
+    const repoRoot = await createTempGitRepo(t);
+    const featurePath = "features/drift.feature";
+    const sha = await commitFile(repoRoot, featurePath, "Feature: Drift\n", "test[93]: close story");
+    await attachEvidence({ repoRoot, sha, gateId: "D", scopeFeatures: [featurePath], usId: "93" });
+    let resumed = false;
+    const ciProvider = new MockCiProvider({ [sha]: { status: "queued" } });
+    const inspectCommit = ciProvider.inspectCommit.bind(ciProvider);
+    ciProvider.inspectCommit = async (...args) => {
+      if (resumed) ciProvider.setFixture(sha, { status: "passed" });
+      return inspectCommit(...args);
+    };
+    const result = await finalizeInIsolatedRepo({ repoRoot, usId: "93", scopeFiles: [featurePath], ciProvider,
+      waitForCi: true, pollIntervalMs: 1, sleepFn: async () => {
+        if (drift === "head") execFileSync("git", ["commit", "--allow-empty", "-m", "chore: concurrent"], { cwd: repoRoot });
+        else execFileSync("git", ["switch", "-c", "other"], { cwd: repoRoot });
+        resumed = true;
+      } });
+    assert.equal(result.finalized, false);
+    assert.equal(result.reason, drift === "head" ? "HEAD_CHANGED" : "BRANCH_CHANGED");
+  });
+}
+
+test("finalizeDelivery rejects Gate D without requested US identity", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/identity.feature";
+  const sha = await commitFile(repoRoot, featurePath, "Feature: Identity\n", "test: closure");
+  await attachEvidence({ repoRoot, sha, gateId: "D", scopeFeatures: [featurePath] });
+  const result = await finalizeInIsolatedRepo({ repoRoot, usId: "94", scopeFiles: [featurePath] });
+  assert.equal(result.reason, "US_EVIDENCE_MISMATCH");
+});
+
+test("verifyHeadDelivery rejects a branch change while Gate D runs", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/verify-drift.feature";
+  await commitFile(repoRoot, featurePath, "Feature: Verify drift\n", "test[95]: close story");
+  let changed = false;
+  const result = await verifyHeadDelivery({ repoRoot, usId: "95", scopeFiles: [featurePath], force: true,
+    executeCheck: async ({ check, logPath }) => {
+      if (!changed) {
+        changed = true;
+        execFileSync("git", ["switch", "-c", "concurrent"], { cwd: repoRoot });
+      }
+      return { id: check.id, status: "passed", durationMs: 1, exitCode: 0,
+        summaryLines: [], locations: [], logPath, diagnostic: null };
+    } });
+  assert.equal(result.verified, false);
+  assert.equal(result.reason, "BRANCH_CHANGED");
+});
+
+test("verifyHeadDelivery does not reuse Gate D with missing US identity", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/verify-identity.feature";
+  const sha = await commitFile(repoRoot, featurePath, "Feature: Verify identity\n", "test: close story");
+  await attachEvidence({ repoRoot, sha, gateId: "D", scopeFeatures: [featurePath] });
+  const result = await verifyHeadDelivery({ repoRoot, usId: "96", scopeFiles: [featurePath],
+    executeCheck: async ({ check, logPath }) => ({ id: check.id, status: "passed", durationMs: 1,
+      exitCode: 0, summaryLines: [], locations: [], logPath, diagnostic: null }) });
+  assert.equal(result.verified, true);
+  assert.equal(result.cached, false);
+  assert.equal(result.usId, "96");
+});
+
 test("finalizeDelivery: bloquea si falta Gate D local aprobado en HEAD", async (t) => {
   const repoRoot = await createTempGitRepo(t);
   const sha = headSha(repoRoot);

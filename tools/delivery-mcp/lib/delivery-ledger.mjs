@@ -2087,14 +2087,7 @@ async function getLedgerStateUnlocked({ root }) {
     }
 
     const consolidatedEntry = parsedLedger[fileSha] || parsedLedger[parsedInd.commitSha];
-    if (
-      consolidatedEntry.status !== parsedInd.status ||
-      consolidatedEntry.verificationStatus !== parsedInd.verificationStatus ||
-      (consolidatedEntry.treeSha || null) !== (parsedInd.treeSha || null) ||
-      (consolidatedEntry.parentSha || null) !== (parsedInd.parentSha || null) ||
-      (consolidatedEntry.repairsSha || null) !== (parsedInd.repairsSha || null) ||
-      (consolidatedEntry.repairStatus || null) !== (parsedInd.repairStatus || null)
-    ) {
+    if (canonicalJson(consolidatedEntry) !== canonicalJson(parsedInd)) {
       return { state: "LEDGER_INCONSISTENT", reason: "ENTRY_MISMATCH", commitSha: fileSha };
     }
   }

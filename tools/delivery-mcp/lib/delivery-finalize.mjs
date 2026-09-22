@@ -4,11 +4,10 @@ import {
   queryCommitEvidence,
   verifyCommitEvidence,
   resolveRepairChain,
-  getCommitEvidence,
   listCommitEvidence,
   getActiveCiIncidents,
 } from "./delivery-ledger.mjs";
-import { extractUsId } from "./git-snapshot.mjs";
+import { extractUsId, readHeadSubject, headSubjectDrift } from "./git-snapshot.mjs";
 import { inspectCi } from "./ci-provider.mjs";
 import { loadDeliveryPolicy } from "./policy-loader.mjs";
 import { summarizeFailureOutput } from "./execute-check.mjs";
@@ -64,55 +63,41 @@ function samePaths(left = [], right = []) {
   return JSON.stringify(normalizedLeft) === JSON.stringify(normalizedRight);
 }
 
-async function relevantCommitShas(root, headSha, usId) {
+function relevantCommitShas(root, headSha, usId, ledgerEntries) {
   const normalizedUsId = normalizeUsId(usId);
   if (!normalizedUsId) return [headSha];
 
-  const output = execFileSync("git", ["log", "-n", "200", "--format=%H%x00%s%x00", headSha], {
+  // The immutable boundary is the complete ancestry reachable from captured HEAD.
+  // Ledger metadata supplements commit subjects, without truncating older repairs.
+  const output = execFileSync("git", ["log", "--format=%H%x00%s%x00", headSha], {
     cwd: root,
     encoding: "buffer",
+    maxBuffer: 20 * 1024 * 1024,
   });
   const fields = output.toString("utf8").split("\0").filter(Boolean);
-  const matches = [];
-  const logShas = [];
+  const entriesBySha = new Map(ledgerEntries.map((entry) => [entry.commitSha.toLowerCase(), entry]));
+  const matches = new Set();
+  const reachable = new Set();
   for (let index = 0; index + 1 < fields.length; index += 2) {
-    const sha = fields[index].trim();
+    const sha = fields[index].trim().toLowerCase();
     const subject = fields[index + 1].trim();
-    logShas.push(sha);
-    if (normalizeUsId(extractUsId(subject)) === normalizedUsId) matches.push(sha);
-  }
-
-  for (const sha of logShas) {
-    if (matches.includes(sha)) continue;
-    try {
-      const entry = await getCommitEvidence({ repoRoot: root, commitSha: sha });
-      if (entry && normalizeUsId(entry.usId) === normalizedUsId) {
-        matches.push(sha);
-      }
-    } catch {
-      // ignore
-    }
+    reachable.add(sha);
+    if (normalizeUsId(extractUsId(subject)) === normalizedUsId ||
+        normalizeUsId(entriesBySha.get(sha)?.usId) === normalizedUsId) matches.add(sha);
   }
 
   const toCheck = [...matches];
   while (toCheck.length > 0) {
     const currentSha = toCheck.pop();
-    try {
-      const entry = await getCommitEvidence({ repoRoot: root, commitSha: currentSha });
-      if (entry?.repairsSha) {
-        const target = entry.repairsSha.toLowerCase();
-        if (!matches.includes(target) && logShas.map((s) => s.toLowerCase()).includes(target)) {
-          matches.push(target);
-          toCheck.push(target);
-        }
-      }
-    } catch {
-      // ignore
+    const target = entriesBySha.get(currentSha)?.repairsSha?.toLowerCase();
+    if (target && reachable.has(target) && !matches.has(target)) {
+      matches.add(target);
+      toCheck.push(target);
     }
   }
 
-  if (!matches.includes(headSha)) matches.unshift(headSha);
-  return [...new Set(matches)];
+  matches.add(headSha.toLowerCase());
+  return [...matches];
 }
 
 function readCommittedFeature(root, headSha, featurePath) {
@@ -139,8 +124,9 @@ export async function finalizeDelivery({
   async: isAsync = false,
 } = {}) {
   const root = findRepoRoot(repoRoot);
+  let ledgerEntries;
   try {
-    await listCommitEvidence({ repoRoot: root });
+    ledgerEntries = await listCommitEvidence({ repoRoot: root });
   } catch (error) {
     if (
       error?.code === "LEDGER_CORRUPT" ||
@@ -158,20 +144,28 @@ export async function finalizeDelivery({
   }
   const policy = await loadDeliveryPolicy({ repoRoot: root });
 
-  let headSha;
+  let subject;
   try {
-    headSha = execFileSync("git", ["rev-parse", "HEAD"], {
-      cwd: root,
-      encoding: "utf8",
-    }).trim();
+    subject = await readHeadSubject(root);
   } catch (error) {
     return {
       finalized: false,
       status: "blocked",
-      reason: "GIT_ERROR",
-      message: `Failed to resolve HEAD commit: ${String(error.message || "unknown").split("\n")[0]}`,
+      reason: error?.code || "GIT_ERROR",
+      message: `Failed to capture closure subject: ${String(error.message || "unknown").split("\n")[0]}`,
     };
   }
+  const { headSha } = subject;
+  const rejectSubjectDrift = async () => {
+    let drift;
+    try {
+      drift = headSubjectDrift(subject, await readHeadSubject(root));
+    } catch (error) {
+      drift = error?.code || "GIT_ERROR";
+    }
+    return drift ? { finalized: false, status: "blocked", reason: drift,
+      message: `Delivery subject changed during finalization (${drift})` } : null;
+  };
 
   const verifiedHead = await verifyCommitEvidence({ repoRoot: root, commitSha: headSha });
   if (!verifiedHead.valid) {
@@ -312,7 +306,7 @@ export async function finalizeDelivery({
 
   const requestedUsId = normalizeUsId(usId);
   const evidenceUsId = normalizeUsId(verifiedHead.entry.usId);
-  if (requestedUsId && evidenceUsId && requestedUsId !== evidenceUsId) {
+  if (requestedUsId && requestedUsId !== evidenceUsId) {
     return {
       finalized: false,
       status: "blocked",
@@ -322,7 +316,7 @@ export async function finalizeDelivery({
   }
 
   const effectiveUsId = requestedUsId || evidenceUsId || null;
-  const shas = await relevantCommitShas(root, headSha, effectiveUsId);
+  const shas = relevantCommitShas(root, headSha, effectiveUsId, ledgerEntries);
   const unverifiedCommits = [];
   for (const sha of shas) {
     const evidence = await queryCommitEvidence({ repoRoot: root, commitSha: sha });
@@ -531,6 +525,8 @@ export async function finalizeDelivery({
 
     // Cierre exitoso: todos los commits requeridos pasaron CI
     if (pendingFailures.length === 0 && pendingCi.length === 0) {
+      const drift = await rejectSubjectDrift();
+      if (drift) return drift;
       const deliveryLabel = intent === "close_batch" ? "Batch" : "User Story";
       return {
         finalized: true,
@@ -590,6 +586,8 @@ export async function finalizeDelivery({
       }
 
       const hasPendingCi = pendingCi.length > 0;
+      const drift = await rejectSubjectDrift();
+      if (drift) return drift;
       return {
         finalized: true,
         status: hasPendingCi ? "passed_pending_ci" : "passed",

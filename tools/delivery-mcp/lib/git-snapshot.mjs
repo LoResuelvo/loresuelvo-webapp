@@ -37,6 +37,32 @@ export async function runGit(args, cwd) {
   }
 }
 
+// Closure reads the committed subject, independently of staged/working-tree edits.
+export async function readHeadSubject(cwd) {
+  const root = findRepoRoot(cwd);
+  const read = async (args) => {
+    const result = await runGit(args, root);
+    assertGitSucceeded(result, args.join(" "));
+    return result.stdout.toString("utf8").trim();
+  };
+  const headSha = await read(["rev-parse", "HEAD"]);
+  const branch = await read(["symbolic-ref", "--quiet", "--short", "HEAD"]);
+  const treeSha = await read(["rev-parse", `${headSha}^{tree}`]);
+  if (headSha !== await read(["rev-parse", "HEAD"])) {
+    const error = new Error("HEAD changed while capturing delivery subject");
+    error.code = "HEAD_CHANGED";
+    throw error;
+  }
+  return { headSha, branch, treeSha };
+}
+
+export function headSubjectDrift(expected, current) {
+  if (expected.headSha !== current.headSha) return "HEAD_CHANGED";
+  if (expected.branch !== current.branch) return "BRANCH_CHANGED";
+  if (expected.treeSha !== current.treeSha) return "TREE_CHANGED";
+  return null;
+}
+
 export function parsePorcelainStatus(porcelainBuffer) {
   const staged = [];
   const unstaged = [];

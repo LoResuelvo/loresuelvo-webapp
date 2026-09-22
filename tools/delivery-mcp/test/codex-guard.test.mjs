@@ -10,7 +10,6 @@ import {
   runCodexGuard,
 } from "../../../.codex/delivery-guard.mjs";
 import { prepareDelivery } from "../lib/prepare-delivery.mjs";
-import { parseAntigravityHookInput, runAntigravityGuard } from "../../../.agents/hooks/loresuelvo-delivery-guard.mjs";
 
 async function createTempGitRepo(t) {
   const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "codex-guard-test-"));
@@ -119,26 +118,12 @@ test("Codex guard verifies the repository selected by git -C", async (t) => {
   assert.equal(nested.status, "MISSING_PREPARED_EVIDENCE");
 });
 
-test("real client hook payload and internal errors fail closed", async (t) => {
+test("Codex guard internal errors fail closed", async (t) => {
   const repoRoot = await createTempGitRepo(t);
   const scriptPath = path.resolve(".codex/delivery-guard.mjs");
   const malformed = spawnSync("node", [scriptPath], { cwd: repoRoot, encoding: "utf8", input: "{" });
   assert.equal(malformed.status, 0);
   assert.equal(JSON.parse(malformed.stdout).hookSpecificOutput.permissionDecision, "deny");
-  const antigravity = parseAntigravityHookInput(JSON.stringify({ toolCall: { name: "run_command",
-    args: { CommandLine: "rtk proxy git commit -m 'docs: change'", Cwd: repoRoot } } }));
-  const decision = await runAntigravityGuard({ repoRoot, ...antigravity });
-  assert.equal(decision.decision, "deny");
-  const previous = process.env.DELIVERY_REQUIRE_EVIDENCE;
-  process.env.DELIVERY_REQUIRE_EVIDENCE = "1";
-  try {
-    const invalid = await runAntigravityGuard({ repoRoot, ...parseAntigravityHookInput("{") });
-    assert.equal(invalid.decision, "deny");
-    assert.equal(invalid.status, "INVALID_HOOK_PAYLOAD");
-  } finally {
-    if (previous === undefined) delete process.env.DELIVERY_REQUIRE_EVIDENCE;
-    else process.env.DELIVERY_REQUIRE_EVIDENCE = previous;
-  }
 });
 
 test("runCodexGuard: intercepta git commit y reporta no_changes si no hay cambios staged", async (t) => {

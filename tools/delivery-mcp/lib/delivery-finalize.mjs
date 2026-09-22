@@ -14,7 +14,7 @@ import { loadDeliveryPolicy } from "./policy-loader.mjs";
 import { summarizeFailureOutput } from "./execute-check.mjs";
 import { redactSecrets } from "./redact-secrets.mjs";
 import {
-  createDeliveryJob,
+  claimDeliveryJob,
   createHeadJobSubject,
   spawnJobWorker,
   findActiveDeliveryJob,
@@ -424,7 +424,7 @@ export async function finalizeDelivery({
         };
       }
 
-      const job = await createDeliveryJob({
+      const { job, claimed } = await claimDeliveryJob({
         repoRoot: root,
         type: "finalize",
         params: {
@@ -441,11 +441,11 @@ export async function finalizeDelivery({
         gateId: "D",
       });
 
-      await spawnJobWorker({ repoRoot: root, jobId: job.jobId });
+      if (claimed) await spawnJobWorker({ repoRoot: root, jobId: job.jobId });
 
       return {
         finalized: false,
-        status: "job_started",
+        status: claimed ? "job_started" : "running",
         jobId: job.jobId,
         message: `Finalization with CI wait started as recoverable background job '${job.jobId}'. Use delivery_job_wait to await completion.`,
       };

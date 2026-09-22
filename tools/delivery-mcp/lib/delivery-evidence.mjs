@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { assertSafeRepoPath } from "./repo-root.mjs";
+import { withJobMutex } from "./job-mutex.mjs";
+import { readProcessIdentity, isProcessAlive } from "./jobs.mjs";
 
 const RUNTIME_ROOT = ".delivery/runtime";
 const STALE_LOCK_MS = 30 * 60 * 1000;
@@ -73,40 +75,46 @@ export async function loadCachedFailure({ repoRoot, runKey, cacheable }) {
   }
 }
 
-async function openLock(lockPath) {
-  return fs.open(lockPath, "wx", 0o600);
-}
-
 export async function acquireRunLock({ repoRoot, runKey }) {
   const relativePath = relativeRuntimePath("locks", `${runKey}.lock`);
   assertSafeRepoPath(repoRoot, relativePath, "Lock path");
   const absolutePath = path.resolve(repoRoot, relativePath);
   await fs.mkdir(path.dirname(absolutePath), { recursive: true, mode: 0o700 });
 
-  let handle;
-  try {
-    handle = await openLock(absolutePath);
-  } catch (error) {
-    if (error.code !== "EEXIST") throw error;
-    const stat = await fs.stat(absolutePath);
-    if (Date.now() - stat.mtimeMs <= STALE_LOCK_MS) {
+  const token = crypto.randomBytes(16).toString("hex");
+  await withJobMutex(repoRoot, `gate:${runKey}`, async () => {
+    let previous = null;
+    let stat = null;
+    try {
+      stat = await fs.stat(absolutePath);
+      previous = JSON.parse(await fs.readFile(absolutePath, "utf8"));
+    } catch (error) {
+      if (error.code !== "ENOENT" && !(error instanceof SyntaxError)) throw error;
+    }
+    const identity = previous?.pid ? await readProcessIdentity(Number(previous.pid)) : null;
+    const processStillOwned = previous?.processIdentity && isProcessAlive(Number(previous.pid)) &&
+      (!identity || identity.startTimeTicks === previous.processIdentity.startTimeTicks);
+    if (processStillOwned ||
+        (!previous?.processIdentity && stat && Date.now() - stat.mtimeMs <= STALE_LOCK_MS)) {
       const inProgress = new Error("An equivalent delivery gate execution is already in progress");
       inProgress.code = "DELIVERY_RUN_IN_PROGRESS";
       throw inProgress;
     }
-    await fs.unlink(absolutePath);
-    handle = await openLock(absolutePath);
-  }
-
-  await handle.writeFile(`${JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() })}\n`);
-  await handle.close();
+    const owner = { pid: process.pid, acquiredAt: new Date().toISOString(), token,
+      jobToken: process.env.DELIVERY_JOB_TOKEN || null,
+      processIdentity: await readProcessIdentity(process.pid) };
+    const tempPath = `${absolutePath}.${token}.tmp`;
+    await fs.writeFile(tempPath, `${JSON.stringify(owner)}\n`, { mode: 0o600 });
+    await fs.rename(tempPath, absolutePath);
+  });
 
   return async () => {
-    try {
-      await fs.unlink(absolutePath);
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
+    await withJobMutex(repoRoot, `gate:${runKey}`, async () => {
+      let current;
+      try { current = JSON.parse(await fs.readFile(absolutePath, "utf8")); }
+      catch (error) { if (error.code === "ENOENT") return; throw error; }
+      if (current.token === token) await fs.unlink(absolutePath);
+    });
   };
 }
 

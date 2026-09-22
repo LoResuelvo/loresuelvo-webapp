@@ -22,9 +22,8 @@ import {
 import { loadOrBuildTypeScriptImpactIndex } from "./dependency-impact.mjs";
 import { isProductionSourceFile, normalizePath } from "./classify-files.mjs";
 import {
-  createDeliveryJob,
+  claimDeliveryJob,
   createWorkingTreeJobSubject,
-  findActiveDeliveryJob,
   spawnJobWorker,
 } from "./jobs.mjs";
 
@@ -637,19 +636,7 @@ async function enqueueTestDeliveryJob({
   selection,
 }) {
   const runKey = `delivery-test-${cacheKey}`;
-  const activeJob = await findActiveDeliveryJob({ repoRoot, runKey });
-  if (activeJob) {
-    return queuedTestResult({
-      mode,
-      executionMode: "job",
-      jobId: activeJob.jobId,
-      status: "running",
-      message: `delivery_test job '${activeJob.jobId}' is already running. Use delivery_job_wait to await completion.`,
-      selection,
-    });
-  }
-
-  const job = await createDeliveryJob({
+  const { job, claimed } = await claimDeliveryJob({
     repoRoot,
     type: "test",
     params: {
@@ -669,12 +656,13 @@ async function enqueueTestDeliveryJob({
     gateId: `TEST_${mode}`,
   });
 
-  await spawnJobWorker({ repoRoot, jobId: job.jobId });
+  if (claimed) await spawnJobWorker({ repoRoot, jobId: job.jobId });
   return queuedTestResult({
     mode,
     executionMode: "job",
     jobId: job.jobId,
-    message: `delivery_test '${mode}' started as recoverable background job '${job.jobId}'. Use delivery_job_wait to await completion.`,
+    status: claimed ? "job_started" : "running",
+    message: `delivery_test '${mode}' is running as recoverable background job '${job.jobId}'. Use delivery_job_wait to await completion.`,
     selection,
   });
 }
@@ -732,7 +720,7 @@ export async function executeProcessDefault({
     env,
     shell: false,
     stdio: ["ignore", "pipe", "pipe"],
-    detached: process.platform !== "win32",
+    detached: process.platform !== "win32" && !process.env.DELIVERY_JOB_ID,
   });
 
   function capture(chunk) {

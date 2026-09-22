@@ -32,10 +32,13 @@ import { findRepoRoot } from "../lib/repo-root.mjs";
 
 async function runJobWorker(repoRoot, jobId) {
   const runnerPath = path.resolve(findRepoRoot(), "tools/delivery-mcp/lib/job-runner.mjs");
+  const job = await getDeliveryJob({ repoRoot, jobId });
   await new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [runnerPath, jobId, repoRoot], {
       cwd: repoRoot,
       stdio: "ignore",
+      env: { ...process.env, DELIVERY_JOB_TOKEN: job.workerToken,
+        DELIVERY_JOB_OWNER_GENERATION: job.ownerGeneration },
     });
     child.once("error", reject);
     child.once("exit", (code) => {
@@ -226,7 +229,6 @@ test("jobs: waitForJob detecta muerte inesperada del worker y libera el lock", a
 
   const fakeRunKey = "runkey-dead-worker";
   const lockFile = path.resolve(repoRoot, ".delivery/runtime/locks", `${fakeRunKey}.lock`);
-  await fs.writeFile(lockFile, "lock", "utf8");
 
   const job = await createDeliveryJob({
     repoRoot,
@@ -264,7 +266,6 @@ test("jobs: cancelDeliveryJob cancela el job y libera el lock", async (t) => {
 
   const fakeRunKey = "runkey-cancel-test";
   const lockFile = path.resolve(repoRoot, ".delivery/runtime/locks", `${fakeRunKey}.lock`);
-  await fs.writeFile(lockFile, "lock", "utf8");
 
   const job = await createDeliveryJob({
     repoRoot,
@@ -272,9 +273,12 @@ test("jobs: cancelDeliveryJob cancela el job y libera el lock", async (t) => {
     runKey: fakeRunKey,
   });
 
-  const dummy = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
+  const dummy = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+    stdio: "ignore", detached: true,
+    env: { ...process.env, DELIVERY_JOB_TOKEN: job.workerToken },
+  });
   t.after(() => {
-    try { dummy.kill("SIGKILL"); } catch {}
+    try { process.kill(-dummy.pid, "SIGKILL"); } catch {}
   });
 
   await updateDeliveryJob({
@@ -286,6 +290,8 @@ test("jobs: cancelDeliveryJob cancela el job y libera el lock", async (t) => {
       startedAt: new Date().toISOString(),
     },
   });
+  await fs.writeFile(lockFile, JSON.stringify({ pid: dummy.pid,
+    acquiredAt: new Date().toISOString(), jobToken: job.workerToken }), "utf8");
 
   const cancelled = await cancelDeliveryJob({
     repoRoot,

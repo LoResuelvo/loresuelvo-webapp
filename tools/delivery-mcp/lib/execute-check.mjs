@@ -155,7 +155,7 @@ async function executeCommandCheck({ check, repoRoot, logPath, limits = {} }) {
     env: { ...process.env, DELIVERY_RUN_ACTIVE: "1" },
     shell: false,
     stdio: ["ignore", "pipe", "pipe"],
-    detached: process.platform !== "win32",
+    detached: process.platform !== "win32" && !process.env.DELIVERY_JOB_ID,
   });
 
   function capture(chunk) {

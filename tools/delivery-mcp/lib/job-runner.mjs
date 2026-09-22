@@ -2,7 +2,7 @@
 import { findRepoRoot } from "./repo-root.mjs";
 import {
   getDeliveryJob,
-  updateDeliveryJob,
+  transitionDeliveryJob,
   readProcessIdentity,
   validateJobSubject,
 } from "./jobs.mjs";
@@ -30,6 +30,15 @@ async function run() {
     process.exit(0);
   }
 
+  const ownerGeneration = process.env.DELIVERY_JOB_OWNER_GENERATION;
+  if (!ownerGeneration || ownerGeneration !== job.ownerGeneration ||
+      process.env.DELIVERY_JOB_TOKEN !== job.workerToken) {
+    console.error("JOB_OWNER_MISMATCH");
+    process.exit(1);
+  }
+  const persist = (updates, from = ["queued", "running", "cancelling"]) =>
+    transitionDeliveryJob({ repoRoot: root, jobId, ownerGeneration, from, updates });
+
   let subjectValidation;
   try {
     subjectValidation = await validateJobSubject({
@@ -49,18 +58,14 @@ async function run() {
     };
   }
   if (!subjectValidation.valid) {
-    await updateDeliveryJob({
-      repoRoot: root,
-      jobId,
-      updates: {
-        status: "failed",
-        finishedAt: new Date().toISOString(),
-        error: {
-          code: subjectValidation.code,
-          message: subjectValidation.message,
-          expected: subjectValidation.expected,
-          actual: subjectValidation.actual,
-        },
+    await persist({
+      status: "failed",
+      finishedAt: new Date().toISOString(),
+      error: {
+        code: subjectValidation.code,
+        message: subjectValidation.message,
+        expected: subjectValidation.expected,
+        actual: subjectValidation.actual,
       },
     });
     return;
@@ -68,36 +73,17 @@ async function run() {
 
   const workerToken = process.env.DELIVERY_JOB_TOKEN || job.workerToken || null;
   const workerIdentity = await readProcessIdentity(process.pid);
-  await updateDeliveryJob({
-    repoRoot: root,
-    jobId,
-    updates: {
-      status: "running",
-      pid: process.pid,
-      startedAt: job.startedAt || new Date().toISOString(),
-      ...(workerToken ? { workerToken } : {}),
-      ...(workerIdentity ? { workerIdentity } : {}),
-    },
-  });
+  await persist({
+    status: "running",
+    pid: process.pid,
+    startedAt: job.startedAt || new Date().toISOString(),
+    ...(workerToken ? { workerToken } : {}),
+    ...(workerIdentity ? { workerIdentity } : {}),
+  }, ["queued", "running"]);
 
-  const onSignal = async (sig) => {
-    try {
-      await updateDeliveryJob({
-        repoRoot: root,
-        jobId,
-        updates: {
-          status: "cancelled",
-          finishedAt: new Date().toISOString(),
-          error: { code: "CANCELLED", message: `Terminated by signal ${sig}` },
-        },
-      });
-    } catch {
-      // ignore
-    }
-    process.exit(143);
-  };
-  process.on("SIGTERM", () => onSignal("SIGTERM"));
-  process.on("SIGINT", () => onSignal("SIGINT"));
+  // Only the supervisor may persist cancelled, after the entire group exits.
+  process.on("SIGTERM", () => process.exit(143));
+  process.on("SIGINT", () => process.exit(130));
 
   try {
     if (job.type === "finalize") {
@@ -109,14 +95,10 @@ async function run() {
       const timedOut = result.reason === "CI_TIMEOUT" || result.status === "timed_out";
       const jobStatus = result.finalized ? "passed" : timedOut ? "timed_out" : "failed";
       const storedResult = timedOut ? { ...result, status: "timed_out" } : result;
-      await updateDeliveryJob({
-        repoRoot: root,
-        jobId,
-        updates: {
-          status: jobStatus,
-          finishedAt: new Date().toISOString(),
-          result: storedResult,
-        },
+      await persist({
+        status: jobStatus,
+        finishedAt: new Date().toISOString(),
+        result: storedResult,
       });
     } else if (job.type === "verify_head") {
       const result = await verifyHeadDelivery({
@@ -125,14 +107,10 @@ async function run() {
         mode: "sync",
         workerJobId: jobId,
       });
-      await updateDeliveryJob({
-        repoRoot: root,
-        jobId,
-        updates: {
-          status: result.verified ? "passed" : "failed",
-          finishedAt: new Date().toISOString(),
-          result,
-        },
+      await persist({
+        status: result.verified ? "passed" : "failed",
+        finishedAt: new Date().toISOString(),
+        result,
       });
     } else if (job.type === "test") {
       const result = await testDelivery({
@@ -150,14 +128,10 @@ async function run() {
           result.diagnostics?.some?.((diagnostic) => diagnostic.code === "CHECK_TIMEOUT"));
       const jobStatus = timedOut ? "timed_out" : result.status === "passed" ? "passed" : "failed";
       const storedResult = timedOut ? { ...result, status: "timed_out" } : result;
-      await updateDeliveryJob({
-        repoRoot: root,
-        jobId,
-        updates: {
-          status: jobStatus,
-          finishedAt: new Date().toISOString(),
-          result: storedResult,
-        },
+      await persist({
+        status: jobStatus,
+        finishedAt: new Date().toISOString(),
+        result: storedResult,
       });
     } else {
       const outcome = await prepareDelivery({
@@ -166,26 +140,19 @@ async function run() {
         mode: "sync",
         workerJobId: jobId,
       });
-      await updateDeliveryJob({
-        repoRoot: root,
-        jobId,
-        updates: {
-          status: outcome.status === "passed" ? "passed" : "failed",
-          finishedAt: new Date().toISOString(),
-          result: outcome,
-        },
+      await persist({
+        status: outcome.status === "passed" ? "passed" : "failed",
+        finishedAt: new Date().toISOString(),
+        result: outcome,
       });
     }
   } catch (error) {
+    if (["JOB_TRANSITION_REJECTED", "OWNER_GENERATION_MISMATCH"].includes(error.code)) return;
     const message = redactSecrets(String(error.message || "Unknown worker error")).split("\n")[0];
-    await updateDeliveryJob({
-      repoRoot: root,
-      jobId,
-      updates: {
-        status: "failed",
-        finishedAt: new Date().toISOString(),
-        error: { code: error.code || "WORKER_ERROR", message },
-      },
+    await persist({
+      status: "failed",
+      finishedAt: new Date().toISOString(),
+      error: { code: error.code || "WORKER_ERROR", message },
     });
   }
 }

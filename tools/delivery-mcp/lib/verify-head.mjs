@@ -11,7 +11,7 @@ import {
 } from "./delivery-ledger.mjs";
 import { saveDeliveryContext } from "./delivery-context.mjs";
 import {
-  createDeliveryJob,
+  claimDeliveryJob,
   createHeadJobSubject,
   spawnJobWorker,
   findActiveDeliveryJob,
@@ -239,7 +239,7 @@ export async function verifyHeadDelivery({
       };
     }
 
-    const job = await createDeliveryJob({
+    const { job, claimed } = await claimDeliveryJob({
       repoRoot: root,
       type: "verify_head",
       params: {
@@ -253,10 +253,10 @@ export async function verifyHeadDelivery({
       subject: createHeadJobSubject(headSha),
       gateId: "D",
     });
-    await spawnJobWorker({ repoRoot: root, jobId: job.jobId });
+    if (claimed) await spawnJobWorker({ repoRoot: root, jobId: job.jobId });
     return {
       verified: false,
-      status: "job_started",
+      status: claimed ? "job_started" : "running",
       jobId: job.jobId,
       headSha,
       gate: "D",

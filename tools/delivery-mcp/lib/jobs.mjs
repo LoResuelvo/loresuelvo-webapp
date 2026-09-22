@@ -4,6 +4,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { findRepoRoot, assertSafeRepoPath } from "./repo-root.mjs";
 import { redactSecrets } from "./redact-secrets.mjs";
+import { withJobMutex } from "./job-mutex.mjs";
 export {
   createHeadJobSubject,
   createStagedSnapshotJobSubject,
@@ -14,6 +15,12 @@ export {
 const JOB_ID_REGEX = /^[A-Za-z0-9_-]+$/;
 const JOBS_DIR = ".delivery/runtime/jobs";
 const TERMINAL_JOB_STATUSES = new Set(["passed", "failed", "timed_out", "cancelled"]);
+const ACTIVE_JOB_STATUSES = new Set(["queued", "running", "cancelling"]);
+const JOB_TRANSITIONS = {
+  queued: new Set(["running", "cancelling", "failed"]),
+  running: new Set(["running", "cancelling", "passed", "failed", "timed_out"]),
+  cancelling: new Set(["queued", "running", "cancelled", "passed", "failed", "timed_out"]),
+};
 // A job is written before its worker is spawned.  If the MCP process dies in
 // that small window, the queued record must eventually stop being considered
 // active so the next invocation can recover instead of being deduplicated
@@ -170,6 +177,56 @@ export async function killProcessTree(pid, signal = "SIGTERM", expectedIdentity 
   return false;
 }
 
+async function liveGroupMembers(groupId) {
+  if (process.platform !== "linux") return isProcessAlive(groupId) ? [{ pid: groupId }] : [];
+  const members = [];
+  for (const entry of await fs.readdir("/proc")) {
+    if (!/^\d+$/.test(entry)) continue;
+    try {
+      const raw = await fs.readFile(`/proc/${entry}/stat`, "utf8");
+      const fields = raw.slice(raw.lastIndexOf(")") + 2).trim().split(/\s+/);
+      if (Number(fields[2]) === groupId && fields[0] !== "Z" && fields[0] !== "X") {
+        members.push({ pid: Number(entry), startTimeTicks: fields[19] });
+      }
+    } catch { /* exited during scan */ }
+  }
+  return members;
+}
+
+async function waitForGroupExit(groupId, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if ((await liveGroupMembers(groupId)).length === 0) return true;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return (await liveGroupMembers(groupId)).length === 0;
+}
+
+async function ownedGroupMembers(job) {
+  const members = await liveGroupMembers(job.pid);
+  if (members.length === 0) return [];
+  const owned = [];
+  for (const member of members) {
+    if (member.pid === job.pid && sameProcessIdentity(member, job.workerIdentity)) {
+      owned.push(member);
+    } else if (await readProcessToken(member.pid) === job.workerToken) {
+      owned.push(member);
+    }
+  }
+  return owned.length === members.length ? members : null;
+}
+
+async function signalOwnedGroup(job, signal) {
+  const members = await ownedGroupMembers(job);
+  if (!members || members.length === 0) return false;
+  try {
+    process.kill(-job.pid, signal);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function createDeliveryJob({
   repoRoot,
   type = "prepare",
@@ -195,6 +252,7 @@ export async function createDeliveryJob({
     finishedAt: null,
     pid: null,
     workerToken: crypto.randomBytes(16).toString("hex"),
+    ownerGeneration: crypto.randomBytes(16).toString("hex"),
     workerIdentity: null,
     runKey,
     subject,
@@ -236,32 +294,54 @@ export async function getDeliveryJob({ repoRoot, jobId }) {
 
 export async function updateDeliveryJob({ repoRoot, jobId, updates }) {
   const root = findRepoRoot(repoRoot);
-  const current = await getDeliveryJob({ repoRoot: root, jobId });
-  if (!current) throw new Error(`Job not found: ${jobId}`);
-  const effectiveUpdates = { ...updates };
-  // Never let the parent-side spawn bookkeeping (status: running) or a late
-  // signal handler overwrite a terminal result that the worker already
-  // persisted.  This also closes the fast-worker race where a tiny check can
-  // finish before spawnJobWorker records the child PID.
-  if (
-    TERMINAL_JOB_STATUSES.has(current.status) &&
-    Object.prototype.hasOwnProperty.call(effectiveUpdates, "status") &&
-    effectiveUpdates.status !== current.status
-  ) {
-    return current;
+  return withJobMutex(root, `job:${jobId}`, async () => {
+    const current = await getDeliveryJob({ repoRoot: root, jobId });
+    if (!current) throw new Error(`Job not found: ${jobId}`);
+    if (TERMINAL_JOB_STATUSES.has(current.status)) return current;
+    const effectiveUpdates = { ...updates };
+    if (Number.isInteger(effectiveUpdates.pid) && effectiveUpdates.pid > 0 &&
+      !Object.hasOwn(effectiveUpdates, "workerIdentity")) {
+      const identity = await readProcessIdentity(effectiveUpdates.pid);
+      if (identity) effectiveUpdates.workerIdentity = identity;
+    }
+    const updated = { ...current, ...effectiveUpdates };
+    await writeJobAtomic(root, jobId, updated);
+    return updated;
+  });
+}
+
+export async function transitionDeliveryJob({ repoRoot, jobId, ownerGeneration, from, updates }) {
+  const root = findRepoRoot(repoRoot);
+  return withJobMutex(root, `job:${jobId}`, async () => {
+    const current = await getDeliveryJob({ repoRoot: root, jobId });
+    if (!current) throw new Error(`Job not found: ${jobId}`);
+    if (!ownerGeneration || current.ownerGeneration !== ownerGeneration) {
+      const error = new Error("OWNER_GENERATION_MISMATCH");
+      error.code = "OWNER_GENERATION_MISMATCH";
+      throw error;
+    }
+    if (TERMINAL_JOB_STATUSES.has(current.status) || !from.includes(current.status) ||
+        !JOB_TRANSITIONS[current.status]?.has(updates.status)) {
+      const error = new Error(`JOB_TRANSITION_REJECTED: ${current.status}`);
+      error.code = "JOB_TRANSITION_REJECTED";
+      throw error;
+    }
+    const updated = { ...current, ...updates };
+    await writeJobAtomic(root, jobId, updated);
+    return updated;
+  });
+}
+
+export async function claimDeliveryJob(options) {
+  const root = findRepoRoot(options.repoRoot);
+  if (!options.runKey || !/^[A-Za-z0-9_-]+$/.test(options.runKey)) {
+    throw new Error("Invalid job runKey");
   }
-  if (
-    Object.prototype.hasOwnProperty.call(effectiveUpdates, "pid") &&
-    Number.isInteger(effectiveUpdates.pid) &&
-    effectiveUpdates.pid > 0 &&
-    !Object.prototype.hasOwnProperty.call(effectiveUpdates, "workerIdentity")
-  ) {
-    const identity = await readProcessIdentity(effectiveUpdates.pid);
-    if (identity) effectiveUpdates.workerIdentity = identity;
-  }
-  const updated = { ...current, ...effectiveUpdates };
-  await writeJobAtomic(root, jobId, updated);
-  return updated;
+  return withJobMutex(root, `run:${options.runKey}`, async () => {
+    const active = await findActiveDeliveryJob({ repoRoot: root, runKey: options.runKey });
+    if (active) return { job: active, claimed: false };
+    return { job: await createDeliveryJob(options), claimed: true };
+  });
 }
 
 function jobAgeMs(job, now = Date.now()) {
@@ -313,6 +393,9 @@ async function runLockBelongsToJob(root, job) {
     return false;
   }
   if (!owner || Number(owner.pid) !== job.pid) return false;
+  if (owner.jobToken && owner.jobToken !== job.workerToken) return false;
+  if (owner.processIdentity && job.workerIdentity &&
+      !sameProcessIdentity(owner.processIdentity, job.workerIdentity)) return false;
 
   const acquiredAt = Date.parse(owner.acquiredAt || "");
   const startedAt = Date.parse(job.startedAt || job.createdAt || "");
@@ -339,34 +422,63 @@ async function runLockBelongsToJob(root, job) {
 }
 
 export async function releaseJobRunLock(root, job) {
-  if (!(await runLockBelongsToJob(root, job))) return false;
-  const lockPath = path.resolve(root, ".delivery/runtime/locks", `${job.runKey}.lock`);
-  try {
-    const beforeUnlink = await fs.lstat(lockPath);
-    // Recheck identity immediately before unlinking to close the PID-reuse
-    // race between ownership validation and the destructive operation.
+  if (!job?.runKey || !/^[A-Za-z0-9_-]+$/.test(job.runKey)) return false;
+  return withJobMutex(root, `gate:${job.runKey}`, async () => {
     if (!(await runLockBelongsToJob(root, job))) return false;
-    const afterRecheck = await fs.lstat(lockPath);
-    if (!sameFileIdentity(beforeUnlink, afterRecheck)) return false;
-    await fs.unlink(lockPath);
-    return true;
-  } catch (error) {
-    if (error.code === "ENOENT") return false;
-    throw error;
-  }
+    const lockPath = path.resolve(root, ".delivery/runtime/locks", `${job.runKey}.lock`);
+    try {
+      const before = await fs.lstat(lockPath);
+      if (!(await runLockBelongsToJob(root, job))) return false;
+      const after = await fs.lstat(lockPath);
+      if (!sameFileIdentity(before, after)) return false;
+      await fs.unlink(lockPath);
+      return true;
+    } catch (error) {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    }
+  });
 }
 
 async function markJobFailed(root, job, code, message) {
-  await releaseJobRunLock(root, job);
-  return updateDeliveryJob({
-    repoRoot: root,
-    jobId: job.jobId,
-    updates: {
+  if (job.pid && job.ownerGeneration) {
+    const processState = await processMatchesJob(job);
+    if (!processState.alive && !processState.reason &&
+        (await liveGroupMembers(job.pid)).length > 0) {
+      // The worker is gone but its inherited process group still runs.
+      // Reconcile through the supervisor before freeing the run key/lock.
+      return cancelDeliveryJob({ repoRoot: root, jobId: job.jobId,
+        reason: "Orphaned worker left live descendants" });
+    }
+  }
+  let updated;
+  if (!job.ownerGeneration) {
+    // Legacy records remain readable and reclaimable after the worker dies,
+    // but cannot acquire a new destructive owner capability.
+    updated = await updateDeliveryJob({ repoRoot: root, jobId: job.jobId,
+      updates: { status: "failed", finishedAt: new Date().toISOString(),
+        error: { code, message } } });
+    await releaseJobRunLock(root, job);
+    return updated;
+  }
+  try {
+    updated = await transitionDeliveryJob({
+      repoRoot: root,
+      jobId: job.jobId,
+      ownerGeneration: job.ownerGeneration,
+      from: ["queued", "running", "cancelling"],
+      updates: {
       status: "failed",
       finishedAt: new Date().toISOString(),
       error: { code, message },
-    },
-  });
+      },
+    });
+  } catch (error) {
+    if (!["JOB_TRANSITION_REJECTED", "OWNER_GENERATION_MISMATCH"].includes(error.code)) throw error;
+    return getDeliveryJob({ repoRoot: root, jobId: job.jobId });
+  }
+  await releaseJobRunLock(root, job);
+  return updated;
 }
 
 export async function findActiveDeliveryJob({ repoRoot, runKey }) {
@@ -384,9 +496,9 @@ export async function findActiveDeliveryJob({ repoRoot, runKey }) {
   for (const file of files) {
     if (!file.endsWith(".json")) continue;
     const jobId = file.slice(0, -5);
-    try {
-      const job = await getDeliveryJob({ repoRoot: root, jobId });
-      if (job && job.runKey === runKey && ["queued", "running"].includes(job.status)) {
+    if (!JOB_ID_REGEX.test(jobId)) continue;
+    const job = await getDeliveryJob({ repoRoot: root, jobId });
+    if (job && job.runKey === runKey && ACTIVE_JOB_STATUSES.has(job.status)) {
         if (job.status === "queued" && !job.pid && queuedLeaseExpired(job)) {
           await markJobFailed(
             root,
@@ -400,7 +512,7 @@ export async function findActiveDeliveryJob({ repoRoot, runKey }) {
         if (job.pid) {
           const processState = await processMatchesJob(job);
           if (!processState.alive) {
-            await markJobFailed(
+            const recovered = await markJobFailed(
               root,
               job,
               processState.reason || "WORKER_CRASHED",
@@ -408,16 +520,14 @@ export async function findActiveDeliveryJob({ repoRoot, runKey }) {
                 ? "Delivery job PID no longer belongs to its original worker"
                 : "Job worker process terminated unexpectedly"
             );
+            if (ACTIVE_JOB_STATUSES.has(recovered.status)) return recovered;
             continue;
           }
         } else if (job.status === "running" && queuedLeaseExpired({ ...job, queueLeaseUntil: job.startedAt })) {
           await markJobFailed(root, job, "JOB_WORKER_MISSING", "Running delivery job has no worker PID");
           continue;
         }
-        return job;
-      }
-    } catch {
-      // ignore
+      return job;
     }
   }
   return null;
@@ -432,6 +542,14 @@ export async function spawnJobWorker({ repoRoot, jobId, spawnFn = spawn }) {
   if (!job) throw new Error(`Job not found: ${jobId}`);
   if (TERMINAL_JOB_STATUSES.has(job.status)) return job.pid;
 
+  const spawnClaim = await withJobMutex(root, `job:${jobId}`, async () => {
+    const current = await getDeliveryJob({ repoRoot: root, jobId });
+    if (current.status !== "queued" || current.spawnClaimedAt) return false;
+    await writeJobAtomic(root, jobId, { ...current, spawnClaimedAt: new Date().toISOString() });
+    return true;
+  });
+  if (!spawnClaim) return job.pid;
+
   const spawnOptions = {
     cwd: root,
     env: {
@@ -439,6 +557,7 @@ export async function spawnJobWorker({ repoRoot, jobId, spawnFn = spawn }) {
       NODE_ENV: process.env.NODE_ENV || "",
       DELIVERY_JOB_ID: jobId,
       ...(job.workerToken ? { DELIVERY_JOB_TOKEN: job.workerToken } : {}),
+      ...(job.ownerGeneration ? { DELIVERY_JOB_OWNER_GENERATION: job.ownerGeneration } : {}),
     },
     detached: process.platform !== "win32",
     stdio: ["ignore", "ignore", "ignore"],
@@ -484,15 +603,14 @@ export async function spawnJobWorker({ repoRoot, jobId, spawnFn = spawn }) {
   }
 
   const workerIdentity = await readProcessIdentity(child.pid);
-  await updateDeliveryJob({
-    repoRoot: root,
-    jobId,
-    updates: {
-      pid: child.pid,
-      status: "running",
-      startedAt: new Date().toISOString(),
-      ...(workerIdentity ? { workerIdentity } : {}),
-    },
+  await withJobMutex(root, `job:${jobId}`, async () => {
+    const current = await getDeliveryJob({ repoRoot: root, jobId });
+    if (current.ownerGeneration !== job.ownerGeneration) return;
+    const updates = { pid: child.pid, startedAt: current.startedAt || new Date().toISOString(),
+      ...(workerIdentity ? { workerIdentity } : {}) };
+    // A fast worker may have persisted a terminal result before bookkeeping.
+    await writeJobAtomic(root, jobId, { ...current, ...updates,
+      status: current.status === "queued" ? "running" : current.status });
   });
 
   return child.pid;
@@ -503,59 +621,91 @@ export async function cancelDeliveryJob({ repoRoot, jobId, reason = "Cancelled b
   const job = await getDeliveryJob({ repoRoot: root, jobId });
   if (!job) throw new Error(`Job not found: ${jobId}`);
 
-  if (["passed", "failed", "timed_out", "cancelled"].includes(job.status)) {
+  if (TERMINAL_JOB_STATUSES.has(job.status)) {
     return job;
   }
-
-  const processState = job.pid ? await processMatchesJob(job) : { alive: false, verified: false };
-  if (processState.alive && processState.verified) {
-    await killProcessTree(job.pid, "SIGTERM", job.workerIdentity);
-    await new Promise((r) => setTimeout(r, 500));
-    const stillOwned = await processMatchesJob(job);
-    if (stillOwned.alive && stillOwned.verified) {
-      await killProcessTree(job.pid, "SIGKILL", job.workerIdentity);
-    }
+  if (!job.ownerGeneration) {
+    return updateDeliveryJob({ repoRoot: root, jobId,
+      updates: { error: { code: "JOB_CANCEL_LEGACY_UNVERIFIED",
+        message: "Legacy job has no owner generation; cancellation requires worker reconciliation" } } });
   }
-
-  await releaseJobRunLock(root, job);
-
-  const updated = await updateDeliveryJob({
-    repoRoot: root,
-    jobId,
-    updates: {
-      status: "cancelled",
-      finishedAt: new Date().toISOString(),
-      error: {
-        code: processState.alive && !processState.verified ? "JOB_CANCELLED_UNVERIFIED_WORKER" : "JOB_CANCELLED",
-        message:
-          processState.alive && !processState.verified
-            ? `${reason}; worker identity could not be verified, so no signal was sent`
-            : reason,
-      },
-    },
-  });
-
-  return updated;
-}
-
-export async function cleanupOrphanedDeliveryJobs({ repoRoot }) {
-  const root = findRepoRoot(repoRoot);
-  const jobsDir = getJobsDir(root);
-  let files = [];
+  let cancelling;
   try {
-    files = await fs.readdir(jobsDir);
+    cancelling = await transitionDeliveryJob({ repoRoot: root, jobId,
+      ownerGeneration: job.ownerGeneration, from: ["queued", "running"],
+      updates: { status: "cancelling" } });
   } catch (error) {
-    if (error.code === "ENOENT") return [];
+    if (error.code === "JOB_TRANSITION_REJECTED") return getDeliveryJob({ repoRoot: root, jobId });
     throw error;
   }
 
-  const cleaned = [];
-  for (const file of files) {
-    if (!file.endsWith(".json")) continue;
-    const jobId = file.slice(0, -5);
-    try {
+  let cancellationError = null;
+  if (cancelling.pid) {
+    const processState = await processMatchesJob(cancelling);
+    const members = await ownedGroupMembers(cancelling);
+    if (processState.reason || (processState.alive && !processState.verified)) {
+      cancellationError = "JOB_CANCEL_IDENTITY_MISMATCH";
+    } else if (!members) {
+      cancellationError = "JOB_CANCEL_GROUP_UNVERIFIED";
+    } else if (members.length > 0) {
+      if (!(await signalOwnedGroup(cancelling, "SIGTERM"))) {
+        cancellationError = "JOB_CANCEL_SIGNAL_FAILED";
+      } else if (!(await waitForGroupExit(cancelling.pid, 500))) {
+        const survivors = await ownedGroupMembers(cancelling);
+        if (!survivors || (survivors.length > 0 &&
+            !(await signalOwnedGroup(cancelling, "SIGKILL")))) {
+          cancellationError = "JOB_CANCEL_SIGNAL_FAILED";
+        } else if (survivors.length > 0 && !(await waitForGroupExit(cancelling.pid, 1500))) {
+          cancellationError = "JOB_CANCEL_PROCESS_ALIVE";
+        }
+      }
+    }
+  } else if (cancelling.spawnClaimedAt) {
+    cancellationError = "JOB_CANCEL_WORKER_STARTING";
+  }
+
+  // A concurrent completion wins without losing its result or PID.
+  const fresh = await getDeliveryJob({ repoRoot: root, jobId });
+  if (TERMINAL_JOB_STATUSES.has(fresh.status)) return fresh;
+  if (cancellationError) {
+    return transitionDeliveryJob({ repoRoot: root, jobId,
+      ownerGeneration: job.ownerGeneration, from: ["cancelling"],
+      updates: { status: cancelling.pid ? "running" : "queued",
+        error: { code: cancellationError, message: `${reason}; cancellation not confirmed` } } });
+  }
+  await releaseJobRunLock(root, cancelling);
+  try {
+    return await transitionDeliveryJob({ repoRoot: root, jobId,
+      ownerGeneration: job.ownerGeneration, from: ["cancelling"],
+      updates: { status: "cancelled", finishedAt: new Date().toISOString(),
+        error: { code: "JOB_CANCELLED", message: reason } } });
+  } catch (error) {
+    if (error.code === "JOB_TRANSITION_REJECTED") return getDeliveryJob({ repoRoot: root, jobId });
+    throw error;
+  }
+}
+
+export async function cleanupOrphanedDeliveryJobs({ repoRoot, limit = 100 }) {
+  const root = findRepoRoot(repoRoot);
+  const jobsDir = getJobsDir(root);
+  return withJobMutex(root, "reconcile", async () => {
+    let files = [];
+    try { files = (await fs.readdir(jobsDir)).filter((file) =>
+      file.endsWith(".json") && JOB_ID_REGEX.test(file.slice(0, -5))).sort(); }
+    catch (error) { if (error.code === "ENOENT") return []; throw error; }
+    if (files.length === 0) return [];
+    const cursorPath = path.resolve(root, ".delivery/runtime/jobs-reconcile.cursor");
+    let cursor = 0;
+    try { cursor = Number(await fs.readFile(cursorPath, "utf8")) || 0; }
+    catch (error) { if (error.code !== "ENOENT") throw error; }
+    const batchSize = Math.min(files.length, Math.max(1, Math.min(100, Number(limit) || 100)));
+    const selected = Array.from({ length: batchSize }, (_, i) => files[(cursor + i) % files.length]);
+    await fs.writeFile(cursorPath, String((cursor + batchSize) % files.length));
+    const cleaned = [];
+    for (const file of selected) {
+      const jobId = file.slice(0, -5);
       const job = await getDeliveryJob({ repoRoot: root, jobId });
-      if (job && ["queued", "running"].includes(job.status)) {
+      if (job && ACTIVE_JOB_STATUSES.has(job.status)) {
         if (job.status === "queued" && !job.pid && queuedLeaseExpired(job)) {
           await markJobFailed(
             root,
@@ -567,7 +717,7 @@ export async function cleanupOrphanedDeliveryJobs({ repoRoot }) {
         } else if (job.pid) {
           const processState = await processMatchesJob(job);
           if (!processState.alive) {
-            await markJobFailed(
+            const recovered = await markJobFailed(
               root,
               job,
               processState.reason || "WORKER_CRASHED",
@@ -575,18 +725,16 @@ export async function cleanupOrphanedDeliveryJobs({ repoRoot }) {
                 ? "Orphaned job PID no longer belongs to its original worker"
                 : "Orphaned job worker process died"
             );
-            cleaned.push(jobId);
+            if (TERMINAL_JOB_STATUSES.has(recovered.status)) cleaned.push(jobId);
           }
         } else if (job.status === "running" && queuedLeaseExpired({ ...job, queueLeaseUntil: job.startedAt })) {
           await markJobFailed(root, job, "JOB_WORKER_MISSING", "Running delivery job has no worker PID");
           cleaned.push(jobId);
         }
       }
-    } catch {
-      // ignore
     }
-  }
-  return cleaned;
+    return cleaned;
+  });
 }
 
 function formatTerminalJobResult(job) {
@@ -694,7 +842,7 @@ export async function waitForJob({
       };
     }
 
-    if (["queued", "running"].includes(job.status)) {
+    if (ACTIVE_JOB_STATUSES.has(job.status)) {
       if (job.status === "queued" && !job.pid && queuedLeaseExpired(job)) {
         const failedJob = await markJobFailed(
           root,
@@ -721,6 +869,10 @@ export async function waitForJob({
               ? "Job PID no longer belongs to its original worker"
               : "Job worker process died unexpectedly"
           );
+          if (ACTIVE_JOB_STATUSES.has(failedJob.status)) {
+            await sleepFn(100);
+            continue;
+          }
           return formatTerminalJobResult(failedJob);
         }
       } else if (job.status === "running" && queuedLeaseExpired({ ...job, queueLeaseUntil: job.startedAt })) {

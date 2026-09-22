@@ -23,7 +23,8 @@ import { inspectCi } from "./lib/ci-provider.mjs";
 import { finalizeDelivery, verifyHeadDelivery } from "./lib/delivery-finalize.mjs";
 import { testDelivery } from "./lib/test-delivery.mjs";
 import { redactSecrets } from "./lib/redact-secrets.mjs";
-import { waitForJob, cancelDeliveryJob } from "./lib/jobs.mjs";
+import { waitForJob, cancelDeliveryJob, cleanupOrphanedDeliveryJobs } from "./lib/jobs.mjs";
+import { findRepoRoot } from "./lib/repo-root.mjs";
 import { abandonRepairAttempt } from "./lib/delivery-ledger.mjs";
 
 const intentProperty = {
@@ -705,6 +706,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 async function run() {
+  await cleanupOrphanedDeliveryJobs({ repoRoot: findRepoRoot(process.cwd()), limit: 100 });
   await server.connect(new StdioServerTransport());
 }
 

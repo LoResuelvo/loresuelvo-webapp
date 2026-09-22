@@ -6,7 +6,7 @@ import { recordPreparedEvidence, verifyPreparedEvidence, evaluateCiWindow } from
 import { saveDeliveryContext } from "./delivery-context.mjs";
 import { computeRunKey } from "./delivery-evidence.mjs";
 import {
-  createDeliveryJob,
+  claimDeliveryJob,
   createStagedSnapshotJobSubject,
   spawnJobWorker,
   findActiveDeliveryJob,
@@ -293,7 +293,7 @@ export async function prepareDelivery({
     (requestedMode === "auto" && isLongGate && !executeCheck);
 
   if (shouldRunAsJob) {
-    const job = await createDeliveryJob({
+    const { job, claimed } = await claimDeliveryJob({
       repoRoot: root,
       type: "prepare",
       params: {
@@ -312,11 +312,11 @@ export async function prepareDelivery({
       gateId: inspection.gate.id,
     });
 
-    await spawnJobWorker({ repoRoot: root, jobId: job.jobId });
+    if (claimed) await spawnJobWorker({ repoRoot: root, jobId: job.jobId });
 
     return {
       schemaVersion: 1,
-      status: "job_started",
+      status: claimed ? "job_started" : "running",
       jobId: job.jobId,
       snapshotHash: inspection.snapshotHash,
       runKey,

@@ -1526,6 +1526,16 @@ export async function authorizeRepairPush({
   const cleanTarget = assertCommitSha(targetSha);
   const cleanCommit = assertCommitSha(commitSha);
 
+  if (!lockHeld) {
+    const release = await acquireRepairLock({ repoRoot: root, targetSha: cleanTarget });
+    try {
+      return await authorizeRepairPush({ repoRoot: root, targetSha: cleanTarget, commitSha: cleanCommit,
+        ciProvider, lockHeld: true });
+    } finally {
+      await release();
+    }
+  }
+
   // 1. Get current authorization
   const auth = await getRepairAuthorization({ repoRoot: root, targetSha: cleanTarget });
 
@@ -1550,6 +1560,14 @@ export async function authorizeRepairPush({
 
   // Check snapshot hash consistency if available
   const commitEvidence = await getCommitEvidence({ repoRoot: root, commitSha: cleanCommit });
+  if (!auth || commitEvidence?.repairPushConsumed) {
+    return {
+      authorized: false,
+      reason: !auth ? "REPAIR_AUTHORIZATION_MISSING" : "REPAIR_RECEIPT_ALREADY_CONSUMED",
+      message: "Repair authorization is missing or has already been consumed by a local push attempt.",
+      authorization: auth,
+    };
+  }
   if (auth?.snapshotHash && commitEvidence?.snapshotHash && auth.snapshotHash !== commitEvidence.snapshotHash) {
     return {
       authorized: false,

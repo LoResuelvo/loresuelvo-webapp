@@ -109,6 +109,7 @@ function isGitCommitInvocation(tokens) {
       return Boolean(script && isGitCommitCommand(script));
     }
     index += 1;
+    if (prefix === "rtk" && tokens[index] === "proxy") index += 1;
     if (prefix === "env") {
       while (tokens[index]?.startsWith("-") || isEnvironmentAssignment(tokens[index])) index += 1;
     } else if (prefix === "sudo") {
@@ -122,7 +123,7 @@ function isGitCommitInvocation(tokens) {
     }
   }
 
-  if (tokens[index] !== "git") return false;
+  if (path.basename(tokens[index] || "") !== "git") return false;
   index += 1;
   while (index < tokens.length) {
     const argument = tokens[index];
@@ -141,6 +142,33 @@ function isGitCommitInvocation(tokens) {
     return argument === "commit";
   }
   return false;
+}
+
+export function resolveGitCommitRepo(rawCommand, startingRoot) {
+  const tokens = tokenizeShellCommand(rawCommand);
+  let segment = [];
+  let currentDirectory = startingRoot;
+  for (const token of [...tokens, ";"]) {
+    if (!COMMAND_SEPARATORS.has(token)) {
+      segment.push(token);
+      continue;
+    }
+    if (segment[0] === "cd" && segment[1]) currentDirectory = path.resolve(currentDirectory, segment[1]);
+    if (isGitCommitInvocation(segment)) {
+      if (segment[0] === "bash" || segment[0] === "sh") {
+        return resolveGitCommitRepo(shellScriptArgument(segment, 0), currentDirectory);
+      }
+      let target = currentDirectory;
+      const commitIndex = segment.indexOf("commit");
+      for (let index = 0; index < commitIndex; index += 1) {
+        if (segment[index] === "-C" && segment[index + 1]) target = path.resolve(target, segment[++index]);
+        else if (segment[index]?.startsWith("-C") && segment[index].length > 2) target = path.resolve(target, segment[index].slice(2));
+      }
+      return findRepoRoot(target);
+    }
+    segment = [];
+  }
+  return findRepoRoot(startingRoot);
 }
 
 export function isGitCommitCommand(rawCommand) {
@@ -169,7 +197,8 @@ export async function runCodexGuard({ repoRoot = findRepoRoot(), rawCommand = ""
     return { shouldIntercept: false, passed: true, status: "ignored" };
   }
 
-  const snapshot = await captureGitSnapshot({ cwd: repoRoot });
+  const targetRoot = rawCommand ? resolveGitCommitRepo(rawCommand, repoRoot) : repoRoot;
+  const snapshot = await captureGitSnapshot({ cwd: targetRoot });
   if (snapshot.stagedFiles.length === 0) {
     return {
       shouldIntercept: true,
@@ -179,7 +208,7 @@ export async function runCodexGuard({ repoRoot = findRepoRoot(), rawCommand = ""
     };
   }
 
-  const verification = await verifyPreparedEvidence({ repoRoot, snapshot });
+  const verification = await verifyPreparedEvidence({ repoRoot: targetRoot, snapshot });
   if (verification.valid) {
     return {
       shouldIntercept: true,
@@ -204,7 +233,8 @@ export function parseCodexHookInput(rawInput) {
   return {
     toolName: typeof parsed.tool_name === "string" ? parsed.tool_name : null,
     rawCommand:
-      typeof parsed.tool_input?.command === "string" ? parsed.tool_input.command : "",
+      typeof parsed.tool_input?.command === "string" ? parsed.tool_input.command :
+        (typeof parsed.tool_input?.cmd === "string" ? parsed.tool_input.cmd : ""),
   };
 }
 
@@ -247,9 +277,9 @@ const currentFile = fileURLToPath(import.meta.url);
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === currentFile;
 if (isMain) {
   main().catch((err) => {
-    process.stderr.write(
-      `[codex-delivery-guard] Internal error: ${String(err.message || "unknown").split("\n")[0]}\n`
-    );
-    process.exit(2);
+    process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse",
+      permissionDecision: "deny", permissionDecisionReason:
+        `Delivery guard internal error: ${String(err.message || "unknown").split("\n")[0]}` } })}\n`);
+    process.exit(0);
   });
 }

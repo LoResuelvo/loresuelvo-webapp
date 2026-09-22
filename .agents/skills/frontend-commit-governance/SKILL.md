@@ -116,7 +116,7 @@ Para subsanar el fallo de forma auditable como agente:
    (o en CLI: `npm run delivery:prepare -- --intent repair_ci --repairs-sha <failed-sha> --message 'fix: ...'`).
 4. Esta invocación selecciona y ejecuta obligatoriamente el **Gate R**, que reproduce exhaustivamente a nivel local los checks de CI asignados a agentes (`delivery_unit`, `lint`, `typecheck_app`, `typecheck_cucumber`, `unit`, `e2e_full` y `build`; excluyendo la construcción de imágenes Docker, reservada para GitHub Actions y humanos).
 5. Con `status: passed`, crear el commit (`git commit -m "fix: ..."`) y pushearlo inmediatamente (`git push origin main`).
-6. El hook `pre-push` comprueba la correspondencia con el SHA fallido, valida el Gate R y consume la autorización de reparación (de uso único). En el ledger local se asocia la reparación y se marca como subsanado el fallo previo, habilitando nuevamente pushes normales.
+6. Con `DELIVERY_REQUIRE_EVIDENCE=1`, `pre-push` valida ledger, ventana CI, incidente activo, Gate R, lineage y SHA objetivo, y consume la autorización de uso único al aprobar el intento local. Eso no prueba que el remoto haya aceptado el push; no reintentar omitiendo hooks si el remoto lo rechaza.
 
 Un desarrollador humano puede elegir Gate R o delegar la verificación al CI remoto. En la segunda ruta debe dejar el snapshot final staged y ejecutar `npm run delivery:context -- --intent repair_ci --repairs-sha <failed-sha> [--us-id <id>]` inmediatamente antes de commitear. `post-commit` solo conserva esa intención si coinciden parent, branch, árbol staged y mensaje; la evidencia queda `not_run`, `DELIVERY_REQUIRE_EVIDENCE=1` la bloquea y `pre-push` consume igualmente una autorización de un solo uso.
 

@@ -1,8 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { findRepoRoot } from "./repo-root.mjs";
-import { consumeDeliveryContext } from "./delivery-context.mjs";
+import { consumeDeliveryContext, loadDeliveryContext, validateDeliveryContext } from "./delivery-context.mjs";
 import { captureGitSnapshot } from "./git-snapshot.mjs";
 import {
   consumePreparedEvidence,
@@ -10,6 +11,10 @@ import {
   queryCommitEvidence,
   recordCommitEvidence,
   verifyPreparedEvidence,
+  getLedgerState,
+  evaluateCiWindow,
+  validateRepairLineage,
+  authorizeRepairPush,
 } from "./delivery-ledger.mjs";
 
 
@@ -25,6 +30,18 @@ const ALLOWED_TYPES = new Set([
   "style",
   "perf",
 ]);
+
+function agentEvidenceRequired() {
+  return process.env.DELIVERY_REQUIRE_EVIDENCE === "1";
+}
+
+function forbiddenCiBypass() {
+  return Object.hasOwn(process.env, "DELIVERY_SKIP_CI_CHECK");
+}
+
+function blockedHook(reason, message) {
+  return { passed: false, advisory: false, reason, message };
+}
 
 /**
  * Validates commit message structure according to Lo Resuelvo commit governance.
@@ -115,12 +132,14 @@ export function validateCommitMessage(rawMessage) {
 }
 
 export async function runPreCommitHook({ repoRoot } = {}) {
+  if (forbiddenCiBypass()) return blockedHook("DEPRECATED_CI_BYPASS_REJECTED", "DELIVERY_SKIP_CI_CHECK is forbidden.");
   const root = findRepoRoot(repoRoot);
 
   let snapshot;
   try {
     snapshot = await captureGitSnapshot({ cwd: root });
   } catch (error) {
+    if (agentEvidenceRequired()) return blockedHook("GIT_ERROR", `Delivery pre-commit check unavailable: ${error.message}`);
     return {
       passed: true,
       advisory: true,
@@ -134,6 +153,7 @@ export async function runPreCommitHook({ repoRoot } = {}) {
   try {
     receipt = await verifyPreparedEvidence({ repoRoot: root, snapshot });
   } catch (error) {
+    if (agentEvidenceRequired()) return blockedHook("DELIVERY_STATE_UNAVAILABLE", `Delivery pre-commit check unavailable: ${error.message}`);
     return {
       passed: true,
       advisory: true,
@@ -154,16 +174,13 @@ export async function runPreCommitHook({ repoRoot } = {}) {
     };
   }
 
-  return {
-    passed: true,
-    advisory: true,
-    verified: false,
-    reason: verifiedReason,
-    warning: `Proceeding without verified delivery evidence (not_run). Use delivery_prepare to verify gates locally.`,
-  };
+  if (agentEvidenceRequired()) return blockedHook(verifiedReason, "Agent commit requires matching passed delivery_prepare evidence.");
+  return { passed: true, advisory: true, verified: false, reason: verifiedReason,
+    warning: "Proceeding without verified delivery evidence (not_run). Use delivery_prepare to verify gates locally." };
 }
 
 export async function runCommitMsgHook({ repoRoot, messageFilePath } = {}) {
+  if (forbiddenCiBypass()) return blockedHook("DEPRECATED_CI_BYPASS_REJECTED", "DELIVERY_SKIP_CI_CHECK is forbidden.");
   const root = findRepoRoot(repoRoot);
   if (!messageFilePath) {
     throw new Error("Missing commit message file path parameter");
@@ -215,7 +232,31 @@ function readCommittedSnapshot(root, commitSha) {
     branch,
     treeSha,
     stagedFiles: rawFiles.toString("utf8").split("\0").filter(Boolean).sort(),
+    snapshotHash: parents[0] ? crypto.createHash("sha256").update(execFileSync("git",
+      ["diff", "--binary", parents[0], commitSha], { cwd: root, encoding: "buffer" })).digest("hex") : null,
   };
+}
+
+async function recordHumanCommit(root, commitSha, reason) {
+  try {
+    const committed = readCommittedSnapshot(root, commitSha);
+    const context = await loadDeliveryContext({ repoRoot: root });
+    const message = execFileSync("git", ["log", "-1", "--format=%B", commitSha], { cwd: root, encoding: "utf8" });
+    const contextCheck = validateDeliveryContext({ context,
+      snapshot: { headSha: committed.parentSha, branch: committed.branch,
+        stagedTreeSha: committed.treeSha, snapshotHash: committed.snapshotHash },
+      proposedCommitMessage: message });
+    const manualRepair = contextCheck.valid && context.intent === "repair_ci" && Boolean(context.repairsSha);
+    const entry = await recordCommitEvidence({ repoRoot: root, commitSha, verificationStatus: "not_run",
+      notRunReason: reason, branch: committed.branch, parentSha: committed.parentSha,
+      treeSha: committed.treeSha, stagedFiles: committed.stagedFiles,
+      ...(manualRepair ? { intent: "repair_ci", repairsSha: context.repairsSha,
+        usId: context.usId, manualRepairContextValidated: true } : {}) });
+    if (manualRepair) await consumeDeliveryContext({ repoRoot: root, context });
+    return { recorded: true, advisory: true, commitSha, ledgerEntry: entry, verificationStatus: "not_run" };
+  } catch (error) {
+    return postCommitAdvisory("DELIVERY_EVIDENCE_RECORD_FAILED", `Human commit evidence could not be recorded: ${error.message}`, commitSha);
+  }
 }
 
 export async function runPostCommitHook({ repoRoot } = {}) {
@@ -255,10 +296,10 @@ export async function runPostCommitHook({ repoRoot } = {}) {
   try {
     prepared = await getLastPreparedEvidence({ repoRoot: root });
   } catch (error) {
-    return postCommitAdvisory("DELIVERY_STATE_UNAVAILABLE", `Prepared delivery evidence could not be read: ${error.message}`, commitSha);
+    return recordHumanCommit(root, commitSha, "PREPARED_EVIDENCE_UNAVAILABLE");
   }
   if (!prepared) {
-    return postCommitAdvisory("MISSING_PREPARED_EVIDENCE", "No prepared delivery receipt matched this commit.", commitSha);
+    return recordHumanCommit(root, commitSha, "human_commit_no_receipt");
   }
 
   let committed;
@@ -285,7 +326,7 @@ export async function runPostCommitHook({ repoRoot } = {}) {
     return postCommitAdvisory("DELIVERY_STATE_UNAVAILABLE", `Prepared delivery evidence could not be verified: ${error.message}`, commitSha);
   }
   if (!receipt.valid) {
-    return postCommitAdvisory(receipt.reason || "PREPARED_EVIDENCE_MISMATCH", "Prepared delivery evidence did not match the created commit.", commitSha);
+    return recordHumanCommit(root, commitSha, receipt.reason || "PREPARED_EVIDENCE_MISMATCH");
   }
 
   let ledgerEntry;
@@ -323,13 +364,76 @@ export async function runPostCommitHook({ repoRoot } = {}) {
   return { recorded: true, advisory: true, commitSha, ledgerEntry, verificationStatus: "passed" };
 }
 
-export async function runPrePushHook({ repoRoot } = {}) {
-  return {
-    passed: true,
-    advisory: true,
-    reason: "DELIVERY_RUNTIME_ADVISORY",
-    warning: "Delivery pre-push enforcement is advisory; run delivery_prepare/inspect explicitly for evidence and CI state.",
-  };
+function readSinglePush(root, stdinLines) {
+  if (!Array.isArray(stdinLines) || stdinLines.length !== 1) {
+    return { error: blockedHook("NON_ATOMIC_PUSH", "Agent push requires exactly one ref update.") };
+  }
+  const fields = stdinLines[0].trim().split(/\s+/);
+  if (fields.length !== 4 || fields[0] !== "refs/heads/main" || fields[2] !== "refs/heads/main" ||
+      !/^[a-f0-9]{40}$/i.test(fields[1]) || !/^[a-f0-9]{40}$/i.test(fields[3])) {
+    return { error: blockedHook("INVALID_PUSH_REF", "Agent push requires an existing main ref and full commit SHAs.") };
+  }
+  const [, localSha, , remoteSha] = fields;
+  const headSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+  const branch = execFileSync("git", ["symbolic-ref", "--short", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+  if (branch !== "main") return { error: blockedHook("PUSH_BRANCH_MISMATCH", "Agent push requires the main checkout.") };
+  if (localSha.toLowerCase() !== headSha.toLowerCase()) {
+    return { error: blockedHook("PUSH_HEAD_MISMATCH", "Push ref does not match current HEAD.") };
+  }
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", remoteSha, localSha], { cwd: root, stdio: "ignore" });
+    const count = Number(execFileSync("git", ["rev-list", "--count", `${remoteSha}..${localSha}`], { cwd: root, encoding: "utf8" }).trim());
+    if (count !== 1) return { error: blockedHook("NON_ATOMIC_PUSH", "Agent push requires exactly one new commit.") };
+  } catch {
+    return { error: blockedHook("PUSH_RANGE_INVALID", "Cannot verify the push commit range.") };
+  }
+  return { localSha, remoteSha };
+}
+
+export async function runPrePushHook({ repoRoot, stdinLines = [], ciProvider = null } = {}) {
+  if (forbiddenCiBypass()) return blockedHook("DEPRECATED_CI_BYPASS_REJECTED", "DELIVERY_SKIP_CI_CHECK is forbidden.");
+  if (!agentEvidenceRequired()) return { passed: true, advisory: true, reason: "DELIVERY_RUNTIME_ADVISORY",
+    warning: "Local delivery pre-push is advisory for humans; remote push has not yet run." };
+
+  try {
+    const root = findRepoRoot(repoRoot);
+    const push = readSinglePush(root, stdinLines);
+    if (push.error) return push.error;
+
+    const ledger = await getLedgerState({ repoRoot: root });
+    if (ledger.state !== "VALID_LEDGER") return blockedHook("LEDGER_CORRUPT", `Delivery ledger is not valid (${ledger.state}).`);
+    const evidence = await queryCommitEvidence({ repoRoot: root, commitSha: push.localSha });
+    if (evidence.state === "not_run") return blockedHook("UNVERIFIED_COMMIT", "Agent push requires verified local evidence; this commit is not_run.");
+    if (evidence.state === "missing") return blockedHook("MISSING_COMMIT_EVIDENCE", "Agent push requires a delivery ledger entry.");
+    if (!evidence.valid) return blockedHook("CORRUPT_COMMIT_EVIDENCE", `Commit evidence is invalid (${evidence.reason}).`);
+
+    const entry = evidence.entry;
+    if (entry.branch !== "main") return blockedHook("EVIDENCE_BRANCH_MISMATCH", "Commit evidence does not belong to main.");
+    const isRepair = entry.intent === "repair_ci" || Boolean(entry.repairsSha);
+    if (isRepair && (entry.intent !== "repair_ci" || entry.gateId !== "R" || !entry.repairsSha)) {
+      return blockedHook("REPAIR_GATE_INVALID", "Agent repair requires exact Gate R evidence and a target SHA.");
+    }
+
+    const window = await evaluateCiWindow({ repoRoot: root, ciProvider,
+      intent: isRepair ? "repair_ci" : "prepare_commit", repairsSha: isRepair ? entry.repairsSha : null,
+      historyHeadSha: push.remoteSha, excludeShas: [push.localSha], commitCount: 1 });
+    if (!window.allowed) return blockedHook(window.reason || window.code || "CI_WINDOW_BLOCKED", window.message || "CI window is blocked.");
+
+    if (isRepair) {
+      if (!window.matchingIncident) return blockedHook("REPAIR_TARGET_NOT_ACTIVE", "Repair target has no active CI incident.");
+      const lineage = await validateRepairLineage({ repoRoot: root, repairSha: push.localSha,
+        targetSha: window.matchingIncident.failedSha, ciProvider });
+      if (!lineage.valid) return blockedHook(lineage.reason || "REPAIR_LINEAGE_INVALID", lineage.message || "Repair lineage is invalid.");
+      const authorization = await authorizeRepairPush({ repoRoot: root, targetSha: entry.repairsSha,
+        commitSha: push.localSha, ciProvider });
+      if (!authorization.authorized) return blockedHook(authorization.reason, authorization.message);
+    }
+
+    return { passed: true, advisory: false, reason: "LOCAL_PUSH_AUTHORIZED",
+      message: "Local pre-push checks passed; remote push has not yet run.", commitSha: push.localSha };
+  } catch (error) {
+    return blockedHook("DELIVERY_STATE_UNAVAILABLE", `Agent pre-push check failed locally: ${String(error?.message || "unknown").split("\n")[0]}`);
+  }
 }
 
 export async function installHooks({ repoRoot } = {}) {

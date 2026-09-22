@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   getHooksStatus,
   installHooks,
@@ -19,12 +19,14 @@ import {
   getCommitEvidence,
   getLastPreparedEvidence,
   getRepairAuthorization,
+  recordCommitEvidence,
   recordPreparedEvidence,
   saveRepairAuthorization,
 } from "../lib/delivery-ledger.mjs";
 import { captureGitSnapshot } from "../lib/git-snapshot.mjs";
 import { loadDeliveryContext, saveDeliveryContext } from "../lib/delivery-context.mjs";
 import { MockCiProvider } from "../lib/ci-provider.mjs";
+import { prepareDelivery } from "../lib/prepare-delivery.mjs";
 
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -53,10 +55,15 @@ async function createTempRepo(t) {
     path.join(sourceRoot, ".delivery", "schemas", "execution-result.schema.json"),
     path.join(root, ".delivery", "schemas", "execution-result.schema.json"),
   );
+  await fs.copyFile(
+    path.join(sourceRoot, ".delivery", "schemas", "inspection-result.schema.json"),
+    path.join(root, ".delivery", "schemas", "inspection-result.schema.json"),
+  );
   await fs.copyFile(path.join(sourceRoot, ".delivery", "policy.v1.json"), path.join(root, ".delivery", "policy.v1.json"));
+  await fs.copyFile(path.join(sourceRoot, ".gitignore"), path.join(root, ".gitignore"));
   await fs.mkdir(path.join(root, ".githooks"), { recursive: true });
   await fs.writeFile(path.join(root, "README.md"), "# Fixture\n", "utf8");
-  execFileSync("git", ["add", "README.md"], { cwd: root });
+  execFileSync("git", ["add", "."], { cwd: root });
   execFileSync("git", ["commit", "-m", "chore: initialize delivery fixture"], {
     cwd: root,
     stdio: "ignore",
@@ -121,7 +128,7 @@ test("hooks install configures .githooks and reports each executable hook", asyn
   }
 });
 
-test("pre-commit remains advisory even when evidence is required", async (t) => {
+test("pre-commit allows human not_run but blocks agent not_run", async (t) => {
   const root = await createTempRepo(t);
   const previous = process.env.DELIVERY_REQUIRE_EVIDENCE;
   delete process.env.DELIVERY_REQUIRE_EVIDENCE;
@@ -133,8 +140,8 @@ test("pre-commit remains advisory even when evidence is required", async (t) => 
 
     process.env.DELIVERY_REQUIRE_EVIDENCE = "1";
     const strict = await runPreCommitHook({ repoRoot: root });
-    assert.equal(strict.passed, true);
-    assert.equal(strict.advisory, true);
+    assert.equal(strict.passed, false);
+    assert.equal(strict.advisory, false);
     assert.equal(strict.reason, "MISSING_PREPARED_EVIDENCE");
   } finally {
     if (previous === undefined) delete process.env.DELIVERY_REQUIRE_EVIDENCE;
@@ -165,7 +172,7 @@ test("commit-msg validates a file and rejects the legacy [US-33] spelling", asyn
   assert.equal(Object.hasOwn(staleContext, "contextValidation"), false);
 });
 
-test("post-commit remains advisory and does not mutate evidence", async (t) => {
+test("post-commit records a human commit as not_run without blocking it", async (t) => {
   const root = await createTempRepo(t);
   await fs.writeFile(path.join(root, "manual.txt"), "human change\n", "utf8");
   execFileSync("git", ["add", "manual.txt"], { cwd: root });
@@ -175,11 +182,11 @@ test("post-commit remains advisory and does not mutate evidence", async (t) => {
   });
   const sha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
   const result = await runPostCommitHook({ repoRoot: root });
-  assert.equal(result.recorded, false);
+  assert.equal(result.recorded, true);
   assert.equal(result.advisory, true);
   assert.equal(result.commitSha, sha);
   const entry = await getCommitEvidence({ repoRoot: root, commitSha: sha });
-  assert.equal(entry, null);
+  assert.equal(entry.verificationStatus, "not_run");
 });
 
 test("post-commit binds and consumes an exact prepared receipt", async (t) => {
@@ -218,13 +225,13 @@ test("post-commit leaves a created commit accepted when prepared evidence is cor
   execFileSync("git", ["add", "corrupt.txt"], { cwd: root });
   execFileSync("git", ["commit", "-m", "docs[35]: tolerate corrupt receipt"], { cwd: root, stdio: "ignore" });
   const post = await runPostCommitHook({ repoRoot: root });
-  assert.equal(post.recorded, false);
+  assert.equal(post.recorded, true);
   assert.equal(post.advisory, true);
-  assert.equal(post.reason, "MISSING_PREPARED_EVIDENCE");
+  assert.equal(post.verificationStatus, "not_run");
   assert.ok(post.commitSha);
 });
 
-test("manual repair context remains advisory and unconsumed for one push", async (t) => {
+test("manual repair context is advisory for humans but blocked for agents", async (t) => {
   const root = await createTempRepo(t);
   const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "android-delivery-remote-"));
   t.after(() => fs.rm(remoteDir, { recursive: true, force: true }));
@@ -236,7 +243,7 @@ test("manual repair context remains advisory and unconsumed for one push", async
   execFileSync("git", ["add", "broken.txt"], { cwd: root });
   execFileSync("git", ["commit", "-m", "fix: introduce failure"], { cwd: root, stdio: "ignore" });
   const failedPost = await runPostCommitHook({ repoRoot: root });
-  assert.equal(failedPost.recorded, false);
+  assert.equal(failedPost.recorded, true);
   assert.equal(failedPost.advisory, true);
   execFileSync("git", ["push", "origin", "main"], { cwd: root, stdio: "ignore" });
 
@@ -255,17 +262,19 @@ test("manual repair context remains advisory and unconsumed for one push", async
 
   execFileSync("git", ["commit", "-m", "fix: repair failed commit"], { cwd: root, stdio: "ignore" });
   const repairPost = await runPostCommitHook({ repoRoot: root });
-  assert.equal(repairPost.recorded, false);
+  assert.equal(repairPost.recorded, true);
   assert.equal(repairPost.advisory, true);
-  assert.equal((await loadDeliveryContext({ repoRoot: root })).consumed, false);
+  assert.equal(repairPost.verificationStatus, "not_run");
+  assert.equal(repairPost.ledgerEntry.repairsSha, failedPost.commitSha);
+  assert.equal((await loadDeliveryContext({ repoRoot: root })).consumed, true);
 
   const pushLine = `refs/heads/main ${repairPost.commitSha} refs/heads/main ${failedPost.commitSha}`;
   const previousStrict = process.env.DELIVERY_REQUIRE_EVIDENCE;
   process.env.DELIVERY_REQUIRE_EVIDENCE = "1";
   try {
     const strictPush = await runPrePushHook({ repoRoot: root, stdinLines: [pushLine], ciProvider: mockCi });
-    assert.equal(strictPush.passed, true);
-    assert.equal(strictPush.advisory, true);
+    assert.equal(strictPush.passed, false);
+    assert.equal(strictPush.reason, "UNVERIFIED_COMMIT");
   } finally {
     if (previousStrict === undefined) delete process.env.DELIVERY_REQUIRE_EVIDENCE;
     else process.env.DELIVERY_REQUIRE_EVIDENCE = previousStrict;
@@ -293,19 +302,25 @@ test("manual repair context is not retained when the staged tree changes", async
   execFileSync("git", ["commit", "-m", "fix: changed repair snapshot"], { cwd: root, stdio: "ignore" });
   const post = await runPostCommitHook({ repoRoot: root });
 
-  assert.equal(post.recorded, false);
+  assert.equal(post.recorded, true);
   assert.equal(post.advisory, true);
+  assert.equal(post.ledgerEntry.repairsSha, null);
   assert.equal((await loadDeliveryContext({ repoRoot: root })).consumed, false);
 });
 
-test("pre-push ignores delivery runtime bypass state and remains advisory", async (t) => {
+test("pre-push rejects the forbidden CI bypass even for humans", async (t) => {
   const root = await createTempRepo(t);
   const previous = process.env.DELIVERY_SKIP_CI_CHECK;
   process.env.DELIVERY_SKIP_CI_CHECK = "1";
   try {
+    assert.equal((await runPreCommitHook({ repoRoot: root })).reason, "DEPRECATED_CI_BYPASS_REJECTED");
+    const messagePath = path.join(root, "commit-message.txt");
+    await fs.writeFile(messagePath, "fix: reject bypass\n");
+    assert.equal((await runCommitMsgHook({ repoRoot: root, messageFilePath: messagePath })).reason,
+      "DEPRECATED_CI_BYPASS_REJECTED");
     const result = await runPrePushHook({ repoRoot: root, stdinLines: [] });
-    assert.equal(result.passed, true);
-    assert.equal(result.advisory, true);
+    assert.equal(result.passed, false);
+    assert.equal(result.reason, "DEPRECATED_CI_BYPASS_REJECTED");
   } finally {
     if (previous === undefined) delete process.env.DELIVERY_SKIP_CI_CHECK;
     else process.env.DELIVERY_SKIP_CI_CHECK = previous;
@@ -345,4 +360,104 @@ test("remote-rejected pushes do not consume repair authorization through pre-pus
   assert.throws(() => execFileSync("git", ["push", "origin", "main"], { cwd: root, stdio: "ignore" }));
   const authorization = await getRepairAuthorization({ repoRoot: root, targetSha });
   assert.deepEqual(authorization, beforePush);
+});
+
+async function recordNotRunCommit(root, sha, filename) {
+  const parentSha = execFileSync("git", ["rev-parse", `${sha}^`], { cwd: root, encoding: "utf8" }).trim();
+  const treeSha = execFileSync("git", ["rev-parse", `${sha}^{tree}`], { cwd: root, encoding: "utf8" }).trim();
+  return recordCommitEvidence({ repoRoot: root, commitSha: sha, verificationStatus: "not_run",
+    notRunReason: "human_commit_no_receipt", branch: "main", parentSha, treeSha, stagedFiles: [filename] });
+}
+
+test("real pre-push adapter allows human not_run and blocks agent not_run", async (t) => {
+  const root = await createTempRepo(t);
+  const base = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+  await fs.writeFile(path.join(root, "manual.txt"), "manual\n");
+  execFileSync("git", ["add", "manual.txt"], { cwd: root });
+  execFileSync("git", ["commit", "-m", "docs: manual change"], { cwd: root });
+  const sha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+  await recordNotRunCommit(root, sha, "manual.txt");
+  const line = `refs/heads/main ${sha} refs/heads/main ${base}`;
+  const ciProvider = new MockCiProvider();
+  assert.equal((await runPrePushHook({ repoRoot: root, stdinLines: [line], ciProvider })).passed, true);
+  const cliPath = path.join(sourceRoot, "tools/delivery-mcp/cli.mjs");
+  const strictCli = spawnSync("node", [cliPath, "hook", "pre-push"], { cwd: root,
+    input: `${line}\n`, encoding: "utf8", env: { ...process.env, DELIVERY_REQUIRE_EVIDENCE: "1" } });
+  assert.equal(strictCli.status, 1);
+  assert.match(strictCli.stderr, /pre-push failed/);
+  const previous = process.env.DELIVERY_REQUIRE_EVIDENCE;
+  process.env.DELIVERY_REQUIRE_EVIDENCE = "1";
+  try {
+    const blocked = await runPrePushHook({ repoRoot: root, stdinLines: [line], ciProvider });
+    assert.equal(blocked.passed, false);
+    assert.equal(blocked.reason, "UNVERIFIED_COMMIT");
+    assert.doesNotMatch(blocked.message, /remote push (executed|succeeded)/i);
+  } finally {
+    if (previous === undefined) delete process.env.DELIVERY_REQUIRE_EVIDENCE;
+    else process.env.DELIVERY_REQUIRE_EVIDENCE = previous;
+  }
+});
+
+const passedCheck = async ({ check }) => ({ id: check.id, status: "passed", durationMs: 1,
+  exitCode: 0, summaryLines: [], diagnostic: null });
+
+async function commitPrepared(root, name, ciProvider, intent = "prepare_commit", repairsSha = null) {
+  await fs.writeFile(path.join(root, name), `${name}\n`);
+  execFileSync("git", ["add", name], { cwd: root });
+  const prepared = await prepareDelivery({ repoRoot: root, intent, repairsSha, ciProvider,
+    executeCheck: passedCheck, proposedCommitMessage: `fix: add ${name}` });
+  assert.equal(prepared.status, "passed", JSON.stringify(prepared));
+  execFileSync("git", ["commit", "-m", `fix: add ${name}`], { cwd: root });
+  const post = await runPostCommitHook({ repoRoot: root });
+  assert.equal(post.recorded, true, JSON.stringify(post));
+  return post.commitSha;
+}
+
+async function repairFixture(t) {
+  const root = await createTempRepo(t);
+  const ciProvider = new MockCiProvider();
+  const other = await commitPrepared(root, "other.txt", ciProvider);
+  ciProvider.setFixture(other, { status: "passed" });
+  const target = await commitPrepared(root, "target.txt", ciProvider);
+  ciProvider.setFixture(target, { status: "failed" });
+  const repair = await commitPrepared(root, "repair.txt", ciProvider, "repair_ci", target);
+  return { root, ciProvider, other, target, repair,
+    line: `refs/heads/main ${repair} refs/heads/main ${target}` };
+}
+
+test("strict real pre-push consumes valid Gate R authorization exactly once", async (t) => {
+  const { root, ciProvider, target, line } = await repairFixture(t);
+  const previous = process.env.DELIVERY_REQUIRE_EVIDENCE;
+  process.env.DELIVERY_REQUIRE_EVIDENCE = "1";
+  try {
+    const first = await runPrePushHook({ repoRoot: root, stdinLines: [line], ciProvider });
+    assert.equal(first.passed, true, JSON.stringify(first));
+    const auth = await getRepairAuthorization({ repoRoot: root, targetSha: target });
+    assert.equal(auth.state, "submitted");
+    const second = await runPrePushHook({ repoRoot: root, stdinLines: [line], ciProvider });
+    assert.equal(second.passed, false);
+    assert.equal(second.reason, "REPAIR_RECEIPT_ALREADY_CONSUMED");
+    assert.deepEqual(await getRepairAuthorization({ repoRoot: root, targetSha: target }), auth);
+  } finally {
+    if (previous === undefined) delete process.env.DELIVERY_REQUIRE_EVIDENCE;
+    else process.env.DELIVERY_REQUIRE_EVIDENCE = previous;
+  }
+});
+
+test("strict real pre-push rejects a repair for the wrong active target without consumption", async (t) => {
+  const { root, ciProvider, other, target, line } = await repairFixture(t);
+  const before = await getRepairAuthorization({ repoRoot: root, targetSha: target });
+  ciProvider.setFixture(target, { status: "passed" });
+  ciProvider.setFixture(other, { status: "failed" });
+  const previous = process.env.DELIVERY_REQUIRE_EVIDENCE;
+  process.env.DELIVERY_REQUIRE_EVIDENCE = "1";
+  try {
+    const result = await runPrePushHook({ repoRoot: root, stdinLines: [line], ciProvider });
+    assert.equal(result.passed, false);
+    assert.equal(result.reason, "REPAIR_TARGET_MISMATCH");
+    assert.deepEqual(await getRepairAuthorization({ repoRoot: root, targetSha: target }), before);
+  } finally {
+    if (previous === undefined) delete process.env.DELIVERY_REQUIRE_EVIDENCE;
+    else process.env.DELIVERY_REQUIRE_EVIDENCE = previous;
+  }
 });

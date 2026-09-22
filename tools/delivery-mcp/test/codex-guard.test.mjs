@@ -3,13 +3,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   isGitCommitCommand,
   parseCodexHookInput,
   runCodexGuard,
 } from "../../../.codex/delivery-guard.mjs";
 import { prepareDelivery } from "../lib/prepare-delivery.mjs";
+import { parseAntigravityHookInput, runAntigravityGuard } from "../../../.agents/hooks/loresuelvo-delivery-guard.mjs";
 
 async function createTempGitRepo(t) {
   const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "codex-guard-test-"));
@@ -70,6 +71,8 @@ test("isGitCommitCommand: reconoce opciones globales y prefijos sin confundir ar
     "sh -c 'git -C packages/web commit -m \\\"docs: update\\\"'",
     "rtk git add README.md\nrtk git commit -m 'docs: update'",
     "rtk git add README.md\r\nrtk git commit -m 'docs: update'",
+    "rtk proxy git commit -m 'docs: update'",
+    "/usr/bin/git commit -m 'docs: update'",
   ]) {
     assert.strictEqual(isGitCommitCommand(command), true, command);
   }
@@ -90,7 +93,7 @@ test("isGitCommitCommand: reconoce opciones globales y prefijos sin confundir ar
 test("Codex hook: usa la estructura PreToolUse oficial y lee tool_input.command", async () => {
   const config = JSON.parse(await fs.readFile(".codex/hooks.json", "utf8"));
   assert.ok(Array.isArray(config.hooks.PreToolUse));
-  assert.strictEqual(config.hooks.PreToolUse[0].matcher, "^Bash$");
+  assert.match(config.hooks.PreToolUse[0].matcher, /exec_command/);
   assert.strictEqual(config.hooks.PreToolUse[0].hooks[0].type, "command");
 
   const parsed = parseCodexHookInput(
@@ -98,6 +101,44 @@ test("Codex hook: usa la estructura PreToolUse oficial y lee tool_input.command"
   );
   assert.strictEqual(parsed.toolName, "Bash");
   assert.strictEqual(parsed.rawCommand, "git commit -m test");
+  const actual = parseCodexHookInput(JSON.stringify({ tool_name: "exec_command", tool_input: { cmd: "git commit -m test" } }));
+  assert.strictEqual(actual.rawCommand, "git commit -m test");
+});
+
+test("Codex guard verifies the repository selected by git -C", async (t) => {
+  const currentRepo = await createTempGitRepo(t);
+  const targetRepo = await createTempGitRepo(t);
+  await fs.writeFile(path.join(targetRepo, "change.txt"), "change");
+  execFileSync("git", ["add", "change.txt"], { cwd: targetRepo });
+  const outcome = await runCodexGuard({ repoRoot: currentRepo,
+    rawCommand: `/usr/bin/git -C '${targetRepo}' commit -m 'docs: change'` });
+  assert.equal(outcome.shouldIntercept, true);
+  assert.equal(outcome.status, "MISSING_PREPARED_EVIDENCE");
+  const nested = await runCodexGuard({ repoRoot: currentRepo,
+    rawCommand: `bash -lc "git -C '${targetRepo}' commit -m 'docs: change'"` });
+  assert.equal(nested.status, "MISSING_PREPARED_EVIDENCE");
+});
+
+test("real client hook payload and internal errors fail closed", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const scriptPath = path.resolve(".codex/delivery-guard.mjs");
+  const malformed = spawnSync("node", [scriptPath], { cwd: repoRoot, encoding: "utf8", input: "{" });
+  assert.equal(malformed.status, 0);
+  assert.equal(JSON.parse(malformed.stdout).hookSpecificOutput.permissionDecision, "deny");
+  const antigravity = parseAntigravityHookInput(JSON.stringify({ toolCall: { name: "run_command",
+    args: { CommandLine: "rtk proxy git commit -m 'docs: change'", Cwd: repoRoot } } }));
+  const decision = await runAntigravityGuard({ repoRoot, ...antigravity });
+  assert.equal(decision.decision, "deny");
+  const previous = process.env.DELIVERY_REQUIRE_EVIDENCE;
+  process.env.DELIVERY_REQUIRE_EVIDENCE = "1";
+  try {
+    const invalid = await runAntigravityGuard({ repoRoot, ...parseAntigravityHookInput("{") });
+    assert.equal(invalid.decision, "deny");
+    assert.equal(invalid.status, "INVALID_HOOK_PAYLOAD");
+  } finally {
+    if (previous === undefined) delete process.env.DELIVERY_REQUIRE_EVIDENCE;
+    else process.env.DELIVERY_REQUIRE_EVIDENCE = previous;
+  }
 });
 
 test("runCodexGuard: intercepta git commit y reporta no_changes si no hay cambios staged", async (t) => {

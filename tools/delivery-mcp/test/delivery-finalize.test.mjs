@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { finalizeDelivery, verifyHeadDelivery } from "../lib/delivery-finalize.mjs";
-import { MockCiProvider } from "../lib/ci-provider.mjs";
+import { MockCiProvider, GitHubActionsProvider } from "../lib/ci-provider.mjs";
 import { recordCommitEvidence } from "../lib/delivery-ledger.mjs";
 import { saveDeliveryContext } from "../lib/delivery-context.mjs";
 
@@ -1529,6 +1529,47 @@ test("finalizeDelivery (waitForCi): error de proveedor (provider_error) corta de
   assert.strictEqual(res.ci.status, "provider_error");
   assert.ok(res.ci.failure.message.includes("GitHub service unavailable"));
   assert.ok(elapsed < 2000, `Debe cortar de inmediato ante provider_error (tiempo: ${elapsed}ms)`);
+});
+
+test("finalizeDelivery incluye el fetch remoto dentro de su timeout", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us46-deadline.feature";
+  const sha = await commitFile(repoRoot, featurePath,
+    "Feature: US46\n  Scenario: Done\n    Given ok\n", "test[46]: close with CI deadline");
+  await attachEvidence({ repoRoot, sha, gateId: "D", scopeFeatures: [featurePath],
+    usId: "46", intent: "close_us" });
+  let aborted = false;
+  const remote = new GitHubActionsProvider({
+    token: "fixture-token",
+    execGh: async () => { throw new Error("CLI unavailable"); },
+    fetchFn: (_url, { signal }) => new Promise((_, reject) => {
+      signal.addEventListener("abort", () => {
+        aborted = true;
+        reject(new DOMException("aborted", "AbortError"));
+      }, { once: true });
+    }),
+  });
+  const fallback = new MockCiProvider({ [sha]: { status: "passed" } });
+  let deadlineAt = null;
+  const ciProvider = {
+    async inspectCommit(targetSha, options) {
+      if (!options.deadlineAt) return fallback.inspectCommit(targetSha, options);
+      deadlineAt = options.deadlineAt;
+      return remote.inspectCommit(targetSha, options);
+    },
+  };
+  const started = Date.now();
+  const result = await Promise.race([
+    finalizeInIsolatedRepo({ repoRoot, intent: "close_us", usId: "46",
+      scopeFiles: [featurePath], ciProvider, waitForCi: true,
+      timeoutMs: 150, pollIntervalMs: 10 }),
+    new Promise((resolve) => setTimeout(() => resolve("hung"), 1000)),
+  ]);
+  assert.notEqual(result, "hung");
+  assert.equal(result.status, "blocked");
+  assert.equal(result.ci.status, "provider_error");
+  assert.equal(aborted, true);
+  assert.ok(deadlineAt <= started + 150 + 500);
 });
 
 test("finalizeDelivery (waitForCi): compact diagnostic asegura resumen limpio sin logs gigantes", async (t) => {

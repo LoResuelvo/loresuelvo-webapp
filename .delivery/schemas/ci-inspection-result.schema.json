@@ -30,6 +30,19 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "requiredChecks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["workflow", "name", "status", "runId"],
+        "properties": {
+          "workflow": { "type": "string" },
+          "name": { "type": "string" },
+          "status": { "enum": ["not_found", "queued", "in_progress", "passed", "failed", "cancelled", "timed_out"] },
+          "runId": { "type": ["number", "null"] }
+        }
+      }
+    },
     "failure": {
       "type": ["object", "null"],
       "properties": {

@@ -6,8 +6,42 @@ import { assertSafeRepoPath, findRepoRoot } from "./repo-root.mjs";
 import { validateCiInspectionResult } from "./validate-schema.mjs";
 import { redactSecrets } from "./redact-secrets.mjs";
 import { summarizeFailureOutput } from "./execute-check.mjs";
+import { loadDeliveryPolicy } from "./policy-loader.mjs";
+import { selectRequiredRuns, aggregateRequiredCi, normalizeCiStatus } from "./ci-obligations.mjs";
 
 const execFileAsync = promisify(execFile);
+
+function parseGhPages(output) {
+  const pages = [];
+  let start = -1;
+  let depth = 0;
+  let quoted = false;
+  let escaped = false;
+  for (let index = 0; index < output.length; index++) {
+    const char = output[index];
+    if (start < 0) {
+      if (/\s/.test(char)) continue;
+      if (char !== "{" && char !== "[") throw new Error("Invalid GitHub CLI pagination response");
+      start = index;
+    }
+    if (escaped) { escaped = false; continue; }
+    if (char === "\\" && quoted) { escaped = true; continue; }
+    if (char === '"') { quoted = !quoted; continue; }
+    if (quoted) continue;
+    if (char === "{" || char === "[") depth++;
+    if (char === "}" || char === "]") depth--;
+    if (depth < 0) throw new Error("Invalid GitHub CLI pagination response");
+    if (depth === 0) {
+      const value = JSON.parse(output.slice(start, index + 1));
+      pages.push(...(Array.isArray(value) ? value : [value]));
+      start = -1;
+    }
+  }
+  if (start >= 0 || quoted || pages.length === 0) {
+    throw new Error("Incomplete GitHub CLI pagination response");
+  }
+  return pages;
+}
 
 export const CI_RUNTIME_DIR = ".delivery/runtime/ci";
 
@@ -67,20 +101,27 @@ export class MockCiProvider extends CiProvider {
 }
 
 export class GitHubActionsProvider extends CiProvider {
-  constructor({ repo = "LoResuelvo/loresuelvo-webapp", token = null } = {}) {
+  constructor({ repo = "LoResuelvo/loresuelvo-webapp", token = null, execGh = execFileAsync, fetchFn = null } = {}) {
     super();
     this.repo = repo;
     this.token = token || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || null;
+    this.execGh = execGh;
+    this.fetchFn = fetchFn || ((...args) => globalThis.fetch(...args));
   }
 
-  async inspectCommit(sha, { repoRoot } = {}) {
+  async inspectCommit(sha, { repoRoot, deadlineAt = Date.now() + 20000 } = {}) {
     const root = findRepoRoot(repoRoot);
+    const policy = await loadDeliveryPolicy({ repoRoot: root });
+    const requiredWorkflows = policy.ci.requiredWorkflows;
 
     // Try gh CLI first
     let ghResult = null;
     try {
-      ghResult = await this.queryViaGhCli(sha, root);
-    } catch {
+      ghResult = await this.queryViaGhCli(sha, root, requiredWorkflows, deadlineAt);
+    } catch (error) {
+      if (error.code === "CI_PROVIDER_TIMEOUT") {
+        return this.providerErrorResult(sha, error.message, root);
+      }
       // Fall back to the API when gh is unavailable or unauthenticated.
     }
     if (ghResult) {
@@ -91,7 +132,7 @@ export class GitHubActionsProvider extends CiProvider {
     // Try GitHub API via fetch if token available
     if (this.token) {
       try {
-        const apiResult = await this.queryViaApi(sha, root);
+        const apiResult = await this.queryViaApi(sha, root, requiredWorkflows, deadlineAt);
         if (apiResult) {
           validateCiInspectionResult(apiResult, root);
           return apiResult;
@@ -109,90 +150,113 @@ export class GitHubActionsProvider extends CiProvider {
     );
   }
 
-  async queryViaGhCli(sha, repoRoot) {
-    const args = [
-      "run",
-      "list",
-      "--commit",
-      sha,
-      "--json",
-      "databaseId,name,status,conclusion,url",
-      "--limit",
-      "1",
-    ];
-
-    const { stdout } = await execFileAsync("gh", args, {
-      cwd: repoRoot,
-      encoding: "utf8",
-      timeout: 10000,
-    });
-
-    const parsed = JSON.parse(stdout || "[]");
-    if (!parsed || parsed.length === 0) {
-      return {
-        schemaVersion: 1,
-        sha,
-        workflow: null,
-        status: "not_found",
-        failedJobs: [],
-        failure: null,
-        url: null,
-        retryable: false,
-      };
+  async withDeadline(deadlineAt, operation) {
+    const remaining = deadlineAt - Date.now();
+    if (remaining <= 0) {
+      const error = new Error("CI provider deadline exceeded");
+      error.code = "CI_PROVIDER_TIMEOUT";
+      throw error;
     }
-
-    const run = parsed[0];
-    const result = this.normalizeRun(sha, run, repoRoot);
-    if (["failed", "timed_out"].includes(result.status)) {
-      return this.enrichFailureViaGh(result, repoRoot);
+    const controller = new AbortController();
+    let timer;
+    try {
+      return await Promise.race([
+        operation(controller.signal, remaining),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            controller.abort();
+            const error = new Error("CI provider deadline exceeded");
+            error.code = "CI_PROVIDER_TIMEOUT";
+            reject(error);
+          }, remaining);
+        }),
+      ]);
+    } catch (error) {
+      if (controller.signal.aborted && error.code !== "CI_PROVIDER_TIMEOUT") {
+        const timeout = new Error("CI provider deadline exceeded");
+        timeout.code = "CI_PROVIDER_TIMEOUT";
+        throw timeout;
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
     }
-    return result;
   }
 
-  async queryViaApi(sha, repoRoot) {
-    const url = `https://api.github.com/repos/${this.repo}/actions/runs?head_sha=${sha}&per_page=1`;
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `token ${this.token}`,
-        Accept: "application/vnd.github.v3+json",
-        "User-Agent": "loresuelvo-delivery-ci",
-      },
-    });
+  async ghJson(endpoint, repoRoot, deadlineAt) {
+    const { stdout } = await this.withDeadline(deadlineAt, (signal, remaining) =>
+      this.execGh("gh", ["api", "--paginate", endpoint], {
+        cwd: repoRoot, encoding: "utf8", signal,
+        timeout: remaining, maxBuffer: 20 * 1024 * 1024,
+      }));
+    return parseGhPages(stdout || "");
+  }
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    if (!data.workflow_runs || data.workflow_runs.length === 0) {
+  async fetchJson(url, deadlineAt) {
+    return this.withDeadline(deadlineAt, async (signal) => {
+      const response = await this.fetchFn(url, {
+        signal,
+        headers: {
+          Authorization: `token ${this.token}`,
+          Accept: "application/vnd.github.v3+json",
+          "User-Agent": "loresuelvo-delivery-ci",
+        },
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       return {
-        schemaVersion: 1,
-        sha,
-        workflow: null,
-        status: "not_found",
-        failedJobs: [],
-        failure: null,
-        url: null,
-        retryable: false,
+        data: await response.json(),
+        next: response.headers?.get("link")?.match(/<([^>]+)>;\s*rel="next"/)?.[1] || null,
       };
-    }
+    });
+  }
 
-    const run = data.workflow_runs[0];
-    const result = this.normalizeRun(
-      sha,
-      {
-        databaseId: run.id,
-        name: run.name,
-        status: run.status,
-        conclusion: run.conclusion,
-        url: run.html_url,
-      },
-      repoRoot
-    );
-    if (["failed", "timed_out"].includes(result.status)) {
-      return this.enrichFailureViaApi(result, repoRoot);
+  async restPages(url, key, deadlineAt) {
+    const pages = [];
+    for (let page = 0; page < 1000; page++) {
+      const response = await this.fetchJson(url, deadlineAt);
+      const items = response.data?.[key];
+      if (!Array.isArray(items)) throw new Error(`Invalid GitHub API ${key} response`);
+      pages.push(...items);
+      if (!response.next) return pages;
+      url = response.next;
     }
-    return result;
+    throw new Error("GitHub API pagination limit exceeded");
+  }
+
+  async queryViaGhCli(sha, repoRoot, requirements, deadlineAt) {
+    const pages = await this.ghJson(`repos/${this.repo}/actions/runs?head_sha=${sha}&per_page=100`, repoRoot, deadlineAt);
+    const runs = pages.flatMap((page) => page.workflow_runs || []);
+    const selected = selectRequiredRuns(runs, requirements, sha);
+    const resolved = await Promise.all(selected.map(async ({ requirement, run }) => ({
+      requirement, run,
+      jobs: run ? (await this.ghJson(`repos/${this.repo}/actions/runs/${run.id ?? run.databaseId}/jobs?filter=latest&per_page=100`, repoRoot, deadlineAt))
+        .flatMap((page) => page.jobs || []) : [],
+    })));
+    const result = aggregateRequiredCi(sha, resolved);
+    const selectedJobs = resolved.find(({ run }) =>
+      Number(run?.id ?? run?.databaseId) === result.workflow?.id)?.jobs || [];
+    return ["failed", "timed_out"].includes(result.status)
+      ? this.enrichFailureViaGh(result, repoRoot, deadlineAt, selectedJobs) : result;
+  }
+
+  async queryViaApi(sha, repoRoot, requirements, deadlineAt) {
+    const runs = await this.restPages(
+      `https://api.github.com/repos/${this.repo}/actions/runs?head_sha=${sha}&per_page=100`,
+      "workflow_runs", deadlineAt
+    );
+    const selected = selectRequiredRuns(runs, requirements, sha);
+    const resolved = await Promise.all(selected.map(async ({ requirement, run }) => ({
+      requirement, run,
+      jobs: run ? await this.restPages(
+        `https://api.github.com/repos/${this.repo}/actions/runs/${run.id ?? run.databaseId}/jobs?filter=latest&per_page=100`,
+        "jobs", deadlineAt
+      ) : [],
+    })));
+    const result = aggregateRequiredCi(sha, resolved);
+    const selectedJobs = resolved.find(({ run }) =>
+      Number(run?.id ?? run?.databaseId) === result.workflow?.id)?.jobs || [];
+    return ["failed", "timed_out"].includes(result.status)
+      ? this.enrichFailureViaApi(result, repoRoot, deadlineAt, selectedJobs) : result;
   }
 
   failureFromJobs(jobs = []) {
@@ -226,34 +290,24 @@ export class GitHubActionsProvider extends CiProvider {
     };
   }
 
-  async enrichFailureViaGh(result, repoRoot) {
+  async enrichFailureViaGh(result, repoRoot, deadlineAt, jobs) {
     try {
       const runId = String(result.workflow.id);
-      const { stdout } = await execFileAsync("gh", ["run", "view", runId, "--json", "jobs"], {
-        cwd: repoRoot,
-        encoding: "utf8",
-        timeout: 10000,
-        maxBuffer: 2 * 1024 * 1024,
-      });
-      const details = this.failureFromJobs(JSON.parse(stdout || "{}").jobs || []);
+      const details = this.failureFromJobs(jobs);
       if (!details) return result;
 
       let excerpt = details.failure.excerpt;
       if (details.firstJobId) {
         try {
-          const logResult = await execFileAsync(
-            "gh",
-            ["run", "view", runId, "--job", String(details.firstJobId), "--log-failed"],
-            {
-              cwd: repoRoot,
-              encoding: "utf8",
-              timeout: 15000,
-              maxBuffer: 2 * 1024 * 1024,
-            }
-          );
+          const logResult = await this.withDeadline(deadlineAt, (signal, remaining) =>
+            this.execGh("gh", ["run", "view", runId, "--job", String(details.firstJobId), "--log-failed"], {
+              cwd: repoRoot, encoding: "utf8", signal,
+              timeout: remaining, maxBuffer: 2 * 1024 * 1024,
+            }));
           const lines = summarizeFailureOutput(logResult.stdout, 6);
           if (lines.length > 0) excerpt = lines.join("\n");
-        } catch {
+        } catch (error) {
+          if (error.code === "CI_PROVIDER_TIMEOUT") throw error;
           // Job and step metadata still provide a bounded diagnostic.
         }
       }
@@ -265,45 +319,28 @@ export class GitHubActionsProvider extends CiProvider {
       };
       await saveCiExcerpt({ repoRoot, sha: result.sha, excerpt: enriched.failure.excerpt });
       return enriched;
-    } catch {
+    } catch (error) {
+      if (error.code === "CI_PROVIDER_TIMEOUT") throw error;
       return result;
     }
   }
 
-  async enrichFailureViaApi(result, repoRoot) {
+  async enrichFailureViaApi(result, repoRoot, deadlineAt, jobs) {
     try {
-      const jobsUrl = `https://api.github.com/repos/${this.repo}/actions/runs/${result.workflow.id}/jobs?filter=latest&per_page=100`;
-      const jobsResponse = await fetch(jobsUrl, {
-        headers: {
-          Authorization: `token ${this.token}`,
-          Accept: "application/vnd.github.v3+json",
-          "User-Agent": "loresuelvo-delivery-ci",
-        },
-      });
-      if (!jobsResponse.ok) return result;
-      const details = this.failureFromJobs((await jobsResponse.json()).jobs || []);
+      const details = this.failureFromJobs(jobs);
       if (!details) return result;
 
       let excerpt = details.failure.excerpt;
       if (details.firstJobId) {
         const annotationsUrl = `https://api.github.com/repos/${this.repo}/check-runs/${details.firstJobId}/annotations?per_page=10`;
-        const annotationsResponse = await fetch(annotationsUrl, {
-          headers: {
-            Authorization: `token ${this.token}`,
-            Accept: "application/vnd.github.v3+json",
-            "User-Agent": "loresuelvo-delivery-ci",
-          },
-        });
-        if (annotationsResponse.ok) {
-          const annotations = await annotationsResponse.json();
-          const lines = annotations
-            .filter((annotation) => annotation.annotation_level === "failure")
-            .slice(0, 6)
-            .map((annotation) =>
-              `${annotation.path || "CI"}${annotation.start_line ? `:${annotation.start_line}` : ""}: ${annotation.message || annotation.title || "failure"}`
-            );
-          if (lines.length > 0) excerpt = lines.join("\n");
-        }
+        const { data: annotations } = await this.fetchJson(annotationsUrl, deadlineAt);
+        const lines = annotations
+          .filter((annotation) => annotation.annotation_level === "failure")
+          .slice(0, 6)
+          .map((annotation) =>
+            `${annotation.path || "CI"}${annotation.start_line ? `:${annotation.start_line}` : ""}: ${annotation.message || annotation.title || "failure"}`
+          );
+        if (lines.length > 0) excerpt = lines.join("\n");
       }
 
       const enriched = {
@@ -313,7 +350,8 @@ export class GitHubActionsProvider extends CiProvider {
       };
       await saveCiExcerpt({ repoRoot, sha: result.sha, excerpt: enriched.failure.excerpt });
       return enriched;
-    } catch {
+    } catch (error) {
+      if (error.code === "CI_PROVIDER_TIMEOUT") throw error;
       return result;
     }
   }
@@ -321,30 +359,8 @@ export class GitHubActionsProvider extends CiProvider {
   normalizeRun(sha, run, repoRoot) {
     const rawStatus = run.status;
     const rawConclusion = run.conclusion;
-    let status = "in_progress";
-    let retryable = false;
-
-    if (rawStatus === "queued" || rawStatus === "waiting") {
-      status = "queued";
-    } else if (rawStatus === "in_progress") {
-      status = "in_progress";
-    } else if (rawStatus === "completed") {
-      if (rawConclusion === "success") {
-        status = "passed";
-      } else if (rawConclusion === "failure") {
-        status = "failed";
-        retryable = true;
-      } else if (rawConclusion === "cancelled") {
-        status = "cancelled";
-        retryable = true;
-      } else if (rawConclusion === "timed_out") {
-        status = "timed_out";
-        retryable = true;
-      } else {
-        status = "failed";
-        retryable = true;
-      }
-    }
+    const status = normalizeCiStatus(rawStatus, rawConclusion);
+    const retryable = ["failed", "timed_out", "cancelled"].includes(status);
 
     let failure = null;
     let failedJobs = [];
@@ -412,12 +428,12 @@ export function getCiProvider() {
   return new GitHubActionsProvider();
 }
 
-export async function inspectCi({ sha, repoRoot, provider = null } = {}) {
+export async function inspectCi({ sha, repoRoot, provider = null, deadlineAt } = {}) {
   const root = findRepoRoot(repoRoot);
   if (!sha || typeof sha !== "string") {
     throw new Error("Missing required commit SHA for CI inspection");
   }
 
   const ciProvider = provider || getCiProvider();
-  return ciProvider.inspectCommit(sha.trim().toLowerCase(), { repoRoot: root });
+  return ciProvider.inspectCommit(sha.trim().toLowerCase(), { repoRoot: root, deadlineAt });
 }

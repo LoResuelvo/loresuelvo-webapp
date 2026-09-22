@@ -87,6 +87,22 @@ function validatePolicy(policy) {
   }
 
   assertPositiveInteger(policy.ci.maxInFlightCommits, "ci.maxInFlightCommits");
+  const requiredWorkflows = policy.ci.requiredWorkflows;
+  if (!Array.isArray(requiredWorkflows) || requiredWorkflows.length === 0) {
+    throw new Error("Invalid delivery policy: ci.requiredWorkflows must be nonempty");
+  }
+  const workflowNames = new Set();
+  for (const workflow of requiredWorkflows) {
+    if (!workflow?.name?.trim() || workflow.event !== "push" ||
+        !Array.isArray(workflow.jobs) || workflow.jobs.length === 0 ||
+        workflow.jobs.some((job) => typeof job !== "string" || !job.trim())) {
+      throw new Error("Invalid delivery policy: each required CI workflow needs a name, push event and jobs");
+    }
+    if (workflowNames.has(workflow.name) || new Set(workflow.jobs).size !== workflow.jobs.length) {
+      throw new Error(`Invalid delivery policy: duplicate required CI workflow or job in '${workflow.name}'`);
+    }
+    workflowNames.add(workflow.name);
+  }
 
   for (const [checkId, definition] of Object.entries(policy.checkCatalog)) {
     if (!/^[a-z][a-z0-9_]*$/.test(checkId)) {

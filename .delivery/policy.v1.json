@@ -11,7 +11,14 @@
     "maxFailureSummaryLines": 6
   },
   "ci": {
-    "maxInFlightCommits": 4
+    "maxInFlightCommits": 4,
+    "requiredWorkflows": [
+      {
+        "name": "CI Build & Test",
+        "event": "push",
+        "jobs": ["Lint & Unit Tests", "E2E Acceptance Tests", "Validar Imagen Docker"]
+      }
+    ]
   },
   "maintainabilityThresholds": {
     "fileLines": 250,

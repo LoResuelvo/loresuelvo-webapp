@@ -327,9 +327,13 @@ test("affected con cambio unitario, Cucumber y cambio ambiguo", async () => {
     executionMode: "sync",
     force: true,
   });
-  assert.ok(["passed", "failed"].includes(affectedResult.status));
+  assert.ok(["passed", "failed", "blocked"].includes(affectedResult.status));
   assert.strictEqual(affectedResult.mode, "affected");
   assert.ok(Array.isArray(affectedResult.diagnostics));
+  if (affectedResult.status === "blocked") {
+    assert.ok(affectedResult.diagnostics.some((diagnostic) =>
+      diagnostic.code === "AMBIGUOUS_AFFECTED_SCOPE"));
+  }
 });
 
 test("affected ejecuta la feature consumidora de un step", async (t) => {

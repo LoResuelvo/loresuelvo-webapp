@@ -34,6 +34,7 @@ export function toCompactCi(ci) {
     status: ci.status,
     workflow: ci.workflow ? { id: ci.workflow.id, name: ci.workflow.name } : null,
     url: ci.url || null,
+    ...(ci.requiredChecks ? { requiredChecks: ci.requiredChecks } : {}),
   };
   if (ci.failure) {
     let excerpt = null;
@@ -459,7 +460,8 @@ export async function finalizeDelivery({
     let terminalFailureSha = null;
 
     for (const sha of shas) {
-      const ci = await inspectCi({ sha, repoRoot: root, provider: ciProvider });
+      const ci = await inspectCi({ sha, repoRoot: root, provider: ciProvider,
+        ...(waitForCi ? { deadlineAt: startTime + timeoutMs } : {}) });
       ciResults.push(ci);
       const normalizedSha = sha.toLowerCase();
 

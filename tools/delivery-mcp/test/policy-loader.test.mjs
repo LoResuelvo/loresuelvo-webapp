@@ -9,6 +9,10 @@ test("loadDeliveryPolicy: loads the versioned policy and fingerprints its source
   const policy = await loadDeliveryPolicy();
   assert.strictEqual(policy.version, 1);
   assert.strictEqual(policy.ci.maxInFlightCommits, 4);
+  assert.deepStrictEqual(policy.ci.requiredWorkflows, [{
+    name: "CI Build & Test", event: "push",
+    jobs: ["Lint & Unit Tests", "E2E Acceptance Tests", "Validar Imagen Docker"],
+  }]);
   assert.match(policy.sourceHash, /^[a-f0-9]{64}$/);
   assert.deepStrictEqual(policy.gates.C.checkIds, [
     "lint",
@@ -17,6 +21,22 @@ test("loadDeliveryPolicy: loads the versioned policy and fingerprints its source
     "unit",
     "e2e_full",
   ]);
+});
+
+test("loadDeliveryPolicy: rechaza identidades CI duplicadas o jobs vacíos", async (t) => {
+  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-policy-required-ci-"));
+  t.after(() => fs.rm(repoRoot, { recursive: true, force: true }));
+  await fs.mkdir(path.join(repoRoot, ".delivery", "schemas"), { recursive: true });
+  await fs.copyFile(".delivery/schemas/policy.schema.json",
+    path.join(repoRoot, ".delivery/schemas/policy.schema.json"));
+  const policy = JSON.parse(await fs.readFile(".delivery/policy.v1.json", "utf8"));
+  policy.ci.requiredWorkflows.push({ ...policy.ci.requiredWorkflows[0] });
+  await fs.writeFile(path.join(repoRoot, ".delivery/policy.v1.json"), JSON.stringify(policy));
+  await assert.rejects(loadDeliveryPolicy({ repoRoot }), /duplicate required CI workflow/);
+  policy.ci.requiredWorkflows.pop();
+  policy.ci.requiredWorkflows[0].jobs = [];
+  await fs.writeFile(path.join(repoRoot, ".delivery/policy.v1.json"), JSON.stringify(policy));
+  await assert.rejects(loadDeliveryPolicy({ repoRoot }), /required CI workflow|ci|requiredWorkflows/);
 });
 
 test("loadDeliveryPolicy: rejects commands outside the runner allowlist", async (t) => {

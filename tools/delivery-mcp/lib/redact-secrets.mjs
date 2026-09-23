@@ -31,6 +31,10 @@ const SENSITIVE_PATTERNS = [
   },
   // Key-value pairs for passwords, secrets, tokens: password=secret123, api_key: "abc"
   {
+    regex: /(["'](?:password|passwd|secret|api[_-]?key|token|auth0_client_secret|auth0_token|private[_-]?key)["']\s*:\s*["'])([^"'\r\n]+)(["'])/gi,
+    replace: (_match, prefix, _val, suffix) => `${prefix}[REDACTED]${suffix}`,
+  },
+  {
     regex: /((?:password|passwd|secret|api[_-]?key|token|auth0_client_secret|auth0_token|private[_-]?key)\s*[:=]\s*["']?)([^"'\s,\r\n&]{6,})(["']?)/gi,
     replace: (_match, prefix, _val, suffix) => `${prefix}[REDACTED]${suffix || ""}`,
   },

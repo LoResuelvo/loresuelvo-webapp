@@ -147,6 +147,7 @@
       "command": "make",
       "args": ["test-e2e-steps-compatible"],
       "display": "make test-e2e-steps-compatible",
+      "cacheEnv": ["APP_URL", "TEST_PORT", "TS_NODE_PROJECT"],
       "timeoutMs": 180000
     },
     "unit": {
@@ -155,6 +156,7 @@
       "command": "npm",
       "args": ["run", "test"],
       "display": "npm run test",
+      "cacheEnv": ["TS_NODE_PROJECT", "VITEST_MAX_THREADS"],
       "timeoutMs": 300000
     },
     "delivery_unit": {
@@ -163,6 +165,7 @@
       "command": "npm",
       "args": ["run", "delivery:test"],
       "display": "npm run delivery:test",
+      "cacheEnv": ["DELIVERY_REQUIRE_EVIDENCE"],
       "timeoutMs": 300000
     },
     "typecheck_app": {
@@ -171,6 +174,7 @@
       "command": "npx",
       "args": ["--no-install", "tsc", "--noEmit"],
       "display": "npx --no-install tsc --noEmit",
+      "cacheEnv": ["TS_NODE_PROJECT"],
       "timeoutMs": 180000
     },
     "typecheck_cucumber": {
@@ -179,6 +183,7 @@
       "command": "npx",
       "args": ["--no-install", "tsc", "--project", "tsconfig.cucumber.json", "--noEmit"],
       "display": "npx --no-install tsc --project tsconfig.cucumber.json --noEmit",
+      "cacheEnv": ["TS_NODE_PROJECT"],
       "timeoutMs": 180000
     },
     "lint": {
@@ -187,6 +192,7 @@
       "command": "npm",
       "args": ["run", "lint"],
       "display": "npm run lint",
+      "cacheEnv": ["NEXT_TELEMETRY_DISABLED"],
       "timeoutMs": 180000
     },
     "e2e_feature": {
@@ -195,6 +201,7 @@
       "command": "make",
       "args": ["test-e2e-managed", "E2E_FILE={featureFile}"],
       "display": "make test-e2e-managed E2E_FILE={featureFile}",
+      "cacheEnv": ["APP_URL", "TEST_PORT", "TS_NODE_PROJECT", "DATABASE_URL", "E2E_PROFILE"],
       "requires": ["featureFile"],
       "timeoutMs": 900000
     },
@@ -204,6 +211,7 @@
       "command": "make",
       "args": ["test-e2e-managed"],
       "display": "make test-e2e-managed",
+      "cacheEnv": ["APP_URL", "TEST_PORT", "TS_NODE_PROJECT", "DATABASE_URL", "E2E_PROFILE"],
       "timeoutMs": 1200000
     },
     "no_wip_in_scope": {
@@ -219,6 +227,7 @@
       "command": "npm",
       "args": ["run", "build"],
       "display": "npm run build",
+      "cacheEnv": ["NEXT_TELEMETRY_DISABLED", "DATABASE_URL"],
       "timeoutMs": 300000
     }
   },

@@ -11,6 +11,10 @@ import {
   validateScenarioName,
   parseTestCounts,
   executeProcessDefault,
+  computeRepositoryInputFingerprint,
+  computeTddCacheKey,
+  readTddCache,
+  writeTddCache,
 } from "../lib/test-delivery.mjs";
 import * as cucumberImpact from "../lib/impact-index.mjs";
 import { findRepoRoot } from "../lib/repo-root.mjs";
@@ -924,4 +928,85 @@ test("parseTestCounts: correctly handles Vitest, Node, and Cucumber formats", ()
   assert.strictEqual(cucumberTest.found, true);
   assert.strictEqual(cucumberTest.counts.passed, 1);
   assert.strictEqual(cucumberTest.counts.failed, 0);
+});
+
+test("TDD cache rejects wrong version, key, fingerprint and incomplete results", async (t) => {
+  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-cache-schema-"));
+  t.after(() => fs.rm(repoRoot, { recursive: true, force: true }));
+  const key = computeTddCacheKey({ mode: "unit", test: "cache-schema" });
+  const fingerprint = "a".repeat(64);
+  const result = {
+    status: "passed", mode: "unit", durationMs: 1, cached: false,
+    counts: { passed: 1, failed: 0, skipped: 0 }, diagnostics: [],
+  };
+  await writeTddCache(repoRoot, key, result, { fingerprint, mode: "unit" });
+  assert.equal((await readTddCache(repoRoot, key, { fingerprint, mode: "unit" })).cached, true);
+
+  const cachePath = path.join(repoRoot, ".delivery/runtime/tdd/cache", `${key}.json`);
+  const valid = JSON.parse(await fs.readFile(cachePath, "utf8"));
+  for (const mutation of [
+    (entry) => { entry.version = 999; },
+    (entry) => { entry.cacheKey = "b".repeat(64); },
+    (entry) => { entry.fingerprint = "b".repeat(64); },
+    (entry) => { entry.result = { status: "passed" }; },
+  ]) {
+    const entry = structuredClone(valid);
+    mutation(entry);
+    await fs.writeFile(cachePath, JSON.stringify(entry));
+    assert.equal(await readTddCache(repoRoot, key, { fingerprint, mode: "unit" }), null);
+  }
+  await fs.writeFile(cachePath, '{"version":');
+  assert.equal(await readTddCache(repoRoot, key, { fingerprint, mode: "unit" }), null);
+});
+
+test("fingerprint includes check-specific policy environment without storing its value", async (t) => {
+  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-cache-env-"));
+  t.after(() => fs.rm(repoRoot, { recursive: true, force: true }));
+  const prior = process.env.DELIVERY_TEST_CACHE_ENV;
+  t.after(() => {
+    if (prior === undefined) delete process.env.DELIVERY_TEST_CACHE_ENV;
+    else process.env.DELIVERY_TEST_CACHE_ENV = prior;
+  });
+  process.env.DELIVERY_TEST_CACHE_ENV = "synthetic-first";
+  const first = await computeRepositoryInputFingerprint(repoRoot, {
+    environmentVariables: ["DELIVERY_TEST_CACHE_ENV"],
+  });
+  process.env.DELIVERY_TEST_CACHE_ENV = "synthetic-second";
+  const second = await computeRepositoryInputFingerprint(repoRoot, {
+    environmentVariables: ["DELIVERY_TEST_CACHE_ENV"],
+  });
+  assert.notEqual(first.hash, second.hash);
+  assert.ok(!JSON.stringify(second).includes("synthetic-second"));
+});
+
+test("queued and worker fingerprints include policy-declared check environment", async (t) => {
+  const repoRoot = await createAffectedStepsFixture(t);
+  const prior = process.env.APP_URL;
+  t.after(() => {
+    if (prior === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = prior;
+  });
+  process.env.APP_URL = "http://synthetic-one.invalid";
+  const first = await computeRepositoryInputFingerprint(repoRoot);
+  process.env.APP_URL = "http://synthetic-two.invalid";
+  const second = await computeRepositoryInputFingerprint(repoRoot);
+  assert.notEqual(first.hash, second.hash);
+  assert.ok(!JSON.stringify(second).includes("synthetic-two"));
+});
+
+test("process execution returns redacted rawOutput and outputTail for JSON credentials", async (t) => {
+  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-output-redaction-"));
+  t.after(() => fs.rm(repoRoot, { recursive: true, force: true }));
+  const result = await executeProcessDefault({
+    command: process.execPath,
+    args: ["-e", 'process.stdout.write(JSON.stringify({password:"synthetic-password-123",token:"synthetic-token-456"}))'],
+    cwd: repoRoot,
+    logPath: ".delivery/runtime/tdd/logs/synthetic.log",
+  });
+  assert.equal(result.passed, true);
+  for (const value of [result.rawOutput, result.outputTail]) {
+    assert.ok(!value.includes("synthetic-password-123"));
+    assert.ok(!value.includes("synthetic-token-456"));
+    assert.ok(value.includes("[REDACTED]"));
+  }
 });

@@ -49,6 +49,34 @@ test("secretos se redactan: redacta JWT, Bearer tokens, passwords y private keys
   }
 });
 
+test("secretos se redactan también en pares JSON con password y token", () => {
+  const redacted = redactSecrets('{"password":"synthetic-password-123","token":"synthetic-token-456"}');
+  assert.ok(!redacted.includes("synthetic-password-123"));
+  assert.ok(!redacted.includes("synthetic-token-456"));
+  assert.ok(redacted.includes('"password":"[REDACTED]"'));
+  assert.ok(redacted.includes('"token":"[REDACTED]"'));
+});
+
+test("executeCheck no retorna credenciales JSON en rawOutput ni outputTail", async (t) => {
+  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-check-redaction-"));
+  t.after(() => fs.rm(repoRoot, { recursive: true, force: true }));
+  const script = "node -e 'process.stdout.write(JSON.stringify({password:\"synthetic-password-123\",token:\"synthetic-token-456\"}))'";
+  await fs.writeFile(
+    path.join(repoRoot, "package.json"),
+    JSON.stringify({ name: "synthetic-redaction", version: "1.0.0", scripts: { test: script } })
+  );
+  const result = await executeCheck({
+    check: { id: "unit", kind: "command", label: "Unit", command: "npm", args: ["run", "test"], timeoutMs: 10000 },
+    repoRoot,
+    logPath: ".delivery/runtime/logs/synthetic-redaction.log",
+  });
+  assert.equal(result.status, "passed");
+  for (const value of [result.rawOutput, result.outputTail]) {
+    assert.ok(!value.includes("synthetic-password-123"));
+    assert.ok(!value.includes("synthetic-token-456"));
+  }
+});
+
 test("extractLocations: extrae ubicaciones archivo:linea de forma acotada", () => {
   const output = [
     "Error in features/auth/login.feature:25: Scenario failed",

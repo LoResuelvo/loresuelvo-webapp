@@ -109,6 +109,7 @@
               "args": { "type": "array", "items": { "type": "string" } },
               "display": { "type": "string", "minLength": 1 },
               "requires": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+              "cacheEnv": { "type": "array", "items": { "type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$" }, "uniqueItems": true },
               "timeoutMs": { "type": "integer", "minimum": 1000 }
             }
           },

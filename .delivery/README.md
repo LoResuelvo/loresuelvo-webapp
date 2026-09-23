@@ -78,6 +78,17 @@ desarrollar → stage → git commit → push → CI
   - `missing`: commit sin ninguna entrada en el ledger local. Bloquea pushes de agente y cierres.
 - Todos los logs crudos, caches y locks se guardan en `.delivery/runtime/`, ignorados por Git.
 
+### Dueños de persistencia y locks del ledger
+
+| Estado durable | Dueño | Escrituras coordinadas |
+| --- | --- | --- |
+| `last-prepared.json`, `ledger/<sha>.json`, `ledger.json` | `ledger-evidence.mjs` define formato, lectura, digest, reconciliación y lock `locks/ledger.lock`. | `ledger-repairs.mjs` actualiza estados de reparación y tombstones bajo ese mismo lock; la fachada coordina la autorización best-effort posterior a un receipt. |
+| `repair-auth/<target>.json`, `repair-audit/<repair>.json` | `ledger-repairs.mjs` valida lineage, autorización de uso único y abandono. | Cada autorización usa un lock `locks/repair-<target>.lock`. |
+| `locks/*.lock` | `ledger-evidence.mjs` posee la implementación de lease, identidad de inodo/PID, renovación y liberación. | Evidencia adquiere el lock de ledger; reparaciones adquiere el lock por target. |
+| `active-incidents.json` | La evaluación de ventana CI que permanece en `delivery-ledger.mjs`. | Escritura best-effort, no autoritativa para receipts ni autorización. |
+
+Los records de ejecución en `runs/` pertenecen al runner de gates: el módulo de evidencia sólo los lee y verifica su digest. `delivery-ledger.mjs` conserva los exports públicos como fachada temporal; los módulos nuevos no lo importan, evitando ciclos.
+
 ## Auditoría de mantenibilidad
 
 Ante `review_required`, cada señal detectada debe ser revisada y justificada individualmente:

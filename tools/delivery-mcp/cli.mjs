@@ -2,13 +2,7 @@
 import { inspectDelivery } from "./lib/inspect-delivery.mjs";
 import { prepareDelivery } from "./lib/prepare-delivery.mjs";
 import {
-  DeliveryInspectInputSchema,
-  DeliveryPrepareInputSchema,
   DeliveryContextInputSchema,
-  DeliveryCiInputSchema,
-  DeliveryFinalizeInputSchema,
-  DeliveryVerifyHeadInputSchema,
-  DeliveryTestInputSchema,
   formatInputIssues,
 } from "./lib/input-schema.mjs";
 import { inspectCi } from "./lib/ci-provider.mjs";
@@ -32,21 +26,25 @@ import {
 import { captureGitSnapshot } from "./lib/git-snapshot.mjs";
 import { findRepoRoot } from "./lib/repo-root.mjs";
 import { redactSecrets } from "./lib/redact-secrets.mjs";
+import { operationForCli, operationResponse } from "./lib/operation-contracts.mjs";
 
 function usage() {
+  const inspectDefaults = operationForCli("inspect").input.parse({});
+  const testDefaults = operationForCli("test").input.parse({});
+  const finalizeDefaults = operationForCli("finalize").input.parse({});
   return `Usage:
   npm run delivery:inspect -- [options]
   npm run delivery:prepare -- [options]
   npm run delivery:context -- [options]
   npm run delivery:ci -- --sha <commit-sha>
-  npm run delivery:finalize -- --intent <close_us|close_batch> [options]
+  npm run delivery:finalize -- [--intent close_us|close_batch] [options]
   npm run delivery:verify-head -- [--intent close_us] [--us-id US] [--scope-files ...]
   node tools/delivery-mcp/cli.mjs test -- [options]
   npm run delivery:hooks:install
   npm run delivery:hooks:status
 
 Options for delivery:inspect / delivery:prepare:
-  --intent <prepare_commit|close_scenario|close_batch|close_us|repair_ci>
+  --intent <prepare_commit|close_scenario|close_batch|close_us|repair_ci> (default: ${inspectDefaults.intent})
   --message <commit message>
   --feature <features/...feature>
   --scenario <scenario name>
@@ -61,7 +59,7 @@ Options for delivery:inspect / delivery:prepare:
   --help
 
 Options for test:
-  --mode <affected|unit|scenario|diagnostic>     Validation mode (default: affected)
+  --mode <affected|unit|scenario|diagnostic>     Validation mode (default: ${testDefaults.mode})
   --test-file <path>                             Unit test file (repeatable)
   --test-files <comma-separated paths>           Comma-separated test files
   --feature <features/...feature>                Feature file path
@@ -83,13 +81,13 @@ Options for delivery:context:
   --consume                                      Mark active delivery context as consumed
 
 Options for delivery:finalize:
-  --intent <close_us|close_batch>
+  --intent <close_us|close_batch>                (default: ${finalizeDefaults.intent})
   --us-id <US-XX>
   --repairs-sha <commit-sha>
   --scope <features/...feature>                  Repeat for the completed scope
   --wait-for-ci                                  Wait for in-flight CI runs to complete
-  --timeout-ms <ms>                              Timeout in milliseconds (default: 900000)
-  --poll-interval-ms <ms>                        Polling interval in milliseconds (default: 10000)
+  --timeout-ms <ms>                              Timeout in milliseconds (default: ${finalizeDefaults.timeoutMs})
+  --poll-interval-ms <ms>                        Polling interval in milliseconds (default: ${finalizeDefaults.pollIntervalMs})
 
 Options for delivery:verify-head:
   --intent <close_us|close_batch>
@@ -122,7 +120,8 @@ function parseArguments(argv) {
     return { command, subAction, hookArgs, input: {}, pretty: false, help: false };
   }
 
-  const input = { intent: "prepare_commit", scopeFiles: [] };
+  // Zod owns operation defaults. The CLI only collects explicitly supplied flags.
+  const input = {};
   let contextAction = "set";
   let pretty = false;
   let acknowledgementSnapshot = "";
@@ -177,12 +176,12 @@ function parseArguments(argv) {
     else if (option === "--us-id") input.usId = value;
     else if (option === "--sha") input.sha = value;
     else if (option === "--repairs-sha") input.repairsSha = value;
-    else if (option === "--scope") input.scopeFiles.push(value);
+    else if (option === "--scope") (input.scopeFiles ??= []).push(value);
     else if (option === "--timeout-ms") input.timeoutMs = Number.parseInt(value, 10);
     else if (option === "--poll-interval-ms") input.pollIntervalMs = Number.parseInt(value, 10);
     else if (option === "--scope-files") {
       const files = value.split(",").map((f) => f.trim()).filter(Boolean);
-      input.scopeFiles.push(...files);
+      (input.scopeFiles ??= []).push(...files);
     } else if (option === "--acknowledge-snapshot") acknowledgementSnapshot = value;
     else if (option === "--acknowledge-reason") acknowledgementReason = value;
     else if (option === "--acknowledge-decision") {
@@ -225,6 +224,11 @@ function exitCode(command, status) {
 
 function writeJson(value, pretty) {
   process.stdout.write(`${JSON.stringify(value, null, pretty ? 2 : 0)}\n`);
+}
+
+function writeOperation(command, value, pretty) {
+  const contract = operationForCli(command);
+  writeJson(contract ? operationResponse(contract.name, value) : value, pretty);
 }
 
 async function readStdin() {
@@ -370,46 +374,46 @@ async function main() {
 
   // 4. CI inspection
   if (options.command === "ci") {
-    const parsed = DeliveryCiInputSchema.safeParse(options.input);
+    const parsed = operationForCli("ci").input.safeParse(options.input);
     if (!parsed.success) throw new Error(formatInputIssues(parsed.error));
     const res = await inspectCi({ sha: parsed.data.sha, repoRoot: root });
-    writeJson(res, options.pretty);
+    writeOperation("ci", res, options.pretty);
     process.exitCode = res.status === "passed" ? 0 : ["failed", "timed_out", "provider_error"].includes(res.status) ? 3 : 2;
     return;
   }
 
   // 5. Finalize delivery
   if (options.command === "finalize") {
-    const parsed = DeliveryFinalizeInputSchema.safeParse(options.input);
+    const parsed = operationForCli("finalize").input.safeParse(options.input);
     if (!parsed.success) throw new Error(formatInputIssues(parsed.error));
     const res = await finalizeDelivery({ repoRoot: root, ...parsed.data });
-    writeJson(res, options.pretty);
+    writeOperation("finalize", res, options.pretty);
     process.exitCode = res.finalized ? 0 : 2;
     return;
   }
 
   // 5.5. Verify HEAD delivery
   if (options.command === "verify-head") {
-    const parsed = DeliveryVerifyHeadInputSchema.safeParse(options.input);
+    const parsed = operationForCli("verify-head").input.safeParse(options.input);
     if (!parsed.success) throw new Error(formatInputIssues(parsed.error));
     const res = await verifyHeadDelivery({ repoRoot: root, ...parsed.data });
-    writeJson(res, options.pretty);
+    writeOperation("verify-head", res, options.pretty);
     process.exitCode = res.verified ? 0 : 2;
     return;
   }
 
   // 5.8. Test delivery (delivery_test)
   if (options.command === "test") {
-    const parsed = DeliveryTestInputSchema.safeParse(options.input);
+    const parsed = operationForCli("test").input.safeParse(options.input);
     if (!parsed.success) throw new Error(formatInputIssues(parsed.error));
     const res = await testDelivery({ repoRoot: root, ...parsed.data });
-    writeJson(res, options.pretty);
+    writeOperation("test", res, options.pretty);
     process.exitCode = res.status === "passed" ? 0 : res.status === "failed" ? 3 : 2;
     return;
   }
 
   // 6. Delivery inspect / prepare
-  const schema = options.command === "prepare" ? DeliveryPrepareInputSchema : DeliveryInspectInputSchema;
+  const schema = operationForCli(options.command).input;
   const parsed = schema.safeParse(options.input);
   if (!parsed.success) throw new Error(formatInputIssues(parsed.error));
 
@@ -417,13 +421,12 @@ async function main() {
     options.command === "prepare"
       ? await prepareDelivery({ ...parsed.data, repoRoot: root })
       : (await inspectDelivery({ ...parsed.data, repoRoot: root })).result;
-  writeJson(result, options.pretty);
+  writeOperation(options.command, result, options.pretty);
   process.exitCode = exitCode(options.command, result.status);
 }
 
 main().catch((error) => {
-  writeJson(
-    {
+  const failure = {
       schemaVersion: 1,
       status: "blocked",
       diagnostics: [
@@ -433,8 +436,7 @@ main().catch((error) => {
           retryable: false,
         },
       ],
-    },
-    false
-  );
+    };
+  writeOperation(process.argv[2] || "inspect", failure, false);
   process.exitCode = 1;
 });

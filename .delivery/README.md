@@ -29,8 +29,22 @@ npm run delivery:finalize -- --intent close_us --scope features/<feature>.featur
 - `delivery:verify-head`: valida Gate D directamente sobre el commit HEAD actual y almacena la evidencia en el ledger para el cierre de US o batch sin requerir commits vacíos.
 - `delivery:ci`: inspecciona el estado de CI para un commit específico.
 - `delivery:finalize`: valida la integridad de la entrega para batch o US; soporta `--wait-for-ci` para espera acotada.
-- Las 5 herramientas MCP correspondientes (`delivery_inspect`, `delivery_prepare`, `delivery_verify_head`, `delivery_ci_inspect` y `delivery_finalize`) están disponibles en el servidor MCP (`tools/delivery-mcp/server.mjs`).
+- El catálogo MCP, los schemas Zod de entrada/salida y los defaults compartidos con CLI se materializan desde `tools/delivery-mcp/lib/operation-contracts.mjs`. `input-schema.mjs` conserva reexports de compatibilidad y el schema de contexto humano. La tabla siguiente se verifica por paridad con ese registro; no editarla sin actualizar el contrato.
 - Los agentes consumen únicamente respuestas estructuradas y normalizadas; **no deben calcular gates ni procesar tracebacks completos**.
+
+| MCP | CLI | Sujeto | Contrato |
+| --- | --- | --- | --- |
+| `delivery_inspect` | `inspect` | `staged` | Inspect staged changes and select a gate without running it. |
+| `delivery_prepare` | `prepare` | `staged` | Execute the selected local gate for the staged snapshot; never commit or push. |
+| `delivery_ci_inspect` | `ci` | `head` | Inspect required GitHub Actions evidence for a commit SHA. |
+| `delivery_repair_abandon` | — | `head` | Abandon one unpublished Gate R repair attempt with durable audit evidence. |
+| `delivery_finalize` | `finalize` | `head` | Close a batch or US against Gate D, ledger and CI evidence. |
+| `delivery_job_wait` | — | `job` | Wait for a recoverable delivery job within a bounded timeout. |
+| `delivery_job_cancel` | — | `job` | Cancel an owned delivery job and its process group. |
+| `delivery_verify_head` | `verify-head` | `head` | Run Gate D on HEAD and record evidence without another commit. |
+| `delivery_test` | `test` | `working_tree` | Run focused TDD validation on the working tree without a commit receipt. |
+
+Las nueve operaciones devuelven `envelopeVersion: 1`, `operation`, `status`, `subject`, `diagnostics`, `nextAction` y `result`; agregan `job` o `evidence` cuando corresponda. MCP publica `outputSchema` y `structuredContent`, y conserva el JSON de texto. Los campos planos previos siguen disponibles temporalmente para clientes actuales. `async: true` equivale a modo job; una solicitud simultánea de modo `sync` se rechaza. `verify-head` y `finalize` sin intent usan `close_us` también desde CLI.
 
 Intents válidos: `prepare_commit`, `close_scenario`, `close_batch`, `close_us`, `repair_ci`.
 - Gate B requiere o infiere exactamente un archivo de feature (`--feature`).

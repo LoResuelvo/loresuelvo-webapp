@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { server } from "./server.mjs";
+import { OPERATION_CONTRACTS } from "./lib/operation-contracts.mjs";
 
 async function runSmokeTest() {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -10,22 +11,9 @@ async function runSmokeTest() {
   try {
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
     const toolsResult = await client.listTools();
-    const inspectTool = toolsResult.tools.find((tool) => tool.name === "delivery_inspect");
-    const prepareTool = toolsResult.tools.find((tool) => tool.name === "delivery_prepare");
-    const ciTool = toolsResult.tools.find((tool) => tool.name === "delivery_ci_inspect");
-    const finalizeTool = toolsResult.tools.find((tool) => tool.name === "delivery_finalize");
-    const waitTool = toolsResult.tools.find((tool) => tool.name === "delivery_job_wait");
-    const cancelTool = toolsResult.tools.find((tool) => tool.name === "delivery_job_cancel");
-    const verifyHeadTool = toolsResult.tools.find((tool) => tool.name === "delivery_verify_head");
+    assert.strictEqual(OPERATION_CONTRACTS.length, 9);
+    assert.deepStrictEqual(toolsResult.tools.map(({ name }) => name), OPERATION_CONTRACTS.map(({ name }) => name));
     const testTool = toolsResult.tools.find((tool) => tool.name === "delivery_test");
-    assert.ok(inspectTool, "delivery_inspect tool is registered");
-    assert.ok(prepareTool, "delivery_prepare tool is registered");
-    assert.ok(ciTool, "delivery_ci_inspect tool is registered");
-    assert.ok(finalizeTool, "delivery_finalize tool is registered");
-    assert.ok(waitTool, "delivery_job_wait tool is registered");
-    assert.ok(cancelTool, "delivery_job_cancel tool is registered");
-    assert.ok(verifyHeadTool, "delivery_verify_head tool is registered");
-    assert.ok(testTool, "delivery_test tool is registered");
     assert.deepStrictEqual(testTool.inputSchema.properties.executionMode.enum, ["sync", "job", "auto"]);
     assert.strictEqual(testTool.inputSchema.properties.async.type, "boolean");
 
@@ -36,13 +24,13 @@ async function runSmokeTest() {
     assert.ok(testCallResult.content?.[0]?.text, "delivery_test result text present");
     const parsedTest = JSON.parse(testCallResult.content[0].text);
     assert.ok(
-      ["passed", "failed", "error"].includes(parsedTest.status),
+      ["passed", "failed", "error", "job_started", "running"].includes(parsedTest.status),
       `Invalid test status: ${parsedTest.status}`
     );
     assert.strictEqual(parsedTest.mode, "affected");
     assert.strictEqual(typeof parsedTest.cached, "boolean");
-    assert.strictEqual(typeof parsedTest.durationMs, "number");
-    assert.ok(parsedTest.counts && typeof parsedTest.counts.passed === "number");
+    assert.strictEqual(parsedTest.operation, "delivery_test");
+    assert.equal(testCallResult.structuredContent?.operation, "delivery_test");
 
     const callResult = await client.callTool({
       name: "delivery_inspect",
@@ -60,6 +48,7 @@ async function runSmokeTest() {
     assert.ok(parsed.gate && Array.isArray(parsed.gate.checkIds));
     assert.ok(parsed.maintainability && Array.isArray(parsed.maintainability.filesReviewed));
     assert.ok(Array.isArray(parsed.diagnostics));
+    assert.equal(callResult.structuredContent?.operation, "delivery_inspect");
 
     console.log(`Smoke passed: tools=${toolsResult.tools.length} status=${parsed.status} gate=${parsed.gate.id}`);
   } finally {

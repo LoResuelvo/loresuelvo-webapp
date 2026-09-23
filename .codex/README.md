@@ -10,7 +10,7 @@ Este directorio contiene el adaptador y el guard opcionales para entornos de des
 2. **Herramientas canónicas y neutrales**:
    - Los hooks versionados en `.githooks/` (`pre-commit`, `commit-msg`, `post-commit`, `pre-push`) y la CLI pública son la interfaz canónica compartida por todo el proyecto.
    - Cualquier persona o agente sin Codex ejecuta `npm run delivery:prepare` y `npm run delivery:inspect` con exactamente las mismas garantías y políticas que el servidor MCP o las integraciones de Codex.
-   - Un agente con MCP usa `delivery_inspect`, `delivery_prepare`, `delivery_verify_head`, `delivery_ci_inspect` y `delivery_finalize`; los comandos `npm run delivery:*` son el fallback neutral, no un segundo flujo que deba repetir.
+   - Un agente con MCP usa el catálogo completo de nueve operaciones documentado en `.delivery/README.md`; los comandos `npm run delivery:*` son la interfaz humana o un fallback expresamente autorizado, no un segundo flujo que deba repetir.
 
 3. **Sin secretos ni tokens**:
    Ningún archivo versionado en `.codex/` contiene ni debe contener credenciales, claves de API, tokens de autenticación ni secretos. `config.toml` es una configuración local ignorada por Git.

@@ -301,7 +301,8 @@ test("server.mjs publica schema canónico de acknowledgement y valida payload", 
     assert.strictEqual(ackSchema.type, "object");
     assert.deepStrictEqual(ackSchema.required, ["snapshotHash"]);
     assert.strictEqual(ackSchema.properties.snapshotHash.type, "string");
-    const decisionSchemas = ackSchema.properties.decisions.oneOf;
+    // Zod's JSON-Schema converter represents the union as anyOf.
+    const decisionSchemas = ackSchema.properties.decisions.anyOf;
     assert.ok(Array.isArray(decisionSchemas));
     const decisionMapSchema = decisionSchemas.find((schema) => schema.type === "object");
     const decisionArraySchema = decisionSchemas.find((schema) => schema.type === "array");

@@ -142,6 +142,16 @@ test("cli blackbox: delivery:finalize falla inmediatamente si no hay evidencia d
   assert.strictEqual(finalizeJson.status, "blocked");
 });
 
+test("cli blackbox: verify-head y finalize sin intent usan close_us", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  for (const command of ["verify-head", "finalize"]) {
+    const response = runCli([command], { cwd: repoRoot });
+    assert.strictEqual(response.status, 2, command);
+    const payload = JSON.parse(response.stdout);
+    assert.notEqual(payload.diagnostics?.[0]?.code, "DELIVERY_CLI_ERROR", command);
+  }
+});
+
 test("cli blackbox: delivery:finalize con --wait-for-ci respeta flags de timeout y polling", async (t) => {
   const repoRoot = await createTempGitRepo(t);
   const finalizeResult = runCli(

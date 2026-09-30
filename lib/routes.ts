@@ -28,6 +28,7 @@ export const ROUTES = {
     providerProfile: (providerId: number | string) => `/consumidor/prestadores/${providerId}`,
   },
   provider: {
+    activity: "/prestador/mi-desempeno/actividad",
     home: "/prestador/home",
     calendar: "/prestador/calendario",
     messages: "/prestador/mensajes",

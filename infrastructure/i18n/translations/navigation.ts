@@ -7,6 +7,7 @@ export const sidebar = {
   aiChat: "Chat con IA",
   calendar: "Calendario",
   jobs: "Trabajos",
+  performance: "Mi desempeño",
   services: "Mis Servicios",
   profile: "Perfil",
 };

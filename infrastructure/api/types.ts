@@ -13,6 +13,48 @@ export interface ApiStub {
   delayMs?: number;
 }
 
+export interface ApiActivityPeriod {
+  from: string;
+  to: string;
+  granularity: "day" | "week" | "month";
+  time_zone: "America/Argentina/Buenos_Aires";
+}
+
+export interface ApiActivityResults {
+  confirmed_bookings: number;
+  reported_completions: number;
+  fully_paid_work_orders: number;
+  clients_served: number;
+  new_clients: number;
+  returning_clients: number;
+  agreed_value_cents: number;
+  average_value_cents: number | null;
+  currency: "ARS";
+}
+
+export interface ApiProviderActivity {
+  period: ApiActivityPeriod;
+  calculated_at: string;
+  results: ApiActivityResults;
+  evolution: Array<{
+    from: string;
+    to: string;
+    confirmed_bookings: number;
+    reported_completions: number;
+    fully_paid_work_orders: number;
+  }>;
+  current_pending: {
+    requests: number;
+    scheduled_orders: number;
+    awaiting_payment_orders: number;
+  };
+  comparison?: {
+    period: ApiActivityPeriod;
+    results: ApiActivityResults;
+    changes: Record<Exclude<keyof ApiActivityResults, "currency">, { absolute: number | null; percentage: number | null }>;
+  };
+}
+
 export interface ApiConversation {
   id: number;
   status: string;

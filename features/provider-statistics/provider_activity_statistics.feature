@@ -2,7 +2,6 @@ Feature: Consultar mi actividad como prestador
   Background:
     Given estoy autenticado como prestador
 
-  @wip
   Scenario: 01-ACT Consultar resultados del período inicial
     Given tengo contrataciones, finalizaciones informadas y pagos completos en los últimos 30 días
     When abro la sección Actividad de Mi desempeño
@@ -11,7 +10,6 @@ Feature: Consultar mi actividad como prestador
     And veo valor pactado e importe promedio de los trabajos finalizados en pesos argentinos
     And veo la evolución cronológica con intervalos sin eventos en cero
 
-  @wip
   Scenario: 02-ACT Consultar otro período y agrupación
     Given estoy viendo mi actividad
     And seleccioné un rango válido y agrupación semanal
@@ -20,7 +18,6 @@ Feature: Consultar mi actividad como prestador
     And puedo reconocer los límites efectivos de los intervalos
     And los pendientes actuales permanecen separados de esos resultados
 
-  @wip
   Scenario: 03-ACT Comparar con el período anterior
     Given estoy viendo mi actividad en un período válido
     When activo la comparación con el período anterior

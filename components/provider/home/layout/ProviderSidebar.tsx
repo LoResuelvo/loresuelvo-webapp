@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BriefcaseBusiness, CalendarDays, Home, MessageSquare, User } from "lucide-react";
+import { BarChart3, BriefcaseBusiness, CalendarDays, Home, MessageSquare, User } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
 
@@ -11,16 +11,17 @@ const providerNavigationItems = [
   { label: t.sidebar.calendar, href: "", icon: CalendarDays },
   { label: t.sidebar.messages, href: ROUTES.provider.messages, icon: MessageSquare },
   { label: t.sidebar.jobs, href: ROUTES.provider.jobs, icon: BriefcaseBusiness },
+  { label: t.sidebar.performance, href: ROUTES.provider.activity, icon: BarChart3 },
   { label: t.sidebar.profile, href: "", icon: User },
 ];
 
-export default function ProviderSidebar() {
+export default function ProviderSidebar({ responsive = false }: { responsive?: boolean } = {}) {
   const pathname = usePathname();
 
   return (
     <aside
       aria-label={t.providerHome.sidebar.ariaLabel}
-      className="w-[260px] bg-brand-neutral border-r border-slate-200 flex flex-col h-screen sticky top-0"
+      className={`${responsive ? "w-full md:w-[260px] md:shrink-0 md:h-screen md:sticky" : "w-[260px] h-screen sticky"} bg-brand-neutral border-r border-slate-200 flex flex-col top-0`}
     >
       <div className="p-6 h-20 flex items-center">
         <Link href={ROUTES.home} className="flex items-center gap-3">
@@ -32,7 +33,7 @@ export default function ProviderSidebar() {
 
       <nav
         aria-label={t.providerHome.sidebar.navLabel}
-        className="flex-1 px-4 flex flex-col gap-2 mt-2"
+        className={`flex-1 px-4 pb-3 flex ${responsive ? "flex-row flex-wrap md:flex-col" : "flex-col"} gap-2 mt-2`}
       >
         {providerNavigationItems.map((item) => {
           const Icon = item.icon;

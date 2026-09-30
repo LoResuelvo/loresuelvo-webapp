@@ -3,6 +3,7 @@ import { CustomWorld, APP_URL, visibleTimeout } from "../support/world";
 import { aCoverageZone, aCategory, anApiError, aProvider, aPresignedUpload, aConfirmedFile } from "../support/factories";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
+import { aWeeklyActivityResponse } from "../support/activity-factory";
 
 const identityVerificationSessionEndpoint = "/providers/me/identity-verification-sessions";
 
@@ -143,6 +144,11 @@ Given("la consulta de zonas falló y veo su estado de error", async function (th
 });
 
 Given("la API vuelve a estar disponible", async function (this: CustomWorld) {
+  const failedActivity = (await this.getStubs()).find(stub => stub.endpoint.startsWith("/providers/me/statistics/activity?") && stub.status >= 500);
+  if (failedActivity) {
+    await this.stubGet(failedActivity.endpoint, aWeeklyActivityResponse());
+    return;
+  }
   if (await this.hasApiStub("POST", identityVerificationSessionEndpoint)) {
     await stubAvailableIdentityVerificationService(this);
     return;
@@ -610,4 +616,3 @@ Given(
 );
 
 // End of US-35.5 coverage zones acceptance steps
-

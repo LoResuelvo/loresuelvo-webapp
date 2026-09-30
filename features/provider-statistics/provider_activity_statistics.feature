@@ -25,7 +25,6 @@ Feature: Consultar mi actividad como prestador
     And una variación porcentual sin base se muestra como no disponible
     And no se presenta un crecimiento porcentual inventado
 
-  @wip
   Scenario: 04-ACT Distinguir falta de actividad y pendientes actuales
     Given el período consultado no tiene eventos
     And tengo solicitudes pendientes y órdenes programadas o pendientes de pago
@@ -34,7 +33,6 @@ Feature: Consultar mi actividad como prestador
     And veo los pendientes actuales informados por la API
     And la pantalla explica que los pendientes no están filtrados por el período
 
-  @wip
   Scenario: 05-ACT Recuperarme de un error de consulta
     Given una consulta de actividad falló y veo un mensaje de error
     And la API vuelve a estar disponible

@@ -8,9 +8,76 @@ async function assertText(locator: Locator, text: string) {
 }
 import { CustomWorld } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { anActivityResponse, aWeeklyActivityResponse, aComparedActivityResponse } from "../support/activity-factory";
+import { anActivityResponse, anEmptyActivityResponse, aWeeklyActivityResponse, aComparedActivityResponse } from "../support/activity-factory";
 import { mkdir } from "node:fs/promises";
 import { createE2EStubCookies } from "../../infrastructure/api/e2e-stubs-utils";
+
+Given("el período consultado no tiene eventos", async function (this: CustomWorld) {
+  await this.stubGet("/providers/me/statistics/activity", anEmptyActivityResponse());
+});
+
+Given("tengo solicitudes pendientes y órdenes programadas o pendientes de pago", async function (this: CustomWorld) {
+  await this.stubGet("/providers/me/statistics/activity", anEmptyActivityResponse());
+});
+
+Given("una consulta de actividad falló y veo un mensaje de error", async function (this: CustomWorld) {
+  await this.stubGet("/providers/me/statistics/activity", anActivityResponse());
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.activity}`);
+  await this.page.getByRole("heading", { name: "Resultados del período" }).waitFor({ state: "visible" });
+  const remainingStubs = (await this.getStubs()).filter(stub => !stub.endpoint.startsWith("/providers/me/statistics/activity"));
+  await this.context.addCookies(createE2EStubCookies(remainingStubs));
+  const params = new URLSearchParams({ from: "2026-08-04T00:00:00-03:00", to: "2026-08-13T00:00:00-03:00", granularity: "week" });
+  await this.stubGet(`/providers/me/statistics/activity?${params}`, {}, 503);
+  await this.page.getByLabel("Desde", { exact: true }).fill("2026-08-04");
+  await this.page.getByLabel("Hasta (incluido)").fill("2026-08-12");
+  await this.page.getByLabel("Agrupación").selectOption("week");
+  await this.page.getByRole("button", { name: "Aplicar filtros" }).click();
+  await this.page.getByRole("alert").filter({ hasText: "No pudimos consultar tu actividad" }).waitFor({ state: "visible" });
+  await this.page.getByRole("region", { name: "Resultados del período" }).waitFor({ state: "detached" });
+  assert.equal(await this.page.getByRole("region", { name: "Resultados del período" }).count(), 0);
+});
+
+When("reintento la consulta", async function (this: CustomWorld) {
+  const retry = this.page.getByRole("button", { name: "Reintentar consulta" });
+  await retry.focus();
+  await this.page.keyboard.press("Enter");
+});
+
+Then("veo los resultados del mismo filtro solicitado", async function (this: CustomWorld) {
+  await assertText(this.page.getByTestId("activity-period"), "4/8/26");
+  await assertText(this.page.getByTestId("activity-period"), "13/8/26");
+  assert.equal(await this.page.getByLabel("Agrupación").inputValue(), "week");
+  await assertText(this.page.getByRole("region", { name: "Resultados del período" }).locator("dd").first(), "6");
+});
+
+Then("el error anterior no se representa como falta de actividad", async function (this: CustomWorld) {
+  assert.equal(await this.page.getByRole("alert").filter({ hasText: "No pudimos consultar tu actividad" }).count(), 0);
+  assert.equal(await this.page.getByRole("button", { name: "Reintentar consulta" }).count(), 0);
+  await mkdir(".delivery/runtime/visual", { recursive: true });
+  for (const width of [375, 768, 1440]) {
+    await this.page.setViewportSize({ width, height: 960 });
+    assert.ok(await this.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+    await this.page.screenshot({ path: `.delivery/runtime/visual/activity-recovered-${width}.png`, fullPage: true });
+  }
+});
+
+When("abro mi actividad para ese período", async function (this: CustomWorld) {
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.activity}`);
+});
+
+Then("veo resultados en cero y promedio no disponible", async function (this: CustomWorld) {
+  const results = this.page.getByRole("region", { name: "Resultados del período" });
+  await results.waitFor({ state: "visible" });
+  assert.deepEqual(await results.locator("dd").allTextContents(), ["0", "0", "0", "0", "0", "0", "$ 0,00", "No disponible"]);
+});
+
+Then("veo los pendientes actuales informados por la API", async function (this: CustomWorld) {
+  assert.deepEqual(await this.page.getByRole("region", { name: "Pendientes actuales" }).locator("dd").allTextContents(), ["7", "8", "9"]);
+});
+
+Then("la pantalla explica que los pendientes no están filtrados por el período", async function (this: CustomWorld) {
+  await assertText(this.page.getByRole("region", { name: "Pendientes actuales" }), "No están filtrados por el período.");
+});
 
 Given("tengo contrataciones, finalizaciones informadas y pagos completos en los últimos 30 días", async function (this: CustomWorld) {
   await this.stubGet("/providers/me/statistics/activity", anActivityResponse());

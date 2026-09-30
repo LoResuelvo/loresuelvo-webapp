@@ -27,6 +27,7 @@ export const providerActivity = {
   awaitingPaymentOrders: "Órdenes pendientes de pago",
   loading: "Consultando actividad…",
   error: "No pudimos consultar tu actividad. Intentá nuevamente.",
+  retry: "Reintentar consulta",
   unauthorized: "Iniciá sesión como prestador para consultar tu actividad.",
   filters: "Filtros de actividad",
   from: "Desde",

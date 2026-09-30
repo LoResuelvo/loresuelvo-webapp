@@ -13,10 +13,12 @@ import { Button } from "@/components/ui/button";
 export function ActivityClient({ initialResult }: { initialResult: ActivityActionResult }) {
   const [result, setResult] = useState(initialResult);
   const [pending, setPending] = useState(false);
+  const lastQuery = useRef<ActivityQuery | undefined>(undefined);
   const sequence = useRef(0);
   useEffect(() => () => { sequence.current += 1; }, []);
 
-  async function apply(query: ActivityQuery) {
+  async function apply(query?: ActivityQuery) {
+    lastQuery.current = query;
     const request = ++sequence.current;
     setPending(true);
     try {
@@ -34,7 +36,12 @@ export function ActivityClient({ initialResult }: { initialResult: ActivityActio
       {result.success && <ActivityFilters key={`${result.data.period.from}|${result.data.period.to}`} period={result.data.period} pending={pending} onApply={apply} />}
       {result.success && <Button disabled={pending} variant="outline" aria-pressed={Boolean(result.data.comparison)} onClick={() => apply({ ...activityQueryForPeriod(result.data.period), comparePrevious: !result.data.comparison })}>{result.data.comparison ? t.providerActivity.stopCompare : t.providerActivity.compare}</Button>}
       <p role="status" className="text-sm">{pending ? t.providerActivity.loading : ""}</p>
-      {result.success ? <ActivityView activity={result.data} /> : <p role="alert">{result.error}</p>}
+      {result.success ? <ActivityView activity={result.data} /> : (
+        <div className="space-y-3">
+          <p role="alert">{result.error}</p>
+          <Button disabled={pending} variant="outline" onClick={() => apply(lastQuery.current)}>{t.providerActivity.retry}</Button>
+        </div>
+      )}
     </div>
   );
 }

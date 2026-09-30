@@ -1,5 +1,12 @@
 import type { ApiProviderActivity } from "../../infrastructure/api/types";
 
+export function anEmptyActivityResponse(): ApiProviderActivity {
+  const response = anActivityResponse();
+  response.results = { confirmed_bookings: 0, reported_completions: 0, fully_paid_work_orders: 0, clients_served: 0, new_clients: 0, returning_clients: 0, agreed_value_cents: 0, average_value_cents: null, currency: "ARS" };
+  response.evolution = response.evolution.map(interval => ({ ...interval, confirmed_bookings: 0, reported_completions: 0, fully_paid_work_orders: 0 }));
+  return response;
+}
+
 export function anActivityResponse(): ApiProviderActivity {
   return {
     period: { from: "2026-08-01T00:00:00-03:00", to: "2026-08-31T00:00:00-03:00", granularity: "day", time_zone: "America/Argentina/Buenos_Aires" },

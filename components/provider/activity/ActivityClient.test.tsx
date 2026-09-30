@@ -9,6 +9,33 @@ vi.mock("@/app/prestador/mi-desempeno/actividad/actions", () => ({ getProviderAc
 
 describe("activity interaction", () => {
   beforeEach(() => vi.clearAllMocks());
+  it("retries the failed filter without presenting the error as zero activity", async () => {
+    vi.mocked(getProviderActivityAction)
+      .mockResolvedValueOnce({ success: false, error: "No pudimos consultar tu actividad." })
+      .mockResolvedValueOnce({ success: true, data: mapProviderActivity(aWeeklyActivityResponse()) });
+    render(<ActivityClient initialResult={{ success: true, data: mapProviderActivity(anActivityResponse()) }} />);
+    fireEvent.change(screen.getByLabelText("Desde"), { target: { value: "2026-08-04" } });
+    fireEvent.change(screen.getByLabelText("Hasta (incluido)"), { target: { value: "2026-08-12" } });
+    fireEvent.change(screen.getByLabelText("Agrupación"), { target: { value: "week" } });
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos consultar");
+    expect(screen.queryByRole("region", { name: "Resultados del período" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Reintentar consulta" }));
+    expect(await screen.findByTestId("activity-period")).toHaveTextContent("4/8/26");
+    expect(vi.mocked(getProviderActivityAction).mock.calls[1]).toEqual(vi.mocked(getProviderActivityAction).mock.calls[0]);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+  it("allows retrying an initial failure and disables retry while pending", async () => {
+    let finish: ((result: ActivityActionResult) => void) | undefined;
+    vi.mocked(getProviderActivityAction).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    render(<ActivityClient initialResult={{ success: false, error: "No pudimos consultar tu actividad." }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Reintentar consulta" }));
+    expect(getProviderActivityAction).toHaveBeenCalledWith(undefined);
+    expect(screen.getByRole("button", { name: "Reintentar consulta" })).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent("Consultando actividad");
+    await act(async () => { finish?.({ success: true, data: mapProviderActivity(anActivityResponse()) }); });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
   it("keeps draft filters separate, announces loading and applies only returned results", async () => {
     let finish: ((result: ActivityActionResult) => void) | undefined;
     vi.mocked(getProviderActivityAction).mockImplementation(() => new Promise(resolve => { finish = resolve; }));

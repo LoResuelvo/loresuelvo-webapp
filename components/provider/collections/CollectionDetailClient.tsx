@@ -47,7 +47,7 @@ export function CollectionDetailClient({ period, initialResult }: { period: Coll
   const { from, to } = period;
   const lastQuery = useRef<CollectionTransactionQuery>({ from, to, ...(purpose ? { purpose } : {}) });
 
-  const execute = useCallback(async (query: { from: string; to: string; purpose?: CollectionPurpose; cursor?: string }, targetPurpose?: CollectionPurpose) => {
+  const execute = useCallback(async (query: CollectionTransactionQuery) => {
     lastQuery.current = query;
     const request = ++sequence.current;
     setPending(true);
@@ -55,7 +55,7 @@ export function CollectionDetailClient({ period, initialResult }: { period: Coll
       const next = await getProviderCollectionTransactionsAction(query);
       if (request === sequence.current) {
         setResult(next);
-        if (targetPurpose !== undefined) setPurpose(targetPurpose);
+        setPurpose(query.purpose);
       }
     } catch {
       if (request === sequence.current) setResult({ success: false, error: t.providerCollections.detailError });
@@ -64,10 +64,14 @@ export function CollectionDetailClient({ period, initialResult }: { period: Coll
     }
   }, []);
 
-  const applyPurpose = useCallback((nextPurpose?: CollectionPurpose) => execute({ from, to, ...(nextPurpose ? { purpose: nextPurpose } : {}) }, nextPurpose), [execute, from, to]);
-  const applyNextPage = useCallback(() => (result?.success && result.data.nextCursor ? execute({ from, to, ...(purpose ? { purpose } : {}), cursor: result.data.nextCursor }, purpose) : undefined), [execute, from, to, purpose, result]);
-  const retry = useCallback(() => execute(lastQuery.current, purpose), [execute, purpose]);
-  const resetToFirstPage = useCallback(() => execute({ from, to, ...(purpose ? { purpose } : {}) }, purpose), [execute, from, to, purpose]);
+  const applyPurpose = useCallback((nextPurpose?: CollectionPurpose) => execute({ from, to, ...(nextPurpose ? { purpose: nextPurpose } : {}) }), [execute, from, to]);
+  const applyNextPage = useCallback(() => (result?.success && result.data.nextCursor ? execute({ from, to, ...(purpose ? { purpose } : {}), cursor: result.data.nextCursor }) : undefined), [execute, from, to, purpose, result]);
+  const retry = useCallback(() => execute(lastQuery.current), [execute]);
+  const resetToFirstPage = useCallback(() => {
+    const firstPageQuery = { ...lastQuery.current };
+    delete firstPageQuery.cursor;
+    return execute(firstPageQuery);
+  }, [execute]);
 
   useEffect(() => {
     if (!initialResult) void applyPurpose();

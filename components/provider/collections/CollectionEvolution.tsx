@@ -6,7 +6,6 @@ export function CollectionEvolution({ intervals }: { intervals: ProviderCollecti
   const labels = t.providerCollections;
   return <section className="space-y-3" aria-labelledby="collection-evolution-title">
     <h2 id="collection-evolution-title" className="text-xl font-semibold">{labels.evolution}</h2>
-    <p id="collection-evolution-help" className="text-sm text-slate-600">{t.providerActivity.tableHelp}</p>
     <div tabIndex={0} role="region" aria-label={labels.evolution} aria-describedby="collection-evolution-help" className="overflow-auto max-h-96 rounded-xl border bg-white focus-visible:outline-2 focus-visible:outline-brand-secondary">
       <table aria-label={labels.evolution} className="w-full text-sm">
         <thead><tr className="bg-slate-50 text-left"><th scope="col" className="p-3">{t.providerActivity.interval}</th>{(["bookingDepositCents", "serviceBalanceCents", "totalCents"] as const).map(key => <th scope="col" className="p-3" key={key}>{labels[key]}</th>)}</tr></thead>

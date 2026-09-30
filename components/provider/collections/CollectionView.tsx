@@ -11,7 +11,6 @@ export function CollectionView({ collections }: { collections: ProviderCollectio
     <section aria-label={t.providerActivity.period} className="rounded-xl border border-slate-200 bg-white p-4">
       <h2 className="font-semibold">{t.providerActivity.period}</h2>
       <p data-testid="collection-period">{statisticsRange(collections.period.from, collections.period.to)}</p>
-      <p className="text-sm text-slate-600">{t.providerActivity.periodHelp}</p>
       <p className="mt-2 text-xs text-slate-500">{t.providerActivity.calculatedAt} {statisticsDate(collections.calculatedAt)}</p>
     </section>
     <CollectionResults results={collections.results} />

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ActivityQuery } from "@/domain/provider/activity-query";
-import { activityQueryForPeriod } from "@/domain/provider/activity-query";
 import type { ActivityActionResult } from "@/app/prestador/mi-desempeno/actividad/actions";
 import { getProviderActivityAction } from "@/app/prestador/mi-desempeno/actividad/actions";
 import { t } from "@/infrastructure/i18n/translations";
@@ -33,8 +32,7 @@ export function ActivityClient({ initialResult }: { initialResult: ActivityActio
 
   return (
     <div className="space-y-6" aria-busy={pending}>
-      {result.success && <ActivityFilters key={`${result.data.period.from}|${result.data.period.to}`} period={result.data.period} pending={pending} onApply={apply} />}
-      {result.success && <Button disabled={pending} variant="outline" aria-pressed={Boolean(result.data.comparison)} onClick={() => apply({ ...activityQueryForPeriod(result.data.period), comparePrevious: !result.data.comparison })}>{result.data.comparison ? t.providerActivity.stopCompare : t.providerActivity.compare}</Button>}
+      {result.success && <ActivityFilters key={`${result.data.period.from}|${result.data.period.to}|${result.data.period.granularity}|${Boolean(result.data.comparison)}`} comparison={Boolean(result.data.comparison)} period={result.data.period} pending={pending} onApply={apply} />}
       <p role="status" className="text-sm">{pending ? t.providerActivity.loading : ""}</p>
       {result.success ? <ActivityView activity={result.data} /> : (
         <div className="space-y-3">

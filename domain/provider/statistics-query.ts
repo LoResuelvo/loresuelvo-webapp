@@ -7,6 +7,13 @@ export interface StatisticsQuery {
   readonly comparePrevious?: boolean;
 }
 
+export class FutureStatisticsDateError extends Error {
+  constructor() {
+    super("Activity date cannot be in the future");
+    this.name = "FutureStatisticsDateError";
+  }
+}
+
 export function statisticsInstant(value: unknown): number {
   if (typeof value !== "string") throw new Error("Invalid activity instant");
   const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$/.exec(value);
@@ -36,11 +43,25 @@ function calendarDay(value: string): Date {
   return date;
 }
 
+function buenosAiresToday(now: Date): string {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const part = (type: "year" | "month" | "day") => parts.find(value => value.type === type)!.value;
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
 export function statisticsQueryForDays(fromDay: string, throughDay: string, granularity: StatisticsGranularity, now = new Date()): StatisticsQuery {
   calendarDay(fromDay);
   const exclusiveEnd = calendarDay(throughDay);
+  const today = buenosAiresToday(now);
+  if (fromDay > today || throughDay > today) throw new FutureStatisticsDateError();
   exclusiveEnd.setUTCDate(exclusiveEnd.getUTCDate() + 1);
-  return validateStatisticsQuery({ from: `${fromDay}T00:00:00-03:00`, to: `${exclusiveEnd.toISOString().slice(0, 10)}T00:00:00-03:00`, granularity }, now);
+  const to = throughDay === today ? now.toISOString() : `${exclusiveEnd.toISOString().slice(0, 10)}T00:00:00-03:00`;
+  return validateStatisticsQuery({ from: `${fromDay}T00:00:00-03:00`, to, granularity }, now);
 }
 
 export function statisticsQueryForPeriod(period: StatisticsPeriod): StatisticsQuery {

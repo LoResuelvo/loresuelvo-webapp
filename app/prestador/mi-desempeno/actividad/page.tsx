@@ -17,7 +17,7 @@ export default async function ProviderActivityPage() {
       <div className="flex-1 flex flex-col min-w-0">
         <ProviderHeader session={session} />
         <main className="min-w-0 w-full max-w-7xl mx-auto space-y-6 p-4 sm:p-6 lg:p-10">
-          <header><p className="text-sm text-slate-600">{t.providerActivity.title}</p><h1 className="text-3xl font-bold">{t.providerActivity.activity}</h1><p className="mt-2 text-slate-600">{t.providerActivity.description}</p></header>
+          <header><h1 className="text-3xl font-bold">{t.providerActivity.activity}</h1><p className="mt-2 text-slate-600">{t.providerActivity.description}</p></header>
           <PerformanceNavigation active="activity" />
           <ActivityClient initialResult={result} />
         </main>

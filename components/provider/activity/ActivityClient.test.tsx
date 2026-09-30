@@ -47,20 +47,24 @@ describe("activity interaction", () => {
     fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
     expect(screen.getByRole("status")).toHaveTextContent("Consultando actividad");
     expect(screen.getByRole("button", { name: "Aplicar filtros" })).toBeDisabled();
-    expect(getProviderActivityAction).toHaveBeenCalledWith({ from: "2026-08-04T00:00:00-03:00", to: "2026-08-13T00:00:00-03:00", granularity: "week" });
+    expect(getProviderActivityAction).toHaveBeenCalledWith({ from: "2026-08-04T00:00:00-03:00", to: "2026-08-13T00:00:00-03:00", granularity: "week", comparePrevious: false });
     await act(async () => { finish?.({ success: true, data: mapProviderActivity(aWeeklyActivityResponse()) }); });
     await waitFor(() => expect(screen.getByTestId("activity-period")).toHaveTextContent("4/8/26"));
   });
   it("fixes comparison to the exact effective period and displays unavailable percentages", async () => {
     vi.mocked(getProviderActivityAction).mockResolvedValue({ success: true, data: mapProviderActivity(aComparedActivityResponse()) });
     render(<ActivityClient initialResult={{ success: true, data: mapProviderActivity(anActivityResponse()) }} />);
-    fireEvent.click(screen.getByRole("button", { name: "Comparar con el período anterior" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Comparar con el período anterior" }));
+    expect(getProviderActivityAction).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
     expect(getProviderActivityAction).toHaveBeenCalledWith({ from: "2026-08-01T00:00:00-03:00", to: "2026-08-31T00:00:00-03:00", granularity: "day", comparePrevious: true });
     const table = await screen.findByRole("table", { name: "Comparación con el período anterior" });
     expect(within(table).getAllByRole("row")[1]).toHaveTextContent("No disponible");
     expect(within(table).getAllByRole("row")[1]).not.toHaveTextContent("%");
     vi.mocked(getProviderActivityAction).mockResolvedValue({ success: true, data: mapProviderActivity(anActivityResponse()) });
-    fireEvent.click(screen.getByRole("button", { name: "Desactivar comparación" }));
+    expect(screen.getByRole("checkbox", { name: "Comparar con el período anterior" })).toBeChecked();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Comparar con el período anterior" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
     expect(getProviderActivityAction).toHaveBeenLastCalledWith({ from: "2026-08-01T00:00:00-03:00", to: "2026-08-31T00:00:00-03:00", granularity: "day", comparePrevious: false });
     await waitFor(() => expect(screen.queryByRole("table", { name: "Comparación con el período anterior" })).not.toBeInTheDocument());
   });
@@ -74,6 +78,6 @@ describe("activity interaction", () => {
     render(<ActivityClient initialResult={{ success: true, data: mapProviderActivity(response) }} />);
     fireEvent.change(screen.getByLabelText("Agrupación"), { target: { value: "month" } });
     fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
-    expect(getProviderActivityAction).toHaveBeenCalledWith({ from: response.period.from, to: response.period.to, granularity: "month" });
+    expect(getProviderActivityAction).toHaveBeenCalledWith({ from: response.period.from, to: response.period.to, granularity: "month", comparePrevious: false });
   });
 });

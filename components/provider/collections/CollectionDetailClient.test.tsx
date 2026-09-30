@@ -58,6 +58,75 @@ describe("CollectionDetailClient", () => {
     await waitFor(() => expect(getProviderCollectionTransactionsAction).toHaveBeenCalledWith({ from: detail.period.from, to: detail.period.to }));
     expect(screen.getByTestId("collection-detail-count")).toHaveTextContent("30");
   });
+  it("clears the purpose before requesting the next page of all transactions", async () => {
+    const detail = mapCollectionTransactions(aCollectionTransactionsResponse());
+    const depositDetail = mapCollectionTransactions(aCollectionTransactionsResponse("booking_deposit"));
+    vi.mocked(getProviderCollectionTransactionsAction)
+      .mockResolvedValueOnce({ success: true, data: depositDetail })
+      .mockResolvedValue({ success: true, data: detail });
+    render(<CollectionDetailClient period={detail.period} initialResult={{ success: true, data: detail }} />);
+
+    await userEvent.selectOptions(screen.getByLabelText("Propósito"), "booking_deposit");
+    await waitFor(() => expect(screen.getByLabelText("Propósito")).toHaveValue("booking_deposit"));
+    await userEvent.selectOptions(screen.getByLabelText("Propósito"), "");
+    await waitFor(() => expect(screen.getByTestId("collection-detail-count")).toHaveTextContent("30"));
+    expect(screen.getByLabelText("Propósito")).toHaveValue("");
+    await userEvent.click(screen.getByRole("button", { name: "Siguiente página" }));
+
+    expect(getProviderCollectionTransactionsAction).toHaveBeenLastCalledWith({
+      from: detail.period.from,
+      to: detail.period.to,
+      cursor: detail.nextCursor,
+    });
+  });
+  it("restores the requested purpose after retrying a rejected transport request", async () => {
+    const detail = mapCollectionTransactions(aCollectionTransactionsResponse());
+    const depositDetail = mapCollectionTransactions(aCollectionTransactionsResponse("booking_deposit"));
+    vi.mocked(getProviderCollectionTransactionsAction)
+      .mockRejectedValueOnce(new Error("Transport unavailable"))
+      .mockResolvedValue({ success: true, data: depositDetail });
+    render(<CollectionDetailClient period={detail.period} initialResult={{ success: true, data: detail }} />);
+
+    await userEvent.selectOptions(screen.getByLabelText("Propósito"), "booking_deposit");
+    await waitFor(() => expect(screen.getByRole("alert")).toBeVisible());
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    await waitFor(() => expect(screen.getByLabelText("Propósito")).toHaveValue("booking_deposit"));
+    expect(getProviderCollectionTransactionsAction).toHaveBeenNthCalledWith(2, {
+      from: detail.period.from,
+      to: detail.period.to,
+      purpose: "booking_deposit",
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Siguiente página" }));
+
+    expect(getProviderCollectionTransactionsAction).toHaveBeenLastCalledWith({
+      from: detail.period.from,
+      to: detail.period.to,
+      purpose: "booking_deposit",
+      cursor: depositDetail.nextCursor,
+    });
+  });
+  it("preserves the selected purpose when resetting failed pagination", async () => {
+    const detail = mapCollectionTransactions(aCollectionTransactionsResponse());
+    const depositDetail = mapCollectionTransactions(aCollectionTransactionsResponse("booking_deposit"));
+    vi.mocked(getProviderCollectionTransactionsAction)
+      .mockResolvedValueOnce({ success: true, data: depositDetail })
+      .mockRejectedValueOnce(new Error("Transport unavailable"))
+      .mockResolvedValueOnce({ success: true, data: depositDetail });
+    render(<CollectionDetailClient period={detail.period} initialResult={{ success: true, data: detail }} />);
+
+    await userEvent.selectOptions(screen.getByLabelText("Propósito"), "booking_deposit");
+    await waitFor(() => expect(screen.getByLabelText("Propósito")).toHaveValue("booking_deposit"));
+    await userEvent.click(screen.getByRole("button", { name: "Siguiente página" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeVisible());
+    await userEvent.click(screen.getByRole("button", { name: "Volver a la primera página" }));
+
+    await waitFor(() => expect(screen.getByLabelText("Propósito")).toHaveValue("booking_deposit"));
+    expect(getProviderCollectionTransactionsAction).toHaveBeenLastCalledWith({
+      from: detail.period.from,
+      to: detail.period.to,
+      purpose: "booking_deposit",
+    });
+  });
   it("allows returning to first page when pagination fails with cursor", async () => {
     const detail = mapCollectionTransactions(aCollectionTransactionsResponse());
     vi.mocked(getProviderCollectionTransactionsAction)

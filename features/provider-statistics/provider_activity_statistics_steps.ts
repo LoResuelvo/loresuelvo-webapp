@@ -26,7 +26,7 @@ Given("una consulta de actividad falló y veo un mensaje de error", async functi
   await this.page.getByRole("heading", { name: "Resultados del período" }).waitFor({ state: "visible" });
   const remainingStubs = (await this.getStubs()).filter(stub => !stub.endpoint.startsWith("/providers/me/statistics/activity"));
   await this.context.addCookies(createE2EStubCookies(remainingStubs));
-  const params = new URLSearchParams({ from: "2026-08-04T00:00:00-03:00", to: "2026-08-13T00:00:00-03:00", granularity: "week" });
+  const params = new URLSearchParams({ from: "2026-08-04T00:00:00-03:00", to: "2026-08-13T00:00:00-03:00", granularity: "week", compare_previous: "false" });
   await this.stubGet(`/providers/me/statistics/activity?${params}`, {}, 503);
   await this.page.getByLabel("Desde", { exact: true }).fill("2026-08-04");
   await this.page.getByLabel("Hasta (incluido)").fill("2026-08-12");
@@ -142,7 +142,7 @@ Given("estoy viendo mi actividad", async function (this: CustomWorld) {
 });
 
 Given("seleccioné un rango válido y agrupación semanal", async function (this: CustomWorld) {
-  const params = new URLSearchParams({ from: "2026-08-04T00:00:00-03:00", to: "2026-08-13T00:00:00-03:00", granularity: "week" });
+  const params = new URLSearchParams({ from: "2026-08-04T00:00:00-03:00", to: "2026-08-13T00:00:00-03:00", granularity: "week", compare_previous: "false" });
   await this.stubGet(`/providers/me/statistics/activity?${params}`, aWeeklyActivityResponse());
   await this.page.getByLabel("Desde", { exact: true }).fill("2026-08-04");
   await this.page.getByLabel("Hasta (incluido)").fill("2026-08-12");
@@ -175,7 +175,7 @@ Then("los pendientes actuales permanecen separados de esos resultados", async fu
 Given("estoy viendo mi actividad en un período válido", async function (this: CustomWorld) {
   await this.stubGet("/providers/me/statistics/activity", anActivityResponse());
   await this.page.goto(`${this.appUrl}${ROUTES.provider.activity}`);
-  await this.page.getByRole("button", { name: "Comparar con el período anterior" }).waitFor({ state: "visible" });
+  await this.page.getByRole("checkbox", { name: "Comparar con el período anterior" }).waitFor({ state: "visible" });
   // Keep only the fixtures still needed, so cookie-based mocks fit normal HTTP header limits.
   const remainingStubs = (await this.getStubs()).filter(stub => stub.endpoint !== "/providers/me/statistics/activity");
   await this.context.addCookies(createE2EStubCookies(remainingStubs));
@@ -184,7 +184,8 @@ Given("estoy viendo mi actividad en un período válido", async function (this: 
 });
 
 When("activo la comparación con el período anterior", async function (this: CustomWorld) {
-  await this.page.getByRole("button", { name: "Comparar con el período anterior" }).click();
+  await this.page.getByRole("checkbox", { name: "Comparar con el período anterior" }).check();
+  await this.page.getByRole("button", { name: "Aplicar filtros" }).click();
 });
 
 Then("veo los límites del período anterior y sus variaciones", async function (this: CustomWorld) {

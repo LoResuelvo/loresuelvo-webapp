@@ -9,7 +9,6 @@ export function ActivityEvolution({ intervals }: { intervals: readonly ActivityI
     <section className="min-w-0 space-y-3" aria-labelledby="activity-evolution-title">
       <h2 id="activity-evolution-title" className="text-xl font-semibold">{labels.evolution}</h2>
       <ActivityEvolutionChart intervals={intervals} />
-      <p className="text-xs text-slate-600">{labels.tableHelp}</p>
       <div className="max-h-96 overflow-auto rounded-xl border border-slate-200 bg-white" tabIndex={0} role="region" aria-label={labels.evolution}>
         <table className="w-full text-sm">
           <caption className="sr-only">{labels.evolution}</caption>

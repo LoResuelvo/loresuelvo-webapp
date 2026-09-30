@@ -512,3 +512,50 @@ export interface ApiCoverageZone {
   name: string;
   boundary?: ApiCoverageZoneBoundary;
 }
+
+export interface ApiCollectionAmounts {
+  booking_deposit_cents: number;
+  service_balance_cents: number;
+  total_cents: number;
+}
+export interface ApiCollectionPeriod {
+  from: string;
+  to: string;
+  granularity: "day" | "week" | "month";
+  time_zone: "America/Argentina/Buenos_Aires";
+}
+export interface ApiProviderCollections {
+  period: ApiCollectionPeriod;
+  calculated_at: string;
+  currency: "ARS";
+  results: ApiCollectionAmounts;
+  evolution: (ApiCollectionAmounts & { from: string; to: string })[];
+  current_pending: {
+    scheduled: { orders: number; amount_cents: number };
+    awaiting_payment: { orders: number; amount_cents: number };
+  };
+  comparison?: {
+    period: ApiCollectionPeriod;
+    results: ApiCollectionAmounts;
+    changes: { [K in keyof ApiCollectionAmounts]: { absolute: number; percentage: number | null } };
+  };
+}
+
+export interface ApiCollectionTransaction {
+  id: number;
+  verified_on: string;
+  purpose: "booking_deposit" | "service_balance";
+  seller_amount_cents: number;
+  currency: "ARS";
+  service_proposal_id: number;
+  work_order_id: number;
+}
+export interface ApiCollectionTransactions {
+  period: Omit<ApiCollectionPeriod, "granularity">;
+  calculated_at: string;
+  currency: "ARS";
+  total_count: number;
+  total_amount_cents: number;
+  transactions: ApiCollectionTransaction[];
+  next_cursor: string | null;
+}

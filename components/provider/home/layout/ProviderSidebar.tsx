@@ -37,7 +37,7 @@ export default function ProviderSidebar({ responsive = false }: { responsive?: b
       >
         {providerNavigationItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href && item.href !== "";
+          const isActive = (pathname === item.href || (item.href === ROUTES.provider.activity && pathname === ROUTES.provider.collections)) && item.href !== "";
 
           return (
             <Link

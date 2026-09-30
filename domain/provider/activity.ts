@@ -1,11 +1,6 @@
-export type ActivityGranularity = "day" | "week" | "month";
-
-export interface ActivityPeriod {
-  readonly from: string;
-  readonly to: string;
-  readonly granularity: ActivityGranularity;
-  readonly timeZone: "America/Argentina/Buenos_Aires";
-}
+import type { StatisticsPeriod } from "./statistics-period";
+export type { StatisticsGranularity as ActivityGranularity, StatisticsPeriod as ActivityPeriod } from "./statistics-period";
+type ActivityPeriod = StatisticsPeriod;
 
 export interface ActivityResults {
   readonly confirmedBookings: number;

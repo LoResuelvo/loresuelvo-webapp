@@ -123,8 +123,22 @@ Given("estoy autenticado como prestador", async function (this: CustomWorld) {
 
 Given("estoy viendo mi actividad", async function (this: CustomWorld) {
   await this.stubGet("/providers/me/statistics/activity", anActivityResponse());
-  await this.page.goto(`${this.appUrl}${ROUTES.provider.activity}`);
-  await this.page.getByRole("heading", { name: "Resultados del período" }).waitFor({ state: "visible" });
+  let release!: () => void;
+  const clientScripts = new Promise<void>(resolve => { release = resolve; });
+  const pattern = "**/_next/static/**/*.js";
+  await this.page.route(pattern, async route => {
+    await clientScripts;
+    await route.continue().catch(() => undefined);
+  });
+  try {
+    await this.page.goto(`${this.appUrl}${ROUTES.provider.activity}`, { waitUntil: "commit" });
+    await this.page.getByRole("heading", { name: "Resultados del período" }).waitFor({ state: "visible" });
+    assert.equal(await this.page.getByLabel("Desde", { exact: true }).isDisabled(), true);
+    assert.equal(await this.page.getByRole("button", { name: "Aplicar filtros" }).isDisabled(), true);
+  } finally {
+    release();
+    await this.page.unroute(pattern);
+  }
 });
 
 Given("seleccioné un rango válido y agrupación semanal", async function (this: CustomWorld) {
@@ -183,6 +197,12 @@ Then("veo los límites del período anterior y sus variaciones", async function 
 });
 
 Then("una variación porcentual sin base se muestra como no disponible", async function (this: CustomWorld) {
+  if (this.page.url().endsWith(ROUTES.provider.collections)) {
+    const row = this.page.getByRole("table", { name: "Comparación de cobros" }).getByRole("row").nth(1);
+    await assertText(row.getByRole("cell").last(), "No disponible");
+    assert.ok(!(await row.getByRole("cell").last().innerText()).includes("%"));
+    return;
+  }
   const row = this.page.getByRole("table", { name: "Comparación con el período anterior" }).getByRole("row").nth(1);
   assert.deepEqual(await row.getByRole("cell").allTextContents(), ["0", "4", "No disponible"]);
 });

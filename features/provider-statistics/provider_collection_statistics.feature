@@ -2,7 +2,6 @@ Feature: Consultar mis cobros verificados
   Background:
     Given estoy autenticado como prestador
 
-  @wip
   Scenario: 01-COB Distinguir cobros verificados de saldos pendientes
     Given tengo señas y saldos verificados en los últimos 30 días
     And tengo trabajos programados y finalizados pendientes de saldo
@@ -12,7 +11,6 @@ Feature: Consultar mis cobros verificados
     And veo por separado cantidades e importes pendientes de trabajos programados y finalizados
     And la pantalla distingue los cobros verificados del saldo bancario
 
-  @wip
   Scenario: 02-COB Cambiar período y comparar cobros
     Given estoy viendo mis cobros
     And seleccioné un rango válido, agrupación mensual y comparación anterior
@@ -21,7 +19,6 @@ Feature: Consultar mis cobros verificados
     And una variación porcentual sin base se muestra como no disponible
     And los pendientes actuales no se filtran ni comparan con el período anterior
 
-  @wip
   Scenario: 03-COB Consultar el detalle por propósito
     Given estoy viendo el detalle de cobros del período aplicado
     And hay señas y saldos verificados dentro de ese período

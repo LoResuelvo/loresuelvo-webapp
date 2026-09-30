@@ -8,6 +8,7 @@ import { onboarding } from "./translations/onboarding";
 import { payments } from "./translations/payments";
 import { profile } from "./translations/profile";
 import { providerHome } from "./translations/provider-home";
+import { providerCollections } from "./translations/provider-collections";
 import { providerActivity } from "./translations/provider-activity";
 import { serviceProposals } from "./translations/service-proposals";
 import { workOrderCompletion, workOrderDetail, workOrderReview } from "./translations/work-orders";
@@ -26,6 +27,7 @@ export const t = {
   aiDiagnosis,
   providerHome,
   providerActivity,
+  providerCollections,
   onboarding,
   fileUpload,
   workOrderCompletion,

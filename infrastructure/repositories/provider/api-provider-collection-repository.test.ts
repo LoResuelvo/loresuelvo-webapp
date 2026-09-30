@@ -14,6 +14,15 @@ describe("collection repository", () => {
     expect(params.get("purpose")).toBe("booking_deposit");
     expect(detail.totalCount).toBe(23);
   });
+  it("forwards cursor and limit parameters when continuing pagination", async () => {
+    vi.mocked(api.get).mockResolvedValue(aCollectionTransactionsResponse());
+    const query = { from: "2026-08-01T00:00:00-03:00", to: "2026-08-31T00:00:00-03:00", cursor: "opaque-cursor-123", limit: 20 };
+    await new ApiProviderCollectionRepository().getTransactions(query);
+    const endpoint = vi.mocked(api.get).mock.lastCall?.[0];
+    const params = new URLSearchParams(endpoint?.split("?")[1]);
+    expect(params.get("cursor")).toBe("opaque-cursor-123");
+    expect(params.get("limit")).toBe("20");
+  });
   it("rejects a response period with different submillisecond bounds", async () => {
     const source = aCollectionTransactionsResponse();
     source.period.from = "2026-08-01T00:00:00.000900-03:00";

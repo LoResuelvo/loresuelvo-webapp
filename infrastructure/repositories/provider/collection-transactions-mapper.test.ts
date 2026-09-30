@@ -11,6 +11,22 @@ describe("collection transaction mapper", () => {
     expect(result.transactions[0]).toMatchObject({ id: 101, sellerAmountCents: 500001, serviceProposalId: 41, workOrderId: 51 });
     expect(result.nextCursor).toBe("opaque-signed-cursor");
   });
+  it("maps empty transactions when next_cursor is null", () => {
+    const source = {
+      period: { from: "2026-08-01T00:00:00-03:00", to: "2026-08-31T00:00:00-03:00", time_zone: "America/Argentina/Buenos_Aires" },
+      calculated_at: "2026-08-31T00:00:00-03:00",
+      currency: "ARS",
+      total_count: 0,
+      total_amount_cents: 0,
+      transactions: [],
+      next_cursor: null,
+    };
+    const result = mapCollectionTransactions(source);
+    expect(result.totalCount).toBe(0);
+    expect(result.totalAmountCents).toBe(0);
+    expect(result.transactions).toEqual([]);
+    expect(result.nextCursor).toBeNull();
+  });
   it("preserves submillisecond ordering and the exclusive end", () => {
     const source = aCollectionTransactionsResponse();
     source.period = { ...source.period, from: "2026-08-20T15:00:00.000050Z", to: "2026-08-20T15:00:00.000950Z" };

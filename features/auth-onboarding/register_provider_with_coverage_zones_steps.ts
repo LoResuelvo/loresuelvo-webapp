@@ -4,6 +4,7 @@ import { aCoverageZone, aCategory, anApiError, aProvider, aPresignedUpload, aCon
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 import { aWeeklyActivityResponse } from "../support/activity-factory";
+import { aCollectionTransactionsResponse } from "../support/collection-factory";
 
 const identityVerificationSessionEndpoint = "/providers/me/identity-verification-sessions";
 
@@ -147,6 +148,11 @@ Given("la API vuelve a estar disponible", async function (this: CustomWorld) {
   const failedActivity = (await this.getStubs()).find(stub => stub.endpoint.startsWith("/providers/me/statistics/activity?") && stub.status >= 500);
   if (failedActivity) {
     await this.stubGet(failedActivity.endpoint, aWeeklyActivityResponse());
+    return;
+  }
+  const failedCollectionDetail = (await this.getStubs()).find(stub => stub.endpoint.startsWith("/providers/me/statistics/collections/transactions") && stub.status >= 500);
+  if (failedCollectionDetail) {
+    await this.stubGet(failedCollectionDetail.endpoint, aCollectionTransactionsResponse());
     return;
   }
   if (await this.hasApiStub("POST", identityVerificationSessionEndpoint)) {

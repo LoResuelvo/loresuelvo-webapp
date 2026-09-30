@@ -17,7 +17,9 @@ export async function getProviderCollectionTransactionsAction(query: CollectionT
     return { success: true, data: await getProviderCollectionTransactions(new ApiProviderCollectionRepository(), query) };
   } catch (error: unknown) {
     if (error instanceof ApiClientError && (error.status === 401 || error.status === 403)) return { success: false, error: t.providerCollections.unauthorized };
-    if (error instanceof ApiClientError && error.status === 400) return { success: false, error: t.providerActivity.invalidRange };
+    if (error instanceof ApiClientError && error.status === 400) {
+      return { success: false, error: query.cursor ? t.providerCollections.cursorError : t.providerActivity.invalidRange };
+    }
     return { success: false, error: t.providerCollections.detailError };
   }
 }

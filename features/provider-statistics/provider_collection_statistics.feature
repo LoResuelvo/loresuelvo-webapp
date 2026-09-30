@@ -27,7 +27,6 @@ Feature: Consultar mis cobros verificados
     And veo sus referencias comerciales informadas por la API
     And la cantidad y el importe total corresponden a todas las señas del período y no sólo a la página visible
 
-  @wip
   Scenario: 04-COB Continuar el detalle sin cambiar la consulta
     Given estoy viendo una página de transacciones con más resultados
     When solicito la siguiente página
@@ -35,7 +34,6 @@ Feature: Consultar mis cobros verificados
     And se conservan el período efectivo y el filtro de propósito
     And no se recalcula una ventana móvil de últimos 30 días
 
-  @wip
   Scenario: 05-COB Consultar un período sin cobros
     Given no tengo cobros verificados en el período consultado
     And mi cuenta de Mercado Pago está desconectada
@@ -45,7 +43,6 @@ Feature: Consultar mis cobros verificados
     And sigo viendo el saldo pendiente informado por la API
     And no se me exige conectar Mercado Pago para consultar estos datos
 
-  @wip
   Scenario: 06-COB Recuperar el detalle ante un error
     Given veo un resumen válido y la consulta del detalle falló
     And la API vuelve a estar disponible

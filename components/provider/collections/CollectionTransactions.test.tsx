@@ -13,4 +13,20 @@ describe("CollectionTransactions", () => {
     expect(within(table).getByText("51")).toBeVisible();
     expect(within(table).getByText(/5\.000,01/)).toBeVisible();
   });
+  it("renders empty state message when transactions array is empty", () => {
+    render(<CollectionTransactions detail={{ period: { from: "2026-08-01T00:00:00-03:00", to: "2026-08-31T00:00:00-03:00", timeZone: "America/Argentina/Buenos_Aires" }, calculatedAt: "2026-08-31T00:00:00-03:00", currency: "ARS", totalCount: 0, totalAmountCents: 0, nextCursor: null, transactions: [] }} pending={false} onPurpose={vi.fn()} />);
+    expect(screen.getByTestId("collection-detail-count")).toHaveTextContent("0");
+    expect(screen.getByTestId("collection-detail-amount")).toHaveTextContent("$ 0,00");
+    expect(screen.getByText("No hay transacciones verificadas en este período.")).toBeVisible();
+    expect(screen.queryByRole("table", { name: "Transacciones verificadas" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Siguiente página" })).toBeNull();
+  });
+  it("renders next page button when nextCursor is present and invokes callback", async () => {
+    const onNextPage = vi.fn();
+    render(<CollectionTransactions detail={{ period: { from: "2026-08-01T00:00:00-03:00", to: "2026-08-31T00:00:00-03:00", timeZone: "America/Argentina/Buenos_Aires" }, calculatedAt: "2026-08-31T00:00:00-03:00", currency: "ARS", totalCount: 30, totalAmountCents: 4000003, nextCursor: "opaque", transactions: [{ id: 101, verifiedOn: "2026-08-20T12:00:00-03:00", purpose: "booking_deposit", sellerAmountCents: 500001, currency: "ARS", serviceProposalId: 41, workOrderId: 51 }] }} pending={false} onPurpose={vi.fn()} onNextPage={onNextPage} />);
+    const nextButton = screen.getByRole("button", { name: "Siguiente página" });
+    expect(nextButton).toBeVisible();
+    nextButton.click();
+    expect(onNextPage).toHaveBeenCalledOnce();
+  });
 });

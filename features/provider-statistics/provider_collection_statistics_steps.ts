@@ -5,7 +5,8 @@ import type { Locator } from "playwright";
 import { createE2EStubCookies } from "../../infrastructure/api/e2e-stubs-utils";
 import { CustomWorld } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { aCollectionResponse, aComparedCollectionResponse, aCollectionTransactionsResponse } from "../support/collection-factory";
+import { aCollectionResponse, aComparedCollectionResponse, aCollectionTransactionsResponse, aNextCollectionTransactionsResponse, anEmptyCollectionResponse, anEmptyCollectionTransactionsResponse } from "../support/collection-factory";
+import { t } from "../../infrastructure/i18n/translations";
 
 async function stubInitialCollections(world: CustomWorld) {
   await world.stubGet("/providers/me/statistics/collections", aCollectionResponse());
@@ -125,4 +126,118 @@ Then("la cantidad y el importe total corresponden a todas las señas del períod
     assert.ok(await this.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
     await this.page.screenshot({ path: `.delivery/runtime/visual/collections-${width}.png`, fullPage: true });
   }
+});
+
+Given("estoy viendo una página de transacciones con más resultados", async function (this: CustomWorld) {
+  await stubInitialCollections(this);
+  const baseParams = new URLSearchParams({ from: "2026-08-01T00:00:00-03:00", to: "2026-08-31T00:00:00-03:00", purpose: "booking_deposit" });
+  await this.stubGet(`/providers/me/statistics/collections/transactions?${baseParams}`, aCollectionTransactionsResponse("booking_deposit"));
+  const nextParams = new URLSearchParams({ from: "2026-08-01T00:00:00-03:00", to: "2026-08-31T00:00:00-03:00", purpose: "booking_deposit", cursor: "opaque-signed-cursor" });
+  await this.stubGet(`/providers/me/statistics/collections/transactions?${nextParams}`, aNextCollectionTransactionsResponse("booking_deposit"));
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.collections}`);
+  await this.page.getByRole("table", { name: "Transacciones verificadas" }).waitFor({ state: "visible" });
+  await this.page.getByLabel("Propósito").selectOption("booking_deposit");
+  await this.page.waitForFunction(() => document.querySelector('[data-testid="collection-detail-count"]')?.textContent?.includes("23"));
+  await this.page.getByRole("button", { name: "Siguiente página" }).waitFor({ state: "visible" });
+});
+
+When("solicito la siguiente página", async function (this: CustomWorld) {
+  await this.page.getByRole("button", { name: "Siguiente página" }).click();
+});
+
+Then("veo la siguiente página en el orden informado por la API", async function (this: CustomWorld) {
+  const table = this.page.getByRole("table", { name: "Transacciones verificadas" });
+  await this.page.waitForFunction(() => document.querySelector('table[aria-label="Transacciones verificadas"]')?.textContent?.includes("18/8/26"));
+  assert.equal(await table.getByRole("row").count(), 2);
+  const rows = table.getByRole("row");
+  await assertText(rows.nth(1), "18/8/26");
+  await assertText(rows.nth(1), "4.000,00");
+  await assertText(rows.nth(1), "43");
+  await assertText(rows.nth(1), "53");
+  assert.ok(!(await table.innerText()).includes("20/8/26"));
+});
+
+Then("se conservan el período efectivo y el filtro de propósito", async function (this: CustomWorld) {
+  await assertText(this.page.getByTestId("collection-period"), "1/8/26");
+  await assertText(this.page.getByTestId("collection-period"), "31/8/26");
+  assert.equal(await this.page.getByLabel("Propósito").inputValue(), "booking_deposit");
+});
+
+Then("no se recalcula una ventana móvil de últimos 30 días", async function (this: CustomWorld) {
+  const periodText = await this.page.getByTestId("collection-period").innerText();
+  assert.ok(periodText.includes("1/8/26") && periodText.includes("31/8/26"));
+});
+
+Given("no tengo cobros verificados en el período consultado", async function (this: CustomWorld) {
+  await this.stubGet("/providers/me/statistics/collections", anEmptyCollectionResponse());
+  const params = new URLSearchParams({ from: "2026-08-01T00:00:00-03:00", to: "2026-08-31T00:00:00-03:00" });
+  await this.stubGet(`/providers/me/statistics/collections/transactions?${params}`, anEmptyCollectionTransactionsResponse());
+});
+
+Given("mi cuenta de Mercado Pago está desconectada", async function (this: CustomWorld) {
+  // Authentication session does not establish Mercado Pago gateway
+});
+
+Given("tengo un trabajo finalizado con saldo contractual pendiente", async function (this: CustomWorld) {
+  assert.ok(await this.hasApiStub("GET", "/providers/me/statistics/collections"));
+});
+
+When("abro mis cobros para ese período", async function (this: CustomWorld) {
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.collections}`);
+});
+
+Then("veo totales y evolución en cero y un detalle sin transacciones", async function (this: CustomWorld) {
+  const results = this.page.getByRole("region", { name: "Cobros verificados del período" });
+  await results.waitFor({ state: "visible" });
+  assert.deepEqual(await results.locator("dd").allTextContents(), ["$ 0,00", "$ 0,00", "$ 0,00"]);
+  const rows = this.page.getByRole("table", { name: "Evolución de cobros" }).getByRole("row");
+  assert.equal(await rows.count(), 31);
+  assert.deepEqual(await rows.nth(2).getByRole("cell").allTextContents(), ["$ 0,00", "$ 0,00", "$ 0,00"]);
+  await this.page.getByText(t.providerCollections.emptyTransactions).waitFor({ state: "visible" });
+  assert.equal(await this.page.getByTestId("collection-detail-count").innerText(), "0");
+  assert.equal(await this.page.getByTestId("collection-detail-amount").innerText(), "$ 0,00");
+});
+
+Then("sigo viendo el saldo pendiente informado por la API", async function (this: CustomWorld) {
+  const pending = this.page.getByRole("region", { name: "Saldos pendientes actuales" });
+  assert.deepEqual(await pending.locator("dd").allTextContents(), ["0", "$ 0,00", "1", "$ 15.000,00"]);
+});
+
+Then("no se me exige conectar Mercado Pago para consultar estos datos", async function (this: CustomWorld) {
+  assert.equal(await this.page.getByText(/conect.*mercado pago/i).count(), 0);
+  assert.equal(await this.page.getByRole("button", { name: /mercado pago/i }).count(), 0);
+  assert.equal(await this.page.getByRole("link", { name: /mercado pago/i }).count(), 0);
+});
+
+Given("veo un resumen válido y la consulta del detalle falló", async function (this: CustomWorld) {
+  await this.stubGet("/providers/me/statistics/collections", aCollectionResponse());
+  const params = new URLSearchParams({ from: "2026-08-01T00:00:00-03:00", to: "2026-08-31T00:00:00-03:00" });
+  await this.stubGet(`/providers/me/statistics/collections/transactions?${params}`, { error: "Service unavailable" }, 503);
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.collections}`);
+  await this.page.getByRole("region", { name: "Cobros verificados del período" }).waitFor({ state: "visible" });
+  const alert = this.page.getByRole("alert").filter({ hasText: t.providerCollections.detailError });
+  await alert.waitFor({ state: "visible" });
+  assert.ok((await alert.innerText()).includes(t.providerCollections.detailError));
+  assert.equal(await this.page.getByTestId("collection-detail-count").count(), 0);
+  assert.equal(await this.page.getByRole("table", { name: "Transacciones verificadas" }).count(), 0);
+  assert.equal(await this.page.getByText(t.providerCollections.emptyTransactions).count(), 0);
+});
+
+When("reintento consultar el detalle", async function (this: CustomWorld) {
+  await this.page.getByRole("button", { name: "Reintentar" }).click();
+});
+
+Then("veo las transacciones de la misma consulta solicitada", async function (this: CustomWorld) {
+  const table = this.page.getByRole("table", { name: "Transacciones verificadas" });
+  await table.waitFor({ state: "visible" });
+  assert.equal(await table.getByRole("row").count(), 3);
+  await assertText(table, "20/8/26");
+  await assertText(table, "19/8/26");
+});
+
+Then("el fallo anterior no se representa como un detalle vacío o un total cero", async function (this: CustomWorld) {
+  await assertText(this.page.getByTestId("collection-detail-count"), "30");
+  await assertText(this.page.getByTestId("collection-detail-amount"), "40.000,03");
+  assert.equal(await this.page.getByText(t.providerCollections.emptyTransactions).count(), 0);
+  assert.equal(await this.page.getByText(t.providerCollections.detailError).count(), 0);
 });

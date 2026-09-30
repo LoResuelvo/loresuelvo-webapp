@@ -4,6 +4,11 @@ import { statisticsDate, statisticsMoney } from "../statistics/statistics-format
 
 export function CollectionTransactionTable({ transactions }: { transactions: readonly CollectionTransaction[] }) {
   const labels = t.providerCollections;
+  if (transactions.length === 0) {
+    return <div tabIndex={0} role="region" aria-label={labels.transactions} className="rounded-xl border bg-white p-6 text-center text-sm text-slate-500 focus-visible:outline-2 focus-visible:outline-brand-secondary">
+      <p>{labels.emptyTransactions}</p>
+    </div>;
+  }
   return <div tabIndex={0} role="region" aria-label={labels.transactions} className="overflow-auto rounded-xl border bg-white focus-visible:outline-2 focus-visible:outline-brand-secondary">
     <table aria-label={labels.transactions} className="w-full text-sm">
       <thead><tr className="bg-slate-50 text-left">{[labels.verifiedOn, labels.purpose, labels.sellerAmount, labels.proposal, labels.workOrder].map(label => <th scope="col" className="p-3" key={label}>{label}</th>)}</tr></thead>

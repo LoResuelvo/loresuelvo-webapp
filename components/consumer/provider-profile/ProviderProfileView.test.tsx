@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type {
   ProviderProfile,
@@ -39,6 +39,14 @@ function aProviderProfile(overrides: Partial<ProviderProfile> = {}): ProviderPro
 }
 
 describe("ProviderProfileView", () => {
+  it("shows readable identity verification in the provider presentation", () => {
+    render(<ProviderProfileView session={null} provider={aProviderProfile({ identityVerified: true })} />);
+
+    const presentation = screen.getByRole("region", { name: "Juan Gómez" });
+    expect(within(presentation).getByText("Identidad verificada", { exact: true })).toBeVisible();
+    expect(within(screen.getByRole("region", { name: /reputación/i })).queryByText("Identidad verificada")).not.toBeInTheDocument();
+  });
+
   it("renders the provider name, photo and category", () => {
     render(<ProviderProfileView session={null} provider={aProviderProfile()} />);
 

@@ -213,9 +213,8 @@ Given(
     const [name, ...surnameParts] = providerName.trim().split(/\s+/);
     await this.stubGet(
       "/providers/1",
-      aProviderProfile({
-        name,
-        surname: surnameParts.join(" "),
+      {
+        ...aProviderProfile({ name, surname: surnameParts.join(" ") }),
         work_orders: [
           {
             id: 12,
@@ -234,7 +233,7 @@ Given(
             amount_cents: 150000,
           },
         ],
-      }),
+      },
     );
   },
 );

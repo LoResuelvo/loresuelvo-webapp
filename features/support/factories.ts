@@ -10,6 +10,7 @@ import {
   ApiCurrentUserCategory,
   ApiCurrentUserProfilePhoto,
   ApiCurrentUserResponse,
+  ApiProviderProfile,
 } from "../../infrastructure/api/types";
 
 export interface MockCounterpart {
@@ -257,8 +258,9 @@ export function aProviderSearchResult(
   };
 }
 
-export function aProviderProfile(overrides: Partial<any> = {}) {
+export function aProviderProfile(overrides: Partial<ApiProviderProfile> = {}): ApiProviderProfile {
   return {
+    identity_verified: false,
     id: 1,
     name: "Juan",
     surname: "Gómez",

@@ -11,7 +11,6 @@ Feature: [WEB] US-59 - Reconocer la identidad verificada de un prestador
     And no visualizo ese indicador en la tarjeta de "Pedro Dib"
     And ambos prestadores conservan sus acciones de contacto y acceso al perfil
 
-  @wip
   Scenario: 59.2-IVP Reconocer la identidad verificada en el perfil
     Given que el perfil público de "Juan Pérez" está disponible con identidad verificada
     When ingreso al perfil de "Juan Pérez"

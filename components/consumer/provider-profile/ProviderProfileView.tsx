@@ -9,6 +9,7 @@ import Sidebar from "@/components/consumer/Sidebar";
 import ConsumerHeader from "@/components/consumer/home/ConsumerHeader";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
+import { ProviderIdentityBadge } from "./ProviderIdentityBadge";
 
 interface ProviderProfileViewProps {
   provider: ProviderProfile;
@@ -106,6 +107,9 @@ export default function ProviderProfileView({ provider, session }: ProviderProfi
                   <h1 id="provider-profile-title" className="mt-1 break-words text-title font-bold text-brand-primary">
                     {displayName}
                   </h1>
+                  <div className="mt-2">
+                    <ProviderIdentityBadge identityVerified={provider.identityVerified} />
+                  </div>
                   <p className="mt-3 text-body text-slate-500">
                     <span className="font-semibold text-slate-700">
                       {t.consumerSearch.profile.categoryLabel}:

@@ -1,8 +1,19 @@
 import { describe, expect, it } from "vitest";
 import type { ApiProviderProfile } from "@/infrastructure/api/types";
 import { mapApiProviderProfileToProvider } from "./provider-profile-mapper";
+import { aProviderProfile } from "@/features/support/factories";
 
 describe("mapApiProviderProfileToProvider", () => {
+  it.each([true, false])("maps the public identity verification boolean %s", (verified) => {
+    expect(mapApiProviderProfileToProvider(aProviderProfile({ identity_verified: verified })).identityVerified).toBe(verified);
+  });
+
+  it.each([undefined, null, "true", 1])("does not verify a malformed external identity value %s", (value) => {
+    // Simulate untrusted transport data only at the mapper boundary.
+    const externalPayload: unknown = { ...aProviderProfile(), identity_verified: value };
+    expect(mapApiProviderProfileToProvider(externalPayload as ApiProviderProfile).identityVerified).toBe(false);
+  });
+
   it("maps nested public profile fields to the existing Provider model", () => {
     const apiProfile: ApiProviderProfile = {
       identity_verified: false,

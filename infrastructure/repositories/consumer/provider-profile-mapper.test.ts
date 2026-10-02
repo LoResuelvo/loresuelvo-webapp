@@ -4,6 +4,20 @@ import { mapApiProviderProfileToProvider } from "./provider-profile-mapper";
 import { aProviderProfile } from "@/features/support/factories";
 
 describe("mapApiProviderProfileToProvider", () => {
+  it("excludes private verification fields from the public model", () => {
+    // Simulate fields outside the public contract only at the transport boundary.
+    const externalPayload: unknown = {
+      ...aProviderProfile({ identity_verified: true }),
+      identity_verification_status: "synthetic-internal-approved",
+      identity_verified_on: "2099-01-02T03:04:05Z",
+      identity_verification_session_id: "synthetic-private-session",
+      identity_document: { number: "synthetic-private-document" },
+    };
+    const publicModel = mapApiProviderProfileToProvider(externalPayload as ApiProviderProfile);
+    expect(publicModel).toEqual(mapApiProviderProfileToProvider(aProviderProfile({ identity_verified: true })));
+    expect(publicModel.identityVerified).toBe(true);
+  });
+
   it.each([true, false])("maps the public identity verification boolean %s", (verified) => {
     expect(mapApiProviderProfileToProvider(aProviderProfile({ identity_verified: verified })).identityVerified).toBe(verified);
   });

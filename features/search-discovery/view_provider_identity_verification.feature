@@ -24,7 +24,6 @@ Feature: [WEB] US-59 - Reconocer la identidad verificada de un prestador
     And no visualizo el indicador "Identidad verificada"
     And no visualizo mensajes de rechazo o advertencias sobre su identidad
 
-  @wip
   Scenario Outline: 59.4-IVP Preservar la privacidad de la verificación pública
     Given que "Juan Pérez" tiene su identidad verificada
     And la respuesta de la consulta incluye datos internos de verificación que no pertenecen al contrato público

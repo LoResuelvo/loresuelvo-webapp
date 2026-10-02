@@ -17,6 +17,26 @@ function aSearchApiProvider(overrides: Partial<ApiProvider> = {}): ApiProvider {
 }
 
 describe("mapApiToProvider", () => {
+  it("excludes private verification fields from the public model", () => {
+    // Simulate fields outside the public contract only at the transport boundary.
+    const externalPayload: unknown = {
+      ...aSearchApiProvider({ identity_verified: true }),
+      identity_verification_status: "synthetic-internal-approved",
+      identity_verified_on: "2099-01-02T03:04:05Z",
+      identity_verification_session_id: "synthetic-private-session",
+      identity_document: { number: "synthetic-private-document" },
+    };
+    const publicModel = mapApiToProvider(externalPayload as ApiProvider);
+    expect(publicModel).toEqual(mapApiToProvider(aSearchApiProvider({ identity_verified: true })));
+    expect(publicModel.identityVerified).toBe(true);
+  });
+
+  it.each([undefined, null, "true", 1])("does not verify a malformed external identity value %s", (value) => {
+    // Simulate untrusted transport data only at the mapper boundary.
+    const externalPayload: unknown = { ...aSearchApiProvider(), identity_verified: value };
+    expect(mapApiToProvider(externalPayload as ApiProvider).identityVerified).toBe(false);
+  });
+
   it.each([true, false])("maps the public identity verification flag %s", (identityVerified) => {
     const api = { ...aSearchApiProvider(), identity_verified: identityVerified };
     expect(mapApiToProvider(api)).toHaveProperty("identityVerified", identityVerified);

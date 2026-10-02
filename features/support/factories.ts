@@ -231,6 +231,7 @@ export function aProvider(overrides: Partial<any> = {}) {
 }
 
 interface ProviderSearchResultStub {
+  identity_verified: boolean;
   id: number;
   name: string;
   surname: string;
@@ -244,6 +245,7 @@ export function aProviderSearchResult(
   overrides: Partial<ProviderSearchResultStub> = {},
 ): ProviderSearchResultStub {
   return {
+    identity_verified: false,
     id: 1,
     name: "Juan",
     surname: "Pérez",

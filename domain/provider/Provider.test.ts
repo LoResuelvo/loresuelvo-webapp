@@ -7,6 +7,7 @@ describe("Provider Domain Module", () => {
     id: 1,
     name: "Carlos",
     surname: "Gómez",
+    identityVerified: false,
     categoryName: "Electricista",
     rating: 4.8,
     reviews: 12,
@@ -45,6 +46,7 @@ describe("Provider Domain Module", () => {
         id: 2,
         name: "Lucía",
         surname: "Vázquez",
+        identityVerified: false,
         categoryName: "Plomera",
       };
       const summary = ProviderModule.getRatingSummary(unrated);

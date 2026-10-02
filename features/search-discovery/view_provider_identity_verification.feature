@@ -3,7 +3,6 @@ Feature: [WEB] US-59 - Reconocer la identidad verificada de un prestador
   Background:
     Given que soy un consumidor autenticado
 
-  @wip
   Scenario: 59.1-IVP Distinguir la identidad verificada en la búsqueda
     Given que la búsqueda de "Plomería" incluye a "Juan Pérez" con identidad verificada
     And incluye a "Pedro Dib" sin identidad verificada

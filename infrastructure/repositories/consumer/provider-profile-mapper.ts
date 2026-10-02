@@ -4,6 +4,7 @@ import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
 
 export function mapApiProviderProfileToProvider(apiProfile: ApiProviderProfile): ProviderProfile {
   return {
+    identityVerified: apiProfile.identity_verified === true,
     id: apiProfile.id,
     name: apiProfile.name,
     surname: apiProfile.surname,

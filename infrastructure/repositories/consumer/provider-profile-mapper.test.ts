@@ -5,6 +5,7 @@ import { mapApiProviderProfileToProvider } from "./provider-profile-mapper";
 describe("mapApiProviderProfileToProvider", () => {
   it("maps nested public profile fields to the existing Provider model", () => {
     const apiProfile: ApiProviderProfile = {
+      identity_verified: false,
       id: 7,
       name: "Juan",
       surname: "Gómez",
@@ -50,6 +51,7 @@ describe("mapApiProviderProfileToProvider", () => {
       id: 7,
       name: "Juan",
       surname: "Gómez",
+      identityVerified: false,
       categoryName: "Plomería",
       categoryId: 1,
       profilePhotoUrl: "https://example.com/juan-gomez.jpg",

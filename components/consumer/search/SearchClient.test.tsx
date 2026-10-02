@@ -32,10 +32,17 @@ const mockProviders: Provider[] = [
     id: 1, 
     name: "Carlos", 
     surname: "Mendoza", 
+    identityVerified: false,
     categoryName: "Plomería",
     description: "Especialista en fugas y tuberías de alta presión."
   },
-  { id: 2, name: "Elena", surname: "Rodríguez", categoryName: "Plomería" }
+  {
+    id: 2,
+    name: "Elena",
+    surname: "Rodríguez",
+    identityVerified: false,
+    categoryName: "Plomería",
+  }
 ];
 
 describe('SearchClient', () => {

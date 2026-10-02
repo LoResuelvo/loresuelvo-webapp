@@ -28,6 +28,7 @@ function aProviderProfile(overrides: Partial<ProviderProfile> = {}): ProviderPro
     id: 7,
     name: "Juan",
     surname: "Gómez",
+    identityVerified: false,
     categoryName: "Plomería",
     profilePhotoUrl: "https://example.com/juan.jpg",
     rating: 4.8,

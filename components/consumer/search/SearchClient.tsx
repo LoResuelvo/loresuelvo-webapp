@@ -27,11 +27,13 @@ export default function SearchClient({
 
   return (
     <div className="min-h-screen bg-brand-neutral/30 flex font-sans text-brand-primary">
-      <Sidebar />
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
       <div className="flex-1 flex flex-col min-w-0">
         <ConsumerHeader session={session} />
         
-        <main className="flex-1 p-8 lg:p-10">
+        <main className="flex-1 p-4 sm:p-8 lg:p-10">
           <div className="max-w-6xl mx-auto">
             
             <CategoryHeader categoryName={categoryName} />

@@ -38,6 +38,7 @@ describe("ApiProviderProfileRepository", () => {
       id: 7,
       name: "Juan",
       surname: "Gómez",
+      identityVerified: false,
       categoryName: "Plomería",
       categoryId: 1,
       profilePhotoUrl: "https://example.com/juan-gomez.jpg",

@@ -12,7 +12,13 @@ describe("searchProviders", () => {
   ];
 
   const mockProviders: Provider[] = [
-    { id: 10, name: "Juan", surname: "Pérez", categoryName: "Plomería" },
+    {
+      id: 10,
+      name: "Juan",
+      surname: "Pérez",
+      identityVerified: false,
+      categoryName: "Plomería",
+    },
   ];
 
   const mockCategoryRepository = {

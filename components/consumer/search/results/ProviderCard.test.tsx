@@ -8,6 +8,7 @@ describe('ProviderCard', () => {
             id: 1, 
             name: "Juan", 
             surname: "Pérez", 
+            identityVerified: false,
             categoryName: "Plomería",
             profilePhotoUrl: "https://example.com/profile.jpg"
         };
@@ -24,6 +25,7 @@ describe('ProviderCard', () => {
             id: 1, 
             name: "Ana", 
             surname: "Gómez", 
+            identityVerified: false,
             categoryName: "Electricidad",
         };
 
@@ -39,6 +41,7 @@ describe('ProviderCard', () => {
             id: 1, 
             name: "Pedro", 
             surname: "González", 
+            identityVerified: false,
             categoryName: "Plomería",
             description: "Plomero experto con 20 años de experiencia.",
             rating: 4.8,
@@ -60,6 +63,7 @@ describe('ProviderCard', () => {
             id: 1,
             name: "Juan",
             surname: "Pérez",
+            identityVerified: false,
             categoryName: "Plomería",
             rating: 0,
             reviews: 0,
@@ -77,6 +81,7 @@ describe('ProviderCard', () => {
             id: 1,
             name: "Matex",
             surname: "Test",
+            identityVerified: false,
             categoryName: "Plomería",
             rating: 4.0,
             reviews: 1,
@@ -93,6 +98,7 @@ describe('ProviderCard', () => {
             id: 1,
             name: "Juan",
             surname: "Pérez",
+            identityVerified: false,
             categoryName: "Plomería",
             rating: 4.5,
             reviews: 2,
@@ -110,6 +116,7 @@ describe('ProviderCard', () => {
             id: 1, 
             name: "Laura", 
             surname: "Martínez", 
+            identityVerified: false,
             categoryName: "Pintura",
         };
 
@@ -127,6 +134,7 @@ describe('ProviderCard', () => {
             id: 7,
             name: "Juan",
             surname: "Gómez",
+            identityVerified: false,
             categoryName: "Plomería",
         };
 

@@ -4,6 +4,7 @@ export const consumerHome = {
 };
 
 export const consumerSearch = {
+  identityVerified: "Identidad verificada",
   searchPlaceholder: "Buscar profesionales...",
   noResults: "No se encontraron profesionales para esta categoría.",
   contactBtn: "Contactar",

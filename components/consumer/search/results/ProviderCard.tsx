@@ -7,6 +7,7 @@ import { RatingStars } from "@/components/ui/rating-stars";
 import { t } from "@/infrastructure/i18n/translations";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { ProviderIdentityBadge } from "@/components/consumer/provider-profile/ProviderIdentityBadge";
 
 interface ProviderCardProps {
   provider: ProviderType;
@@ -46,9 +47,12 @@ export default function ProviderCard({ provider, className, onContact }: Provide
         </div>
 
         <div className="flex-1 min-w-0">
-          <h4 className="text-subtitle font-bold text-brand-primary truncate leading-tight group-hover:text-brand-secondary transition-colors">
-            <span>{displayName}</span>
-          </h4>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <h4 className="min-w-0 max-w-full text-subtitle font-bold text-brand-primary break-words leading-tight group-hover:text-brand-secondary transition-colors">
+              <span>{displayName}</span>
+            </h4>
+            <ProviderIdentityBadge identityVerified={provider.identityVerified} />
+          </div>
 
           {hasReviews ? (
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -77,7 +81,7 @@ export default function ProviderCard({ provider, className, onContact }: Provide
         </div>
       </div>
 
-      <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100 flex-shrink-0">
+      <div className="flex flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100 flex-shrink-0">
         <Button
           variant="brand"
           type="button"

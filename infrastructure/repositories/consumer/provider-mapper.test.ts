@@ -4,6 +4,7 @@ import { mapApiToProvider } from "./provider-mapper";
 
 function aSearchApiProvider(overrides: Partial<ApiProvider> = {}): ApiProvider {
   return {
+    identity_verified: false,
     id: 1,
     name: "Juan",
     surname: "Pérez",
@@ -16,6 +17,10 @@ function aSearchApiProvider(overrides: Partial<ApiProvider> = {}): ApiProvider {
 }
 
 describe("mapApiToProvider", () => {
+  it.each([true, false])("maps the public identity verification flag %s", (identityVerified) => {
+    const api = { ...aSearchApiProvider(), identity_verified: identityVerified };
+    expect(mapApiToProvider(api)).toHaveProperty("identityVerified", identityVerified);
+  });
   it("maps the API rating average and count to the provider reputation", () => {
     const provider = mapApiToProvider(aSearchApiProvider());
 

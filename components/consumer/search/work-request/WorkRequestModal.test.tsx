@@ -30,6 +30,7 @@ const mockProvider: Provider = {
   id: 1,
   name: "Juan",
   surname: "Pérez",
+  identityVerified: false,
   categoryName: "Plomería",
   description: "Plomero matriculado.",
 };

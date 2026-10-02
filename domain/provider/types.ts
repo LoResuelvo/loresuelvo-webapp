@@ -2,6 +2,7 @@ import { MessageImage } from "../messaging/types";
 import type { ScheduledDateTime } from "../shared/ScheduledDateTime";
 
 export interface Provider {
+  identityVerified: boolean;
   id: number;
   name: string;
   surname: string;

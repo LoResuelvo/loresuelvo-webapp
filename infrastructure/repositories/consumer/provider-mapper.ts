@@ -3,6 +3,7 @@ import { Provider } from "@/domain/provider/types";
 
 export function mapApiToProvider(api: ApiProvider): Provider {
   return {
+    identityVerified: api.identity_verified === true,
     id: api.id,
     name: api.name,
     surname: api.surname,

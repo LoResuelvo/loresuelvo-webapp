@@ -79,6 +79,7 @@ export interface ApiConversation {
 }
 
 export interface ApiProvider {
+  identity_verified: boolean;
   id: number;
   name: string;
   surname: string;
@@ -91,6 +92,7 @@ export interface ApiProvider {
 }
 
 export interface ApiProviderProfile {
+  identity_verified: boolean;
   id: number;
   name: string;
   surname: string;

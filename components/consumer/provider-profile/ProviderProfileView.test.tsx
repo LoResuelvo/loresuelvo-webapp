@@ -39,6 +39,15 @@ function aProviderProfile(overrides: Partial<ProviderProfile> = {}): ProviderPro
 }
 
 describe("ProviderProfileView", () => {
+  it("preserves public presentation without an identity message for an unverified provider", () => {
+    render(<ProviderProfileView session={null} provider={aProviderProfile({ name: "Pedro", surname: "Dib", identityVerified: false })} />);
+
+    const presentation = screen.getByRole("region", { name: "Pedro Dib" });
+    expect(within(presentation).getByText("Plomería")).toBeVisible();
+    expect(presentation).not.toHaveTextContent(/identidad|verificaci[oó]n|rechaz|advertencia/i);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("shows readable identity verification in the provider presentation", () => {
     render(<ProviderProfileView session={null} provider={aProviderProfile({ identityVerified: true })} />);
 

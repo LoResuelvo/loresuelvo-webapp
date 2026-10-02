@@ -13,6 +13,27 @@ Given("que el perfil público de {string} está disponible con identidad verific
   await this.stubGet("/providers/1", aProviderProfile({ name, surname: surname.join(" "), identity_verified: true }));
 });
 
+Given("que el perfil público de {string} está disponible sin identidad verificada", async function (this: CustomWorld, fullName: string) {
+  const [name, ...surname] = fullName.split(" ");
+  await this.stubGet("/providers/1", aProviderProfile({ name, surname: surname.join(" "), identity_verified: false }));
+});
+
+Then("visualizo su información pública", async function (this: CustomWorld) {
+  const presentation = this.page.getByRole("region", { name: "Pedro Dib", exact: true });
+  await presentation.waitFor({ state: "visible" });
+  assert.ok(await presentation.getByText("Plomería", { exact: false }).isVisible());
+});
+
+Then("no visualizo el indicador {string}", async function (this: CustomWorld, label: string) {
+  assert.equal(await this.page.getByText(label, { exact: true }).count(), 0);
+});
+
+Then("no visualizo mensajes de rechazo o advertencias sobre su identidad", async function (this: CustomWorld) {
+  const profile = this.page.getByRole("main");
+  assert.ok(!/identidad|verificaci[oó]n|rechaz|advertencia/i.test(await profile.innerText()));
+  assert.equal(await profile.getByRole("alert").count(), 0);
+});
+
 Then("visualizo {string} junto a su información de presentación", async function (this: CustomWorld, label: string) {
   const presentation = this.page.getByRole("region", { name: "Juan Pérez", exact: true });
   await presentation.getByText(label, { exact: true }).waitFor({ state: "visible" });

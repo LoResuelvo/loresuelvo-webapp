@@ -17,7 +17,6 @@ Feature: [WEB] US-59 - Reconocer la identidad verificada de un prestador
     Then visualizo "Identidad verificada" junto a su información de presentación
     And puedo leer el indicador sin depender exclusivamente de su color o icono
 
-  @wip
   Scenario: 59.3-IVP Consultar un perfil sin identidad verificada
     Given que el perfil público de "Pedro Dib" está disponible sin identidad verificada
     When ingreso al perfil de "Pedro Dib"

@@ -14,6 +14,7 @@ export const profile = {
     description: "Sincronizá tus turnos y citas de trabajo.",
     disconnectedStatus: "No vinculada",
     connectedStatus: "Vinculada y sincronizada",
+    orderConnectedStatus: "Google Calendar vinculado",
     actionRequiredStatus: "Requiere atención",
     connectAction: "Vincular Google Calendar",
     reauthorizeAction: "Reautorizar Google Calendar",

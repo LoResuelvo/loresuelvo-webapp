@@ -15,6 +15,7 @@ export const profile = {
     disconnectedStatus: "No vinculada",
     connectedStatus: "Vinculada y sincronizada",
     orderConnectedStatus: "Google Calendar vinculado",
+    orderDisconnectedInvitation: "Vinculá Google Calendar desde",
     actionRequiredStatus: "Requiere atención",
     connectAction: "Vincular Google Calendar",
     reauthorizeAction: "Reautorizar Google Calendar",

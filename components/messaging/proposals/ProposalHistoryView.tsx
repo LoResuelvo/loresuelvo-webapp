@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import WorkOrderCalendarConnection from "@/components/work-orders/WorkOrderCalendarConnection";
 import { useWorkOrderCalendarConnection } from "@/components/work-orders/useWorkOrderCalendarConnection";
+import { ROUTES } from "@/lib/routes";
 
 interface ProposalHistoryViewProps {
   proposals: ServiceProposalSummary[];
@@ -38,7 +39,10 @@ export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryVi
         {t.serviceProposals.sectionTitle}
       </h1>
 
-      <WorkOrderCalendarConnection status={calendarConnectionStatus} />
+      <WorkOrderCalendarConnection
+        status={calendarConnectionStatus}
+        profileHref={isProvider ? ROUTES.provider.profile : ROUTES.consumer.profile}
+      />
 
       <div className="flex gap-2 border-b border-gray-200" role="tablist">
         {(["pending", "accepted", "rejected"] as TabType[]).map((tab) => (

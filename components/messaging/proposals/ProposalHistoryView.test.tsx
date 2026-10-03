@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProposalHistoryView } from "./ProposalHistoryView";
 import { getCurrentUserAction } from "@/app/api/me/actions";
+import { ROUTES } from "@/lib/routes";
 
 vi.mock("@/app/api/me/actions", () => ({ getCurrentUserAction: vi.fn() }));
 
@@ -34,6 +35,21 @@ describe("ProposalHistoryView", () => {
   beforeEach(() => {
     vi.mocked(getCurrentUserAction).mockReset();
     vi.mocked(getCurrentUserAction).mockReturnValue(new Promise(() => {}));
+  });
+
+  it.each([
+    { isProvider: false, role: "consumer" as const, profileHref: ROUTES.consumer.profile },
+    { isProvider: true, role: "provider" as const, profileHref: ROUTES.provider.profile },
+  ])("invites a disconnected account to its role profile in the list ($role)", async ({ isProvider, role, profileHref }) => {
+    vi.mocked(getCurrentUserAction).mockResolvedValue({
+      id: 10, firstName: "Ana", lastName: "Pérez", email: "ana@example.com",
+      role, calendarConnectionStatus: "disconnected",
+    });
+    render(<ProposalHistoryView proposals={mockProposals} isProvider={isProvider} />);
+
+    expect(await screen.findByRole("link", { name: "Mi perfil" })).toHaveAttribute("href", profileHref);
+    expect(screen.getByRole("status")).toHaveTextContent("Vinculá Google Calendar desde Mi perfil.");
+    expect(getCurrentUserAction).toHaveBeenCalledTimes(1);
   });
 
   it("shares one account lookup across multiple cards and tab changes", async () => {

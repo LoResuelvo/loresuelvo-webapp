@@ -36,6 +36,24 @@ Given("la API informa que mi cuenta de Google Calendar está desconectada", asyn
   await this.stubGet("/me", aCurrentUser(role, { calendar_connection_status: "disconnected" }));
 });
 
+Given("la API informa que mi conexión de Google Calendar requiere atención", async function (
+  this: CustomWorld,
+) {
+  const role = this.calendarProfileRole;
+  if (!role) throw new Error("Falta el rol del participante");
+  await this.stubGet("/me", aCurrentUser(role, { calendar_connection_status: "action_required" }));
+});
+
+Then("visualizo que debo reautorizar mi cuenta de Google Calendar", async function (this: CustomWorld) {
+  await this.page.getByTestId("work-order-detail-modal")
+    .getByText("Google Calendar requiere autorización", { exact: true }).waitFor(visibleTimeout);
+});
+
+Then("dispongo de la acción {string}", async function (this: CustomWorld, action: string) {
+  await this.page.getByTestId("work-order-detail-modal")
+    .getByRole("button", { name: action, exact: true }).waitFor(visibleTimeout);
+});
+
 When("consulto el detalle de una orden propia", async function (this: CustomWorld) {
   await openWorkOrderDetailModal(this);
 });

@@ -28,6 +28,18 @@ Given("la API informa que mi cuenta de Google Calendar está conectada", async f
   await this.stubGet("/me", aCurrentUser(role, { calendar_connection_status: "connected" }));
 });
 
+Given("la API informa que mi cuenta de Google Calendar está desconectada", async function (
+  this: CustomWorld,
+) {
+  const role = this.calendarProfileRole;
+  if (!role) throw new Error("Falta el rol del participante");
+  await this.stubGet("/me", aCurrentUser(role, { calendar_connection_status: "disconnected" }));
+});
+
+When("consulto el detalle de una orden propia", async function (this: CustomWorld) {
+  await openWorkOrderDetailModal(this);
+});
+
 When(/^consulto una orden propia en (el listado de turnos|el detalle de la orden)$/, async function (
   this: CustomWorld,
   surface: string,
@@ -58,4 +70,19 @@ Then("no visualizo una confirmación de sincronización de esa cita", async func
   const modal = this.page.getByTestId("work-order-detail-modal");
   const surface = await modal.isVisible() ? modal : this.page.getByRole("main");
   assert.strictEqual(await surface.getByText(/sincronizad[ao]/i).count(), 0);
+});
+
+Then("visualizo una invitación para vincular Google Calendar", async function (this: CustomWorld) {
+  await this.page.getByTestId("work-order-detail-modal")
+    .getByText("Vinculá Google Calendar desde", { exact: false }).waitFor(visibleTimeout);
+});
+
+Then("dispongo de un enlace a Mi perfil dentro de mi rol", async function (this: CustomWorld) {
+  const link = this.page.getByTestId("work-order-detail-modal")
+    .getByRole("link", { name: "Mi perfil", exact: true });
+  await link.waitFor(visibleTimeout);
+  const profileRoute = this.calendarProfileRole === "provider"
+    ? ROUTES.provider.profile
+    : ROUTES.consumer.profile;
+  assert.strictEqual(await link.getAttribute("href"), profileRoute);
 });

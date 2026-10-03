@@ -1,6 +1,5 @@
 Feature: [WEB] US-22 - Consultar la vinculación de Google Calendar en mis órdenes
 
-  @wip
   Scenario Outline: 22.1-COT Mostrar que Google Calendar está vinculado
     Given que soy un participante autenticado con rol <rol>
     And la API informa que mi cuenta de Google Calendar está conectada

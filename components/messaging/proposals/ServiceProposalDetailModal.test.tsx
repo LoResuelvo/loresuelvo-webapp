@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import ServiceProposalDetailModal from "./ServiceProposalDetailModal";
@@ -9,6 +9,7 @@ import * as workOrderActions from "@/app/work-orders/actions";
 vi.mock("@/app/work-orders/actions", () => ({
   getWorkOrderByProposalAction: vi.fn().mockResolvedValue({ ok: true, workOrder: null }),
   reportWorkCompletionAction: vi.fn().mockResolvedValue({ ok: true }),
+  getWorkOrderDetailAction: vi.fn().mockResolvedValue({ ok: false, status: 500 }),
 }));
 
 describe("ServiceProposalDetailModal", () => {
@@ -36,6 +37,32 @@ describe("ServiceProposalDetailModal", () => {
       ok: true,
       workOrder: null,
     });
+  });
+
+  it("waits for the real order identity and preserves calendar status if detail fails", async () => {
+    let resolveOrder!: (result: Awaited<ReturnType<typeof workOrderActions.getWorkOrderByProposalAction>>) => void;
+    vi.mocked(workOrderActions.getWorkOrderByProposalAction).mockReturnValue(new Promise((resolve) => {
+      resolveOrder = resolve;
+    }));
+    render(<ServiceProposalDetailModal
+      proposal={{ ...proposal, id: 42, status: "accepted" }}
+      calendarConnectionStatus="connected"
+      onClose={vi.fn()}
+    />);
+    await userEvent.setup().click(screen.getByRole("button", { name: /ver detalle de la orden/i }));
+
+    expect(screen.getByText("Google Calendar vinculado")).toBeInTheDocument();
+    expect(workOrderActions.getWorkOrderDetailAction).not.toHaveBeenCalled();
+    await act(async () => resolveOrder({ ok: true, workOrder: {
+      id: 10, serviceProposalId: 42, status: "scheduled", amountCents: 1500000,
+      scheduledOn: proposal.scheduledOn, description: proposal.description,
+      acceptedOn: proposal.createdOn,
+    } }));
+
+    expect(await screen.findByTestId("work-order-detail-error")).toBeInTheDocument();
+    expect(workOrderActions.getWorkOrderDetailAction).toHaveBeenCalledWith(10);
+    expect(workOrderActions.getWorkOrderDetailAction).not.toHaveBeenCalledWith(42);
+    expect(screen.getByText("Google Calendar vinculado")).toBeInTheDocument();
   });
 
   it("renders modal with proposal details", () => {

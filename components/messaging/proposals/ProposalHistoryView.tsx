@@ -7,6 +7,8 @@ import ServiceProposalDetailModal from "@/components/messaging/proposals/Service
 import { t } from "@/infrastructure/i18n/translations";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import WorkOrderCalendarConnection from "@/components/work-orders/WorkOrderCalendarConnection";
+import { useWorkOrderCalendarConnection } from "@/components/work-orders/useWorkOrderCalendarConnection";
 
 interface ProposalHistoryViewProps {
   proposals: ServiceProposalSummary[];
@@ -19,6 +21,10 @@ export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryVi
   const [activeTab, setActiveTab] = useState<TabType>("pending");
   const [selectedProposal, setSelectedProposal] = useState<ServiceProposalSummary | null>(null);
   const router = useRouter();
+  const calendarConnection = useWorkOrderCalendarConnection();
+  const calendarConnectionStatus = calendarConnection.state === "ready"
+    ? calendarConnection.status
+    : undefined;
 
   const filteredProposals = useMemo(() => {
     return proposals
@@ -31,6 +37,8 @@ export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryVi
       <h1 className="text-2xl font-bold text-brand-primary">
         {t.serviceProposals.sectionTitle}
       </h1>
+
+      <WorkOrderCalendarConnection status={calendarConnectionStatus} />
 
       <div className="flex gap-2 border-b border-gray-200" role="tablist">
         {(["pending", "accepted", "rejected"] as TabType[]).map((tab) => (
@@ -74,6 +82,7 @@ export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryVi
       {selectedProposal && (
         <ServiceProposalDetailModal
           proposal={selectedProposal}
+          calendarConnectionStatus={calendarConnectionStatus}
           onClose={() => setSelectedProposal(null)}
           onViewConversation={() => {
             const counterpartId = selectedProposal.counterpart.id;

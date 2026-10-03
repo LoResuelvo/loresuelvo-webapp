@@ -1,6 +1,9 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProposalHistoryView } from "./ProposalHistoryView";
+import { getCurrentUserAction } from "@/app/api/me/actions";
+
+vi.mock("@/app/api/me/actions", () => ({ getCurrentUserAction: vi.fn() }));
 
 const mockProposals = [
   {
@@ -28,6 +31,34 @@ const mockProposals = [
 ];
 
 describe("ProposalHistoryView", () => {
+  beforeEach(() => {
+    vi.mocked(getCurrentUserAction).mockReset();
+    vi.mocked(getCurrentUserAction).mockReturnValue(new Promise(() => {}));
+  });
+
+  it("shares one account lookup across multiple cards and tab changes", async () => {
+    vi.mocked(getCurrentUserAction).mockResolvedValue({
+      id: 10, firstName: "Ana", lastName: "Pérez", email: "ana@example.com",
+      role: "consumer", calendarConnectionStatus: "connected",
+    });
+    render(<ProposalHistoryView proposals={[
+      mockProposals[0], { ...mockProposals[0], id: 3 }, mockProposals[1],
+    ]} isProvider={false} />);
+
+    expect(screen.getAllByTestId("proposal-card")).toHaveLength(2);
+    expect(await screen.findByText("Google Calendar vinculado")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Aceptadas" }));
+    expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
+    expect(getCurrentUserAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders proposals while the account lookup remains pending", () => {
+    render(<ProposalHistoryView proposals={mockProposals} isProvider={true} />);
+
+    expect(screen.getByText("Juan Gómez")).toBeInTheDocument();
+    expect(screen.queryByText("Google Calendar vinculado")).not.toBeInTheDocument();
+  });
+
   it("renders tabs and section title", () => {
     render(<ProposalHistoryView proposals={[]} isProvider={true} />);
     expect(screen.getByText("Propuestas de Servicio")).toBeInTheDocument();

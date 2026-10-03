@@ -14,6 +14,8 @@ import { WorkOrderSummarySection } from "./WorkOrderSummarySection";
 import { WorkOrderActionsSection } from "./WorkOrderActionsSection";
 import { ReviewWorkOrderModal } from "./ReviewWorkOrderModal";
 import type { WorkOrderDetail } from "@/domain/work-order/types";
+import type { CalendarConnectionStatus } from "@/domain/user/types";
+import WorkOrderCalendarConnection from "./WorkOrderCalendarConnection";
 
 export interface WorkOrderDetailModalProps {
   open: boolean;
@@ -24,6 +26,7 @@ export interface WorkOrderDetailModalProps {
   initialDescription?: string;
   initialEstimatedDurationMinutes?: number;
   isConsumer?: boolean;
+  calendarConnectionStatus?: CalendarConnectionStatus;
 }
 
 export function WorkOrderDetailModal({
@@ -35,6 +38,7 @@ export function WorkOrderDetailModal({
   initialDescription = "Reparación de cañería en cocina",
   initialEstimatedDurationMinutes,
   isConsumer = true,
+  calendarConnectionStatus,
 }: WorkOrderDetailModalProps) {
   const [detail, setDetail] = useState<WorkOrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -82,6 +86,7 @@ export function WorkOrderDetailModal({
         className="z-[60]"
       >
         <div className="p-6 space-y-5" data-testid="work-order-detail-modal">
+          <WorkOrderCalendarConnection status={calendarConnectionStatus} />
           {hasError ? (
             <div
               data-testid="work-order-detail-error"

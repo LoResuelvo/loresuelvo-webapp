@@ -213,11 +213,13 @@ describe("WorkOrderDetailModal", () => {
         open={true}
         onClose={vi.fn()}
         workOrderId={10}
+        calendarConnectionStatus="connected"
       />
     );
 
     expect(screen.getByTestId("work-order-detail-loading")).toBeInTheDocument();
     expect(screen.getByText("Cargando detalle...")).toBeInTheDocument();
+    expect(screen.getByText("Google Calendar vinculado")).toBeInTheDocument();
   });
 
   it("should render error message when fetching detail fails", async () => {
@@ -412,5 +414,4 @@ describe("WorkOrderDetailModal", () => {
     });
   });
 });
-
 

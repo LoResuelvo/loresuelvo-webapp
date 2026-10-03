@@ -16,6 +16,7 @@ import { ReviewWorkOrderModal } from "./ReviewWorkOrderModal";
 import type { WorkOrderDetail } from "@/domain/work-order/types";
 import type { CalendarConnectionStatus } from "@/domain/user/types";
 import WorkOrderCalendarConnection from "./WorkOrderCalendarConnection";
+import { ROUTES } from "@/lib/routes";
 
 export interface WorkOrderDetailModalProps {
   open: boolean;
@@ -86,7 +87,10 @@ export function WorkOrderDetailModal({
         className="z-[60]"
       >
         <div className="p-6 space-y-5" data-testid="work-order-detail-modal">
-          <WorkOrderCalendarConnection status={calendarConnectionStatus} />
+          <WorkOrderCalendarConnection
+            status={calendarConnectionStatus}
+            profileHref={isConsumer ? ROUTES.consumer.profile : ROUTES.provider.profile}
+          />
           {hasError ? (
             <div
               data-testid="work-order-detail-error"

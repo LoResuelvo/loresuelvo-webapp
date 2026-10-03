@@ -14,7 +14,6 @@ Feature: [WEB] US-22 - Consultar la vinculación de Google Calendar en mis órde
       | consumidor | el detalle de la orden |
       | prestador  | el detalle de la orden |
 
-  @wip
   Scenario Outline: 22.3-COT Invitar a vincular una cuenta desconectada
     Given que soy un participante autenticado con rol <rol>
     And la API informa que mi cuenta de Google Calendar está desconectada

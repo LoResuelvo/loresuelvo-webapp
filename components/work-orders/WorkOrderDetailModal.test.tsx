@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { WorkOrderDetailModal } from "./WorkOrderDetailModal";
+import { ROUTES } from "@/lib/routes";
 import {
   getWorkOrderDetailAction,
   createWorkOrderReviewAction,
@@ -18,6 +19,21 @@ vi.mock("@/app/work-orders/actions", () => ({
 describe("WorkOrderDetailModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it.each([
+    { isConsumer: true, profileHref: ROUTES.consumer.profile },
+    { isConsumer: false, profileHref: ROUTES.provider.profile },
+  ])("links a disconnected participant to their own profile ($isConsumer)", ({ isConsumer, profileHref }) => {
+    vi.mocked(getWorkOrderDetailAction).mockReturnValue(new Promise(() => {}));
+    render(<WorkOrderDetailModal
+      open onClose={vi.fn()} workOrderId={10} isConsumer={isConsumer}
+      calendarConnectionStatus="disconnected"
+    />);
+
+    expect(screen.getByRole("link", { name: "Mi perfil" })).toHaveAttribute("href", profileHref);
+    expect(screen.queryByText("Google Calendar vinculado")).not.toBeInTheDocument();
+    expect(screen.getByTestId("work-order-detail-loading")).toBeInTheDocument();
   });
 
   it("should render contractual details and status badge", async () => {
@@ -414,4 +430,3 @@ describe("WorkOrderDetailModal", () => {
     });
   });
 });
-

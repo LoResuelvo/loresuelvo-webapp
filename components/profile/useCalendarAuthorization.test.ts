@@ -11,6 +11,23 @@ function deferred<T>() {
 }
 
 describe("useCalendarAuthorization", () => {
+  it("ignores an authorization response after its owner unmounts", async () => {
+    const request = deferred<{ ok: true; authorizationUrl: string }>();
+    const startAuthorizationAction = vi.fn().mockReturnValue(request.promise);
+    const navigate = vi.fn();
+    const { result, unmount } = renderHook(() =>
+      useCalendarAuthorization({ startAuthorizationAction, navigate }),
+    );
+    let authorization: Promise<void> | undefined;
+    await act(async () => { authorization = result.current.startAuthorization(); });
+    unmount();
+
+    request.resolve({ ok: true, authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth" });
+    await act(async () => { await authorization; });
+
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   it("prevents a second authorization while the first request is pending", async () => {
     const request = deferred<{
       ok: true;

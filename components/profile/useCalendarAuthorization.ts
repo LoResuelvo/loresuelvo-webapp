@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   isSafeCalendarAuthorizationUrl,
 } from "@/domain/calendar/types";
@@ -35,10 +35,16 @@ export function useCalendarAuthorization({
   const [isAuthorizing, setIsAuthorizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isRequestPending = useRef(false);
+  const isMounted = useRef(true);
   const genericError = t.profile.calendar.authorizationError;
 
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
   const startAuthorization = useCallback(async () => {
-    if (isRequestPending.current) return;
+    if (!isMounted.current || isRequestPending.current) return;
 
     isRequestPending.current = true;
     setIsAuthorizing(true);
@@ -46,6 +52,7 @@ export function useCalendarAuthorization({
 
     try {
       const result = await startAuthorizationAction();
+      if (!isMounted.current) return;
       if (!result.ok || !isSafeCalendarAuthorizationUrl(result.authorizationUrl)) {
         setError(result.ok ? genericError : result.error);
         return;
@@ -53,10 +60,10 @@ export function useCalendarAuthorization({
 
       navigate(result.authorizationUrl);
     } catch {
-      setError(genericError);
+      if (isMounted.current) setError(genericError);
     } finally {
       isRequestPending.current = false;
-      setIsAuthorizing(false);
+      if (isMounted.current) setIsAuthorizing(false);
     }
   }, [genericError, navigate, startAuthorizationAction]);
 

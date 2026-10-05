@@ -28,7 +28,7 @@ describe("WorkOrderDetailModal", () => {
     vi.mocked(getWorkOrderDetailAction).mockReturnValue(new Promise(() => {}));
     render(<WorkOrderDetailModal
       open onClose={vi.fn()} workOrderId={10} isConsumer={isConsumer}
-      calendarConnectionStatus="disconnected"
+      calendarConnection={{ state: "ready", status: "disconnected" }}
     />);
 
     expect(screen.getByRole("link", { name: "Mi perfil" })).toHaveAttribute("href", profileHref);
@@ -229,7 +229,7 @@ describe("WorkOrderDetailModal", () => {
         open={true}
         onClose={vi.fn()}
         workOrderId={10}
-        calendarConnectionStatus="connected"
+        calendarConnection={{ state: "ready", status: "connected" }}
       />
     );
 

@@ -46,7 +46,7 @@ describe("ServiceProposalDetailModal", () => {
     }));
     render(<ServiceProposalDetailModal
       proposal={{ ...proposal, id: 42, status: "accepted" }}
-      calendarConnectionStatus="connected"
+      calendarConnection={{ state: "ready", status: "connected" }}
       onClose={vi.fn()}
     />);
     await userEvent.setup().click(screen.getByRole("button", { name: /ver detalle de la orden/i }));

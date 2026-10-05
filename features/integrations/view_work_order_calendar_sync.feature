@@ -52,7 +52,6 @@ Feature: [WEB] US-22 - Consultar la vinculación de Google Calendar en mis órde
     Then visualizo un mensaje de error seguro
     And puedo reintentar la autorización sin perder el contexto de la orden
 
-  @wip
   Scenario: 22.7-COT No inventar estados mientras se consulta la cuenta
     Given que la consulta del estado de mi cuenta permanece pendiente
     When consulto el detalle de una orden propia

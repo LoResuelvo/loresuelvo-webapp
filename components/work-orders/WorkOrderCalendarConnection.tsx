@@ -1,4 +1,5 @@
-import type { CalendarConnectionStatus } from "@/domain/user/types";
+import type { WorkOrderCalendarConnectionState } from "./useWorkOrderCalendarConnection";
+import WorkOrderCalendarLoading from "./WorkOrderCalendarLoading";
 import InfoBanner from "@/components/messaging/InfoBanner";
 import { t } from "@/infrastructure/i18n/translations";
 import Link from "next/link";
@@ -11,13 +12,17 @@ export interface WorkOrderCalendarAuthorization {
 }
 
 interface WorkOrderCalendarConnectionProps {
-  status?: CalendarConnectionStatus;
+  connection?: WorkOrderCalendarConnectionState;
   profileHref?: string;
   authorization?: WorkOrderCalendarAuthorization;
   showAuthorizationError?: boolean;
 }
 
-export default function WorkOrderCalendarConnection({ status, profileHref, authorization, showAuthorizationError = true }: WorkOrderCalendarConnectionProps) {
+export default function WorkOrderCalendarConnection({ connection, profileHref, authorization, showAuthorizationError = true }: WorkOrderCalendarConnectionProps) {
+  if (connection?.state === "loading") return <WorkOrderCalendarLoading />;
+  if (connection?.state !== "ready") return null;
+  const { status } = connection;
+
   if (status === "connected") {
     return <InfoBanner>{t.profile.calendar.orderConnectedStatus}</InfoBanner>;
   }

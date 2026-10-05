@@ -12,14 +12,14 @@ import { getWorkOrderByProposalAction } from "@/app/work-orders/actions";
 import { useClock } from "@/hooks/useClock";
 import { ProposalStatusSection } from "./ProposalStatusSection";
 import { ProposalActionsSection } from "./ProposalActionsSection";
-import type { CalendarConnectionStatus } from "@/domain/user/types";
+import type { WorkOrderCalendarConnectionState } from "@/components/work-orders/useWorkOrderCalendarConnection";
 import type { WorkOrderCalendarAuthorization } from "@/components/work-orders/WorkOrderCalendarConnection";
 
 export interface ServiceProposalDetailModalProps {
   proposal: ServiceProposalSummary;
   onClose: () => void;
   onViewConversation?: (conversationId: number) => void;
-  calendarConnectionStatus?: CalendarConnectionStatus;
+  calendarConnection?: WorkOrderCalendarConnectionState;
   calendarAuthorization?: WorkOrderCalendarAuthorization;
 }
 
@@ -27,7 +27,7 @@ export default function ServiceProposalDetailModal({
   proposal, 
   onClose,
   onViewConversation,
-  calendarConnectionStatus,
+  calendarConnection,
   calendarAuthorization,
 }: ServiceProposalDetailModalProps) {
   const { now } = useClock();
@@ -101,7 +101,7 @@ export default function ServiceProposalDetailModal({
           initialScheduledOn={proposal.scheduledOn}
           initialDescription={proposal.description}
           isConsumer={!isProvider}
-          calendarConnectionStatus={calendarConnectionStatus}
+          calendarConnection={calendarConnection}
           calendarAuthorization={calendarAuthorization}
         />
       )}

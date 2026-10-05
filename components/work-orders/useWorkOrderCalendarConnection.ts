@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { getCurrentUserAction } from "@/app/api/me/actions";
 import type { CalendarConnectionStatus } from "@/domain/user/types";
 
-type WorkOrderCalendarConnection =
+export type WorkOrderCalendarConnectionState =
   | { state: "loading" }
   | { state: "ready"; status: CalendarConnectionStatus }
   | { state: "error" };
 
-export function useWorkOrderCalendarConnection(): WorkOrderCalendarConnection {
-  const [connection, setConnection] = useState<WorkOrderCalendarConnection>({ state: "loading" });
+export function useWorkOrderCalendarConnection(): WorkOrderCalendarConnectionState {
+  const [connection, setConnection] = useState<WorkOrderCalendarConnectionState>({ state: "loading" });
 
   useEffect(() => {
     let active = true;

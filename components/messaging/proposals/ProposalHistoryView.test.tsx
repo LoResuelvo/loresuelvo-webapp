@@ -52,6 +52,39 @@ describe("ProposalHistoryView", () => {
   it.each([
     { isProvider: false, surface: "list" }, { isProvider: true, surface: "list" },
     { isProvider: false, surface: "detail" }, { isProvider: true, surface: "detail" },
+  ])("keeps order data visible during the account lookup in $surface for provider=$isProvider", async ({ isProvider, surface }) => {
+    const order = {
+      id: 10, serviceProposalId: 2, consumerId: 10, providerId: 1, status: "scheduled" as const,
+      amountCents: 2000000, scheduledOn: "2026-07-06T10:00:00-03:00", description: "Pintura",
+      estimatedDurationMinutes: 90, acceptedOn: "2026-07-05T10:00:00Z",
+    };
+    vi.mocked(getWorkOrderByProposalAction).mockResolvedValue({ ok: true, workOrder: order });
+    vi.mocked(getWorkOrderDetailAction).mockResolvedValue({ ok: true, detail: order });
+    render(<ProposalHistoryView proposals={[{
+      ...mockProposals[1], counterpart: { ...mockProposals[1].counterpart, role: isProvider ? "consumer" : "provider" },
+    }]} isProvider={isProvider} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "Aceptadas" }));
+    if (surface === "detail") {
+      await user.click(screen.getByTestId("proposal-card"));
+      await user.click(screen.getByRole("button", { name: /ver detalle de la orden/i }));
+    }
+    const target = surface === "detail"
+      ? within(screen.getByTestId("work-order-detail-modal"))
+      : screen;
+    expect(target.getByRole("status")).toHaveTextContent("Consultando el estado de tu cuenta de Google Calendar…");
+    expect(target.getByText("Pintura")).toBeInTheDocument();
+    expect(target.queryByText("Google Calendar vinculado")).not.toBeInTheDocument();
+    expect(target.queryByText("Google Calendar requiere autorización")).not.toBeInTheDocument();
+    expect(target.queryByRole("link", { name: "Mi perfil" })).not.toBeInTheDocument();
+    expect(getCurrentUserAction).toHaveBeenCalledTimes(1);
+    expect(startCalendarAuthorizationAction).not.toHaveBeenCalled();
+    if (surface === "detail") expect(getWorkOrderDetailAction).toHaveBeenCalledWith(10);
+  });
+
+  it.each([
+    { isProvider: false, surface: "list" }, { isProvider: true, surface: "list" },
+    { isProvider: false, surface: "detail" }, { isProvider: true, surface: "detail" },
   ])("retries a safe authorization failure in $surface for provider=$isProvider", async ({ isProvider, surface }) => {
     vi.mocked(getCurrentUserAction).mockResolvedValue({
       id: 10, firstName: "Ana", lastName: "Pérez", email: "ana@example.com",

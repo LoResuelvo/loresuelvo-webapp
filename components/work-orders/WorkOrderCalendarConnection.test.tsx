@@ -5,7 +5,7 @@ import WorkOrderCalendarConnection from "./WorkOrderCalendarConnection";
 
 describe("WorkOrderCalendarConnection", () => {
   it("invites a disconnected account to its supplied profile destination", async () => {
-    render(<WorkOrderCalendarConnection status="disconnected" profileHref="/perfil-de-prueba" />);
+    render(<WorkOrderCalendarConnection connection={{ state: "ready", status: "disconnected" }} profileHref="/perfil-de-prueba" />);
 
     expect(screen.getByRole("status")).toHaveTextContent("Vinculá Google Calendar desde Mi perfil.");
     const link = screen.getByRole("link", { name: "Mi perfil" });
@@ -16,7 +16,7 @@ describe("WorkOrderCalendarConnection", () => {
   });
 
   it("identifies a connected account without confirming appointment synchronization", () => {
-    render(<WorkOrderCalendarConnection status="connected" />);
+    render(<WorkOrderCalendarConnection connection={{ state: "ready", status: "connected" }} />);
 
     expect(screen.getByRole("status")).toHaveTextContent("Google Calendar vinculado");
     expect(screen.queryByText(/sincronizad[ao]/i)).not.toBeInTheDocument();
@@ -26,7 +26,7 @@ describe("WorkOrderCalendarConnection", () => {
   it.each([undefined, "disconnected"] as const)(
     "does not claim an account is connected for %s",
     (status) => {
-      render(<WorkOrderCalendarConnection status={status} />);
+      render(<WorkOrderCalendarConnection connection={status ? { state: "ready", status } : undefined} />);
 
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
     },

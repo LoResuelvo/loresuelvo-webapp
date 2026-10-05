@@ -25,9 +25,6 @@ export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryVi
   const router = useRouter();
   const calendarConnection = useWorkOrderCalendarConnection();
   const calendarAuthorization = useCalendarAuthorization();
-  const calendarConnectionStatus = calendarConnection.state === "ready"
-    ? calendarConnection.status
-    : undefined;
 
   const filteredProposals = useMemo(() => {
     return proposals
@@ -42,7 +39,7 @@ export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryVi
       </h1>
 
       <WorkOrderCalendarConnection
-        status={calendarConnectionStatus}
+        connection={calendarConnection}
         profileHref={isProvider ? ROUTES.provider.profile : ROUTES.consumer.profile}
         authorization={calendarAuthorization}
         showAuthorizationError={!selectedProposal}
@@ -90,7 +87,7 @@ export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryVi
       {selectedProposal && (
         <ServiceProposalDetailModal
           proposal={selectedProposal}
-          calendarConnectionStatus={calendarConnectionStatus}
+          calendarConnection={calendarConnection}
           calendarAuthorization={calendarAuthorization}
           onClose={() => setSelectedProposal(null)}
           onViewConversation={() => {

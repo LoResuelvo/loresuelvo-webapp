@@ -119,7 +119,7 @@ Then("dispongo de la acción {string}", async function (this: CustomWorld, actio
 });
 
 When("consulto el detalle de una orden propia", async function (this: CustomWorld) {
-  await openWorkOrderDetailModal(this);
+  await openWorkOrderDetailModal(this, false);
 });
 
 When(/^consulto una orden propia en (el listado de turnos|el detalle de la orden)$/, async function (
@@ -167,4 +167,27 @@ Then("dispongo de un enlace a Mi perfil dentro de mi rol", async function (this:
     ? ROUTES.provider.profile
     : ROUTES.consumer.profile;
   assert.strictEqual(await link.getAttribute("href"), profileRoute);
+});
+
+Given("que la consulta del estado de mi cuenta permanece pendiente", async function (this: CustomWorld) {
+  await prepareParticipantOrder(this, "consumer");
+  await this.addApiStub({
+    method: "GET",
+    endpoint: "/me",
+    status: 200,
+    body: aCurrentUser("consumer", { calendar_connection_status: "connected" }),
+    delayMs: 15000,
+  });
+});
+
+Then("visualizo que el estado de Google Calendar se está cargando", async function (this: CustomWorld) {
+  await this.page.getByTestId("work-order-detail-modal")
+    .getByText("Consultando el estado de tu cuenta de Google Calendar…", { exact: true }).waitFor(visibleTimeout);
+});
+
+Then("no visualizo un estado de vinculación supuesto", async function (this: CustomWorld) {
+  const modal = this.page.getByTestId("work-order-detail-modal");
+  assert.strictEqual(await modal.getByText("Google Calendar vinculado", { exact: true }).count(), 0);
+  assert.strictEqual(await modal.getByText("Vinculá Google Calendar desde", { exact: false }).count(), 0);
+  assert.strictEqual(await modal.getByText("Google Calendar requiere autorización", { exact: true }).count(), 0);
 });

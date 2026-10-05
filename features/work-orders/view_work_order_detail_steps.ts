@@ -112,7 +112,7 @@ Given(
   }
 );
 
-export async function openWorkOrderDetailModal(world: CustomWorld) {
+export async function openWorkOrderDetailModal(world: CustomWorld, waitForNetworkIdle = true) {
   const cookies = await world.page.context().cookies();
   const sessionCookie = cookies.find((c) => c.name === "__e2e_session");
   let isProvider = false;
@@ -128,7 +128,7 @@ export async function openWorkOrderDetailModal(world: CustomWorld) {
     : `${APP_URL}${ROUTES.consumer.services}`;
 
   await world.page.goto(targetUrl, { waitUntil: "domcontentloaded" });
-  await world.page.waitForLoadState("networkidle").catch(() => {});
+  if (waitForNetworkIdle) await world.page.waitForLoadState("networkidle").catch(() => {});
 
   const tabAceptadas = world.page.getByRole("tab", { name: /aceptadas/i });
   await tabAceptadas.waitFor({ state: "visible", timeout: 10000 });

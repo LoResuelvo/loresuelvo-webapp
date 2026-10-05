@@ -5,12 +5,18 @@ import { t } from "@/infrastructure/i18n/translations";
 interface WorkOrderCalendarReauthorizationProps {
   onReauthorize?: () => void;
   isAuthorizing?: boolean;
+  error?: string | null;
 }
 
-export default function WorkOrderCalendarReauthorization({ onReauthorize, isAuthorizing = false }: WorkOrderCalendarReauthorizationProps) {
+export default function WorkOrderCalendarReauthorization({ onReauthorize, isAuthorizing = false, error }: WorkOrderCalendarReauthorizationProps) {
   return (
     <div className="space-y-3">
       <InfoBanner tone="warning">{t.profile.calendar.authorizationRequired}</InfoBanner>
+      {error && (
+        <div role="alert" aria-live="assertive" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-body text-rose-700">
+          {error}
+        </div>
+      )}
       <Button
         type="button"
         variant="brand"

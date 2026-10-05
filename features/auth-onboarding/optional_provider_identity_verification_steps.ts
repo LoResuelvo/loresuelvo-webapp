@@ -237,6 +237,11 @@ Given("veo mi verificación pendiente", async function (this: CustomWorld) {
   await stubRegisteredProviderIdentity(this, "in_review");
   await this.page.goto(`${APP_URL}${ROUTES.onboarding}?stage=identity`);
   await this.page.getByTestId("identity-verification-result").waitFor(visibleTimeout);
+  // Let the initial client lookup settle before the next Given replaces /me.
+  await this.page.getByRole("button", {
+    name: t.onboarding.identityVerification.refresh,
+    exact: true,
+  }).and(this.page.locator("button:enabled")).waitFor(visibleTimeout);
 });
 
 Given(

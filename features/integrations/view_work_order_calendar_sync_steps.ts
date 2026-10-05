@@ -191,3 +191,22 @@ Then("no visualizo un estado de vinculación supuesto", async function (this: Cu
   assert.strictEqual(await modal.getByText("Vinculá Google Calendar desde", { exact: false }).count(), 0);
   assert.strictEqual(await modal.getByText("Google Calendar requiere autorización", { exact: true }).count(), 0);
 });
+
+Given("que la consulta del estado de mi cuenta falla temporalmente", async function (this: CustomWorld) {
+  await prepareParticipantOrder(this, "consumer");
+  await this.stubGet("/me", { error: "Internal calendar account lookup failure" }, 503);
+});
+
+Then("visualizo un error seguro al consultar el estado de Google Calendar", async function (this: CustomWorld) {
+  const modal = this.page.getByTestId("work-order-detail-modal");
+  await modal.getByText("No pudimos consultar el estado de tu cuenta de Google Calendar. Intentá nuevamente.", { exact: true })
+    .waitFor(visibleTimeout);
+  assert.strictEqual(await modal.getByText("Internal calendar account lookup failure", { exact: true }).count(), 0);
+});
+
+Then("no visualizo una confirmación de vinculación ni una invitación basada en un estado supuesto", async function (this: CustomWorld) {
+  const modal = this.page.getByTestId("work-order-detail-modal");
+  assert.strictEqual(await modal.getByText("Google Calendar vinculado", { exact: true }).count(), 0);
+  assert.strictEqual(await modal.getByText("Vinculá Google Calendar desde", { exact: false }).count(), 0);
+  assert.strictEqual(await modal.getByRole("button", { name: "Reautorizar Google Calendar", exact: true }).count(), 0);
+});

@@ -1,5 +1,6 @@
 import type { WorkOrderCalendarConnectionState } from "./useWorkOrderCalendarConnection";
 import WorkOrderCalendarLoading from "./WorkOrderCalendarLoading";
+import WorkOrderCalendarLookupError from "./WorkOrderCalendarLookupError";
 import InfoBanner from "@/components/messaging/InfoBanner";
 import { t } from "@/infrastructure/i18n/translations";
 import Link from "next/link";
@@ -15,11 +16,12 @@ interface WorkOrderCalendarConnectionProps {
   connection?: WorkOrderCalendarConnectionState;
   profileHref?: string;
   authorization?: WorkOrderCalendarAuthorization;
-  showAuthorizationError?: boolean;
+  showError?: boolean;
 }
 
-export default function WorkOrderCalendarConnection({ connection, profileHref, authorization, showAuthorizationError = true }: WorkOrderCalendarConnectionProps) {
+export default function WorkOrderCalendarConnection({ connection, profileHref, authorization, showError = true }: WorkOrderCalendarConnectionProps) {
   if (connection?.state === "loading") return <WorkOrderCalendarLoading />;
+  if (connection?.state === "error") return showError ? <WorkOrderCalendarLookupError /> : null;
   if (connection?.state !== "ready") return null;
   const { status } = connection;
 
@@ -31,7 +33,7 @@ export default function WorkOrderCalendarConnection({ connection, profileHref, a
     return <WorkOrderCalendarReauthorization
       onReauthorize={authorization?.startAuthorization}
       isAuthorizing={authorization?.isAuthorizing}
-      error={showAuthorizationError ? authorization?.error : null}
+      error={showError ? authorization?.error : null}
     />;
   }
 

@@ -42,7 +42,7 @@ export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryVi
         connection={calendarConnection}
         profileHref={isProvider ? ROUTES.provider.profile : ROUTES.consumer.profile}
         authorization={calendarAuthorization}
-        showAuthorizationError={!selectedProposal}
+        showError={!selectedProposal}
       />
 
       <div className="flex gap-2 border-b border-gray-200" role="tablist">

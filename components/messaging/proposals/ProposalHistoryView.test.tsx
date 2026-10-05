@@ -52,6 +52,45 @@ describe("ProposalHistoryView", () => {
   it.each([
     { isProvider: false, surface: "list" }, { isProvider: true, surface: "list" },
     { isProvider: false, surface: "detail" }, { isProvider: true, surface: "detail" },
+  ])("shows one safe account lookup error in $surface for provider=$isProvider", async ({ isProvider, surface }) => {
+    vi.mocked(getCurrentUserAction).mockRejectedValue(new Error("Internal calendar account lookup failure"));
+    const order = {
+      id: 10, serviceProposalId: 2, consumerId: 10, providerId: 1, status: "scheduled" as const,
+      amountCents: 2000000, scheduledOn: "2026-07-06T10:00:00-03:00", description: "Pintura",
+      estimatedDurationMinutes: 90, acceptedOn: "2026-07-05T10:00:00Z",
+    };
+    vi.mocked(getWorkOrderByProposalAction).mockResolvedValue({ ok: true, workOrder: order });
+    vi.mocked(getWorkOrderDetailAction).mockResolvedValue({ ok: true, detail: order });
+    render(<ProposalHistoryView proposals={[{
+      ...mockProposals[1], counterpart: { ...mockProposals[1].counterpart, role: isProvider ? "consumer" : "provider" },
+    }]} isProvider={isProvider} />);
+    const user = userEvent.setup();
+    await screen.findByText(t.profile.calendar.orderConnectionError);
+    await user.click(screen.getByRole("tab", { name: "Aceptadas" }));
+    if (surface === "detail") {
+      await user.click(screen.getByTestId("proposal-card"));
+      await user.click(screen.getByRole("button", { name: /ver detalle de la orden/i }));
+    }
+    const target = surface === "detail"
+      ? within(screen.getByTestId("work-order-detail-modal"))
+      : screen;
+    expect(target.getByRole("status")).toHaveTextContent(t.profile.calendar.orderConnectionError);
+    expect(screen.getAllByText(t.profile.calendar.orderConnectionError)).toHaveLength(1);
+    expect(target.getByText("Pintura")).toBeInTheDocument();
+    expect(screen.queryByText("Internal calendar account lookup failure")).not.toBeInTheDocument();
+    expect(target.queryByText("Google Calendar vinculado")).not.toBeInTheDocument();
+    expect(target.queryByText("Google Calendar requiere autorización")).not.toBeInTheDocument();
+    expect(target.queryByText(t.profile.calendar.orderConnectionLoading)).not.toBeInTheDocument();
+    expect(target.queryByRole("link", { name: "Mi perfil" })).not.toBeInTheDocument();
+    expect(target.queryByRole("button", { name: t.profile.calendar.reauthorizeAction })).not.toBeInTheDocument();
+    expect(getCurrentUserAction).toHaveBeenCalledTimes(1);
+    expect(startCalendarAuthorizationAction).not.toHaveBeenCalled();
+    if (surface === "detail") expect(getWorkOrderDetailAction).toHaveBeenCalledWith(10);
+  });
+
+  it.each([
+    { isProvider: false, surface: "list" }, { isProvider: true, surface: "list" },
+    { isProvider: false, surface: "detail" }, { isProvider: true, surface: "detail" },
   ])("keeps order data visible during the account lookup in $surface for provider=$isProvider", async ({ isProvider, surface }) => {
     const order = {
       id: 10, serviceProposalId: 2, consumerId: 10, providerId: 1, status: "scheduled" as const,

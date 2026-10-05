@@ -58,7 +58,6 @@ Feature: [WEB] US-22 - Consultar la vinculación de Google Calendar en mis órde
     Then visualizo que el estado de Google Calendar se está cargando
     And no visualizo un estado de vinculación supuesto
 
-  @wip
   Scenario: 22.8-COT No confundir una falla de consulta con una cuenta desconectada
     Given que la consulta del estado de mi cuenta falla temporalmente
     When consulto el detalle de una orden propia

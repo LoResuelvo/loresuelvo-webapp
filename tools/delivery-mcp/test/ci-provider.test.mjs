@@ -175,3 +175,32 @@ test("provider timeout context is redacted before exposing the failure", async (
   assert.match(result.failure.message, /token=\[REDACTED\]/);
   assert.ok(!result.failure.message.includes("secret-value"));
 });
+
+
+test("GitHub CLI request failures preserve their cause instead of claiming missing credentials", async () => {
+  const provider = new GitHubActionsProvider({ execGh: async () => {
+    const error = new Error("Command failed");
+    error.stderr = "HTTP 403 rate limit token=secret-value\nprivate details";
+    throw error;
+  } });
+  // This fixture models an authenticated gh session with no environment token.
+  provider.token = null;
+  const result = await provider.inspectCommit("a".repeat(40));
+  assert.equal(result.status, "provider_error");
+  assert.equal(result.retryable, true);
+  assert.match(result.failure.message, /GitHub CLI query failed/);
+  assert.match(result.failure.message, /actions\/runs\?head_sha=/);
+  assert.match(result.failure.message, /HTTP 403 rate limit token=\[REDACTED\]/);
+  assert.ok(!result.failure.message.includes("No GitHub credentials"));
+  assert.ok(!result.failure.message.includes("secret-value"));
+  assert.ok(!result.failure.message.includes("private details"));
+});
+
+test("GitHub CLI malformed responses retain the parsing failure", async () => {
+  const provider = new GitHubActionsProvider({ execGh: async () => ({ stdout: "invalid JSON" }) });
+  provider.token = null;
+  const result = await provider.inspectCommit("a".repeat(40));
+  assert.equal(result.status, "provider_error");
+  assert.match(result.failure.message, /Invalid GitHub CLI pagination response/);
+  assert.ok(!result.failure.message.includes("No GitHub credentials"));
+});

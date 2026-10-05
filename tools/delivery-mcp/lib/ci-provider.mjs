@@ -116,13 +116,15 @@ export class GitHubActionsProvider extends CiProvider {
 
     // Try gh CLI first
     let ghResult = null;
+    let ghFailure = null;
     try {
       ghResult = await this.queryViaGhCli(sha, root, requiredWorkflows, deadlineAt);
     } catch (error) {
       if (error.code === "CI_PROVIDER_TIMEOUT") {
         return this.providerErrorResult(sha, error.message, root);
       }
-      // Fall back to the API when gh is unavailable or unauthenticated.
+      ghFailure = error.message;
+      // A configured API token can recover from a CLI failure.
     }
     if (ghResult) {
       validateCiInspectionResult(ghResult, root);
@@ -142,10 +144,10 @@ export class GitHubActionsProvider extends CiProvider {
       }
     }
 
-    // If neither gh CLI nor token available, report provider_error without throwing
+    // A failed CLI request does not establish that its credentials are missing.
     return this.providerErrorResult(
       sha,
-      "No GitHub credentials available (gh CLI not authenticated and GITHUB_TOKEN not set)",
+      ghFailure || "GitHub CLI returned no CI result and no API token is configured",
       root
     );
   }
@@ -185,12 +187,19 @@ export class GitHubActionsProvider extends CiProvider {
   }
 
   async ghJson(endpoint, repoRoot, deadlineAt) {
-    const { stdout } = await this.withDeadline(deadlineAt, (signal, remaining) =>
-      this.execGh("gh", ["api", "--paginate", endpoint], {
-        cwd: repoRoot, encoding: "utf8", signal,
-        timeout: remaining, maxBuffer: 20 * 1024 * 1024,
-      }), `GitHub CLI ${endpoint}`);
-    return parseGhPages(stdout || "");
+    try {
+      const { stdout } = await this.withDeadline(deadlineAt, (signal, remaining) =>
+        this.execGh("gh", ["api", "--paginate", endpoint], {
+          cwd: repoRoot, encoding: "utf8", signal,
+          timeout: remaining, maxBuffer: 20 * 1024 * 1024,
+        }), `GitHub CLI ${endpoint}`);
+      return parseGhPages(stdout || "");
+    } catch (error) {
+      if (error.code === "CI_PROVIDER_TIMEOUT") throw error;
+      const cause = redactSecrets(String(error.stderr || error.message || "unknown error"))
+        .split(/\r?\n/)[0].slice(0, 300);
+      throw new Error(`GitHub CLI query failed (${endpoint}): ${cause}`);
+    }
   }
 
   async fetchJson(url, deadlineAt) {

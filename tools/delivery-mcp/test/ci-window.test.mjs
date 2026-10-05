@@ -7,6 +7,7 @@ import { execFileSync } from "node:child_process";
 import { evaluateCiWindow, recordCommitEvidence } from "../lib/delivery-ledger.mjs";
 import { prepareDelivery } from "../lib/prepare-delivery.mjs";
 import { runPostCommitHook, runPrePushHook } from "../lib/git-hooks.mjs";
+import { operationResponse } from "../lib/operation-contracts.mjs";
 import { MockCiProvider } from "../lib/ci-provider.mjs";
 
 async function createTempGitRepo(t) {
@@ -416,11 +417,17 @@ test("errores de provider o credenciales no se interpretan como passed", async (
   const post1 = await runPostCommitHook({ repoRoot });
 
   // CI reporta provider_error
-  mockCi.setFixture(post1.commitSha, { status: "provider_error" });
+  mockCi.setFixture(post1.commitSha, { status: "provider_error", failure: { message: "CI provider deadline exceeded token=secret-value\nprivate details", excerpt: "timeout" } });
 
   const evalProviderError = await evaluateCiWindow({ repoRoot, ciProvider: mockCi });
   assert.strictEqual(evalProviderError.allowed, false);
   assert.strictEqual(evalProviderError.code, "CI_PROVIDER_ERROR");
+  assert.strictEqual(evalProviderError.failedSha, post1.commitSha);
+  assert.strictEqual(evalProviderError.retryable, true);
+  assert.strictEqual(evalProviderError.status, "blocked");
+  assert.match(evalProviderError.message, /CI provider deadline exceeded token=\[REDACTED\]/);
+  assert.ok(!evalProviderError.message.includes("private details"));
+  assert.ok(!evalProviderError.message.includes("secret-value"));
 
   // prepareDelivery bloquea con CI_PROVIDER_ERROR
   await fs.writeFile(path.join(repoRoot, "f2.txt"), "2", "utf8");
@@ -432,7 +439,14 @@ test("errores de provider o credenciales no se interpretan como passed", async (
     executeCheck: fakeExecute,
   });
   assert.strictEqual(prep.status, "blocked");
-  assert.ok(prep.diagnostics.some((d) => d.code === "CI_PROVIDER_ERROR"));
+  assert.ok(prep.diagnostics.some((d) => d.code === "CI_PROVIDER_ERROR" && d.failedSha === post1.commitSha));
+  assert.strictEqual(prep.failedSha, post1.commitSha);
+  const envelope = operationResponse("delivery_prepare", prep);
+  assert.strictEqual(envelope.failedSha, post1.commitSha);
+  assert.ok(envelope.diagnostics.some((d) => d.failedSha === post1.commitSha && d.message.includes("deadline exceeded")));
+  mockCi.setFixture(post1.commitSha, { status: "provider_error", failure: { message: "x".repeat(1000), excerpt: "timeout" } });
+  const bounded = await evaluateCiWindow({ repoRoot, ciProvider: mockCi });
+  assert.ok(bounded.message.length < 450);
 });
 
 test("cero polling en prepareDelivery y evaluateCiWindow: a lo sumo una inspección por commit", async (t) => {

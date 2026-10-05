@@ -16,6 +16,7 @@ import {
   validateCommitMessage,
 } from "../lib/git-hooks.mjs";
 import {
+  evaluateCiWindow,
   getCommitEvidence,
   getLastPreparedEvidence,
   getRepairAuthorization,
@@ -456,6 +457,41 @@ test("strict real pre-push rejects a repair for the wrong active target without 
     assert.equal(result.passed, false);
     assert.equal(result.reason, "REPAIR_TARGET_MISMATCH");
     assert.deepEqual(await getRepairAuthorization({ repoRoot: root, targetSha: target }), before);
+  } finally {
+    if (previous === undefined) delete process.env.DELIVERY_REQUIRE_EVIDENCE;
+    else process.env.DELIVERY_REQUIRE_EVIDENCE = previous;
+  }
+});
+
+
+test("provider errors preserve the queried repair SHA and block strict push with a safe diagnosis", async (t) => {
+  const { root, ciProvider, other, target, repair, line } = await repairFixture(t);
+  ciProvider.setFixture(repair, { status: "provider_error", failure: {
+    message: "CI provider deadline exceeded token=secret-value\nprivate details", excerpt: "timeout",
+  } });
+  const evaluation = await evaluateCiWindow({ repoRoot: root, ciProvider });
+  assert.equal(evaluation.allowed, false);
+  assert.equal(evaluation.code, "CI_PROVIDER_ERROR");
+  assert.equal(evaluation.failedSha, repair);
+  assert.match(evaluation.message, /deadline exceeded/);
+
+  // Pre-push evaluates the remote history: a provider error there must keep
+  // blocking even when the outgoing repair has valid local Gate R evidence.
+  ciProvider.setFixture(other, { status: "provider_error", failure: {
+    message: "CI provider deadline exceeded token=secret-value\nprivate details", excerpt: "timeout",
+  } });
+  const previous = process.env.DELIVERY_REQUIRE_EVIDENCE;
+  process.env.DELIVERY_REQUIRE_EVIDENCE = "1";
+  try {
+    const push = await runPrePushHook({ repoRoot: root, stdinLines: [line], ciProvider });
+    assert.equal(push.passed, false);
+    assert.equal(push.reason, "CI_PROVIDER_ERROR");
+    assert.ok(push.message.includes(other));
+    assert.match(push.message, /token=\[REDACTED\]/);
+    assert.ok(!push.message.includes("private details"));
+    assert.ok(!push.message.includes("secret-value"));
+    const authorization = await getRepairAuthorization({ repoRoot: root, targetSha: target });
+    assert.notEqual(authorization.state, "submitted");
   } finally {
     if (previous === undefined) delete process.env.DELIVERY_REQUIRE_EVIDENCE;
     else process.env.DELIVERY_REQUIRE_EVIDENCE = previous;

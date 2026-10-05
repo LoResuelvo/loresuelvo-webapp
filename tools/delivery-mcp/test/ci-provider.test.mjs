@@ -163,3 +163,15 @@ test("paridad CLI y MCP para delivery_ci_inspect", async () => {
     setCiProvider(null);
   }
 });
+
+
+test("provider timeout context is redacted before exposing the failure", async () => {
+  const sha = "a".repeat(40);
+  const provider = new GitHubActionsProvider({ repo: "owner/repo?token=secret-value" });
+  const result = await provider.inspectCommit(sha, { deadlineAt: Date.now() - 1 });
+  assert.equal(result.status, "provider_error");
+  assert.equal(result.retryable, true);
+  assert.match(result.failure.message, /GitHub CLI/);
+  assert.match(result.failure.message, /token=\[REDACTED\]/);
+  assert.ok(!result.failure.message.includes("secret-value"));
+});

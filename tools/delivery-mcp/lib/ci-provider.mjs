@@ -150,10 +150,11 @@ export class GitHubActionsProvider extends CiProvider {
     );
   }
 
-  async withDeadline(deadlineAt, operation) {
+  async withDeadline(deadlineAt, operation, context = null) {
+    const timeoutMessage = `CI provider deadline exceeded${context ? ` (${context})` : ""}`;
     const remaining = deadlineAt - Date.now();
     if (remaining <= 0) {
-      const error = new Error("CI provider deadline exceeded");
+      const error = new Error(timeoutMessage);
       error.code = "CI_PROVIDER_TIMEOUT";
       throw error;
     }
@@ -165,7 +166,7 @@ export class GitHubActionsProvider extends CiProvider {
         new Promise((_, reject) => {
           timer = setTimeout(() => {
             controller.abort();
-            const error = new Error("CI provider deadline exceeded");
+            const error = new Error(timeoutMessage);
             error.code = "CI_PROVIDER_TIMEOUT";
             reject(error);
           }, remaining);
@@ -173,7 +174,7 @@ export class GitHubActionsProvider extends CiProvider {
       ]);
     } catch (error) {
       if (controller.signal.aborted && error.code !== "CI_PROVIDER_TIMEOUT") {
-        const timeout = new Error("CI provider deadline exceeded");
+        const timeout = new Error(timeoutMessage);
         timeout.code = "CI_PROVIDER_TIMEOUT";
         throw timeout;
       }
@@ -188,7 +189,7 @@ export class GitHubActionsProvider extends CiProvider {
       this.execGh("gh", ["api", "--paginate", endpoint], {
         cwd: repoRoot, encoding: "utf8", signal,
         timeout: remaining, maxBuffer: 20 * 1024 * 1024,
-      }));
+      }), `GitHub CLI ${endpoint}`);
     return parseGhPages(stdout || "");
   }
 
@@ -207,7 +208,7 @@ export class GitHubActionsProvider extends CiProvider {
         data: await response.json(),
         next: response.headers?.get("link")?.match(/<([^>]+)>;\s*rel="next"/)?.[1] || null,
       };
-    });
+    }, `GitHub API ${url}`);
   }
 
   async restPages(url, key, deadlineAt) {

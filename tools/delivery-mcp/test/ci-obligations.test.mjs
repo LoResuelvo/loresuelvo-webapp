@@ -197,6 +197,7 @@ test("REST: fetch de runs colgado se aborta dentro del deadline", async (t) => {
   assert.equal(result.status, "provider_error");
   assert.equal(result.retryable, true);
   assert.equal(wasAborted(), true);
+  assert.match(result.failure.message, /GitHub API.*actions\/runs\?head_sha=/);
 });
 
 test("REST: cuerpo JSON colgado también consume el deadline", async () => {
@@ -263,6 +264,7 @@ test("GH CLI: comando colgado se cancela y devuelve provider_error", async () =>
   assert.equal(result.status, "provider_error");
   assert.equal(result.retryable, true);
   assert.equal(aborted, true);
+  assert.match(result.failure.message, /GitHub CLI.*actions\/runs\?head_sha=/);
 });
 
 test("GH CLI: log de fallo colgado respeta el mismo deadline", async () => {

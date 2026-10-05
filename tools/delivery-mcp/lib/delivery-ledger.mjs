@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { findRepoRoot } from "./repo-root.mjs";
 import { inspectCi, getCiProvider } from "./ci-provider.mjs";
+import { redactSecrets } from "./redact-secrets.mjs";
 import { loadDeliveryPolicy } from "./policy-loader.mjs";
 import {
   writeJsonAtomic, getLastPreparedEvidence, listCommitEvidence,
@@ -101,6 +102,25 @@ function filterEntriesReachableFrom(root, entries, historyHeadSha = "HEAD") {
     // fail-closed: CI evaluation may block, but it never silently drops evidence.
     return entries;
   }
+}
+
+function safeProviderMessage(message) {
+  return redactSecrets(String(message || "CI provider unavailable"))
+    .split(/\r?\n/)[0].slice(0, 300);
+}
+
+function providerErrorBlock(sha, message) {
+  const safeMessage = safeProviderMessage(message);
+  return {
+    allowed: false,
+    status: "blocked",
+    reason: "CI_PROVIDER_ERROR",
+    code: "CI_PROVIDER_ERROR",
+    failedSha: sha,
+    sha,
+    message: `CI provider error for ${sha}: ${safeMessage}. Cannot determine remote CI safely.`,
+    retryable: true,
+  };
 }
 
 export async function getActiveCiIncidents({
@@ -211,6 +231,7 @@ export async function getActiveCiIncidents({
 
     let status = "pending";
     let repairSha = null;
+    let providerFailure = null;
 
     if (supersededFailures.has(sha)) {
       status = "superseded";
@@ -226,6 +247,7 @@ export async function getActiveCiIncidents({
         status = "passed";
       } else if (ci.status === "provider_error") {
         status = "provider_error";
+        providerFailure = { sha, message: safeProviderMessage(ci.failure?.message) };
       } else if (["in_progress", "queued", "not_found"].includes(ci.status)) {
         status = "pending";
       } else if (["failed", "cancelled", "timed_out"].includes(ci.status)) {
@@ -254,6 +276,7 @@ export async function getActiveCiIncidents({
             status = "repair_failed";
           } else if (rCi.status === "provider_error") {
             status = "provider_error";
+            providerFailure = { sha: rSha, message: safeProviderMessage(rCi.failure?.message) };
           } else {
             if (latestRepair.repairPushConsumed || isCommitInRemote(root, rSha)) {
               status = "repair_submitted";
@@ -300,6 +323,7 @@ export async function getActiveCiIncidents({
       branch,
       status,
       repairSha,
+      ...(providerFailure ? { providerFailure } : {}),
     };
 
     allIncidents.push(incidentRecord);
@@ -417,14 +441,10 @@ export async function evaluateCiWindow({
     (activeIncidents.allIncidents &&
       activeIncidents.allIncidents.find((inc) => inc.status === "provider_error"));
   if (providerErrorIncident) {
-    return {
-      allowed: false,
-      status: "blocked",
-      reason: "CI_PROVIDER_ERROR",
-      code: "CI_PROVIDER_ERROR",
-      message: "CI provider returned an error. Cannot determine remote CI safely.",
-      retryable: true,
-    };
+    return providerErrorBlock(
+      providerErrorIncident.providerFailure?.sha || providerErrorIncident.failedSha,
+      providerErrorIncident.providerFailure?.message
+    );
   }
 
   const unresolvedIncidents = activeIncidents.filter(
@@ -517,14 +537,7 @@ export async function evaluateCiWindow({
     const inc = incidentsBySha.get(priorSha.toLowerCase());
     if (inc) {
       if (inc.status === "provider_error") {
-        return {
-          allowed: false,
-          status: "blocked",
-          reason: "CI_PROVIDER_ERROR",
-          code: "CI_PROVIDER_ERROR",
-          message: "CI provider returned an error. Cannot determine remote CI safely.",
-          retryable: true,
-        };
+        return providerErrorBlock(inc.providerFailure?.sha || priorSha, inc.providerFailure?.message);
       }
       if (inc.status === "pending") {
         pendingCount += 1;
@@ -544,14 +557,7 @@ export async function evaluateCiWindow({
         };
       }
       if (ci.status === "provider_error") {
-        return {
-          allowed: false,
-          status: "blocked",
-          reason: "CI_PROVIDER_ERROR",
-          code: "CI_PROVIDER_ERROR",
-          message: "CI provider returned an error. Cannot determine remote CI safely.",
-          retryable: true,
-        };
+        return providerErrorBlock(priorSha, ci.failure?.message);
       }
       if (["in_progress", "queued", "not_found"].includes(ci.status)) {
         pendingCount += 1;

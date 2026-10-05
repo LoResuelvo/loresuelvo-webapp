@@ -4,6 +4,7 @@ import { ROUTES } from "../../lib/routes";
 import { aCurrentUser, aProposal, aWorkOrder } from "../support/factories";
 import { APP_URL, CustomWorld, visibleTimeout, waitTimeout } from "../support/world";
 import { openWorkOrderDetailModal } from "../work-orders/view_work_order_detail_steps";
+import { t } from "../../infrastructure/i18n/translations";
 
 const PROPOSAL_ID = 42;
 const WORK_ORDER_ID = 10;
@@ -27,6 +28,32 @@ Given(/^que soy un participante autenticado con rol (consumidor|prestador)$/, as
 Given("que mi conexión de Google Calendar requiere atención", async function (this: CustomWorld) {
   await prepareParticipantOrder(this, "consumer");
   await this.stubGet("/me", aCurrentUser("consumer", { calendar_connection_status: "action_required" }));
+});
+
+Given("que estoy viendo una orden propia cuya conexión de Calendar requiere atención", async function (this: CustomWorld) {
+  await prepareParticipantOrder(this, "consumer");
+  await this.stubGet("/me", aCurrentUser("consumer", { calendar_connection_status: "action_required" }));
+  await openWorkOrderDetailModal(this);
+});
+
+Given("el inicio de autorización de Google Calendar no está disponible", async function (this: CustomWorld) {
+  await this.stubPost("/me/calendar-connection/authorizations", 503, {
+    error: "Internal calendar provider failure",
+  });
+});
+
+Then("puedo reintentar la autorización sin perder el contexto de la orden", async function (this: CustomWorld) {
+  const modal = this.page.getByTestId("work-order-detail-modal");
+  const action = modal.getByRole("button", { name: t.profile.calendar.reauthorizeAction, exact: true });
+  await action.waitFor(visibleTimeout);
+  assert.ok(await action.isEnabled(), "La reautorización debe permitir un nuevo intento");
+  const orderContextUrl = this.page.url();
+
+  await action.click();
+  await modal.getByRole("alert").waitFor(visibleTimeout);
+  assert.strictEqual(this.page.url(), orderContextUrl);
+  assert.ok(await modal.isVisible(), "El reintento debe conservar el detalle de la orden");
+  assert.ok(await action.isEnabled(), "Una falla debe permitir volver a reintentar");
 });
 
 Given("estoy viendo el detalle de una orden propia", async function (this: CustomWorld) {

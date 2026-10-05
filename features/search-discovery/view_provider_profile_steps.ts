@@ -1,6 +1,7 @@
 import { Given, Then, When } from "@cucumber/cucumber";
 import assert from "assert";
 import { CustomWorld, APP_URL } from "../support/world";
+import { t } from "../../infrastructure/i18n/translations";
 import { ROUTES } from "../../lib/routes";
 import { aCategory, aProvider, aProviderProfile } from "../support/factories";
 
@@ -192,6 +193,13 @@ Given(
 Then(
   "visualizo un mensaje de error seguro",
   async function (this: CustomWorld) {
+    const orderModal = this.page.getByTestId("work-order-detail-modal");
+    if (await orderModal.isVisible()) {
+      const error = orderModal.getByRole("alert");
+      await error.waitFor({ state: "visible" });
+      assert.strictEqual(await error.textContent(), t.profile.calendar.authorizationError);
+      return;
+    }
     const heading = this.page.getByRole("heading", { name: /no pudimos cargar el perfil/i });
     await heading.waitFor({ state: "visible" });
     assert.ok(await heading.isVisible());

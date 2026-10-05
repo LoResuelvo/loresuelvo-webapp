@@ -2,22 +2,57 @@ import { Given, Then, When } from "@cucumber/cucumber";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 import { aCurrentUser, aProposal, aWorkOrder } from "../support/factories";
-import { APP_URL, CustomWorld, visibleTimeout } from "../support/world";
+import { APP_URL, CustomWorld, visibleTimeout, waitTimeout } from "../support/world";
 import { openWorkOrderDetailModal } from "../work-orders/view_work_order_detail_steps";
 
 const PROPOSAL_ID = 42;
 const WORK_ORDER_ID = 10;
+const CALENDAR_CONSENT_URL = "https://accounts.google.com/o/oauth2/v2/auth?client_id=loresuelvo-test";
+
+async function prepareParticipantOrder(world: CustomWorld, role: "consumer" | "provider"): Promise<void> {
+  await world.setSession(role);
+  await world.stubGet("/service-proposals", [aProposal(role, { id: PROPOSAL_ID })]);
+  const order = aWorkOrder({ id: WORK_ORDER_ID, service_proposal_id: PROPOSAL_ID });
+  await world.stubGet(`/work-orders?service_proposal_id=${PROPOSAL_ID}`, order);
+  await world.stubGet(`/work-orders/${WORK_ORDER_ID}`, order);
+}
 
 Given(/^que soy un participante autenticado con rol (consumidor|prestador)$/, async function (
   this: CustomWorld,
   label: string,
 ) {
-  const role = label === "prestador" ? "provider" : "consumer";
-  await this.setSession(role);
-  await this.stubGet("/service-proposals", [aProposal(role, { id: PROPOSAL_ID })]);
-  const order = aWorkOrder({ id: WORK_ORDER_ID, service_proposal_id: PROPOSAL_ID });
-  await this.stubGet(`/work-orders?service_proposal_id=${PROPOSAL_ID}`, order);
-  await this.stubGet(`/work-orders/${WORK_ORDER_ID}`, order);
+  await prepareParticipantOrder(this, label === "prestador" ? "provider" : "consumer");
+});
+
+Given("que mi conexión de Google Calendar requiere atención", async function (this: CustomWorld) {
+  await prepareParticipantOrder(this, "consumer");
+  await this.stubGet("/me", aCurrentUser("consumer", { calendar_connection_status: "action_required" }));
+});
+
+Given("estoy viendo el detalle de una orden propia", async function (this: CustomWorld) {
+  await openWorkOrderDetailModal(this);
+});
+
+Given("Google Calendar está disponible para iniciar la autorización", async function (this: CustomWorld) {
+  await this.page.route("https://accounts.google.com/**", async (route) => {
+    await route.fulfill({ status: 200, contentType: "text/html", body: "<html><body>Google Calendar authorization</body></html>" });
+  });
+  await this.stubPost("/me/calendar-connection/authorizations", 201, {
+    authorization_url: CALENDAR_CONSENT_URL,
+    state: "opaque-calendar-state",
+  });
+});
+
+When('selecciono "Reautorizar Google Calendar"', async function (this: CustomWorld) {
+  const action = this.page.getByTestId("work-order-detail-modal")
+    .getByRole("button", { name: "Reautorizar Google Calendar", exact: true });
+  await action.waitFor(visibleTimeout);
+  await action.click({ noWaitAfter: true });
+});
+
+Then("soy redirigido al consentimiento de Google mediante el flujo existente", async function (this: CustomWorld) {
+  await this.page.waitForURL(CALENDAR_CONSENT_URL, waitTimeout);
+  assert.strictEqual(this.page.url(), CALENDAR_CONSENT_URL);
 });
 
 Given("la API informa que mi cuenta de Google Calendar está conectada", async function (

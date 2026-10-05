@@ -26,7 +26,6 @@ Feature: [WEB] US-22 - Consultar la vinculación de Google Calendar en mis órde
       | consumidor |
       | prestador  |
 
-  @wip
   Scenario Outline: 22.4-COT Informar que la cuenta requiere atención
     Given que soy un participante autenticado con rol <rol>
     And la API informa que mi conexión de Google Calendar requiere atención

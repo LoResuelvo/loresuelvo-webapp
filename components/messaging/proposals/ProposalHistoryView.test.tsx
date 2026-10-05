@@ -1,10 +1,16 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProposalHistoryView } from "./ProposalHistoryView";
 import { getCurrentUserAction } from "@/app/api/me/actions";
 import { ROUTES } from "@/lib/routes";
+import { startCalendarAuthorizationAction } from "@/app/profile/calendar-actions";
 
 vi.mock("@/app/api/me/actions", () => ({ getCurrentUserAction: vi.fn() }));
+vi.mock("@/app/profile/calendar-actions", () => ({ startCalendarAuthorizationAction: vi.fn() }));
+vi.mock("@/app/work-orders/actions", () => ({
+  getWorkOrderByProposalAction: vi.fn().mockResolvedValue({ ok: true, workOrder: null }),
+  getWorkOrderDetailAction: vi.fn().mockResolvedValue({ ok: false, status: 500 }),
+}));
 
 const mockProposals = [
   {
@@ -35,6 +41,30 @@ describe("ProposalHistoryView", () => {
   beforeEach(() => {
     vi.mocked(getCurrentUserAction).mockReset();
     vi.mocked(getCurrentUserAction).mockReturnValue(new Promise(() => {}));
+    vi.mocked(startCalendarAuthorizationAction).mockReset();
+  });
+
+  it.each([false, true])("offers reauthorization in list and order detail with one account lookup ($0)", async (isProvider) => {
+    const role = isProvider ? "provider" : "consumer";
+    vi.mocked(getCurrentUserAction).mockResolvedValue({
+      id: 10, firstName: "Ana", lastName: "Pérez", email: "ana@example.com",
+      role, calendarConnectionStatus: "action_required",
+    });
+    render(<ProposalHistoryView proposals={[{
+      ...mockProposals[1], counterpart: { ...mockProposals[1].counterpart, role: isProvider ? "consumer" : "provider" },
+    }]} isProvider={isProvider} />);
+
+    expect(await screen.findByRole("button", { name: "Reautorizar Google Calendar" })).toBeEnabled();
+    expect(screen.getByRole("status")).toHaveTextContent("Google Calendar requiere autorización");
+    fireEvent.click(screen.getByRole("tab", { name: "Aceptadas" }));
+    fireEvent.click(screen.getByTestId("proposal-card"));
+    fireEvent.click(screen.getByRole("button", { name: /ver detalle de la orden/i }));
+
+    const detail = within(screen.getByTestId("work-order-detail-modal"));
+    expect(detail.getByRole("status")).toHaveTextContent("Google Calendar requiere autorización");
+    expect(detail.getByRole("button", { name: "Reautorizar Google Calendar" })).toBeEnabled();
+    expect(getCurrentUserAction).toHaveBeenCalledTimes(1);
+    expect(startCalendarAuthorizationAction).not.toHaveBeenCalled();
   });
 
   it.each([

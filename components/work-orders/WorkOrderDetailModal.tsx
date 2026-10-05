@@ -15,7 +15,7 @@ import { WorkOrderActionsSection } from "./WorkOrderActionsSection";
 import { ReviewWorkOrderModal } from "./ReviewWorkOrderModal";
 import type { WorkOrderDetail } from "@/domain/work-order/types";
 import type { CalendarConnectionStatus } from "@/domain/user/types";
-import WorkOrderCalendarConnection from "./WorkOrderCalendarConnection";
+import WorkOrderCalendarConnection, { type WorkOrderCalendarAuthorization } from "./WorkOrderCalendarConnection";
 import { ROUTES } from "@/lib/routes";
 
 export interface WorkOrderDetailModalProps {
@@ -28,6 +28,7 @@ export interface WorkOrderDetailModalProps {
   initialEstimatedDurationMinutes?: number;
   isConsumer?: boolean;
   calendarConnectionStatus?: CalendarConnectionStatus;
+  calendarAuthorization?: WorkOrderCalendarAuthorization;
 }
 
 export function WorkOrderDetailModal({
@@ -40,6 +41,7 @@ export function WorkOrderDetailModal({
   initialEstimatedDurationMinutes,
   isConsumer = true,
   calendarConnectionStatus,
+  calendarAuthorization,
 }: WorkOrderDetailModalProps) {
   const [detail, setDetail] = useState<WorkOrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -90,6 +92,7 @@ export function WorkOrderDetailModal({
           <WorkOrderCalendarConnection
             status={calendarConnectionStatus}
             profileHref={isConsumer ? ROUTES.consumer.profile : ROUTES.provider.profile}
+            authorization={calendarAuthorization}
           />
           {hasError ? (
             <div

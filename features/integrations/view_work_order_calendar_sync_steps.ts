@@ -50,8 +50,10 @@ Then("visualizo que debo reautorizar mi cuenta de Google Calendar", async functi
 });
 
 Then("dispongo de la acción {string}", async function (this: CustomWorld, action: string) {
-  await this.page.getByTestId("work-order-detail-modal")
-    .getByRole("button", { name: action, exact: true }).waitFor(visibleTimeout);
+  const button = this.page.getByTestId("work-order-detail-modal")
+    .getByRole("button", { name: action, exact: true });
+  await button.waitFor(visibleTimeout);
+  assert.ok(await button.isEnabled(), "La acción de reautorización debe estar disponible");
 });
 
 When("consulto el detalle de una orden propia", async function (this: CustomWorld) {

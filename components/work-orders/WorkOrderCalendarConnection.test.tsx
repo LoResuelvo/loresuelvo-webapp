@@ -23,7 +23,7 @@ describe("WorkOrderCalendarConnection", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it.each([undefined, "disconnected", "action_required"] as const)(
+  it.each([undefined, "disconnected"] as const)(
     "does not claim an account is connected for %s",
     (status) => {
       render(<WorkOrderCalendarConnection status={status} />);

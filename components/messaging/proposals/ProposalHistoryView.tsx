@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import WorkOrderCalendarConnection from "@/components/work-orders/WorkOrderCalendarConnection";
 import { useWorkOrderCalendarConnection } from "@/components/work-orders/useWorkOrderCalendarConnection";
 import { ROUTES } from "@/lib/routes";
+import { useCalendarAuthorization } from "@/components/profile/useCalendarAuthorization";
 
 interface ProposalHistoryViewProps {
   proposals: ServiceProposalSummary[];
@@ -23,6 +24,7 @@ export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryVi
   const [selectedProposal, setSelectedProposal] = useState<ServiceProposalSummary | null>(null);
   const router = useRouter();
   const calendarConnection = useWorkOrderCalendarConnection();
+  const calendarAuthorization = useCalendarAuthorization();
   const calendarConnectionStatus = calendarConnection.state === "ready"
     ? calendarConnection.status
     : undefined;
@@ -42,6 +44,7 @@ export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryVi
       <WorkOrderCalendarConnection
         status={calendarConnectionStatus}
         profileHref={isProvider ? ROUTES.provider.profile : ROUTES.consumer.profile}
+        authorization={calendarAuthorization}
       />
 
       <div className="flex gap-2 border-b border-gray-200" role="tablist">
@@ -87,6 +90,7 @@ export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryVi
         <ServiceProposalDetailModal
           proposal={selectedProposal}
           calendarConnectionStatus={calendarConnectionStatus}
+          calendarAuthorization={calendarAuthorization}
           onClose={() => setSelectedProposal(null)}
           onViewConversation={() => {
             const counterpartId = selectedProposal.counterpart.id;

@@ -45,7 +45,6 @@ Feature: [WEB] US-22 - Consultar la vinculación de Google Calendar en mis órde
     When selecciono "Reautorizar Google Calendar"
     Then soy redirigido al consentimiento de Google mediante el flujo existente
 
-  @wip
   Scenario: 22.6-COT Recuperarse de una falla al iniciar la reautorización
     Given que estoy viendo una orden propia cuya conexión de Calendar requiere atención
     And el inicio de autorización de Google Calendar no está disponible

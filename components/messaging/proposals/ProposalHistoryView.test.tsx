@@ -4,6 +4,8 @@ import { ProposalHistoryView } from "./ProposalHistoryView";
 import { getCurrentUserAction } from "@/app/api/me/actions";
 import { ROUTES } from "@/lib/routes";
 import { startCalendarAuthorizationAction } from "@/app/profile/calendar-actions";
+import { getWorkOrderByProposalAction, getWorkOrderDetailAction } from "@/app/work-orders/actions";
+import { t } from "@/infrastructure/i18n/translations";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("@/app/api/me/actions", () => ({ getCurrentUserAction: vi.fn() }));
@@ -43,6 +45,53 @@ describe("ProposalHistoryView", () => {
     vi.mocked(getCurrentUserAction).mockReset();
     vi.mocked(getCurrentUserAction).mockReturnValue(new Promise(() => {}));
     vi.mocked(startCalendarAuthorizationAction).mockReset();
+    vi.mocked(getWorkOrderByProposalAction).mockResolvedValue({ ok: true, workOrder: null });
+    vi.mocked(getWorkOrderDetailAction).mockResolvedValue({ ok: false, status: 500 });
+  });
+
+  it.each([
+    { isProvider: false, surface: "list" }, { isProvider: true, surface: "list" },
+    { isProvider: false, surface: "detail" }, { isProvider: true, surface: "detail" },
+  ])("retries a safe authorization failure in $surface for provider=$isProvider", async ({ isProvider, surface }) => {
+    vi.mocked(getCurrentUserAction).mockResolvedValue({
+      id: 10, firstName: "Ana", lastName: "Pérez", email: "ana@example.com",
+      role: isProvider ? "provider" : "consumer", calendarConnectionStatus: "action_required",
+    });
+    const order = {
+      id: 10, serviceProposalId: 2, consumerId: 10, providerId: 1, status: "scheduled" as const,
+      amountCents: 2000000, scheduledOn: "2026-07-06T10:00:00-03:00", description: "Pintura",
+      estimatedDurationMinutes: 90, acceptedOn: "2026-07-05T10:00:00Z",
+    };
+    vi.mocked(getWorkOrderByProposalAction).mockResolvedValue({ ok: true, workOrder: order });
+    vi.mocked(getWorkOrderDetailAction).mockResolvedValue({ ok: true, detail: order });
+    vi.mocked(startCalendarAuthorizationAction).mockResolvedValue({ ok: false, error: t.profile.calendar.authorizationError });
+    render(<ProposalHistoryView proposals={[{
+      ...mockProposals[1], counterpart: { ...mockProposals[1].counterpart, role: isProvider ? "consumer" : "provider" },
+    }]} isProvider={isProvider} />);
+    const user = userEvent.setup();
+    await screen.findByRole("button", { name: t.profile.calendar.reauthorizeAction });
+    await user.click(screen.getByRole("tab", { name: "Aceptadas" }));
+    if (surface === "detail") {
+      await user.click(screen.getByTestId("proposal-card"));
+      await user.click(screen.getByRole("button", { name: /ver detalle de la orden/i }));
+    }
+    await user.click(screen.getByRole("button", { name: t.profile.calendar.reauthorizeAction }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(t.profile.calendar.authorizationError);
+    if (surface === "list") {
+      await user.click(screen.getByTestId("proposal-card"));
+      await user.click(screen.getByRole("button", { name: /ver detalle de la orden/i }));
+    }
+    const modal = screen.getByTestId("work-order-detail-modal");
+    expect(within(modal).getByRole("alert")).toHaveTextContent(t.profile.calendar.authorizationError);
+    expect(screen.getAllByText(t.profile.calendar.authorizationError)).toHaveLength(1);
+    expect(screen.queryByText("Internal calendar provider failure")).not.toBeInTheDocument();
+    expect(within(modal).getByText("Pintura")).toBeInTheDocument();
+    await user.click(within(modal).getByRole("button", { name: t.profile.calendar.reauthorizeAction }));
+    expect(await within(modal).findByRole("alert")).toHaveTextContent(t.profile.calendar.authorizationError);
+    expect(startCalendarAuthorizationAction).toHaveBeenCalledTimes(2);
+    expect(getCurrentUserAction).toHaveBeenCalledTimes(1);
+    expect(modal).toBeVisible();
+    expect(within(modal).getByText("Pintura")).toBeInTheDocument();
   });
 
   it.each([false, true])("shares a single pending authorization between list and order detail ($0)", async (isProvider) => {

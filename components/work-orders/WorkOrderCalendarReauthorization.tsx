@@ -16,9 +16,10 @@ export default function WorkOrderCalendarReauthorization({ onReauthorize, isAuth
         variant="brand"
         onClick={onReauthorize}
         disabled={!onReauthorize || isAuthorizing}
+        aria-busy={isAuthorizing}
         className="h-auto min-h-11 whitespace-normal text-left"
       >
-        {t.profile.calendar.reauthorizeAction}
+        {isAuthorizing ? t.profile.calendar.connecting : t.profile.calendar.reauthorizeAction}
       </Button>
     </div>
   );

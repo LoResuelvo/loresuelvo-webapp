@@ -4,6 +4,7 @@ import { ProposalHistoryView } from "./ProposalHistoryView";
 import { getCurrentUserAction } from "@/app/api/me/actions";
 import { ROUTES } from "@/lib/routes";
 import { startCalendarAuthorizationAction } from "@/app/profile/calendar-actions";
+import userEvent from "@testing-library/user-event";
 
 vi.mock("@/app/api/me/actions", () => ({ getCurrentUserAction: vi.fn() }));
 vi.mock("@/app/profile/calendar-actions", () => ({ startCalendarAuthorizationAction: vi.fn() }));
@@ -42,6 +43,31 @@ describe("ProposalHistoryView", () => {
     vi.mocked(getCurrentUserAction).mockReset();
     vi.mocked(getCurrentUserAction).mockReturnValue(new Promise(() => {}));
     vi.mocked(startCalendarAuthorizationAction).mockReset();
+  });
+
+  it.each([false, true])("shares a single pending authorization between list and order detail ($0)", async (isProvider) => {
+    vi.mocked(getCurrentUserAction).mockResolvedValue({
+      id: 10, firstName: "Ana", lastName: "Pérez", email: "ana@example.com",
+      role: isProvider ? "provider" : "consumer", calendarConnectionStatus: "action_required",
+    });
+    vi.mocked(startCalendarAuthorizationAction).mockReturnValue(new Promise(() => {}));
+    render(<ProposalHistoryView proposals={[{
+      ...mockProposals[1], counterpart: { ...mockProposals[1].counterpart, role: isProvider ? "consumer" : "provider" },
+    }]} isProvider={isProvider} />);
+    const user = userEvent.setup();
+    const listAction = await screen.findByRole("button", { name: "Reautorizar Google Calendar" });
+
+    await user.dblClick(listAction);
+    expect(listAction).toBeDisabled();
+    expect(listAction).toHaveAccessibleName("Conectando con Google Calendar…");
+    await user.click(screen.getByRole("tab", { name: "Aceptadas" }));
+    await user.click(screen.getByTestId("proposal-card"));
+    await user.click(screen.getByRole("button", { name: /ver detalle de la orden/i }));
+
+    expect(within(screen.getByTestId("work-order-detail-modal"))
+      .getByRole("button", { name: "Conectando con Google Calendar…" })).toBeDisabled();
+    expect(startCalendarAuthorizationAction).toHaveBeenCalledTimes(1);
+    expect(getCurrentUserAction).toHaveBeenCalledTimes(1);
   });
 
   it.each([false, true])("offers reauthorization in list and order detail with one account lookup ($0)", async (isProvider) => {

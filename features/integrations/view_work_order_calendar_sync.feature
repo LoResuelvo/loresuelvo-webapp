@@ -38,7 +38,6 @@ Feature: [WEB] US-22 - Consultar la vinculación de Google Calendar en mis órde
       | consumidor |
       | prestador  |
 
-  @wip
   Scenario: 22.5-COT Iniciar la reautorización desde la orden
     Given que mi conexión de Google Calendar requiere atención
     And estoy viendo el detalle de una orden propia

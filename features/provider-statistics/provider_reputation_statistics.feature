@@ -44,7 +44,6 @@ Feature: [WEB] US-72 - Consultar mi reputación y cobertura de reseñas
       | trabajos pagados elegibles    | cero          |
       | ningún trabajo pagado elegible | No disponible |
 
-  @wip
   Scenario: 72.6-REP Informar carga de reputación
     Given que la consulta de mi reputación permanece pendiente
     When accedo a Reputación

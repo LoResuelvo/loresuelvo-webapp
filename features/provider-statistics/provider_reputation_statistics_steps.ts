@@ -198,3 +198,32 @@ Then(/^la cobertura se muestra como (.+)$/, async function (this: CustomWorld, c
 Then("visualizo un mensaje de ausencia de reseñas", async function (this: CustomWorld) {
   await this.page.getByText(t.providerReputation.noReviews, { exact: true }).waitFor({ state: "visible" });
 });
+
+Given("que la consulta de mi reputación permanece pendiente", async function (this: CustomWorld) {
+  await this.setSession("provider");
+  await this.addApiStub({
+    method: "GET",
+    endpoint: "/providers/me/statistics/reputation",
+    status: 200,
+    body: aReputationResponse(),
+    delayMs: 15000,
+  });
+});
+
+When("accedo a Reputación", async function (this: CustomWorld) {
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.reputation}`, { waitUntil: "commit" });
+});
+
+Then("visualizo un estado de carga accesible", async function (this: CustomWorld) {
+  const status = this.page.getByRole("status");
+  await status.waitFor({ state: "visible" });
+  await assertText(status, t.providerReputation.loading);
+});
+
+Then("no visualizo métricas supuestas ni ausencia de reseñas", async function (this: CustomWorld) {
+  assert.equal(await this.page.getByTestId("reputation-indicators").count(), 0);
+  assert.equal(await this.page.getByTestId("reputation-coverage").count(), 0);
+  assert.equal(await this.page.getByTestId("rating-distribution").count(), 0);
+  assert.equal(await this.page.getByTestId("review-card").count(), 0);
+  assert.equal(await this.page.getByText(t.providerReputation.noReviews).count(), 0);
+});

@@ -37,6 +37,21 @@ describe("ReputationClient", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Error de prueba");
   });
 
+  it("renders accessible loading state when initialPending is true", () => {
+    render(<ReputationClient initialPending={true} />);
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Consultando reputación…");
+    expect(screen.queryByTestId("reputation-indicators")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("reputation-reviews")).not.toBeInTheDocument();
+    expect(screen.queryByText("No tenés reseñas todavía")).not.toBeInTheDocument();
+  });
+
+  it("renders accessible loading state when initialResult is not provided", () => {
+    render(<ReputationClient />);
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Consultando reputación…");
+  });
+
   it("renders next page button when nextCursor is present and updates state atomically on click", async () => {
     const page1Data: ProviderReputation = {
       ...mockReputation,

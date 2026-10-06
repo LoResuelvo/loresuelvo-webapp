@@ -573,3 +573,50 @@ export interface ApiProviderReputation {
   reviews: Array<{ work_order_id: number; rating: number; description: string }>;
   next_cursor: string | null;
 }
+
+export interface ApiConversionRatio {
+  numerator: number;
+  denominator: number;
+  percentage: number | null;
+}
+
+export interface ApiConversionStageRates {
+  cohort: ApiConversionRatio;
+  previous_stage: ApiConversionRatio;
+}
+
+export interface ApiConversionStages {
+  issued: number;
+  contracted: number;
+  reported: number;
+  paid: number;
+}
+
+export interface ApiConversionProposals {
+  stages: ApiConversionStages;
+  rates: {
+    contracted: ApiConversionStageRates;
+    reported: ApiConversionStageRates;
+    paid: ApiConversionStageRates;
+  };
+  uncontracted: number;
+}
+
+export interface ApiConversionRequests {
+  received: number;
+  accepted: number;
+  pending: number;
+  acceptance_rate: ApiConversionRatio;
+}
+
+export interface ApiProviderConversion {
+  period: {
+    from: string;
+    to: string;
+    time_zone: string;
+  };
+  observed_at: string;
+  proposals: ApiConversionProposals;
+  requests: ApiConversionRequests;
+}
+

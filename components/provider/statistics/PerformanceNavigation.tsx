@@ -2,11 +2,12 @@ import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
 
-export function PerformanceNavigation({ active }: { active: "activity" | "collections" | "reputation" }) {
+export function PerformanceNavigation({ active }: { active: "activity" | "collections" | "reputation" | "conversion" }) {
   const tabs = [
     { key: "activity", href: ROUTES.provider.activity, label: t.providerActivity.activity },
     { key: "collections", href: ROUTES.provider.collections, label: t.providerCollections.collections },
     { key: "reputation", href: ROUTES.provider.reputation, label: t.providerReputation.reputation },
+    { key: "conversion", href: ROUTES.provider.conversion, label: t.providerConversion.conversion },
   ] as const;
 
   return (

@@ -10,6 +10,7 @@ import { profile } from "./translations/profile";
 import { providerHome } from "./translations/provider-home";
 import { providerCollections } from "./translations/provider-collections";
 import { providerActivity } from "./translations/provider-activity";
+import { providerConversion } from "./translations/provider-conversion";
 import { providerReputation } from "./translations/provider-reputation";
 import { serviceProposals } from "./translations/service-proposals";
 import { workOrderCompletion, workOrderDetail, workOrderReview } from "./translations/work-orders";
@@ -29,6 +30,7 @@ export const t = {
   providerHome,
   providerActivity,
   providerCollections,
+  providerConversion,
   providerReputation,
   onboarding,
   fileUpload,

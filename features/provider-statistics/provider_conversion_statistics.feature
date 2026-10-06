@@ -1,6 +1,5 @@
 Feature: [WEB] US-73 - Analizar la conversión de mis propuestas de servicio
 
-  @wip
   Scenario: 73.1-CON Consultar el embudo de una misma cohorte
     Given que soy un prestador autenticado con propuestas y avances informados por la API
     And algunas propuestas del período alcanzaron etapas después de su fecha de fin

@@ -5,8 +5,8 @@ import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
 
 describe("PerformanceNavigation", () => {
-  it("renders tabs for activity, collections, and reputation", () => {
-    render(<PerformanceNavigation active="reputation" />);
+  it("renders tabs for activity, collections, reputation, and conversion", () => {
+    render(<PerformanceNavigation active="conversion" />);
 
     const activityLink = screen.getByRole("link", { name: t.providerActivity.activity });
     expect(activityLink).toHaveAttribute("href", ROUTES.provider.activity);
@@ -18,6 +18,10 @@ describe("PerformanceNavigation", () => {
 
     const reputationLink = screen.getByRole("link", { name: t.providerReputation.reputation });
     expect(reputationLink).toHaveAttribute("href", ROUTES.provider.reputation);
-    expect(reputationLink).toHaveAttribute("aria-current", "page");
+    expect(reputationLink).not.toHaveAttribute("aria-current");
+
+    const conversionLink = screen.getByRole("link", { name: t.providerConversion.conversion });
+    expect(conversionLink).toHaveAttribute("href", ROUTES.provider.conversion);
+    expect(conversionLink).toHaveAttribute("aria-current", "page");
   });
 });

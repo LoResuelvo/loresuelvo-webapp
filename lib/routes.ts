@@ -31,6 +31,7 @@ export const ROUTES = {
     activity: "/prestador/mi-desempeno/actividad",
     collections: "/prestador/mi-desempeno/cobros",
     reputation: "/prestador/mi-desempeno/reputacion",
+    conversion: "/prestador/mi-desempeno/conversion",
     home: "/prestador/home",
     calendar: "/prestador/calendario",
     messages: "/prestador/mensajes",

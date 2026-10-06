@@ -40,7 +40,6 @@ Feature: [WEB] US-73 - Analizar la conversión de mis propuestas de servicio
     And ese bloque permanece visible aunque el embudo esté vacío
     And no se presenta la aceptación como contratación ni como etapa del embudo
 
-  @wip
   Scenario Outline: 73.5-CON Distinguir una tasa no disponible de una tasa cero
     Given que la API informa <situacion>
     When consulto Conversión

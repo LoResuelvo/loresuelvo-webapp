@@ -8,6 +8,9 @@ import {
   aConversionResponse,
   aFilteredConversionResponse,
   anEmptyFunnelWithRequestsResponse,
+  anEmptyCohortAndRequestsResponse,
+  anIssuedWithoutContractedResponse,
+  aRequestsWithoutAcceptanceResponse,
 } from "../support/conversion-factory";
 import { t } from "../../infrastructure/i18n/translations";
 
@@ -40,17 +43,9 @@ Then("visualizo emitidas, contratadas, con finalización informada y con pago co
 });
 
 Then("visualizo las tasas sobre la cohorte y la etapa anterior con sus denominadores", async function (this: CustomWorld) {
-  const contracted = this.page.getByTestId("funnel-stage-contracted");
-  await assertText(contracted, t.providerConversion.cohortRate, "6 de 10 emitidas (60 %)");
-  await assertText(contracted, t.providerConversion.previousStageRate, "6 de 10 emitidas (60 %)");
-
-  const reported = this.page.getByTestId("funnel-stage-reported");
-  await assertText(reported, t.providerConversion.cohortRate, "4 de 10 emitidas (40 %)");
-  await assertText(reported, t.providerConversion.previousStageRate, "4 de 6 contratadas (66,67 %)");
-
-  const paid = this.page.getByTestId("funnel-stage-paid");
-  await assertText(paid, t.providerConversion.cohortRate, "2 de 10 emitidas (20 %)");
-  await assertText(paid, t.providerConversion.previousStageRate, "2 de 4 con finalización informada (50 %)");
+  await assertText(this.page.getByTestId("funnel-stage-contracted"), t.providerConversion.cohortRate, "6 de 10 emitidas (60 %)", t.providerConversion.previousStageRate);
+  await assertText(this.page.getByTestId("funnel-stage-reported"), t.providerConversion.cohortRate, "4 de 10 emitidas (40 %)", t.providerConversion.previousStageRate, "4 de 6 contratadas (66,67 %)");
+  await assertText(this.page.getByTestId("funnel-stage-paid"), t.providerConversion.cohortRate, "2 de 10 emitidas (20 %)", t.providerConversion.previousStageRate, "2 de 4 con finalización informada (50 %)");
 });
 
 Then("visualizo las propuestas sin contratación observada sin llamarlas rechazadas o perdidas", async function (this: CustomWorld) {
@@ -185,4 +180,58 @@ Then("no se presenta la aceptación como contratación ni como etapa del embudo"
   const funnelText = await this.page.locator('section[aria-labelledby="conversion-funnel-title"]').innerText();
   assert.equal(/aceptada|aceptadas|solicitud|solicitudes/i.test(funnelText), false);
 });
+
+let currentConversionResponse: ApiProviderConversion | null = null;
+const SITUATION_RESPONSES: Record<string, () => ApiProviderConversion> = {
+  "una cohorte y solicitudes vacías": anEmptyCohortAndRequestsResponse,
+  "propuestas emitidas sin contrataciones": anIssuedWithoutContractedResponse,
+  "solicitudes recibidas sin aceptaciones": aRequestsWithoutAcceptanceResponse,
+};
+
+Given(
+  /^que la API informa (una cohorte y solicitudes vacías|propuestas emitidas sin contrataciones|solicitudes recibidas sin aceptaciones)$/,
+  async function (this: CustomWorld, situacion: string) {
+    await this.setSession("provider");
+    const factory = SITUATION_RESPONSES[situacion.trim()];
+    if (!factory) throw new Error(`Unsupported situation: ${situacion}`);
+    currentConversionResponse = factory();
+    await this.stubGet("/providers/me/statistics/conversion", currentConversionResponse);
+  }
+);
+
+Then("visualizo los conteos reales informados", async function (this: CustomWorld) {
+  assert.ok(currentConversionResponse, "currentConversionResponse is required");
+  const { proposals, requests } = currentConversionResponse;
+  await assertText(this.page.getByTestId("funnel-stage-issued"), String(proposals.stages.issued));
+  await assertText(this.page.getByTestId("funnel-stage-contracted"), String(proposals.stages.contracted));
+  await assertText(this.page.getByTestId("requests-received"), String(requests.received));
+  await assertText(this.page.getByTestId("requests-accepted"), String(requests.accepted));
+});
+
+Then(
+  /^el porcentaje correspondiente se muestra como (No disponible|cero)$/,
+  async function (this: CustomWorld, porcentaje: string) {
+    const contracted = this.page.getByTestId("funnel-stage-contracted");
+    const requestsRate = this.page.getByTestId("requests-acceptance-rate");
+
+    if (porcentaje === "No disponible") {
+      await assertText(contracted, t.providerConversion.unavailable);
+      await assertText(requestsRate, t.providerConversion.unavailable);
+      const mainText = await this.page.locator("main").innerText();
+      assert.equal(mainText.includes("0 %"), false);
+    } else {
+      assert.ok(currentConversionResponse, "currentConversionResponse is required");
+      if (currentConversionResponse.proposals.rates.contracted.cohort.percentage === 0) {
+        await assertText(contracted, "0 %");
+        const contractedText = await contracted.innerText();
+        assert.equal(contractedText.includes(t.providerConversion.unavailable), false);
+      }
+      if (currentConversionResponse.requests.acceptance_rate.percentage === 0) {
+        await assertText(requestsRate, "0 %");
+        const requestsText = await requestsRate.innerText();
+        assert.equal(requestsText.includes(t.providerConversion.unavailable), false);
+      }
+    }
+  }
+);
 

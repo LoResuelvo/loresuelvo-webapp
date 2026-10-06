@@ -123,3 +123,66 @@ export function anEmptyFunnelWithRequestsResponse(): ApiProviderConversion {
     },
   };
 }
+
+export function anEmptyCohortAndRequestsResponse(): ApiProviderConversion {
+  return {
+    ...anEmptyFunnelWithRequestsResponse(),
+    requests: {
+      received: 0,
+      accepted: 0,
+      pending: 0,
+      acceptance_rate: {
+        numerator: 0,
+        denominator: 0,
+        percentage: null,
+      },
+    },
+  };
+}
+
+export function anIssuedWithoutContractedResponse(): ApiProviderConversion {
+  const base = aConversionResponse();
+  return {
+    ...base,
+    proposals: {
+      stages: {
+        issued: 10,
+        contracted: 0,
+        reported: 0,
+        paid: 0,
+      },
+      rates: {
+        contracted: {
+          cohort: { numerator: 0, denominator: 10, percentage: 0 },
+          previous_stage: { numerator: 0, denominator: 10, percentage: 0 },
+        },
+        reported: {
+          cohort: { numerator: 0, denominator: 10, percentage: 0 },
+          previous_stage: { numerator: 0, denominator: 0, percentage: null },
+        },
+        paid: {
+          cohort: { numerator: 0, denominator: 10, percentage: 0 },
+          previous_stage: { numerator: 0, denominator: 0, percentage: null },
+        },
+      },
+      uncontracted: 10,
+    },
+  };
+}
+
+export function aRequestsWithoutAcceptanceResponse(): ApiProviderConversion {
+  const base = aConversionResponse();
+  return {
+    ...base,
+    requests: {
+      received: 5,
+      accepted: 0,
+      pending: 5,
+      acceptance_rate: {
+        numerator: 0,
+        denominator: 5,
+        percentage: 0,
+      },
+    },
+  };
+}

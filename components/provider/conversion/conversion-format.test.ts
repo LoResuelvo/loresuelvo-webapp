@@ -30,5 +30,14 @@ describe("conversion-format", () => {
         formatConversionRatio({ numerator: 0, denominator: 0, percentage: null }, "emitidas")
       ).toBe("0 de 0 emitidas (No disponible)");
     });
+
+    it("distinguishes zero percentage from unavailable", () => {
+      expect(
+        formatConversionRatio({ numerator: 0, denominator: 10, percentage: 0 }, "emitidas")
+      ).toBe("0 de 10 emitidas (0 %)");
+      expect(
+        formatConversionRatio({ numerator: 0, denominator: 5, percentage: 0 }, "recibidas")
+      ).toBe("0 de 5 recibidas (0 %)");
+    });
   });
 });

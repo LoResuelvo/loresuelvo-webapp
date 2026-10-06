@@ -50,4 +50,28 @@ describe("ConversionRequestsSection", () => {
     render(<ConversionRequestsSection requests={mockRequests} />);
     expect(screen.getByText(t.providerConversion.requestsHelp)).toBeInTheDocument();
   });
+
+  it("renders unavailable when acceptance rate is null", () => {
+    const emptyRequests: ConversionRequests = {
+      received: 0,
+      accepted: 0,
+      pending: 0,
+      acceptanceRate: { numerator: 0, denominator: 0, percentage: null },
+    };
+    render(<ConversionRequestsSection requests={emptyRequests} />);
+    const rate = screen.getByTestId("requests-acceptance-rate");
+    expect(rate).toHaveTextContent("0 de 0 recibidas (No disponible)");
+  });
+
+  it("renders 0 % when accepted is zero but received is positive", () => {
+    const zeroRequests: ConversionRequests = {
+      received: 5,
+      accepted: 0,
+      pending: 5,
+      acceptanceRate: { numerator: 0, denominator: 5, percentage: 0 },
+    };
+    render(<ConversionRequestsSection requests={zeroRequests} />);
+    const rate = screen.getByTestId("requests-acceptance-rate");
+    expect(rate).toHaveTextContent("0 de 5 recibidas (0 %)");
+  });
 });

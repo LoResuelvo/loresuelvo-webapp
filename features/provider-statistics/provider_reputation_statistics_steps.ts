@@ -293,3 +293,33 @@ Then("visualizo un error seguro que permite reintentar la página solicitada", a
   await nextPageBtn.waitFor({ state: "visible" });
 });
 
+Given(/^que mi sesión es (.+)$/, async function (this: CustomWorld, sesion: string) {
+  if (sesion === "inexistente") {
+    await this.page.context().clearCookies();
+  } else if (sesion === "de un consumidor" || sesion === "consumidor") {
+    await this.stubGet("/categories", []);
+    await this.setSession("consumer");
+  } else {
+    await this.setSession("provider");
+  }
+});
+
+When("intento acceder a Reputación", async function (this: CustomWorld) {
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.reputation}`);
+});
+
+Then("se aplica el control de acceso existente", async function (this: CustomWorld) {
+  await this.page.waitForLoadState("domcontentloaded");
+  const currentUrl = new URL(this.page.url());
+  assert.notEqual(currentUrl.pathname, ROUTES.provider.reputation);
+});
+
+Then("no visualizo estadísticas privadas de un prestador", async function (this: CustomWorld) {
+  assert.equal(await this.page.getByTestId("reputation-indicators").count(), 0);
+  assert.equal(await this.page.getByTestId("reputation-coverage").count(), 0);
+  assert.equal(await this.page.getByTestId("rating-distribution").count(), 0);
+  assert.equal(await this.page.getByTestId("reputation-reviews").count(), 0);
+  assert.equal(await this.page.getByRole("heading", { name: t.providerReputation.reputation }).count(), 0);
+});
+
+

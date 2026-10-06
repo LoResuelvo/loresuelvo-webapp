@@ -65,7 +65,6 @@ Feature: [WEB] US-72 - Consultar mi reputación y cobertura de reseñas
     Then conservo los indicadores y las reseñas de la última respuesta válida
     And visualizo un error seguro que permite reintentar la página solicitada
 
-  @wip
   Scenario Outline: 72.9-REP Restringir el acceso a reputación privada
     Given que mi sesión es <sesion>
     When intento acceder a Reputación

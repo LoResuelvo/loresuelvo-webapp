@@ -63,3 +63,10 @@ export function aPaginatedReputationSecondPage(overrides?: Partial<ApiProviderRe
     ...overrides,
   });
 }
+
+export function aReputationWithoutNextCursor(overrides?: Partial<ApiProviderReputation>): ApiProviderReputation {
+  return aReputationResponse({
+    next_cursor: null,
+    ...overrides,
+  });
+}

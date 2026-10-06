@@ -24,7 +24,6 @@ Feature: [WEB] US-72 - Consultar mi reputación y cobertura de reseñas
     And los indicadores corresponden a la respuesta global de esa página
     And no se calculan a partir de las reseñas visibles ni se presenta el orden como recencia
 
-  @wip
   Scenario: 72.4-REP Reconocer el fin de las páginas
     Given que la API informa una página de mis reseñas sin continuación
     When consulto esa página

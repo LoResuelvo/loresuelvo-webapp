@@ -8,6 +8,7 @@ import {
   aReputationWithEmptyReview,
   aPaginatedReputationFirstPage,
   aPaginatedReputationSecondPage,
+  aReputationWithoutNextCursor,
 } from "../support/reputation-factory";
 import { t } from "../../infrastructure/i18n/translations";
 
@@ -129,4 +130,23 @@ Then("no se calculan a partir de las reseñas visibles ni se presenta el orden c
   await assertText(container, "4,8");
   await assertText(container, "5");
   assert.equal(await this.page.getByText(/recientes/i).count(), 0);
+});
+
+Given("que la API informa una página de mis reseñas sin continuación", async function (this: CustomWorld) {
+  await this.setSession("provider");
+  await this.stubGet("/providers/me/statistics/reputation", aReputationWithoutNextCursor());
+});
+
+When("consulto esa página", async function (this: CustomWorld) {
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.reputation}`);
+});
+
+Then("visualizo sus reseñas", async function (this: CustomWorld) {
+  const cards = this.page.getByTestId("review-card");
+  await cards.first().waitFor({ state: "visible" });
+  assert.ok((await cards.count()) > 0);
+});
+
+Then("no puedo solicitar una siguiente página", async function (this: CustomWorld) {
+  assert.equal(await this.page.getByRole("button", { name: t.providerReputation.nextPage }).count(), 0);
 });

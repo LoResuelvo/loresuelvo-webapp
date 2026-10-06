@@ -1,6 +1,5 @@
 Feature: [WEB] US-72 - Consultar mi reputación y cobertura de reseñas
 
-  @wip
   Scenario: 72.1-REP Consultar los indicadores globales de mi reputación
     Given que soy un prestador autenticado con trabajos pagados y reseñas
     And la API informa mi promedio, distribución de cinco estrellas y cobertura global

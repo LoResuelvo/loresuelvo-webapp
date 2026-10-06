@@ -561,3 +561,15 @@ export interface ApiCollectionTransactions {
   transactions: ApiCollectionTransaction[];
   next_cursor: string | null;
 }
+
+export interface ApiProviderReputation {
+  calculated_at: string;
+  average_rating: number | null;
+  review_count: number;
+  rating_distribution: Array<{ rating: number; count: number }>;
+  eligible_paid_orders: number;
+  reviewed_paid_orders: number;
+  coverage_percentage: number | null;
+  reviews: Array<{ work_order_id: number; rating: number; description: string }>;
+  next_cursor: string | null;
+}

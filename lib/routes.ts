@@ -30,6 +30,7 @@ export const ROUTES = {
   provider: {
     activity: "/prestador/mi-desempeno/actividad",
     collections: "/prestador/mi-desempeno/cobros",
+    reputation: "/prestador/mi-desempeno/reputacion",
     home: "/prestador/home",
     calendar: "/prestador/calendario",
     messages: "/prestador/mensajes",

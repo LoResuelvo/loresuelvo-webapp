@@ -16,7 +16,6 @@ Feature: [WEB] US-72 - Consultar mi reputación y cobertura de reseñas
     Then visualizo su calificación sin un comentario inventado
     And esa reseña permanece incluida en los indicadores informados por la API
 
-  @wip
   Scenario: 72.3-REP Avanzar a otra página de reseñas
     Given que estoy viendo una página de mis reseñas con una continuación disponible
     And la API dispone de otra página con indicadores globales

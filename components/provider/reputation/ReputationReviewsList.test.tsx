@@ -32,4 +32,35 @@ describe("ReputationReviewsList", () => {
     expect(card).toHaveTextContent("4");
     expect(screen.queryByTestId("review-description")).not.toBeInTheDocument();
   });
+
+  it("renders next page button when hasNextPage is true", () => {
+    const reviews: ProviderReview[] = [
+      { workOrderId: 101, rating: 5, description: "Ok" },
+    ];
+
+    render(
+      <ReputationReviewsList
+        reviews={reviews}
+        hasNextPage={true}
+        onNextPage={() => {}}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Siguiente página" })).toBeInTheDocument();
+  });
+
+  it("does not render next page button when hasNextPage is false", () => {
+    const reviews: ProviderReview[] = [
+      { workOrderId: 101, rating: 5, description: "Ok" },
+    ];
+
+    render(
+      <ReputationReviewsList
+        reviews={reviews}
+        hasNextPage={false}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Siguiente página" })).not.toBeInTheDocument();
+  });
 });

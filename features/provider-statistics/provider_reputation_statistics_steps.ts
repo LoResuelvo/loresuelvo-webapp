@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 import type { Locator } from "playwright";
 import { CustomWorld } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { aReputationResponse, aReputationWithEmptyReview } from "../support/reputation-factory";
+import {
+  aReputationResponse,
+  aReputationWithEmptyReview,
+  aPaginatedReputationFirstPage,
+  aPaginatedReputationSecondPage,
+} from "../support/reputation-factory";
 import { t } from "../../infrastructure/i18n/translations";
 
 async function assertText(locator: Locator, text: string) {
@@ -79,4 +84,49 @@ Then("esa reseña permanece incluida en los indicadores informados por la API", 
   await container.waitFor({ state: "visible" });
   await assertText(container, "4,8");
   await assertText(container, "5");
+});
+
+Given("que estoy viendo una página de mis reseñas con una continuación disponible", async function (this: CustomWorld) {
+  await this.setSession("provider");
+  await this.stubGet("/providers/me/statistics/reputation", aPaginatedReputationFirstPage());
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.reputation}`);
+});
+
+Given("la API dispone de otra página con indicadores globales", async function (this: CustomWorld) {
+  await this.stubGet("/providers/me/statistics/reputation?cursor=page-2", aPaginatedReputationSecondPage());
+});
+
+When("selecciono Siguiente página", async function (this: CustomWorld) {
+  const nextButton = this.page.getByRole("button", { name: t.providerReputation.nextPage });
+  await nextButton.waitFor({ state: "visible" });
+  await nextButton.click();
+});
+
+Then("visualizo la nueva página en el orden informado por la API", async function (this: CustomWorld) {
+  const card108 = this.page.locator('[data-testid="review-card"][data-work-order-id="108"]');
+  const card107 = this.page.locator('[data-testid="review-card"][data-work-order-id="107"]');
+  await card108.waitFor({ state: "visible" });
+  await card107.waitFor({ state: "visible" });
+
+  assert.equal(await this.page.locator('[data-testid="review-card"][data-work-order-id="110"]').count(), 0);
+  assert.equal(await this.page.locator('[data-testid="review-card"][data-work-order-id="109"]').count(), 0);
+
+  const cards = this.page.getByTestId("review-card");
+  assert.equal(await cards.count(), 2);
+  assert.equal(await cards.nth(0).getAttribute("data-work-order-id"), "108");
+  assert.equal(await cards.nth(1).getAttribute("data-work-order-id"), "107");
+});
+
+Then("los indicadores corresponden a la respuesta global de esa página", async function (this: CustomWorld) {
+  const container = this.page.getByTestId("reputation-indicators");
+  await container.waitFor({ state: "visible" });
+  await assertText(container, "4,8");
+  await assertText(container, "5");
+});
+
+Then("no se calculan a partir de las reseñas visibles ni se presenta el orden como recencia", async function (this: CustomWorld) {
+  const container = this.page.getByTestId("reputation-indicators");
+  await assertText(container, "4,8");
+  await assertText(container, "5");
+  assert.equal(await this.page.getByText(/recientes/i).count(), 0);
 });

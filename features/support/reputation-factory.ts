@@ -39,3 +39,27 @@ export function aReputationWithEmptyReview(overrides?: Partial<ApiProviderReputa
     ...overrides,
   });
 }
+
+export function aPaginatedReputationFirstPage(overrides?: Partial<ApiProviderReputation>): ApiProviderReputation {
+  return aReputationResponse({
+    reviews: [
+      { work_order_id: 110, rating: 5, description: "Trabajo 110" },
+      { work_order_id: 109, rating: 5, description: "Trabajo 109" },
+    ],
+    next_cursor: "page-2",
+    ...overrides,
+  });
+}
+
+export function aPaginatedReputationSecondPage(overrides?: Partial<ApiProviderReputation>): ApiProviderReputation {
+  return aReputationResponse({
+    average_rating: 4.8,
+    review_count: 5,
+    reviews: [
+      { work_order_id: 108, rating: 4, description: "Trabajo 108" },
+      { work_order_id: 107, rating: 4, description: "Trabajo 107" },
+    ],
+    next_cursor: null,
+    ...overrides,
+  });
+}

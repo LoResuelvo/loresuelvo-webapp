@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import { ReputationClient } from "./ReputationClient";
 import type { ProviderReputation } from "@/domain/provider/reputation";
 
@@ -34,5 +35,43 @@ describe("ReputationClient", () => {
   it("renders error alert on failure", () => {
     render(<ReputationClient initialResult={{ success: false, error: "Error de prueba" }} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Error de prueba");
+  });
+
+  it("renders next page button when nextCursor is present and updates state atomically on click", async () => {
+    const page1Data: ProviderReputation = {
+      ...mockReputation,
+      nextCursor: "cursor-page-2",
+      reviews: [{ workOrderId: 201, rating: 5, description: "Página 1" }],
+    };
+
+    const page2Data: ProviderReputation = {
+      ...mockReputation,
+      averageRating: 4.5,
+      reviewCount: 5,
+      nextCursor: null,
+      reviews: [{ workOrderId: 202, rating: 4, description: "Página 2" }],
+    };
+
+    const mockGetAction = vi.fn().mockResolvedValue({
+      success: true,
+      data: page2Data,
+    });
+
+    render(
+      <ReputationClient
+        initialResult={{ success: true, data: page1Data }}
+        getReputationAction={mockGetAction}
+      />
+    );
+
+    const button = screen.getByRole("button", { name: "Siguiente página" });
+    expect(button).toBeInTheDocument();
+
+    await userEvent.click(button);
+
+    expect(mockGetAction).toHaveBeenCalledWith({ cursor: "cursor-page-2" });
+    expect(await screen.findByText("Trabajo #202")).toBeInTheDocument();
+    expect(screen.queryByText("Trabajo #201")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Siguiente página" })).not.toBeInTheDocument();
   });
 });

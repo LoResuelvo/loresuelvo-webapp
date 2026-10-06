@@ -4,6 +4,9 @@ import { t } from "@/infrastructure/i18n/translations";
 
 interface ReputationReviewsListProps {
   readonly reviews: readonly ProviderReview[];
+  readonly hasNextPage?: boolean;
+  readonly onNextPage?: () => void;
+  readonly isLoadingNextPage?: boolean;
 }
 
 function ReviewCard({ review }: { review: ProviderReview }) {
@@ -43,7 +46,12 @@ function ReviewCard({ review }: { review: ProviderReview }) {
   );
 }
 
-export function ReputationReviewsList({ reviews }: ReputationReviewsListProps) {
+export function ReputationReviewsList({
+  reviews,
+  hasNextPage = false,
+  onNextPage,
+  isLoadingNextPage = false,
+}: ReputationReviewsListProps) {
   const labels = t.providerReputation;
 
   return (
@@ -63,6 +71,19 @@ export function ReputationReviewsList({ reviews }: ReputationReviewsListProps) {
           {reviews.map((review) => (
             <ReviewCard key={review.workOrderId} review={review} />
           ))}
+        </div>
+      )}
+
+      {hasNextPage && (
+        <div className="flex justify-center pt-2">
+          <button
+            type="button"
+            onClick={onNextPage}
+            disabled={isLoadingNextPage}
+            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:opacity-50"
+          >
+            {labels.nextPage}
+          </button>
         </div>
       )}
     </section>

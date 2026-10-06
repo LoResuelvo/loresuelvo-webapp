@@ -26,4 +26,8 @@ export const providerReputation = {
   retry: "Reintentar",
   unauthorized: "Iniciá sesión como prestador para consultar tu reputación.",
   reviews: "Reseñas",
+  reviewsTitle: "Reseñas",
+  workOrder: "Trabajo",
+  nextPage: "Siguiente página",
+  noReviews: "No tenés reseñas todavía",
 };

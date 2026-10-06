@@ -9,7 +9,6 @@ Feature: [WEB] US-72 - Consultar mi reputación y cobertura de reseñas
     And se explica qué trabajos forman el denominador de la cobertura
     And no dispongo de filtros temporales ni comparación entre períodos
 
-  @wip
   Scenario: 72.2-REP Consultar una reseña sin comentario
     Given que estoy consultando mi reputación
     And la API incluye una reseña con calificación y descripción vacía

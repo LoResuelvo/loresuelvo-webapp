@@ -26,3 +26,16 @@ export function aReputationResponse(overrides?: Partial<ApiProviderReputation>):
     ...overrides,
   };
 }
+
+export function aReputationWithEmptyReview(overrides?: Partial<ApiProviderReputation>): ApiProviderReputation {
+  return aReputationResponse({
+    reviews: [
+      { work_order_id: 101, rating: 5, description: "" },
+      { work_order_id: 102, rating: 5, description: "Muy profesional, super recomendado." },
+      { work_order_id: 103, rating: 5, description: "Rápido y prolijo." },
+      { work_order_id: 104, rating: 5, description: "Todo perfecto." },
+      { work_order_id: 105, rating: 4, description: "Buen servicio." },
+    ],
+    ...overrides,
+  });
+}

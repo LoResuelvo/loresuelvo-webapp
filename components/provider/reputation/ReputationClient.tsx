@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ProviderReputation } from "@/domain/provider/reputation";
 import { ReputationIndicators } from "./ReputationIndicators";
+import { ReputationReviewsList } from "./ReputationReviewsList";
 
 export type ReputationActionResult =
   | { success: true; data: ProviderReputation }
@@ -26,6 +27,7 @@ export function ReputationClient({
   return (
     <div className="space-y-6">
       <ReputationIndicators data={result.data} />
+      <ReputationReviewsList reviews={result.data.reviews} />
     </div>
   );
 }

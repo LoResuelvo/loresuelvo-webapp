@@ -17,14 +17,18 @@ const mockReputation: ProviderReputation = {
   eligiblePaidOrders: 6,
   reviewedPaidOrders: 5,
   coveragePercentage: 83.33,
-  reviews: [],
+  reviews: [
+    { workOrderId: 101, rating: 5, description: "Excelente trabajo" },
+  ],
   nextCursor: null,
 };
 
 describe("ReputationClient", () => {
-  it("renders reputation indicators on success", () => {
+  it("renders reputation indicators and reviews on success", () => {
     render(<ReputationClient initialResult={{ success: true, data: mockReputation }} />);
     expect(screen.getByTestId("reputation-indicators")).toBeInTheDocument();
+    expect(screen.getByTestId("reputation-reviews")).toBeInTheDocument();
+    expect(screen.getByTestId("review-card")).toBeInTheDocument();
   });
 
   it("renders error alert on failure", () => {

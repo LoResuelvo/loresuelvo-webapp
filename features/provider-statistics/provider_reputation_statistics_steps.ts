@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { Locator } from "playwright";
 import { CustomWorld } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { aReputationResponse } from "../support/reputation-factory";
+import { aReputationResponse, aReputationWithEmptyReview } from "../support/reputation-factory";
 import { t } from "../../infrastructure/i18n/translations";
 
 async function assertText(locator: Locator, text: string) {
@@ -53,4 +53,30 @@ Then("no dispongo de filtros temporales ni comparación entre períodos", async 
   assert.equal(await this.page.getByLabel("Agrupación").count(), 0);
   assert.equal(await this.page.getByRole("checkbox", { name: /comparar/i }).count(), 0);
   assert.equal(await this.page.getByRole("table", { name: /comparación/i }).count(), 0);
+});
+
+Given("que estoy consultando mi reputación", async function (this: CustomWorld) {
+  await this.setSession("provider");
+});
+
+Given("la API incluye una reseña con calificación y descripción vacía", async function (this: CustomWorld) {
+  await this.stubGet("/providers/me/statistics/reputation", aReputationWithEmptyReview());
+});
+
+When("se muestra la página de reseñas", async function (this: CustomWorld) {
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.reputation}`);
+});
+
+Then("visualizo su calificación sin un comentario inventado", async function (this: CustomWorld) {
+  const card = this.page.locator('[data-testid="review-card"][data-work-order-id="101"]');
+  await card.waitFor({ state: "visible" });
+  await assertText(card, "5");
+  assert.equal(await card.getByTestId("review-description").count(), 0);
+});
+
+Then("esa reseña permanece incluida en los indicadores informados por la API", async function (this: CustomWorld) {
+  const container = this.page.getByTestId("reputation-indicators");
+  await container.waitFor({ state: "visible" });
+  await assertText(container, "4,8");
+  await assertText(container, "5");
 });

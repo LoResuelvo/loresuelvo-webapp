@@ -1,6 +1,14 @@
-import type { Locator } from "playwright";
-import assert from "node:assert/strict";
 import type { ApiProviderConversion } from "../../infrastructure/api/types";
+export {
+  assertText,
+  assertSituationCounts,
+  assertSituationPercentage,
+  assertNoZeroConversion,
+  assertNoTemporalEvolution,
+  assertFailedRangeError,
+  assertErrorNotZeroConversion,
+  fillDateRange,
+} from "./conversion-assertions";
 
 export function aConversionResponse(): ApiProviderConversion {
   return {
@@ -11,12 +19,7 @@ export function aConversionResponse(): ApiProviderConversion {
     },
     observed_at: "2026-09-15T10:30:00-03:00",
     proposals: {
-      stages: {
-        issued: 10,
-        contracted: 6,
-        reported: 4,
-        paid: 2,
-      },
+      stages: { issued: 10, contracted: 6, reported: 4, paid: 2 },
       rates: {
         contracted: {
           cohort: { numerator: 6, denominator: 10, percentage: 60 },
@@ -37,11 +40,7 @@ export function aConversionResponse(): ApiProviderConversion {
       received: 15,
       accepted: 10,
       pending: 2,
-      acceptance_rate: {
-        numerator: 10,
-        denominator: 15,
-        percentage: 66.67,
-      },
+      acceptance_rate: { numerator: 10, denominator: 15, percentage: 66.67 },
     },
   };
 }
@@ -57,12 +56,7 @@ export function aFilteredConversionResponse(): ApiProviderConversion {
     },
     observed_at: "2026-07-15T10:30:00-03:00",
     proposals: {
-      stages: {
-        issued: 20,
-        contracted: 12,
-        reported: 8,
-        paid: 4,
-      },
+      stages: { issued: 20, contracted: 12, reported: 8, paid: 4 },
       rates: {
         contracted: {
           cohort: { numerator: 12, denominator: 20, percentage: 60 },
@@ -82,6 +76,22 @@ export function aFilteredConversionResponse(): ApiProviderConversion {
   };
 }
 
+export function aLatePreviousConversionResponse(): ApiProviderConversion {
+  const base = aConversionResponse();
+  return {
+    ...base,
+    period: {
+      from: "2026-05-01T00:00:00-03:00",
+      to: "2026-06-01T00:00:00-03:00",
+      time_zone: "America/Argentina/Buenos_Aires",
+    },
+    proposals: {
+      ...base.proposals,
+      stages: { issued: 15, contracted: 9, reported: 5, paid: 1 },
+    },
+  };
+}
+
 export function anEmptyFunnelWithRequestsResponse(): ApiProviderConversion {
   return {
     period: {
@@ -91,12 +101,7 @@ export function anEmptyFunnelWithRequestsResponse(): ApiProviderConversion {
     },
     observed_at: "2026-09-15T10:30:00-03:00",
     proposals: {
-      stages: {
-        issued: 0,
-        contracted: 0,
-        reported: 0,
-        paid: 0,
-      },
+      stages: { issued: 0, contracted: 0, reported: 0, paid: 0 },
       rates: {
         contracted: {
           cohort: { numerator: 0, denominator: 0, percentage: null },
@@ -117,11 +122,7 @@ export function anEmptyFunnelWithRequestsResponse(): ApiProviderConversion {
       received: 8,
       accepted: 6,
       pending: 2,
-      acceptance_rate: {
-        numerator: 6,
-        denominator: 8,
-        percentage: 75,
-      },
+      acceptance_rate: { numerator: 6, denominator: 8, percentage: 75 },
     },
   };
 }
@@ -133,11 +134,7 @@ export function anEmptyCohortAndRequestsResponse(): ApiProviderConversion {
       received: 0,
       accepted: 0,
       pending: 0,
-      acceptance_rate: {
-        numerator: 0,
-        denominator: 0,
-        percentage: null,
-      },
+      acceptance_rate: { numerator: 0, denominator: 0, percentage: null },
     },
   };
 }
@@ -147,12 +144,7 @@ export function anIssuedWithoutContractedResponse(): ApiProviderConversion {
   return {
     ...base,
     proposals: {
-      stages: {
-        issued: 10,
-        contracted: 0,
-        reported: 0,
-        paid: 0,
-      },
+      stages: { issued: 10, contracted: 0, reported: 0, paid: 0 },
       rates: {
         contracted: {
           cohort: { numerator: 0, denominator: 10, percentage: 0 },
@@ -180,19 +172,9 @@ export function aRequestsWithoutAcceptanceResponse(): ApiProviderConversion {
       received: 5,
       accepted: 0,
       pending: 5,
-      acceptance_rate: {
-        numerator: 0,
-        denominator: 5,
-        percentage: 0,
-      },
+      acceptance_rate: { numerator: 0, denominator: 5, percentage: 0 },
     },
   };
-}
-
-export async function assertText(locator: Locator, ...texts: string[]) {
-  await locator.waitFor({ state: "visible" });
-  const content = await locator.innerText();
-  for (const text of texts) assert.ok(content.includes(text));
 }
 
 export function getSituationResponse(situacion: string): ApiProviderConversion {

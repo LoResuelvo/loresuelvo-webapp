@@ -1,14 +1,21 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "node:assert/strict";
-import type { Locator } from "playwright";
 import { CustomWorld } from "../support/world";
 import { ROUTES } from "../../lib/routes";
 import type { ApiProviderConversion } from "../../infrastructure/api/types";
 import {
   aConversionResponse,
   aFilteredConversionResponse,
+  aLatePreviousConversionResponse,
   anEmptyFunnelWithRequestsResponse,
+  assertErrorNotZeroConversion,
+  assertFailedRangeError,
+  assertNoTemporalEvolution,
+  assertNoZeroConversion,
+  assertSituationCounts,
+  assertSituationPercentage,
   assertText,
+  fillDateRange,
   getSituationResponse,
   CONVERSION_TEST_RANGES,
 } from "../support/conversion-factory";
@@ -64,11 +71,10 @@ Given("que estoy consultando Conversión con un rango inicial", async function (
 Given("seleccioné un rango válido de fechas de creación", async function (this: CustomWorld) {
   const params = new URLSearchParams({ from: "2026-06-01T00:00:00-03:00", to: "2026-07-01T00:00:00-03:00" });
   await this.stubGet(`/providers/me/statistics/conversion?${params}`, aFilteredConversionResponse());
-  await this.page.getByLabel("Desde", { exact: true }).fill("2026-06-01");
-  await this.page.getByLabel("Hasta (incluido)").fill("2026-06-30");
+  await fillDateRange(this.page, "2026-06-01", "2026-06-30");
 });
 
-When("aplico el rango seleccionado", async function (this: CustomWorld) {
+When(/^aplico el rango (?:seleccionado|nuevo)$/, async function (this: CustomWorld) {
   await this.page.getByRole("button", { name: "Aplicar filtros" }).click();
 });
 
@@ -89,10 +95,7 @@ Then("el período visible corresponde a la respuesta consultada", async function
 });
 
 Then("no dispongo de agrupación, comparación ni evolución temporal", async function (this: CustomWorld) {
-  assert.equal(await this.page.getByLabel("Agrupación").count(), 0);
-  assert.equal(await this.page.getByRole("checkbox", { name: /comparar/i }).count(), 0);
-  assert.equal(await this.page.getByRole("table").count(), 0);
-  assert.equal(await this.page.getByText("Evolución cronológica").count(), 0);
+  await assertNoTemporalEvolution(this.page);
 });
 
 Given("que estoy consultando Conversión", async function (this: CustomWorld) {
@@ -104,8 +107,7 @@ Given("que estoy consultando Conversión", async function (this: CustomWorld) {
 
 Given(/^seleccioné un rango (incompleto|invertido|mayor a 365 días|con una fecha futura)$/, async function (this: CustomWorld, rango: string) {
   const [from, through] = CONVERSION_TEST_RANGES[rango.trim()] ?? [];
-  await this.page.getByLabel("Desde", { exact: true }).fill(from);
-  await this.page.getByLabel("Hasta (incluido)").fill(through);
+  await fillDateRange(this.page, from, through);
 });
 
 Then("visualizo un mensaje accesible de rango inválido", async function (this: CustomWorld) {
@@ -159,33 +161,14 @@ Given(
 
 Then("visualizo los conteos reales informados", async function (this: CustomWorld) {
   assert.ok(currentConversionResponse, "currentConversionResponse is required");
-  const { proposals, requests } = currentConversionResponse;
-  await assertText(this.page.getByTestId("funnel-stage-issued"), String(proposals.stages.issued));
-  await assertText(this.page.getByTestId("funnel-stage-contracted"), String(proposals.stages.contracted));
-  await assertText(this.page.getByTestId("requests-received"), String(requests.received));
-  await assertText(this.page.getByTestId("requests-accepted"), String(requests.accepted));
+  await assertSituationCounts(this.page, currentConversionResponse);
 });
 
 Then(
   /^el porcentaje correspondiente se muestra como (No disponible|cero)$/,
   async function (this: CustomWorld, porcentaje: string) {
-    const contracted = this.page.getByTestId("funnel-stage-contracted");
-    const requestsRate = this.page.getByTestId("requests-acceptance-rate");
-    if (porcentaje === "No disponible") {
-      await assertText(contracted, t.providerConversion.unavailable);
-      await assertText(requestsRate, t.providerConversion.unavailable);
-      assert.equal((await this.page.locator("main").innerText()).includes("0 %"), false);
-      return;
-    }
     assert.ok(currentConversionResponse, "currentConversionResponse is required");
-    if (currentConversionResponse.proposals.rates.contracted.cohort.percentage === 0) {
-      await assertText(contracted, "0 %");
-      assert.equal((await contracted.innerText()).includes(t.providerConversion.unavailable), false);
-    }
-    if (currentConversionResponse.requests.acceptance_rate.percentage === 0) {
-      await assertText(requestsRate, "0 %");
-      assert.equal((await requestsRate.innerText()).includes(t.providerConversion.unavailable), false);
-    }
+    await assertSituationPercentage(this.page, currentConversionResponse, porcentaje);
   }
 );
 
@@ -205,11 +188,7 @@ When("accedo a Conversión", async function (this: CustomWorld) {
 });
 
 Then("no visualizo conteos cero ni ausencia de propuestas como si fueran datos recibidos", async function (this: CustomWorld) {
-  assert.equal(await this.page.getByTestId("funnel-stage-issued").count(), 0);
-  assert.equal(await this.page.getByTestId("funnel-stage-contracted").count(), 0);
-  assert.equal(await this.page.getByTestId("uncontracted-proposals").count(), 0);
-  assert.equal(await this.page.getByTestId("conversion-requests-section").count(), 0);
-  assert.equal((await this.page.locator("main").innerText()).includes("0 %"), false);
+  await assertNoZeroConversion(this.page);
 });
 
 Given("que la consulta de un rango seleccionado falló", async function (this: CustomWorld) {
@@ -218,21 +197,15 @@ Given("que la consulta de un rango seleccionado falló", async function (this: C
   const params = new URLSearchParams({ from: "2026-06-01T00:00:00-03:00", to: "2026-07-01T00:00:00-03:00" });
   await this.stubGet(`/providers/me/statistics/conversion?${params}`, { error: "Service unavailable" }, 503);
   await this.page.goto(`${this.appUrl}${ROUTES.provider.conversion}`);
-  await this.page.getByLabel("Desde", { exact: true }).fill("2026-06-01");
-  await this.page.getByLabel("Hasta (incluido)").fill("2026-06-30");
+  await fillDateRange(this.page, "2026-06-01", "2026-06-30");
   await this.page.getByRole("button", { name: "Aplicar filtros" }).click();
 });
 
 Given("visualizo un error seguro y el rango que no pudo consultarse", async function (this: CustomWorld) {
-  const alert = this.page.locator("main").getByRole("alert");
-  await alert.waitFor({ state: "visible" });
-  await assertText(alert, t.providerConversion.error);
-  const failedRange = this.page.getByTestId("conversion-failed-range");
-  await failedRange.waitFor({ state: "visible" });
-  await assertText(failedRange, "1/6/26", "1/7/26");
+  await assertFailedRangeError(this.page);
 });
 
-Then("visualizo la respuesta del mismo rango solicitado", async function (this: CustomWorld) {
+Then(/^visualizo la respuesta (?:del mismo rango solicitado|y los límites efectivos del rango nuevo)$/, async function (this: CustomWorld) {
   const issued = this.page.getByTestId("funnel-stage-issued");
   await issued.getByText("20", { exact: true }).waitFor({ state: "visible" });
   await assertText(issued, "20");
@@ -241,8 +214,34 @@ Then("visualizo la respuesta del mismo rango solicitado", async function (this: 
 });
 
 Then("el error no se presenta como conversión cero", async function (this: CustomWorld) {
-  assert.equal(await this.page.locator("main").getByRole("alert").count(), 0);
-  assert.equal(await this.page.getByTestId("conversion-failed-range").count(), 0);
+  await assertErrorNotZeroConversion(this.page);
+});
+
+Given("que una consulta de un rango anterior sigue pendiente", async function (this: CustomWorld) {
+  await this.setSession("provider");
+  await this.stubGet("/providers/me/statistics/conversion", aConversionResponse());
+  const params = new URLSearchParams({ from: "2026-05-01T00:00:00-03:00", to: "2026-06-01T00:00:00-03:00" });
+  await this.addApiStub({
+    method: "GET",
+    endpoint: `/providers/me/statistics/conversion?${params}`,
+    status: 200,
+    body: aLatePreviousConversionResponse(),
+    delayMs: 3000,
+  });
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.conversion}`);
+  await fillDateRange(this.page, "2026-05-01", "2026-05-31");
+  await this.page.getByRole("button", { name: "Aplicar filtros" }).click();
+});
+
+Given("seleccioné un rango nuevo cuya respuesta llega primero", async function (this: CustomWorld) {
+  const params = new URLSearchParams({ from: "2026-06-01T00:00:00-03:00", to: "2026-07-01T00:00:00-03:00" });
+  await this.stubGet(`/providers/me/statistics/conversion?${params}`, aFilteredConversionResponse());
+  await fillDateRange(this.page, "2026-06-01", "2026-06-30");
+});
+
+Then("una respuesta tardía del rango anterior no reemplaza esa información", async function (this: CustomWorld) {
+  await this.page.waitForTimeout(3200);
+  await assertText(this.page.getByTestId("conversion-period"), "1/6/26", "1/7/26");
   await assertText(this.page.getByTestId("funnel-stage-issued"), "20");
-  assert.notEqual((await this.page.getByTestId("funnel-stage-issued").innerText()).trim(), "0");
+  assert.equal((await this.page.getByTestId("conversion-period").innerText()).includes("1/5/26"), false);
 });

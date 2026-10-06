@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ProviderConversion } from "@/domain/provider/conversion";
 import type { ConversionQuery } from "@/domain/provider/conversion-query";
 import { getProviderConversionAction } from "@/app/prestador/mi-desempeno/conversion/actions";
@@ -72,25 +72,24 @@ function useConversionState({
 }: ConversionClientProps) {
   const [result, setResult] = useState<ConversionActionResult | undefined>(initialResult);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [isPending, setIsPending] = useState(false);
   const [lastQuery, setLastQuery] = useState<ConversionQuery | undefined>(undefined);
+  const requestSeqRef = useRef(0);
 
   const executeQuery = async (query?: ConversionQuery) => {
+    const seq = ++requestSeqRef.current;
     try {
-      setResult(await getConversionAction(query));
+      const response = await getConversionAction(query);
+      if (seq === requestSeqRef.current) setResult(response);
     } catch {
-      setResult({ success: false, error: t.providerConversion.error });
+      if (seq === requestSeqRef.current) {
+        setResult({ success: false, error: t.providerConversion.error });
+      }
     }
   };
 
   const handleApply = async (query: ConversionQuery) => {
-    setIsPending(true);
     setLastQuery(query);
-    try {
-      await executeQuery(query);
-    } finally {
-      setIsPending(false);
-    }
+    await executeQuery(query);
   };
 
   const handleRetry = async () => {
@@ -103,11 +102,11 @@ function useConversionState({
     }
   };
 
-  return { result, isPending, isRetrying, lastQuery, handleApply, handleRetry };
+  return { result, isRetrying, lastQuery, handleApply, handleRetry };
 }
 
 export function ConversionClient(props: ConversionClientProps) {
-  const { result, isPending, isRetrying, lastQuery, handleApply, handleRetry } = useConversionState(props);
+  const { result, isRetrying, lastQuery, handleApply, handleRetry } = useConversionState(props);
 
   if (props.initialPending || !result) {
     return <ConversionLoading />;
@@ -128,7 +127,7 @@ export function ConversionClient(props: ConversionClientProps) {
     <div className="space-y-6">
       <ConversionFilters
         period={result.data.period}
-        pending={isPending}
+        pending={false}
         onApply={handleApply}
       />
       <ConversionFunnel data={result.data} />

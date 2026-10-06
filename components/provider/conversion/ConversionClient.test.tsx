@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ConversionClient } from "./ConversionClient";
 import type { ProviderConversion } from "@/domain/provider/conversion";
+import type { ConversionQuery } from "@/domain/provider/conversion-query";
 import { t } from "@/infrastructure/i18n/translations";
 
 const mockConversion: ProviderConversion = {
@@ -175,6 +176,56 @@ describe("ConversionClient", () => {
     });
     expect(await screen.findByText("25")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("preserves latest query result and ignores late response from earlier query", async () => {
+    const user = userEvent.setup();
+    const data1: ProviderConversion = {
+      ...mockConversion,
+      period: { from: "2026-05-01T00:00:00-03:00", to: "2026-06-01T00:00:00-03:00", timeZone: "America/Argentina/Buenos_Aires" },
+      proposals: { ...mockConversion.proposals, stages: { issued: 99, contracted: 9, reported: 5, paid: 1 } },
+    };
+    const data2: ProviderConversion = {
+      ...mockConversion,
+      period: { from: "2026-06-01T00:00:00-03:00", to: "2026-07-01T00:00:00-03:00", timeZone: "America/Argentina/Buenos_Aires" },
+      proposals: { ...mockConversion.proposals, stages: { issued: 25, contracted: 15, reported: 10, paid: 5 } },
+    };
+
+    let resolveSlowQuery!: (value: { success: true; data: ProviderConversion }) => void;
+    const slowPromise = new Promise<{ success: true; data: ProviderConversion }>((resolve) => {
+      resolveSlowQuery = resolve;
+    });
+
+    const mockAction = vi.fn().mockImplementation((query?: ConversionQuery) => {
+      if (query?.from?.includes("2026-05-01")) return slowPromise;
+      return Promise.resolve({ success: true, data: data2 });
+    });
+
+    render(<ConversionClient initialResult={{ success: true, data: mockConversion }} getConversionAction={mockAction} />);
+
+    const fromInput = screen.getByLabelText(t.providerConversion.from);
+    const throughInput = screen.getByLabelText(t.providerConversion.through);
+    const submitBtn = screen.getByRole("button", { name: t.providerConversion.applyFilters });
+
+    await user.clear(fromInput);
+    await user.type(fromInput, "2026-05-01");
+    await user.clear(throughInput);
+    await user.type(throughInput, "2026-05-31");
+    await user.click(submitBtn);
+
+    await user.clear(fromInput);
+    await user.type(fromInput, "2026-06-01");
+    await user.clear(throughInput);
+    await user.type(throughInput, "2026-06-30");
+    await user.click(submitBtn);
+
+    expect(await screen.findByText("25")).toBeInTheDocument();
+    expect(screen.getByTestId("conversion-period")).toHaveTextContent("1/6/26");
+
+    resolveSlowQuery({ success: true, data: data1 });
+
+    expect(screen.getByTestId("conversion-period")).toHaveTextContent("1/6/26");
+    expect(screen.queryByText("99")).not.toBeInTheDocument();
   });
 });
 

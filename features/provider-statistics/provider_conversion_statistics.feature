@@ -66,7 +66,6 @@ Feature: [WEB] US-73 - Analizar la conversión de mis propuestas de servicio
     Then visualizo la respuesta del mismo rango solicitado
     And el error no se presenta como conversión cero
 
-  @wip
   Scenario: 73.8-CON Conservar el resultado de la consulta más reciente
     Given que una consulta de un rango anterior sigue pendiente
     And seleccioné un rango nuevo cuya respuesta llega primero

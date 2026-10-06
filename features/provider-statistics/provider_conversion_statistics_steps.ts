@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import type { Locator } from "playwright";
 import { CustomWorld } from "../support/world";
 import { ROUTES } from "../../lib/routes";
+import type { ApiProviderConversion } from "../../infrastructure/api/types";
 import {
   aConversionResponse,
   aFilteredConversionResponse,
@@ -53,25 +54,14 @@ Then("visualizo las tasas sobre la cohorte y la etapa anterior con sus denominad
 });
 
 Then("visualizo las propuestas sin contratación observada sin llamarlas rechazadas o perdidas", async function (this: CustomWorld) {
-  const uncontracted = this.page.getByTestId("uncontracted-proposals");
-  await uncontracted.waitFor({ state: "visible" });
-  await assertText(uncontracted, t.providerConversion.uncontracted);
-  await assertText(uncontracted, "4");
-
+  await assertText(this.page.getByTestId("uncontracted-proposals"), t.providerConversion.uncontracted, "4");
   const mainText = await this.page.locator("main").innerText();
   assert.equal(/rechazada|rechazadas|perdida|perdidas/i.test(mainText), false);
 });
 
 Then("visualizo el período efectivo y el instante de observación informados", async function (this: CustomWorld) {
-  const period = this.page.getByTestId("conversion-period");
-  await period.waitFor({ state: "visible" });
-  await assertText(period, "1/8/26");
-  await assertText(period, "31/8/26");
-
-  const observed = this.page.getByTestId("conversion-observed-at");
-  await observed.waitFor({ state: "visible" });
-  await assertText(observed, t.providerConversion.observedAt);
-  await assertText(observed, "15/9/26");
+  await assertText(this.page.getByTestId("conversion-period"), "1/8/26", "31/8/26");
+  await assertText(this.page.getByTestId("conversion-observed-at"), t.providerConversion.observedAt, "15/9/26");
 });
 
 Then("se explica que los resultados pueden cambiar cuando las propuestas avanzan", async function (this: CustomWorld) {
@@ -82,10 +72,7 @@ Given("que estoy consultando Conversión con un rango inicial", async function (
   await this.setSession("provider");
   await this.stubGet("/providers/me/statistics/conversion", aConversionResponse());
   await this.page.goto(`${this.appUrl}${ROUTES.provider.conversion}`);
-  const period = this.page.getByTestId("conversion-period");
-  await period.waitFor({ state: "visible" });
-  await assertText(period, "1/8/26");
-  await assertText(period, "31/8/26");
+  await assertText(this.page.getByTestId("conversion-period"), "1/8/26", "31/8/26");
 });
 
 Given("seleccioné un rango válido de fechas de creación", async function (this: CustomWorld) {
@@ -103,7 +90,9 @@ When("aplico el rango seleccionado", async function (this: CustomWorld) {
 });
 
 Then("visualizo el embudo informado para ese nuevo conjunto de propuestas", async function (this: CustomWorld) {
-  await assertText(this.page.getByTestId("funnel-stage-issued"), "20");
+  const issued = this.page.getByTestId("funnel-stage-issued");
+  await issued.getByText("20", { exact: true }).waitFor({ state: "visible" });
+  await assertText(issued, "20");
   await assertText(this.page.getByTestId("funnel-stage-contracted"), "12");
   await assertText(this.page.getByTestId("funnel-stage-reported"), "8");
   await assertText(this.page.getByTestId("funnel-stage-paid"), "4");
@@ -112,9 +101,8 @@ Then("visualizo el embudo informado para ese nuevo conjunto de propuestas", asyn
 
 Then("el período visible corresponde a la respuesta consultada", async function (this: CustomWorld) {
   const period = this.page.getByTestId("conversion-period");
-  await period.waitFor({ state: "visible" });
-  await assertText(period, "1/6/26");
-  await assertText(period, "1/7/26");
+  await period.getByText("1/6/26").waitFor({ state: "visible" });
+  await assertText(period, "1/6/26", "1/7/26");
 });
 
 Then("no dispongo de agrupación, comparación ni evolución temporal", async function (this: CustomWorld) {
@@ -137,26 +125,16 @@ Given("que estoy consultando Conversión", async function (this: CustomWorld) {
 Given(/^seleccioné un rango (incompleto|invertido|mayor a 365 días|con una fecha futura)$/, async function (this: CustomWorld, rango: string) {
   const fromInput = this.page.getByLabel("Desde", { exact: true });
   const throughInput = this.page.getByLabel("Hasta (incluido)");
-  switch (rango.trim()) {
-    case "incompleto":
-      await fromInput.fill("");
-      await throughInput.fill("2026-08-15");
-      break;
-    case "invertido":
-      await fromInput.fill("2026-08-20");
-      await throughInput.fill("2026-08-10");
-      break;
-    case "mayor a 365 días":
-      await fromInput.fill("2025-01-01");
-      await throughInput.fill("2026-01-02");
-      break;
-    case "con una fecha futura":
-      await fromInput.fill("2026-08-01");
-      await throughInput.fill("2099-01-01");
-      break;
-    default:
-      throw new Error(`Unsupported range test case: ${rango}`);
-  }
+  const ranges: Record<string, [string, string]> = {
+    incompleto: ["", "2026-08-15"],
+    invertido: ["2026-08-20", "2026-08-10"],
+    "mayor a 365 días": ["2025-01-01", "2026-01-02"],
+    "con una fecha futura": ["2026-08-01", "2099-01-01"],
+  };
+  const [from, through] = ranges[rango.trim()] ?? [];
+  if (from === undefined) throw new Error(`Unsupported range test case: ${rango}`);
+  await fromInput.fill(from);
+  await throughInput.fill(through);
 });
 
 Then("visualizo un mensaje accesible de rango inválido", async function (this: CustomWorld) {
@@ -170,16 +148,9 @@ Then("visualizo un mensaje accesible de rango inválido", async function (this: 
 });
 
 Then("conservo la última consulta válida sin presentarla como resultado del rango rechazado", async function (this: CustomWorld) {
-  const period = this.page.getByTestId("conversion-period");
-  await period.waitFor({ state: "visible" });
-  await assertText(period, "1/8/26");
-  await assertText(period, "31/8/26");
-
-  const issued = this.page.getByTestId("funnel-stage-issued");
-  await assertText(issued, "10");
-
-  const contracted = this.page.getByTestId("funnel-stage-contracted");
-  await assertText(contracted, "6");
+  await assertText(this.page.getByTestId("conversion-period"), "1/8/26", "31/8/26");
+  await assertText(this.page.getByTestId("funnel-stage-issued"), "10");
+  await assertText(this.page.getByTestId("funnel-stage-contracted"), "6");
 });
 
 Given("que la API informa una cohorte sin propuestas", async function (this: CustomWorld) {
@@ -196,15 +167,11 @@ When("consulto Conversión", async function (this: CustomWorld) {
 });
 
 Then("visualizo el bloque de solicitudes con su porcentaje de aceptación", async function (this: CustomWorld) {
-  const section = this.page.getByTestId("conversion-requests-section");
-  await section.waitFor({ state: "visible" });
-  await assertText(section, t.providerConversion.requestsTitle);
+  await assertText(this.page.getByTestId("conversion-requests-section"), t.providerConversion.requestsTitle);
   await assertText(this.page.getByTestId("requests-received"), "8");
   await assertText(this.page.getByTestId("requests-accepted"), "6");
   await assertText(this.page.getByTestId("requests-pending"), "2");
-  const rate = this.page.getByTestId("requests-acceptance-rate");
-  await assertText(rate, t.providerConversion.acceptanceRate);
-  await assertText(rate, "6 de 8 recibidas (75 %)");
+  await assertText(this.page.getByTestId("requests-acceptance-rate"), t.providerConversion.acceptanceRate, "6 de 8 recibidas (75 %)");
 });
 
 Then("ese bloque permanece visible aunque el embudo esté vacío", async function (this: CustomWorld) {
@@ -218,3 +185,4 @@ Then("no se presenta la aceptación como contratación ni como etapa del embudo"
   const funnelText = await this.page.locator('section[aria-labelledby="conversion-funnel-title"]').innerText();
   assert.equal(/aceptada|aceptadas|solicitud|solicitudes/i.test(funnelText), false);
 });
+

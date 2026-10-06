@@ -79,3 +79,47 @@ export function aFilteredConversionResponse(): ApiProviderConversion {
     },
   };
 }
+
+export function anEmptyFunnelWithRequestsResponse(): ApiProviderConversion {
+  return {
+    period: {
+      from: "2026-08-01T00:00:00-03:00",
+      to: "2026-08-31T00:00:00-03:00",
+      time_zone: "America/Argentina/Buenos_Aires",
+    },
+    observed_at: "2026-09-15T10:30:00-03:00",
+    proposals: {
+      stages: {
+        issued: 0,
+        contracted: 0,
+        reported: 0,
+        paid: 0,
+      },
+      rates: {
+        contracted: {
+          cohort: { numerator: 0, denominator: 0, percentage: null },
+          previous_stage: { numerator: 0, denominator: 0, percentage: null },
+        },
+        reported: {
+          cohort: { numerator: 0, denominator: 0, percentage: null },
+          previous_stage: { numerator: 0, denominator: 0, percentage: null },
+        },
+        paid: {
+          cohort: { numerator: 0, denominator: 0, percentage: null },
+          previous_stage: { numerator: 0, denominator: 0, percentage: null },
+        },
+      },
+      uncontracted: 0,
+    },
+    requests: {
+      received: 8,
+      accepted: 6,
+      pending: 2,
+      acceptance_rate: {
+        numerator: 6,
+        denominator: 8,
+        percentage: 75,
+      },
+    },
+  };
+}

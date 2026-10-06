@@ -25,4 +25,11 @@ export const providerConversion = {
   filterHelp: "Máximo 365 días. Si seleccionás hoy, se incluyen datos hasta el momento de la consulta.",
   futureDate: "Elegí fechas que no sean posteriores a hoy en Buenos Aires.",
   invalidRange: "Elegí un rango válido de hasta 365 días que termine antes de este momento.",
+  requestsTitle: "Solicitudes de servicio",
+  requestsReceived: "Recibidas",
+  requestsAccepted: "Aceptadas",
+  requestsPending: "Pendientes",
+  acceptanceRate: "Tasa de aceptación",
+  acceptanceRateNoun: "recibidas",
+  requestsHelp: "Las solicitudes recibidas son independientes de la cohorte de propuestas.",
 };

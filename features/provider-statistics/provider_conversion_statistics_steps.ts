@@ -3,12 +3,19 @@ import assert from "node:assert/strict";
 import type { Locator } from "playwright";
 import { CustomWorld } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { aConversionResponse, aFilteredConversionResponse } from "../support/conversion-factory";
+import {
+  aConversionResponse,
+  aFilteredConversionResponse,
+  anEmptyFunnelWithRequestsResponse,
+} from "../support/conversion-factory";
 import { t } from "../../infrastructure/i18n/translations";
 
-async function assertText(locator: Locator, text: string) {
+async function assertText(locator: Locator, ...texts: string[]) {
   await locator.waitFor({ state: "visible" });
-  assert.ok((await locator.innerText()).includes(text));
+  const content = await locator.innerText();
+  for (const text of texts) {
+    assert.ok(content.includes(text));
+  }
 }
 
 Given("que soy un prestador autenticado con propuestas y avances informados por la API", async function (this: CustomWorld) {
@@ -25,46 +32,24 @@ When("accedo a Conversión desde Mi desempeño", async function (this: CustomWor
 });
 
 Then("visualizo emitidas, contratadas, con finalización informada y con pago completo de esa cohorte", async function (this: CustomWorld) {
-  const issued = this.page.getByTestId("funnel-stage-issued");
-  await issued.waitFor({ state: "visible" });
-  await assertText(issued, t.providerConversion.issued);
-  await assertText(issued, "10");
-
-  const contracted = this.page.getByTestId("funnel-stage-contracted");
-  await contracted.waitFor({ state: "visible" });
-  await assertText(contracted, t.providerConversion.contracted);
-  await assertText(contracted, "6");
-
-  const reported = this.page.getByTestId("funnel-stage-reported");
-  await reported.waitFor({ state: "visible" });
-  await assertText(reported, t.providerConversion.reported);
-  await assertText(reported, "4");
-
-  const paid = this.page.getByTestId("funnel-stage-paid");
-  await paid.waitFor({ state: "visible" });
-  await assertText(paid, t.providerConversion.paid);
-  await assertText(paid, "2");
+  await assertText(this.page.getByTestId("funnel-stage-issued"), t.providerConversion.issued, "10");
+  await assertText(this.page.getByTestId("funnel-stage-contracted"), t.providerConversion.contracted, "6");
+  await assertText(this.page.getByTestId("funnel-stage-reported"), t.providerConversion.reported, "4");
+  await assertText(this.page.getByTestId("funnel-stage-paid"), t.providerConversion.paid, "2");
 });
 
 Then("visualizo las tasas sobre la cohorte y la etapa anterior con sus denominadores", async function (this: CustomWorld) {
   const contracted = this.page.getByTestId("funnel-stage-contracted");
-  await assertText(contracted, t.providerConversion.cohortRate);
-  await assertText(contracted, "6 de 10 emitidas (60 %)");
-  await assertText(contracted, t.providerConversion.previousStageRate);
-  await assertText(contracted, "6 de 10 emitidas (60 %)");
+  await assertText(contracted, t.providerConversion.cohortRate, "6 de 10 emitidas (60 %)");
+  await assertText(contracted, t.providerConversion.previousStageRate, "6 de 10 emitidas (60 %)");
 
   const reported = this.page.getByTestId("funnel-stage-reported");
-  await assertText(reported, t.providerConversion.cohortRate);
-  await assertText(reported, "4 de 10 emitidas (40 %)");
-  await assertText(reported, t.providerConversion.previousStageRate);
-  await assertText(reported, "4 de 6 contratadas (66,67 %)");
+  await assertText(reported, t.providerConversion.cohortRate, "4 de 10 emitidas (40 %)");
+  await assertText(reported, t.providerConversion.previousStageRate, "4 de 6 contratadas (66,67 %)");
 
   const paid = this.page.getByTestId("funnel-stage-paid");
-  await paid.waitFor({ state: "visible" });
-  await assertText(paid, t.providerConversion.cohortRate);
-  await assertText(paid, "2 de 10 emitidas (20 %)");
-  await assertText(paid, t.providerConversion.previousStageRate);
-  await assertText(paid, "2 de 4 con finalización informada (50 %)");
+  await assertText(paid, t.providerConversion.cohortRate, "2 de 10 emitidas (20 %)");
+  await assertText(paid, t.providerConversion.previousStageRate, "2 de 4 con finalización informada (50 %)");
 });
 
 Then("visualizo las propuestas sin contratación observada sin llamarlas rechazadas o perdidas", async function (this: CustomWorld) {
@@ -118,25 +103,11 @@ When("aplico el rango seleccionado", async function (this: CustomWorld) {
 });
 
 Then("visualizo el embudo informado para ese nuevo conjunto de propuestas", async function (this: CustomWorld) {
-  const issued = this.page.getByTestId("funnel-stage-issued");
-  await issued.getByText("20", { exact: true }).waitFor({ state: "visible" });
-  await assertText(issued, "20");
-
-  const contracted = this.page.getByTestId("funnel-stage-contracted");
-  await contracted.getByText("12", { exact: true }).waitFor({ state: "visible" });
-  await assertText(contracted, "12");
-
-  const reported = this.page.getByTestId("funnel-stage-reported");
-  await reported.getByText("8", { exact: true }).waitFor({ state: "visible" });
-  await assertText(reported, "8");
-
-  const paid = this.page.getByTestId("funnel-stage-paid");
-  await paid.getByText("4", { exact: true }).waitFor({ state: "visible" });
-  await assertText(paid, "4");
-
-  const uncontracted = this.page.getByTestId("uncontracted-proposals");
-  await uncontracted.getByText("8", { exact: true }).waitFor({ state: "visible" });
-  await assertText(uncontracted, "8");
+  await assertText(this.page.getByTestId("funnel-stage-issued"), "20");
+  await assertText(this.page.getByTestId("funnel-stage-contracted"), "12");
+  await assertText(this.page.getByTestId("funnel-stage-reported"), "8");
+  await assertText(this.page.getByTestId("funnel-stage-paid"), "4");
+  await assertText(this.page.getByTestId("uncontracted-proposals"), "8");
 });
 
 Then("el período visible corresponde a la respuesta consultada", async function (this: CustomWorld) {
@@ -209,4 +180,41 @@ Then("conservo la última consulta válida sin presentarla como resultado del ra
 
   const contracted = this.page.getByTestId("funnel-stage-contracted");
   await assertText(contracted, "6");
+});
+
+Given("que la API informa una cohorte sin propuestas", async function (this: CustomWorld) {
+  await this.setSession("provider");
+  await this.stubGet("/providers/me/statistics/conversion", anEmptyFunnelWithRequestsResponse());
+});
+
+Given("informa solicitudes recibidas, aceptadas y pendientes dentro del período", async function (this: CustomWorld) {
+  assert.ok(await this.hasApiStub("GET", "/providers/me/statistics/conversion"));
+});
+
+When("consulto Conversión", async function (this: CustomWorld) {
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.conversion}`);
+});
+
+Then("visualizo el bloque de solicitudes con su porcentaje de aceptación", async function (this: CustomWorld) {
+  const section = this.page.getByTestId("conversion-requests-section");
+  await section.waitFor({ state: "visible" });
+  await assertText(section, t.providerConversion.requestsTitle);
+  await assertText(this.page.getByTestId("requests-received"), "8");
+  await assertText(this.page.getByTestId("requests-accepted"), "6");
+  await assertText(this.page.getByTestId("requests-pending"), "2");
+  const rate = this.page.getByTestId("requests-acceptance-rate");
+  await assertText(rate, t.providerConversion.acceptanceRate);
+  await assertText(rate, "6 de 8 recibidas (75 %)");
+});
+
+Then("ese bloque permanece visible aunque el embudo esté vacío", async function (this: CustomWorld) {
+  await assertText(this.page.getByTestId("funnel-stage-issued"), "0");
+  assert.ok(await this.page.getByTestId("conversion-requests-section").isVisible());
+});
+
+Then("no se presenta la aceptación como contratación ni como etapa del embudo", async function (this: CustomWorld) {
+  const sectionText = await this.page.getByTestId("conversion-requests-section").innerText();
+  assert.equal(/contratación|contratada|contratadas/i.test(sectionText), false);
+  const funnelText = await this.page.locator('section[aria-labelledby="conversion-funnel-title"]').innerText();
+  assert.equal(/aceptada|aceptadas|solicitud|solicitudes/i.test(funnelText), false);
 });

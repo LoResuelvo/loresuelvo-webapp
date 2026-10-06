@@ -32,7 +32,6 @@ Feature: [WEB] US-73 - Analizar la conversión de mis propuestas de servicio
       | mayor a 365 días      |
       | con una fecha futura  |
 
-  @wip
   Scenario: 73.4-CON Consultar solicitudes sin mezclarlas con propuestas
     Given que la API informa una cohorte sin propuestas
     And informa solicitudes recibidas, aceptadas y pendientes dentro del período

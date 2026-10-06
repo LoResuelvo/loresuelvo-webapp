@@ -2,6 +2,7 @@ import type { ProviderConversion, ConversionRatio } from "@/domain/provider/conv
 import { t } from "@/infrastructure/i18n/translations";
 import { statisticsDate, statisticsRange } from "../statistics/statistics-format";
 import { formatConversionRatio } from "./conversion-format";
+import { ConversionRequestsSection } from "./ConversionRequestsSection";
 
 interface FunnelStageProps {
   readonly title: string;
@@ -146,6 +147,8 @@ export function ConversionFunnel({ data }: { readonly data: ProviderConversion }
         </h2>
         <UncontractedCard count={uncontracted} />
       </section>
+
+      <ConversionRequestsSection requests={data.requests} />
     </div>
   );
 }

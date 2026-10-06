@@ -58,7 +58,6 @@ Feature: [WEB] US-72 - Consultar mi reputación y cobertura de reseñas
     Then visualizo mi reputación consultada correctamente
     And el error previo no se presenta como métricas cero
 
-  @wip
   Scenario: 72.8-REP Conservar información ante un error de paginación
     Given que visualizo una página válida de mi reputación
     And la consulta de la siguiente página falla

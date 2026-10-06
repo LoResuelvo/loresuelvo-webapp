@@ -111,4 +111,85 @@ describe("ReputationClient", () => {
     expect(screen.queryByText("Trabajo #201")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Siguiente página" })).not.toBeInTheDocument();
   });
+
+  it("preserves indicators and existing reviews when next page query fails and shows error alert with retry", async () => {
+    const page1Data: ProviderReputation = {
+      ...mockReputation,
+      nextCursor: "cursor-page-2",
+      reviews: [{ workOrderId: 201, rating: 5, description: "Página 1" }],
+    };
+
+    const mockGetAction = vi.fn().mockResolvedValue({
+      success: false,
+      error: "Error al cargar la página",
+    });
+
+    render(
+      <ReputationClient
+        initialResult={{ success: true, data: page1Data }}
+        getReputationAction={mockGetAction}
+      />
+    );
+
+    const button = screen.getByRole("button", { name: "Siguiente página" });
+    await userEvent.click(button);
+
+    expect(mockGetAction).toHaveBeenCalledWith({ cursor: "cursor-page-2" });
+    // Preserves existing data
+    expect(screen.getByTestId("reputation-indicators")).toBeInTheDocument();
+    expect(screen.getByText("Trabajo #201")).toBeInTheDocument();
+    // Shows secure error alert with retry
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Error al cargar la página");
+    expect(alert.querySelector("button")).toHaveTextContent("Reintentar");
+    // Next page button is also still available with same cursor
+    expect(screen.getByRole("button", { name: "Siguiente página" })).toBeInTheDocument();
+  });
+
+  it("recovers from pagination error when retry button is clicked", async () => {
+    const page1Data: ProviderReputation = {
+      ...mockReputation,
+      nextCursor: "cursor-page-2",
+      reviews: [{ workOrderId: 201, rating: 5, description: "Página 1" }],
+    };
+
+    const page2Data: ProviderReputation = {
+      ...mockReputation,
+      nextCursor: null,
+      reviews: [{ workOrderId: 202, rating: 4, description: "Página 2" }],
+    };
+
+    const mockGetAction = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: false,
+        error: "Error al cargar la página",
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: page2Data,
+      });
+
+    render(
+      <ReputationClient
+        initialResult={{ success: true, data: page1Data }}
+        getReputationAction={mockGetAction}
+      />
+    );
+
+    const nextButton = screen.getByRole("button", { name: "Siguiente página" });
+    await userEvent.click(nextButton);
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toBeInTheDocument();
+
+    const retryButton = screen.getByRole("button", { name: "Reintentar" });
+    await userEvent.click(retryButton);
+
+    expect(mockGetAction).toHaveBeenCalledTimes(2);
+    expect(mockGetAction).toHaveBeenLastCalledWith({ cursor: "cursor-page-2" });
+    expect(await screen.findByText("Trabajo #202")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });
+

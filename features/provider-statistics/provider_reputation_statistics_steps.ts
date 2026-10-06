@@ -261,3 +261,35 @@ Then("el error previo no se presenta como métricas cero", async function (this:
   assert.notEqual(await container.innerText(), "0");
 });
 
+Given("que visualizo una página válida de mi reputación", async function (this: CustomWorld) {
+  await this.setSession("provider");
+  await this.stubGet("/providers/me/statistics/reputation", aPaginatedReputationFirstPage());
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.reputation}`);
+});
+
+Given("la consulta de la siguiente página falla", async function (this: CustomWorld) {
+  await this.stubGet("/providers/me/statistics/reputation?cursor=page-2", { error: "Falla de paginación" }, 500);
+});
+
+Then("conservo los indicadores y las reseñas de la última respuesta válida", async function (this: CustomWorld) {
+  const container = this.page.getByTestId("reputation-indicators");
+  await container.waitFor({ state: "visible" });
+  await assertText(container, "4,8");
+  await assertText(container, "5");
+
+  const cards = this.page.getByTestId("review-card");
+  assert.equal(await cards.count(), 2);
+  assert.equal(await cards.nth(0).getAttribute("data-work-order-id"), "110");
+  assert.equal(await cards.nth(1).getAttribute("data-work-order-id"), "109");
+});
+
+Then("visualizo un error seguro que permite reintentar la página solicitada", async function (this: CustomWorld) {
+  const alert = this.page.locator("main").getByRole("alert");
+  await alert.waitFor({ state: "visible" });
+  await assertText(alert, t.providerReputation.error);
+  const retryBtn = alert.getByRole("button", { name: t.providerReputation.retry });
+  await retryBtn.waitFor({ state: "visible" });
+  const nextPageBtn = this.page.getByRole("button", { name: t.providerReputation.nextPage });
+  await nextPageBtn.waitFor({ state: "visible" });
+});
+

@@ -57,21 +57,53 @@ function ReputationErrorView({
   );
 }
 
+function useReputationPagination(
+  result: ReputationActionResult | undefined,
+  setResult: (r: ReputationActionResult) => void,
+  getAction: (query?: ReputationQuery) => Promise<ReputationActionResult>
+) {
+  const [isLoadingPage, setIsLoadingPage] = useState(false);
+  const [paginationError, setPaginationError] = useState<string | null>(null);
+
+  const handleNextPage = async () => {
+    if (!result || !result.success || !result.data.nextCursor || isLoadingPage) return;
+    setIsLoadingPage(true);
+    setPaginationError(null);
+    try {
+      const nextResult = await getAction({ cursor: result.data.nextCursor });
+      if (nextResult.success) {
+        setResult(nextResult);
+      } else {
+        setPaginationError(nextResult.error || t.providerReputation.error);
+      }
+    } catch {
+      setPaginationError(t.providerReputation.error);
+    } finally {
+      setIsLoadingPage(false);
+    }
+  };
+
+  return { isLoadingPage, paginationError, handleNextPage };
+}
+
 export function ReputationClient({
   initialResult,
   initialPending = false,
   getReputationAction = getProviderReputationAction,
 }: ReputationClientProps) {
   const [result, setResult] = useState<ReputationActionResult | undefined>(initialResult);
-  const [isLoadingPage, setIsLoadingPage] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const { isLoadingPage, paginationError, handleNextPage } = useReputationPagination(
+    result,
+    setResult,
+    getReputationAction
+  );
 
   const handleRetry = async () => {
     if (isRetrying) return;
     setIsRetrying(true);
     try {
-      const nextResult = await getReputationAction();
-      setResult(nextResult);
+      setResult(await getReputationAction());
     } catch {
       setResult({ success: false, error: t.providerReputation.error });
     } finally {
@@ -87,19 +119,6 @@ export function ReputationClient({
     return <ReputationErrorView error={result.error} isRetrying={isRetrying} onRetry={handleRetry} />;
   }
 
-  const handleNextPage = async () => {
-    if (!result.data.nextCursor || isLoadingPage) return;
-    setIsLoadingPage(true);
-    try {
-      const nextResult = await getReputationAction({ cursor: result.data.nextCursor });
-      if (nextResult.success) {
-        setResult(nextResult);
-      }
-    } finally {
-      setIsLoadingPage(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <ReputationIndicators data={result.data} />
@@ -109,6 +128,13 @@ export function ReputationClient({
         onNextPage={handleNextPage}
         isLoadingNextPage={isLoadingPage}
       />
+      {paginationError && (
+        <ReputationErrorView
+          error={paginationError}
+          isRetrying={isLoadingPage}
+          onRetry={handleNextPage}
+        />
+      )}
     </div>
   );
 }

@@ -8,28 +8,22 @@ import {
   aConversionResponse,
   aFilteredConversionResponse,
   anEmptyFunnelWithRequestsResponse,
-  anEmptyCohortAndRequestsResponse,
-  anIssuedWithoutContractedResponse,
-  aRequestsWithoutAcceptanceResponse,
+  assertText,
+  getSituationResponse,
+  CONVERSION_TEST_RANGES,
 } from "../support/conversion-factory";
 import { t } from "../../infrastructure/i18n/translations";
-
-async function assertText(locator: Locator, ...texts: string[]) {
-  await locator.waitFor({ state: "visible" });
-  const content = await locator.innerText();
-  for (const text of texts) assert.ok(content.includes(text));
-}
 
 Given("que soy un prestador autenticado con propuestas y avances informados por la API", async function (this: CustomWorld) {
   await this.setSession("provider");
   await this.stubGet("/providers/me/statistics/conversion", aConversionResponse());
 });
 
-Given("algunas propuestas del período alcanzaron etapas después de su fecha de fin", async function (this: CustomWorld) {
+Given(/^algunas propuestas del período alcanzaron etapas después de su fecha de fin|informa solicitudes recibidas, aceptadas y pendientes dentro del período$/, async function (this: CustomWorld) {
   assert.ok(await this.hasApiStub("GET", "/providers/me/statistics/conversion"));
 });
 
-When("accedo a Conversión desde Mi desempeño", async function (this: CustomWorld) {
+When(/^accedo a Conversión desde Mi desempeño|consulto Conversión$/, async function (this: CustomWorld) {
   await this.page.goto(`${this.appUrl}${ROUTES.provider.conversion}`);
 });
 
@@ -48,8 +42,7 @@ Then("visualizo las tasas sobre la cohorte y la etapa anterior con sus denominad
 
 Then("visualizo las propuestas sin contratación observada sin llamarlas rechazadas o perdidas", async function (this: CustomWorld) {
   await assertText(this.page.getByTestId("uncontracted-proposals"), t.providerConversion.uncontracted, "4");
-  const mainText = await this.page.locator("main").innerText();
-  assert.equal(/rechazada|rechazadas|perdida|perdidas/i.test(mainText), false);
+  assert.equal(/rechazada|rechazadas|perdida|perdidas/i.test(await this.page.locator("main").innerText()), false);
 });
 
 Then("visualizo el período efectivo y el instante de observación informados", async function (this: CustomWorld) {
@@ -106,33 +99,20 @@ Given("que estoy consultando Conversión", async function (this: CustomWorld) {
   await this.setSession("provider");
   await this.stubGet("/providers/me/statistics/conversion", aConversionResponse());
   await this.page.goto(`${this.appUrl}${ROUTES.provider.conversion}`);
-  const period = this.page.getByTestId("conversion-period");
-  await period.waitFor({ state: "visible" });
-  await assertText(period, "1/8/26");
-  await assertText(period, "31/8/26");
+  await assertText(this.page.getByTestId("conversion-period"), "1/8/26", "31/8/26");
 });
 
 Given(/^seleccioné un rango (incompleto|invertido|mayor a 365 días|con una fecha futura)$/, async function (this: CustomWorld, rango: string) {
-  const fromInput = this.page.getByLabel("Desde", { exact: true });
-  const throughInput = this.page.getByLabel("Hasta (incluido)");
-  const ranges: Record<string, [string, string]> = {
-    incompleto: ["", "2026-08-15"], invertido: ["2026-08-20", "2026-08-10"],
-    "mayor a 365 días": ["2025-01-01", "2026-01-02"], "con una fecha futura": ["2026-08-01", "2099-01-01"],
-  };
-  const [from, through] = ranges[rango.trim()] ?? [];
-  if (from === undefined) throw new Error(`Unsupported range test case: ${rango}`);
-  await fromInput.fill(from);
-  await throughInput.fill(through);
+  const [from, through] = CONVERSION_TEST_RANGES[rango.trim()] ?? [];
+  await this.page.getByLabel("Desde", { exact: true }).fill(from);
+  await this.page.getByLabel("Hasta (incluido)").fill(through);
 });
 
 Then("visualizo un mensaje accesible de rango inválido", async function (this: CustomWorld) {
   const alert = this.page.locator('form [role="alert"]');
   await alert.waitFor({ state: "visible" });
   const text = await alert.innerText();
-  assert.ok(
-    text.includes(t.providerConversion.invalidRange) ||
-    text.includes(t.providerConversion.futureDate)
-  );
+  assert.ok(text.includes(t.providerConversion.invalidRange) || text.includes(t.providerConversion.futureDate));
 });
 
 Then("conservo la última consulta válida sin presentarla como resultado del rango rechazado", async function (this: CustomWorld) {
@@ -144,14 +124,6 @@ Then("conservo la última consulta válida sin presentarla como resultado del ra
 Given("que la API informa una cohorte sin propuestas", async function (this: CustomWorld) {
   await this.setSession("provider");
   await this.stubGet("/providers/me/statistics/conversion", anEmptyFunnelWithRequestsResponse());
-});
-
-Given("informa solicitudes recibidas, aceptadas y pendientes dentro del período", async function (this: CustomWorld) {
-  assert.ok(await this.hasApiStub("GET", "/providers/me/statistics/conversion"));
-});
-
-When("consulto Conversión", async function (this: CustomWorld) {
-  await this.page.goto(`${this.appUrl}${ROUTES.provider.conversion}`);
 });
 
 Then("visualizo el bloque de solicitudes con su porcentaje de aceptación", async function (this: CustomWorld) {
@@ -175,19 +147,12 @@ Then("no se presenta la aceptación como contratación ni como etapa del embudo"
 });
 
 let currentConversionResponse: ApiProviderConversion | null = null;
-const SITUATION_RESPONSES: Record<string, () => ApiProviderConversion> = {
-  "una cohorte y solicitudes vacías": anEmptyCohortAndRequestsResponse,
-  "propuestas emitidas sin contrataciones": anIssuedWithoutContractedResponse,
-  "solicitudes recibidas sin aceptaciones": aRequestsWithoutAcceptanceResponse,
-};
 
 Given(
   /^que la API informa (una cohorte y solicitudes vacías|propuestas emitidas sin contrataciones|solicitudes recibidas sin aceptaciones)$/,
   async function (this: CustomWorld, situacion: string) {
     await this.setSession("provider");
-    const factory = SITUATION_RESPONSES[situacion.trim()];
-    if (!factory) throw new Error(`Unsupported situation: ${situacion}`);
-    currentConversionResponse = factory();
+    currentConversionResponse = getSituationResponse(situacion);
     await this.stubGet("/providers/me/statistics/conversion", currentConversionResponse);
   }
 );
@@ -245,4 +210,39 @@ Then("no visualizo conteos cero ni ausencia de propuestas como si fueran datos r
   assert.equal(await this.page.getByTestId("uncontracted-proposals").count(), 0);
   assert.equal(await this.page.getByTestId("conversion-requests-section").count(), 0);
   assert.equal((await this.page.locator("main").innerText()).includes("0 %"), false);
+});
+
+Given("que la consulta de un rango seleccionado falló", async function (this: CustomWorld) {
+  await this.setSession("provider");
+  await this.stubGet("/providers/me/statistics/conversion", aConversionResponse());
+  const params = new URLSearchParams({ from: "2026-06-01T00:00:00-03:00", to: "2026-07-01T00:00:00-03:00" });
+  await this.stubGet(`/providers/me/statistics/conversion?${params}`, { error: "Service unavailable" }, 503);
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.conversion}`);
+  await this.page.getByLabel("Desde", { exact: true }).fill("2026-06-01");
+  await this.page.getByLabel("Hasta (incluido)").fill("2026-06-30");
+  await this.page.getByRole("button", { name: "Aplicar filtros" }).click();
+});
+
+Given("visualizo un error seguro y el rango que no pudo consultarse", async function (this: CustomWorld) {
+  const alert = this.page.locator("main").getByRole("alert");
+  await alert.waitFor({ state: "visible" });
+  await assertText(alert, t.providerConversion.error);
+  const failedRange = this.page.getByTestId("conversion-failed-range");
+  await failedRange.waitFor({ state: "visible" });
+  await assertText(failedRange, "1/6/26", "1/7/26");
+});
+
+Then("visualizo la respuesta del mismo rango solicitado", async function (this: CustomWorld) {
+  const issued = this.page.getByTestId("funnel-stage-issued");
+  await issued.getByText("20", { exact: true }).waitFor({ state: "visible" });
+  await assertText(issued, "20");
+  await assertText(this.page.getByTestId("funnel-stage-contracted"), "12");
+  await assertText(this.page.getByTestId("conversion-period"), "1/6/26", "1/7/26");
+});
+
+Then("el error no se presenta como conversión cero", async function (this: CustomWorld) {
+  assert.equal(await this.page.locator("main").getByRole("alert").count(), 0);
+  assert.equal(await this.page.getByTestId("conversion-failed-range").count(), 0);
+  await assertText(this.page.getByTestId("funnel-stage-issued"), "20");
+  assert.notEqual((await this.page.getByTestId("funnel-stage-issued").innerText()).trim(), "0");
 });

@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { ConversionFilters } from "./ConversionFilters";
 import { ConversionFunnel } from "./ConversionFunnel";
 
+import { statisticsRange } from "../statistics/statistics-format";
+
 export type ConversionActionResult =
   | { success: true; data: ProviderConversion }
   | { success: false; error: string };
@@ -33,16 +35,23 @@ export function ConversionLoading() {
 
 function ConversionErrorView({
   error,
+  query,
   isRetrying,
   onRetry,
 }: {
   readonly error: string;
+  readonly query?: ConversionQuery;
   readonly isRetrying: boolean;
   readonly onRetry: () => void;
 }) {
   return (
     <div role="alert" className="rounded-lg bg-red-50 p-4 space-y-3 text-sm text-red-700">
       <p>{error}</p>
+      {query?.from && query?.to && (
+        <p data-testid="conversion-failed-range" className="text-slate-600">
+          {statisticsRange(query.from, query.to)}
+        </p>
+      )}
       <div>
         <Button
           type="button"
@@ -57,9 +66,8 @@ function ConversionErrorView({
   );
 }
 
-export function ConversionClient({
+function useConversionState({
   initialResult,
-  initialPending = false,
   getConversionAction = getProviderConversionAction,
 }: ConversionClientProps) {
   const [result, setResult] = useState<ConversionActionResult | undefined>(initialResult);
@@ -67,14 +75,19 @@ export function ConversionClient({
   const [isPending, setIsPending] = useState(false);
   const [lastQuery, setLastQuery] = useState<ConversionQuery | undefined>(undefined);
 
+  const executeQuery = async (query?: ConversionQuery) => {
+    try {
+      setResult(await getConversionAction(query));
+    } catch {
+      setResult({ success: false, error: t.providerConversion.error });
+    }
+  };
+
   const handleApply = async (query: ConversionQuery) => {
     setIsPending(true);
     setLastQuery(query);
     try {
-      const response = await getConversionAction(query);
-      setResult(response);
-    } catch {
-      setResult({ success: false, error: t.providerConversion.error });
+      await executeQuery(query);
     } finally {
       setIsPending(false);
     }
@@ -84,15 +97,19 @@ export function ConversionClient({
     if (isRetrying) return;
     setIsRetrying(true);
     try {
-      setResult(await getConversionAction(lastQuery));
-    } catch {
-      setResult({ success: false, error: t.providerConversion.error });
+      await executeQuery(lastQuery);
     } finally {
       setIsRetrying(false);
     }
   };
 
-  if (initialPending || !result) {
+  return { result, isPending, isRetrying, lastQuery, handleApply, handleRetry };
+}
+
+export function ConversionClient(props: ConversionClientProps) {
+  const { result, isPending, isRetrying, lastQuery, handleApply, handleRetry } = useConversionState(props);
+
+  if (props.initialPending || !result) {
     return <ConversionLoading />;
   }
 
@@ -100,6 +117,7 @@ export function ConversionClient({
     return (
       <ConversionErrorView
         error={result.error}
+        query={lastQuery}
         isRetrying={isRetrying}
         onRetry={handleRetry}
       />

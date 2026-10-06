@@ -1,3 +1,5 @@
+import type { Locator } from "playwright";
+import assert from "node:assert/strict";
 import type { ApiProviderConversion } from "../../infrastructure/api/types";
 
 export function aConversionResponse(): ApiProviderConversion {
@@ -186,3 +188,27 @@ export function aRequestsWithoutAcceptanceResponse(): ApiProviderConversion {
     },
   };
 }
+
+export async function assertText(locator: Locator, ...texts: string[]) {
+  await locator.waitFor({ state: "visible" });
+  const content = await locator.innerText();
+  for (const text of texts) assert.ok(content.includes(text));
+}
+
+export function getSituationResponse(situacion: string): ApiProviderConversion {
+  const responses: Record<string, () => ApiProviderConversion> = {
+    "una cohorte y solicitudes vacías": anEmptyCohortAndRequestsResponse,
+    "propuestas emitidas sin contrataciones": anIssuedWithoutContractedResponse,
+    "solicitudes recibidas sin aceptaciones": aRequestsWithoutAcceptanceResponse,
+  };
+  const factory = responses[situacion.trim()];
+  if (!factory) throw new Error(`Unsupported situation: ${situacion}`);
+  return factory();
+}
+
+export const CONVERSION_TEST_RANGES: Record<string, [string, string]> = {
+  incompleto: ["", "2026-08-15"],
+  invertido: ["2026-08-20", "2026-08-10"],
+  "mayor a 365 días": ["2025-01-01", "2026-01-02"],
+  "con una fecha futura": ["2026-08-01", "2099-01-01"],
+};

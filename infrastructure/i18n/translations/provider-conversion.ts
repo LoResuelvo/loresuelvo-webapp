@@ -15,7 +15,7 @@ export const providerConversion = {
   uncontracted: "Propuestas sin contratación observada",
   unavailable: "No disponible",
   loading: "Consultando conversión…",
-  retry: "Reintentar consulta",
+  retry: "Reintentar",
   unauthorized: "Iniciá sesión como prestador para consultar tu conversión.",
   error: "No pudimos consultar tu conversión. Intentá nuevamente.",
   filtersTitle: "Filtros de conversión",

@@ -116,4 +116,65 @@ describe("ConversionClient", () => {
     });
     expect(await screen.findByText("25")).toBeInTheDocument();
   });
+
+  it("displays failed range in error view when query fails and retries with same query", async () => {
+    const user = userEvent.setup();
+    const updatedData: ProviderConversion = {
+      ...mockConversion,
+      period: {
+        from: "2026-06-01T00:00:00-03:00",
+        to: "2026-07-01T00:00:00-03:00",
+        timeZone: "America/Argentina/Buenos_Aires",
+      },
+      proposals: {
+        ...mockConversion.proposals,
+        stages: { issued: 25, contracted: 15, reported: 10, paid: 5 },
+      },
+    };
+    const mockAction = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: false,
+        error: t.providerConversion.error,
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: updatedData,
+      });
+
+    render(
+      <ConversionClient
+        initialResult={{ success: true, data: mockConversion }}
+        getConversionAction={mockAction}
+      />
+    );
+
+    const fromInput = screen.getByLabelText(t.providerConversion.from);
+    const throughInput = screen.getByLabelText(t.providerConversion.through);
+    const submitBtn = screen.getByRole("button", { name: t.providerConversion.applyFilters });
+
+    await user.clear(fromInput);
+    await user.type(fromInput, "2026-06-01");
+    await user.clear(throughInput);
+    await user.type(throughInput, "2026-06-30");
+    await user.click(submitBtn);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(t.providerConversion.error);
+    const failedRange = screen.getByTestId("conversion-failed-range");
+    expect(failedRange).toBeInTheDocument();
+    expect(failedRange).toHaveTextContent("1/6/26");
+    expect(failedRange).toHaveTextContent("1/7/26");
+
+    const retryBtn = screen.getByRole("button", { name: t.providerConversion.retry });
+    await user.click(retryBtn);
+
+    expect(mockAction).toHaveBeenLastCalledWith({
+      from: "2026-06-01T00:00:00-03:00",
+      to: "2026-07-01T00:00:00-03:00",
+    });
+    expect(await screen.findByText("25")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });
+

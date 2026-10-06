@@ -6,6 +6,7 @@ import { ROUTES } from "../../lib/routes";
 import { aWeeklyActivityResponse } from "../support/activity-factory";
 import { aCollectionTransactionsResponse } from "../support/collection-factory";
 import { aReputationResponse } from "../support/reputation-factory";
+import { aConversionResponse, aFilteredConversionResponse } from "../support/conversion-factory";
 
 const identityVerificationSessionEndpoint = "/providers/me/identity-verification-sessions";
 
@@ -159,6 +160,12 @@ Given("la API vuelve a estar disponible", async function (this: CustomWorld) {
   const failedReputation = (await this.getStubs()).find(stub => stub.endpoint.startsWith("/providers/me/statistics/reputation") && stub.status >= 500);
   if (failedReputation) {
     await this.stubGet(failedReputation.endpoint, aReputationResponse());
+    return;
+  }
+  const failedConversion = (await this.getStubs()).find(stub => stub.endpoint.startsWith("/providers/me/statistics/conversion") && stub.status >= 500);
+  if (failedConversion) {
+    const isFiltered = failedConversion.endpoint.includes("?");
+    await this.stubGet(failedConversion.endpoint, isFiltered ? aFilteredConversionResponse() : aConversionResponse());
     return;
   }
   if (await this.hasApiStub("POST", identityVerificationSessionEndpoint)) {

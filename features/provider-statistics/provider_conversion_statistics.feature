@@ -58,7 +58,6 @@ Feature: [WEB] US-73 - Analizar la conversión de mis propuestas de servicio
     Then visualizo un estado de carga accesible
     And no visualizo conteos cero ni ausencia de propuestas como si fueran datos recibidos
 
-  @wip
   Scenario: 73.7-CON Reintentar una consulta fallida del mismo rango
     Given que la consulta de un rango seleccionado falló
     And visualizo un error seguro y el rango que no pudo consultarse

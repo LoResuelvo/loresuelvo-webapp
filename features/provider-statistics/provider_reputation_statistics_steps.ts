@@ -217,7 +217,10 @@ When("accedo a Reputación", async function (this: CustomWorld) {
 Then("visualizo un estado de carga accesible", async function (this: CustomWorld) {
   const status = this.page.getByRole("status");
   await status.waitFor({ state: "visible" });
-  await assertText(status, t.providerReputation.loading);
+  const expectedText = this.page.url().includes(ROUTES.provider.conversion)
+    ? t.providerConversion.loading
+    : t.providerReputation.loading;
+  await assertText(status, expectedText);
 });
 
 Then("no visualizo métricas supuestas ni ausencia de reseñas", async function (this: CustomWorld) {

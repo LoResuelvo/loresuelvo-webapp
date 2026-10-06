@@ -52,7 +52,6 @@ Feature: [WEB] US-73 - Analizar la conversión de mis propuestas de servicio
       | propuestas emitidas sin contrataciones   | cero          |
       | solicitudes recibidas sin aceptaciones   | cero          |
 
-  @wip
   Scenario: 73.6-CON Informar carga sin inventar conversión
     Given que la consulta inicial de Conversión permanece pendiente
     When accedo a Conversión

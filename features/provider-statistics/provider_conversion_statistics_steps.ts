@@ -17,9 +17,7 @@ import { t } from "../../infrastructure/i18n/translations";
 async function assertText(locator: Locator, ...texts: string[]) {
   await locator.waitFor({ state: "visible" });
   const content = await locator.innerText();
-  for (const text of texts) {
-    assert.ok(content.includes(text));
-  }
+  for (const text of texts) assert.ok(content.includes(text));
 }
 
 Given("que soy un prestador autenticado con propuestas y avances informados por la API", async function (this: CustomWorld) {
@@ -71,10 +69,7 @@ Given("que estoy consultando Conversión con un rango inicial", async function (
 });
 
 Given("seleccioné un rango válido de fechas de creación", async function (this: CustomWorld) {
-  const params = new URLSearchParams({
-    from: "2026-06-01T00:00:00-03:00",
-    to: "2026-07-01T00:00:00-03:00",
-  });
+  const params = new URLSearchParams({ from: "2026-06-01T00:00:00-03:00", to: "2026-07-01T00:00:00-03:00" });
   await this.stubGet(`/providers/me/statistics/conversion?${params}`, aFilteredConversionResponse());
   await this.page.getByLabel("Desde", { exact: true }).fill("2026-06-01");
   await this.page.getByLabel("Hasta (incluido)").fill("2026-06-30");
@@ -121,10 +116,8 @@ Given(/^seleccioné un rango (incompleto|invertido|mayor a 365 días|con una fec
   const fromInput = this.page.getByLabel("Desde", { exact: true });
   const throughInput = this.page.getByLabel("Hasta (incluido)");
   const ranges: Record<string, [string, string]> = {
-    incompleto: ["", "2026-08-15"],
-    invertido: ["2026-08-20", "2026-08-10"],
-    "mayor a 365 días": ["2025-01-01", "2026-01-02"],
-    "con una fecha futura": ["2026-08-01", "2099-01-01"],
+    incompleto: ["", "2026-08-15"], invertido: ["2026-08-20", "2026-08-10"],
+    "mayor a 365 días": ["2025-01-01", "2026-01-02"], "con una fecha futura": ["2026-08-01", "2099-01-01"],
   };
   const [from, through] = ranges[rango.trim()] ?? [];
   if (from === undefined) throw new Error(`Unsupported range test case: ${rango}`);
@@ -213,25 +206,43 @@ Then(
   async function (this: CustomWorld, porcentaje: string) {
     const contracted = this.page.getByTestId("funnel-stage-contracted");
     const requestsRate = this.page.getByTestId("requests-acceptance-rate");
-
     if (porcentaje === "No disponible") {
       await assertText(contracted, t.providerConversion.unavailable);
       await assertText(requestsRate, t.providerConversion.unavailable);
-      const mainText = await this.page.locator("main").innerText();
-      assert.equal(mainText.includes("0 %"), false);
-    } else {
-      assert.ok(currentConversionResponse, "currentConversionResponse is required");
-      if (currentConversionResponse.proposals.rates.contracted.cohort.percentage === 0) {
-        await assertText(contracted, "0 %");
-        const contractedText = await contracted.innerText();
-        assert.equal(contractedText.includes(t.providerConversion.unavailable), false);
-      }
-      if (currentConversionResponse.requests.acceptance_rate.percentage === 0) {
-        await assertText(requestsRate, "0 %");
-        const requestsText = await requestsRate.innerText();
-        assert.equal(requestsText.includes(t.providerConversion.unavailable), false);
-      }
+      assert.equal((await this.page.locator("main").innerText()).includes("0 %"), false);
+      return;
+    }
+    assert.ok(currentConversionResponse, "currentConversionResponse is required");
+    if (currentConversionResponse.proposals.rates.contracted.cohort.percentage === 0) {
+      await assertText(contracted, "0 %");
+      assert.equal((await contracted.innerText()).includes(t.providerConversion.unavailable), false);
+    }
+    if (currentConversionResponse.requests.acceptance_rate.percentage === 0) {
+      await assertText(requestsRate, "0 %");
+      assert.equal((await requestsRate.innerText()).includes(t.providerConversion.unavailable), false);
     }
   }
 );
 
+Given("que la consulta inicial de Conversión permanece pendiente", async function (this: CustomWorld) {
+  await this.setSession("provider");
+  await this.addApiStub({
+    method: "GET",
+    endpoint: "/providers/me/statistics/conversion",
+    status: 200,
+    body: aConversionResponse(),
+    delayMs: 15000,
+  });
+});
+
+When("accedo a Conversión", async function (this: CustomWorld) {
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.conversion}`, { waitUntil: "commit" });
+});
+
+Then("no visualizo conteos cero ni ausencia de propuestas como si fueran datos recibidos", async function (this: CustomWorld) {
+  assert.equal(await this.page.getByTestId("funnel-stage-issued").count(), 0);
+  assert.equal(await this.page.getByTestId("funnel-stage-contracted").count(), 0);
+  assert.equal(await this.page.getByTestId("uncontracted-proposals").count(), 0);
+  assert.equal(await this.page.getByTestId("conversion-requests-section").count(), 0);
+  assert.equal((await this.page.locator("main").innerText()).includes("0 %"), false);
+});

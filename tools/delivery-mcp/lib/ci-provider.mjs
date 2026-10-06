@@ -10,6 +10,7 @@ import { loadDeliveryPolicy } from "./policy-loader.mjs";
 import { selectRequiredRuns, aggregateRequiredCi, normalizeCiStatus } from "./ci-obligations.mjs";
 
 const execFileAsync = promisify(execFile);
+const CI_INSPECTION_TIMEOUT_MS = 20000;
 
 function parseGhPages(output) {
   const pages = [];
@@ -109,7 +110,8 @@ export class GitHubActionsProvider extends CiProvider {
     this.fetchFn = fetchFn || ((...args) => globalThis.fetch(...args));
   }
 
-  async inspectCommit(sha, { repoRoot, deadlineAt = Date.now() + 20000 } = {}) {
+  async inspectCommit(sha, { repoRoot, deadlineAt } = {}) {
+    const inspectionDeadline = Math.min(deadlineAt ?? Infinity, Date.now() + CI_INSPECTION_TIMEOUT_MS);
     const root = findRepoRoot(repoRoot);
     const policy = await loadDeliveryPolicy({ repoRoot: root });
     const requiredWorkflows = policy.ci.requiredWorkflows;
@@ -118,7 +120,7 @@ export class GitHubActionsProvider extends CiProvider {
     let ghResult = null;
     let ghFailure = null;
     try {
-      ghResult = await this.queryViaGhCli(sha, root, requiredWorkflows, deadlineAt);
+      ghResult = await this.queryViaGhCli(sha, root, requiredWorkflows, inspectionDeadline);
     } catch (error) {
       if (error.code === "CI_PROVIDER_TIMEOUT") {
         return this.providerErrorResult(sha, error.message, root);
@@ -134,7 +136,7 @@ export class GitHubActionsProvider extends CiProvider {
     // Try GitHub API via fetch if token available
     if (this.token) {
       try {
-        const apiResult = await this.queryViaApi(sha, root, requiredWorkflows, deadlineAt);
+        const apiResult = await this.queryViaApi(sha, root, requiredWorkflows, inspectionDeadline);
         if (apiResult) {
           validateCiInspectionResult(apiResult, root);
           return apiResult;

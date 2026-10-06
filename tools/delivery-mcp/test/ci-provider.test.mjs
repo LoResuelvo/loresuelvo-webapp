@@ -204,3 +204,34 @@ test("GitHub CLI malformed responses retain the parsing failure", async () => {
   assert.match(result.failure.message, /Invalid GitHub CLI pagination response/);
   assert.ok(!result.failure.message.includes("No GitHub credentials"));
 });
+
+
+for (const [budgetMs, expectedTimeoutMs] of [[900000, 20000], [50, 50]]) {
+  test(`CI inspection respects its request limit within an external ${budgetMs}ms budget`, async (t) => {
+    t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 100000 });
+    let signalAborted = false;
+    let requestTimeoutMs;
+    let requestStarted;
+    const started = new Promise((resolve) => { requestStarted = resolve; });
+    const provider = new GitHubActionsProvider({ execGh: (_command, _args, { signal, timeout }) => {
+      requestTimeoutMs = timeout;
+      const hanging = new Promise((_, reject) => {
+        signal.addEventListener("abort", () => {
+          signalAborted = true;
+          reject(new DOMException("aborted", "AbortError"));
+        }, { once: true });
+      });
+      requestStarted();
+      return hanging;
+    } });
+    const inspection = provider.inspectCommit("a".repeat(40), { deadlineAt: Date.now() + budgetMs });
+    await started;
+    t.mock.timers.tick(requestTimeoutMs);
+    const result = await inspection;
+    assert.equal(requestTimeoutMs, expectedTimeoutMs);
+    assert.equal(signalAborted, true);
+    assert.equal(result.status, "provider_error");
+    assert.equal(result.retryable, true);
+    assert.match(result.failure.message, /CI provider deadline exceeded/);
+  });
+}

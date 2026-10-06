@@ -2048,3 +2048,42 @@ test("finalizeDelivery: DELIVERY_ALLOW_UNPUSHED_FINALIZE=1 en el entorno ya NO o
   assert.strictEqual(res.reason, "UNPUSHED_COMMITS");
   assert.match(res.message, /Cannot finalize: unpushed commits include/);
 });
+
+
+test("finalizeDelivery does not lend its full CI wait budget to a hanging request", async (t) => {
+  const repoRoot = await createTempGitRepo(t);
+  const featurePath = "features/us46-request-limit.feature";
+  const sha = await commitFile(repoRoot, featurePath,
+    "Feature: US46\n  Scenario: Done\n    Given ok\n", "test[46]: close with bounded CI request");
+  await attachEvidence({ repoRoot, sha, gateId: "D", scopeFeatures: [featurePath],
+    usId: "46", intent: "close_us" });
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 100000 });
+  let requestTimeoutMs;
+  let requestStarted;
+  const started = new Promise((resolve) => { requestStarted = resolve; });
+  const remote = new GitHubActionsProvider({ execGh: (_command, _args, { signal, timeout }) => {
+    requestTimeoutMs = timeout;
+    const hanging = new Promise((_, reject) => signal.addEventListener("abort", () =>
+      reject(new DOMException("aborted", "AbortError")), { once: true }));
+    requestStarted();
+    return hanging;
+  } });
+  const fallback = new MockCiProvider({ [sha]: { status: "passed" } });
+  const ciProvider = {
+    inspectCommit(targetSha, options) {
+      return options.deadlineAt ? remote.inspectCommit(targetSha, options)
+        : fallback.inspectCommit(targetSha, options);
+    },
+  };
+  const finalization = finalizeInIsolatedRepo({ repoRoot, intent: "close_us", usId: "46",
+    scopeFiles: [featurePath], ciProvider, waitForCi: true, timeoutMs: 900000 });
+  await started;
+  t.mock.timers.tick(requestTimeoutMs);
+  const result = await finalization;
+  assert.equal(requestTimeoutMs, 20000);
+  assert.equal(result.finalized, false);
+  assert.equal(result.status, "blocked");
+  assert.equal(result.reason, "CI_NOT_GREEN");
+  assert.equal(result.ci.status, "provider_error");
+  assert.match(result.ci.failure.message, /CI provider deadline exceeded/);
+});

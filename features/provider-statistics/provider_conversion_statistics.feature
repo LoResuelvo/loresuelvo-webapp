@@ -18,7 +18,6 @@ Feature: [WEB] US-73 - Analizar la conversión de mis propuestas de servicio
     And el período visible corresponde a la respuesta consultada
     And no dispongo de agrupación, comparación ni evolución temporal
 
-  @wip
   Scenario Outline: 73.3-CON Rechazar un rango inválido
     Given que estoy consultando Conversión
     And seleccioné un rango <rango>

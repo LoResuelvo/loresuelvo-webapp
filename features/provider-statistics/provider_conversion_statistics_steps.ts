@@ -152,3 +152,61 @@ Then("no dispongo de agrupación, comparación ni evolución temporal", async fu
   assert.equal(await this.page.getByRole("table").count(), 0);
   assert.equal(await this.page.getByText("Evolución cronológica").count(), 0);
 });
+
+Given("que estoy consultando Conversión", async function (this: CustomWorld) {
+  await this.setSession("provider");
+  await this.stubGet("/providers/me/statistics/conversion", aConversionResponse());
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.conversion}`);
+  const period = this.page.getByTestId("conversion-period");
+  await period.waitFor({ state: "visible" });
+  await assertText(period, "1/8/26");
+  await assertText(period, "31/8/26");
+});
+
+Given(/^seleccioné un rango (incompleto|invertido|mayor a 365 días|con una fecha futura)$/, async function (this: CustomWorld, rango: string) {
+  const fromInput = this.page.getByLabel("Desde", { exact: true });
+  const throughInput = this.page.getByLabel("Hasta (incluido)");
+  switch (rango.trim()) {
+    case "incompleto":
+      await fromInput.fill("");
+      await throughInput.fill("2026-08-15");
+      break;
+    case "invertido":
+      await fromInput.fill("2026-08-20");
+      await throughInput.fill("2026-08-10");
+      break;
+    case "mayor a 365 días":
+      await fromInput.fill("2025-01-01");
+      await throughInput.fill("2026-01-02");
+      break;
+    case "con una fecha futura":
+      await fromInput.fill("2026-08-01");
+      await throughInput.fill("2099-01-01");
+      break;
+    default:
+      throw new Error(`Unsupported range test case: ${rango}`);
+  }
+});
+
+Then("visualizo un mensaje accesible de rango inválido", async function (this: CustomWorld) {
+  const alert = this.page.locator('form [role="alert"]');
+  await alert.waitFor({ state: "visible" });
+  const text = await alert.innerText();
+  assert.ok(
+    text.includes(t.providerConversion.invalidRange) ||
+    text.includes(t.providerConversion.futureDate)
+  );
+});
+
+Then("conservo la última consulta válida sin presentarla como resultado del rango rechazado", async function (this: CustomWorld) {
+  const period = this.page.getByTestId("conversion-period");
+  await period.waitFor({ state: "visible" });
+  await assertText(period, "1/8/26");
+  await assertText(period, "31/8/26");
+
+  const issued = this.page.getByTestId("funnel-stage-issued");
+  await assertText(issued, "10");
+
+  const contracted = this.page.getByTestId("funnel-stage-contracted");
+  await assertText(contracted, "6");
+});

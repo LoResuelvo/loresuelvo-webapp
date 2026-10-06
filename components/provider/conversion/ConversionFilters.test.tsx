@@ -62,7 +62,12 @@ describe("ConversionFilters", () => {
     });
   });
 
-  it("displays accessible alert on invalid range and does not call onApply", async () => {
+  it.each([
+    { name: "incomplete", from: "", through: "2026-08-15", expectedError: t.providerConversion.invalidRange },
+    { name: "inverted", from: "2026-08-20", through: "2026-08-10", expectedError: t.providerConversion.invalidRange },
+    { name: "greater than 365 days", from: "2025-01-01", through: "2026-01-02", expectedError: t.providerConversion.invalidRange },
+    { name: "future date", from: "2026-08-01", through: "2099-01-01", expectedError: t.providerConversion.futureDate },
+  ])("rejects invalid range ($name) with accessible alert and does not call onApply", async ({ from, through, expectedError }) => {
     const user = userEvent.setup();
     const handleApply = vi.fn();
 
@@ -72,17 +77,16 @@ describe("ConversionFilters", () => {
     const throughInput = screen.getByLabelText(t.providerConversion.through);
     const submitBtn = screen.getByRole("button", { name: t.providerConversion.applyFilters });
 
-    // Inverted range
     await user.clear(fromInput);
-    await user.type(fromInput, "2026-08-20");
+    if (from) await user.type(fromInput, from);
     await user.clear(throughInput);
-    await user.type(throughInput, "2026-08-10");
+    if (through) await user.type(throughInput, through);
 
     await user.click(submitBtn);
 
     expect(handleApply).not.toHaveBeenCalled();
     const alert = screen.getByRole("alert");
-    expect(alert).toHaveTextContent(t.providerConversion.invalidRange);
+    expect(alert).toHaveTextContent(expectedError);
   });
 
   it("does not render granularity select or comparison checkbox", () => {

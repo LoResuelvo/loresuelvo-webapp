@@ -50,7 +50,6 @@ Feature: [WEB] US-72 - Consultar mi reputación y cobertura de reseñas
     Then visualizo un estado de carga accesible
     And no visualizo métricas supuestas ni ausencia de reseñas
 
-  @wip
   Scenario: 72.7-REP Recuperarse de un error en la consulta inicial
     Given que la consulta inicial de mi reputación falló
     And visualizo un error seguro con opción de reintento

@@ -227,3 +227,37 @@ Then("no visualizo métricas supuestas ni ausencia de reseñas", async function 
   assert.equal(await this.page.getByTestId("review-card").count(), 0);
   assert.equal(await this.page.getByText(t.providerReputation.noReviews).count(), 0);
 });
+
+Given("que la consulta inicial de mi reputación falló", async function (this: CustomWorld) {
+  await this.setSession("provider");
+  await this.stubGet("/providers/me/statistics/reputation", { error: "Falla de consulta inicial" }, 500);
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.reputation}`);
+});
+
+Given("visualizo un error seguro con opción de reintento", async function (this: CustomWorld) {
+  const alert = this.page.locator("main").getByRole("alert");
+  await alert.waitFor({ state: "visible" });
+  await assertText(alert, t.providerReputation.error);
+  const retryBtn = this.page.getByRole("button", { name: t.providerReputation.retry });
+  await retryBtn.waitFor({ state: "visible" });
+});
+
+When("selecciono Reintentar", async function (this: CustomWorld) {
+  const retryBtn = this.page.getByRole("button", { name: t.providerReputation.retry });
+  await retryBtn.click();
+});
+
+Then("visualizo mi reputación consultada correctamente", async function (this: CustomWorld) {
+  const container = this.page.getByTestId("reputation-indicators");
+  await container.waitFor({ state: "visible" });
+  await assertText(container, "4,8");
+  await assertText(container, "5");
+});
+
+Then("el error previo no se presenta como métricas cero", async function (this: CustomWorld) {
+  assert.equal(await this.page.locator("main").getByRole("alert").count(), 0);
+  const container = this.page.getByTestId("reputation-indicators");
+  await assertText(container, "4,8");
+  assert.notEqual(await container.innerText(), "0");
+});
+

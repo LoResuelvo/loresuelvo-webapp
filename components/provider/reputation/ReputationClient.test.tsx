@@ -32,9 +32,31 @@ describe("ReputationClient", () => {
     expect(screen.getByTestId("review-card")).toBeInTheDocument();
   });
 
-  it("renders error alert on failure", () => {
+  it("renders error alert with retry button on failure", () => {
     render(<ReputationClient initialResult={{ success: false, error: "Error de prueba" }} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Error de prueba");
+    expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
+  });
+
+  it("recovers from initial error when retry button is clicked and succeeds", async () => {
+    const mockGetAction = vi.fn().mockResolvedValue({
+      success: true,
+      data: mockReputation,
+    });
+
+    render(
+      <ReputationClient
+        initialResult={{ success: false, error: "Error de prueba" }}
+        getReputationAction={mockGetAction}
+      />
+    );
+
+    const retryButton = screen.getByRole("button", { name: "Reintentar" });
+    await userEvent.click(retryButton);
+
+    expect(mockGetAction).toHaveBeenCalled();
+    expect(await screen.findByTestId("reputation-indicators")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("renders accessible loading state when initialPending is true", () => {

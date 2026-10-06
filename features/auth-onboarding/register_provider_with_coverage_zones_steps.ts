@@ -5,6 +5,7 @@ import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 import { aWeeklyActivityResponse } from "../support/activity-factory";
 import { aCollectionTransactionsResponse } from "../support/collection-factory";
+import { aReputationResponse } from "../support/reputation-factory";
 
 const identityVerificationSessionEndpoint = "/providers/me/identity-verification-sessions";
 
@@ -153,6 +154,11 @@ Given("la API vuelve a estar disponible", async function (this: CustomWorld) {
   const failedCollectionDetail = (await this.getStubs()).find(stub => stub.endpoint.startsWith("/providers/me/statistics/collections/transactions") && stub.status >= 500);
   if (failedCollectionDetail) {
     await this.stubGet(failedCollectionDetail.endpoint, aCollectionTransactionsResponse());
+    return;
+  }
+  const failedReputation = (await this.getStubs()).find(stub => stub.endpoint.startsWith("/providers/me/statistics/reputation") && stub.status >= 500);
+  if (failedReputation) {
+    await this.stubGet(failedReputation.endpoint, aReputationResponse());
     return;
   }
   if (await this.hasApiStub("POST", identityVerificationSessionEndpoint)) {

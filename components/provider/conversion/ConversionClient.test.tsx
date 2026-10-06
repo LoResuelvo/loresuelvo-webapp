@@ -73,4 +73,47 @@ describe("ConversionClient", () => {
     expect(screen.getByTestId("funnel-stage-issued")).toBeInTheDocument();
     expect(screen.getByTestId("conversion-period")).toBeInTheDocument();
   });
+
+  it("updates funnel data when new date filters are applied", async () => {
+    const user = userEvent.setup();
+    const updatedData: ProviderConversion = {
+      ...mockConversion,
+      period: {
+        from: "2026-06-01T00:00:00-03:00",
+        to: "2026-07-01T00:00:00-03:00",
+        timeZone: "America/Argentina/Buenos_Aires",
+      },
+      proposals: {
+        ...mockConversion.proposals,
+        stages: { issued: 25, contracted: 15, reported: 10, paid: 5 },
+      },
+    };
+    const mockAction = vi.fn().mockResolvedValue({
+      success: true,
+      data: updatedData,
+    });
+
+    render(
+      <ConversionClient
+        initialResult={{ success: true, data: mockConversion }}
+        getConversionAction={mockAction}
+      />
+    );
+
+    const fromInput = screen.getByLabelText(t.providerConversion.from);
+    const throughInput = screen.getByLabelText(t.providerConversion.through);
+    const submitBtn = screen.getByRole("button", { name: t.providerConversion.applyFilters });
+
+    await user.clear(fromInput);
+    await user.type(fromInput, "2026-06-01");
+    await user.clear(throughInput);
+    await user.type(throughInput, "2026-06-30");
+    await user.click(submitBtn);
+
+    expect(mockAction).toHaveBeenCalledWith({
+      from: "2026-06-01T00:00:00-03:00",
+      to: "2026-07-01T00:00:00-03:00",
+    });
+    expect(await screen.findByText("25")).toBeInTheDocument();
+  });
 });

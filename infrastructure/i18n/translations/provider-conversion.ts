@@ -18,4 +18,11 @@ export const providerConversion = {
   retry: "Reintentar consulta",
   unauthorized: "Iniciá sesión como prestador para consultar tu conversión.",
   error: "No pudimos consultar tu conversión. Intentá nuevamente.",
+  filtersTitle: "Filtros de conversión",
+  from: "Desde",
+  through: "Hasta (incluido)",
+  applyFilters: "Aplicar filtros",
+  filterHelp: "Máximo 365 días. Si seleccionás hoy, se incluyen datos hasta el momento de la consulta.",
+  futureDate: "Elegí fechas que no sean posteriores a hoy en Buenos Aires.",
+  invalidRange: "Elegí un rango válido de hasta 365 días que termine antes de este momento.",
 };

@@ -33,12 +33,14 @@ export interface ConversionRequests {
   readonly acceptanceRate: ConversionRatio;
 }
 
+export interface ConversionPeriod {
+  readonly from: string;
+  readonly to: string;
+  readonly timeZone: string;
+}
+
 export interface ProviderConversion {
-  readonly period: {
-    readonly from: string;
-    readonly to: string;
-    readonly timeZone: string;
-  };
+  readonly period: ConversionPeriod;
   readonly observedAt: string;
   readonly proposals: ConversionProposals;
   readonly requests: ConversionRequests;

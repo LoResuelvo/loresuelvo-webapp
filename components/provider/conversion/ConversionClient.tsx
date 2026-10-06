@@ -6,6 +6,7 @@ import type { ConversionQuery } from "@/domain/provider/conversion-query";
 import { getProviderConversionAction } from "@/app/prestador/mi-desempeno/conversion/actions";
 import { t } from "@/infrastructure/i18n/translations";
 import { Button } from "@/components/ui/button";
+import { ConversionFilters } from "./ConversionFilters";
 import { ConversionFunnel } from "./ConversionFunnel";
 
 export type ConversionActionResult =
@@ -63,12 +64,27 @@ export function ConversionClient({
 }: ConversionClientProps) {
   const [result, setResult] = useState<ConversionActionResult | undefined>(initialResult);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+  const [lastQuery, setLastQuery] = useState<ConversionQuery | undefined>(undefined);
+
+  const handleApply = async (query: ConversionQuery) => {
+    setIsPending(true);
+    setLastQuery(query);
+    try {
+      const response = await getConversionAction(query);
+      setResult(response);
+    } catch {
+      setResult({ success: false, error: t.providerConversion.error });
+    } finally {
+      setIsPending(false);
+    }
+  };
 
   const handleRetry = async () => {
     if (isRetrying) return;
     setIsRetrying(true);
     try {
-      setResult(await getConversionAction());
+      setResult(await getConversionAction(lastQuery));
     } catch {
       setResult({ success: false, error: t.providerConversion.error });
     } finally {
@@ -90,5 +106,14 @@ export function ConversionClient({
     );
   }
 
-  return <ConversionFunnel data={result.data} />;
+  return (
+    <div className="space-y-6">
+      <ConversionFilters
+        period={result.data.period}
+        pending={isPending}
+        onApply={handleApply}
+      />
+      <ConversionFunnel data={result.data} />
+    </div>
+  );
 }

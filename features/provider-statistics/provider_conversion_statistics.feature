@@ -10,7 +10,6 @@ Feature: [WEB] US-73 - Analizar la conversión de mis propuestas de servicio
     And visualizo el período efectivo y el instante de observación informados
     And se explica que los resultados pueden cambiar cuando las propuestas avanzan
 
-  @wip
   Scenario: 73.2-CON Consultar propuestas creadas en otro período
     Given que estoy consultando Conversión con un rango inicial
     And seleccioné un rango válido de fechas de creación

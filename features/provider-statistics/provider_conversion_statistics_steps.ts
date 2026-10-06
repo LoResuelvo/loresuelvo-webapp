@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { Locator } from "playwright";
 import { CustomWorld } from "../support/world";
 import { ROUTES } from "../../lib/routes";
-import { aConversionResponse } from "../support/conversion-factory";
+import { aConversionResponse, aFilteredConversionResponse } from "../support/conversion-factory";
 import { t } from "../../infrastructure/i18n/translations";
 
 async function assertText(locator: Locator, text: string) {
@@ -91,4 +91,64 @@ Then("visualizo el período efectivo y el instante de observación informados", 
 
 Then("se explica que los resultados pueden cambiar cuando las propuestas avanzan", async function (this: CustomWorld) {
   await this.page.getByText(t.providerConversion.cohortHelp, { exact: true }).waitFor({ state: "visible" });
+});
+
+Given("que estoy consultando Conversión con un rango inicial", async function (this: CustomWorld) {
+  await this.setSession("provider");
+  await this.stubGet("/providers/me/statistics/conversion", aConversionResponse());
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.conversion}`);
+  const period = this.page.getByTestId("conversion-period");
+  await period.waitFor({ state: "visible" });
+  await assertText(period, "1/8/26");
+  await assertText(period, "31/8/26");
+});
+
+Given("seleccioné un rango válido de fechas de creación", async function (this: CustomWorld) {
+  const params = new URLSearchParams({
+    from: "2026-06-01T00:00:00-03:00",
+    to: "2026-07-01T00:00:00-03:00",
+  });
+  await this.stubGet(`/providers/me/statistics/conversion?${params}`, aFilteredConversionResponse());
+  await this.page.getByLabel("Desde", { exact: true }).fill("2026-06-01");
+  await this.page.getByLabel("Hasta (incluido)").fill("2026-06-30");
+});
+
+When("aplico el rango seleccionado", async function (this: CustomWorld) {
+  await this.page.getByRole("button", { name: "Aplicar filtros" }).click();
+});
+
+Then("visualizo el embudo informado para ese nuevo conjunto de propuestas", async function (this: CustomWorld) {
+  const issued = this.page.getByTestId("funnel-stage-issued");
+  await issued.getByText("20", { exact: true }).waitFor({ state: "visible" });
+  await assertText(issued, "20");
+
+  const contracted = this.page.getByTestId("funnel-stage-contracted");
+  await contracted.getByText("12", { exact: true }).waitFor({ state: "visible" });
+  await assertText(contracted, "12");
+
+  const reported = this.page.getByTestId("funnel-stage-reported");
+  await reported.getByText("8", { exact: true }).waitFor({ state: "visible" });
+  await assertText(reported, "8");
+
+  const paid = this.page.getByTestId("funnel-stage-paid");
+  await paid.getByText("4", { exact: true }).waitFor({ state: "visible" });
+  await assertText(paid, "4");
+
+  const uncontracted = this.page.getByTestId("uncontracted-proposals");
+  await uncontracted.getByText("8", { exact: true }).waitFor({ state: "visible" });
+  await assertText(uncontracted, "8");
+});
+
+Then("el período visible corresponde a la respuesta consultada", async function (this: CustomWorld) {
+  const period = this.page.getByTestId("conversion-period");
+  await period.waitFor({ state: "visible" });
+  await assertText(period, "1/6/26");
+  await assertText(period, "1/7/26");
+});
+
+Then("no dispongo de agrupación, comparación ni evolución temporal", async function (this: CustomWorld) {
+  assert.equal(await this.page.getByLabel("Agrupación").count(), 0);
+  assert.equal(await this.page.getByRole("checkbox", { name: /comparar/i }).count(), 0);
+  assert.equal(await this.page.getByRole("table").count(), 0);
+  assert.equal(await this.page.getByText("Evolución cronológica").count(), 0);
 });

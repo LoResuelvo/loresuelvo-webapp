@@ -70,3 +70,27 @@ export function aReputationWithoutNextCursor(overrides?: Partial<ApiProviderRepu
     ...overrides,
   });
 }
+
+export function anEmptyReputationResponse(
+  eligiblePaidOrders = 0,
+  overrides?: Partial<ApiProviderReputation>
+): ApiProviderReputation {
+  return {
+    calculated_at: "2026-08-31T00:00:00-03:00",
+    average_rating: null,
+    review_count: 0,
+    rating_distribution: [
+      { rating: 5, count: 0 },
+      { rating: 4, count: 0 },
+      { rating: 3, count: 0 },
+      { rating: 2, count: 0 },
+      { rating: 1, count: 0 },
+    ],
+    eligible_paid_orders: eligiblePaidOrders,
+    reviewed_paid_orders: 0,
+    coverage_percentage: eligiblePaidOrders > 0 ? 0 : null,
+    reviews: [],
+    next_cursor: null,
+    ...overrides,
+  };
+}

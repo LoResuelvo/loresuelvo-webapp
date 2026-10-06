@@ -63,4 +63,9 @@ describe("ReputationReviewsList", () => {
 
     expect(screen.queryByRole("button", { name: "Siguiente página" })).not.toBeInTheDocument();
   });
+
+  it("renders empty state message when reviews list is empty", () => {
+    render(<ReputationReviewsList reviews={[]} />);
+    expect(screen.getByText("No tenés reseñas todavía")).toBeInTheDocument();
+  });
 });

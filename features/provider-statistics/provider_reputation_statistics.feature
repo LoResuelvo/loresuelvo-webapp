@@ -30,7 +30,6 @@ Feature: [WEB] US-72 - Consultar mi reputación y cobertura de reseñas
     Then visualizo sus reseñas
     And no puedo solicitar una siguiente página
 
-  @wip
   Scenario Outline: 72.5-REP Distinguir reputación vacía de una calificación cero
     Given que soy un prestador autenticado con <situacion>
     And no tengo reseñas

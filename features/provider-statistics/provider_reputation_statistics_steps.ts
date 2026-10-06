@@ -9,6 +9,7 @@ import {
   aPaginatedReputationFirstPage,
   aPaginatedReputationSecondPage,
   aReputationWithoutNextCursor,
+  anEmptyReputationResponse,
 } from "../support/reputation-factory";
 import { t } from "../../infrastructure/i18n/translations";
 
@@ -149,4 +150,51 @@ Then("visualizo sus reseñas", async function (this: CustomWorld) {
 
 Then("no puedo solicitar una siguiente página", async function (this: CustomWorld) {
   assert.equal(await this.page.getByRole("button", { name: t.providerReputation.nextPage }).count(), 0);
+});
+
+Given(/^que soy un prestador autenticado con (trabajos pagados elegibles|ningún trabajo pagado elegible)$/, async function (this: CustomWorld, situacion: string) {
+  await this.setSession("provider");
+  (this as unknown as { reputationEligibleOrders: number }).reputationEligibleOrders =
+    situacion === "trabajos pagados elegibles" ? 3 : 0;
+});
+
+Given("no tengo reseñas", async function (this: CustomWorld) {
+  const eligible = (this as unknown as { reputationEligibleOrders?: number }).reputationEligibleOrders ?? 0;
+  await this.stubGet("/providers/me/statistics/reputation", anEmptyReputationResponse(eligible));
+});
+
+When("consulto Reputación", async function (this: CustomWorld) {
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.reputation}`);
+});
+
+Then("visualizo cantidad de reseñas y distribución en cero", async function (this: CustomWorld) {
+  const container = this.page.getByTestId("reputation-indicators");
+  await container.waitFor({ state: "visible" });
+  await assertText(container, "0");
+
+  const distribution = this.page.getByTestId("rating-distribution");
+  await distribution.waitFor({ state: "visible" });
+  const counts = await distribution.locator("li span:last-child").allInnerTexts();
+  assert.deepEqual(counts, ["0", "0", "0", "0", "0"]);
+});
+
+Then("el promedio se muestra como No disponible", async function (this: CustomWorld) {
+  const container = this.page.getByTestId("reputation-indicators");
+  await container.waitFor({ state: "visible" });
+  await assertText(container, t.providerReputation.unavailable);
+});
+
+Then(/^la cobertura se muestra como (.+)$/, async function (this: CustomWorld, cobertura: string) {
+  const coverageSection = this.page.getByTestId("reputation-coverage");
+  await coverageSection.waitFor({ state: "visible" });
+  const percentageElement = coverageSection.locator("dd").first();
+  if (cobertura === "cero") {
+    await assertText(percentageElement, "0 %");
+  } else {
+    await assertText(percentageElement, t.providerReputation.unavailable);
+  }
+});
+
+Then("visualizo un mensaje de ausencia de reseñas", async function (this: CustomWorld) {
+  await this.page.getByText(t.providerReputation.noReviews, { exact: true }).waitFor({ state: "visible" });
 });

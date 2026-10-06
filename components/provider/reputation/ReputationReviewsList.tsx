@@ -65,7 +65,7 @@ export function ReputationReviewsList({
       </h2>
 
       {reviews.length === 0 ? (
-        <p className="text-sm text-slate-600">{labels.emptyReviews}</p>
+        <p className="text-sm text-slate-600">{labels.noReviews}</p>
       ) : (
         <div className="space-y-3">
           {reviews.map((review) => (

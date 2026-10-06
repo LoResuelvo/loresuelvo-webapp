@@ -315,6 +315,7 @@ Then("se aplica el control de acceso existente", async function (this: CustomWor
   await this.page.waitForLoadState("domcontentloaded");
   const currentUrl = new URL(this.page.url());
   assert.notEqual(currentUrl.pathname, ROUTES.provider.reputation);
+  assert.notEqual(currentUrl.pathname, ROUTES.provider.conversion);
 });
 
 Then("no visualizo estadísticas privadas de un prestador", async function (this: CustomWorld) {
@@ -323,6 +324,11 @@ Then("no visualizo estadísticas privadas de un prestador", async function (this
   assert.equal(await this.page.getByTestId("rating-distribution").count(), 0);
   assert.equal(await this.page.getByTestId("reputation-reviews").count(), 0);
   assert.equal(await this.page.getByRole("heading", { name: t.providerReputation.reputation }).count(), 0);
+
+  assert.equal(await this.page.getByTestId("funnel-stage-issued").count(), 0);
+  assert.equal(await this.page.getByTestId("conversion-period").count(), 0);
+  assert.equal(await this.page.getByTestId("requests-received").count(), 0);
+  assert.equal(await this.page.getByRole("heading", { name: t.providerConversion.conversion }).count(), 0);
 });
 
 

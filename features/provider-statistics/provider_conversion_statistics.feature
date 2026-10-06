@@ -73,7 +73,6 @@ Feature: [WEB] US-73 - Analizar la conversión de mis propuestas de servicio
     Then visualizo la respuesta y los límites efectivos del rango nuevo
     And una respuesta tardía del rango anterior no reemplaza esa información
 
-  @wip
   Scenario Outline: 73.9-CON Restringir el acceso a conversión privada
     Given que mi sesión es <sesion>
     When intento acceder a Conversión

@@ -4,19 +4,10 @@ import { CustomWorld } from "../support/world";
 import { ROUTES } from "../../lib/routes";
 import type { ApiProviderConversion } from "../../infrastructure/api/types";
 import {
-  aConversionResponse,
-  aFilteredConversionResponse,
-  aLatePreviousConversionResponse,
-  anEmptyFunnelWithRequestsResponse,
-  assertErrorNotZeroConversion,
-  assertFailedRangeError,
-  assertNoTemporalEvolution,
-  assertNoZeroConversion,
-  assertSituationCounts,
-  assertSituationPercentage,
-  assertText,
-  fillDateRange,
-  getSituationResponse,
+  aConversionResponse, aFilteredConversionResponse, aLatePreviousConversionResponse,
+  anEmptyFunnelWithRequestsResponse, assertErrorNotZeroConversion, assertFailedRangeError,
+  assertNoTemporalEvolution, assertNoZeroConversion, assertSituationCounts,
+  assertSituationPercentage, assertText, fillDateRange, getSituationResponse,
   CONVERSION_TEST_RANGES,
 } from "../support/conversion-factory";
 import { t } from "../../infrastructure/i18n/translations";
@@ -31,6 +22,10 @@ Given(/^algunas propuestas del período alcanzaron etapas después de su fecha d
 });
 
 When(/^accedo a Conversión desde Mi desempeño|consulto Conversión$/, async function (this: CustomWorld) {
+  await this.page.goto(`${this.appUrl}${ROUTES.provider.conversion}`);
+});
+
+When("intento acceder a Conversión", async function (this: CustomWorld) {
   await this.page.goto(`${this.appUrl}${ROUTES.provider.conversion}`);
 });
 

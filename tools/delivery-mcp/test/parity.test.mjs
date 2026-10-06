@@ -1,5 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { server } from "../server.mjs";
@@ -15,11 +19,32 @@ import {
   DeliveryTestInputSchema,
 } from "../lib/input-schema.mjs";
 
+async function initializeParityRepo(repoRoot, sourceRoot) {
+  await fs.mkdir(path.join(repoRoot, ".delivery"), { recursive: true });
+  await fs.cp(path.join(sourceRoot, ".delivery", "schemas"), path.join(repoRoot, ".delivery", "schemas"),
+    { recursive: true });
+  await fs.copyFile(path.join(sourceRoot, ".delivery", "policy.v1.json"),
+    path.join(repoRoot, ".delivery", "policy.v1.json"));
+  await fs.copyFile(path.join(sourceRoot, ".gitignore"), path.join(repoRoot, ".gitignore"));
+  await fs.writeFile(path.join(repoRoot, "README.md"), "# Adapter parity fixture\n");
+  const git = (...args) => execFileSync("git", args, { cwd: repoRoot, stdio: "ignore" });
+  git("init", "-b", "main");
+  git("config", "user.name", "Tester");
+  git("config", "user.email", "tester@example.com");
+  git("config", "commit.gpgsign", "false");
+  git("add", ".");
+  git("commit", "-m", "chore: initialize parity fixture");
+}
+
 test("paridad CLI / MCP: inspect, prepare, finalize y verify_head producen el mismo resultado semantico", async () => {
+  const originalCwd = process.cwd();
+  const fixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), "delivery-parity-"));
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "parity-test", version: "1.0.0" });
 
   try {
+    await initializeParityRepo(fixtureRoot, originalCwd);
+    process.chdir(fixtureRoot);
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
 
     // 1. Inspect parity test
@@ -66,9 +91,8 @@ test("paridad CLI / MCP: inspect, prepare, finalize y verify_head producen el mi
       assert.deepStrictEqual(mcpPrepareResult.summary, cliPrepareResult.summary);
     }
 
-    // 3. Finalize parity test. The current checkout normally blocks before CI
-    // unless HEAD already carries exact Gate D evidence; either outcome must be
-    // identical because both adapters delegate to the same core.
+    // The fixture has no delivery evidence or feature scope: adapter parity
+    // stays independent of remote CI and never launches real gates.
     const finalizeInput = {
       intent: "close_us",
     };
@@ -140,6 +164,11 @@ test("paridad CLI / MCP: inspect, prepare, finalize y verify_head producen el mi
     assert.deepStrictEqual(mcpTestResult.counts, cliTestResult.counts);
     assert.deepStrictEqual(mcpTestResult.diagnostics, cliTestResult.diagnostics);
   } finally {
-    await client.close();
+    try {
+      await client.close();
+    } finally {
+      process.chdir(originalCwd);
+      await fs.rm(fixtureRoot, { recursive: true, force: true });
+    }
   }
 });

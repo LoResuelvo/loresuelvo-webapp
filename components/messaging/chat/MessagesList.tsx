@@ -1,4 +1,5 @@
-import { RefObject, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, RefObject, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { format } from "date-fns";
 import MessageBubble from "./MessageBubble";
 import { ProposalTimelineCard } from "@/components/messaging/proposals/ProposalTimelineCard";
 import { Button } from "@/components/ui/button";
@@ -8,9 +9,20 @@ import { buildChatTimeline } from "@/lib/messaging/timeline-utils";
 import InfoBanner from "@/components/messaging/InfoBanner";
 import { useSmartScroll } from "@/hooks/useSmartScroll";
 import { cn } from "@/lib/utils";
+import { getChatDaySeparatorInfo, type ChatDaySeparatorInfo } from "@/lib/messaging/chat-day-separator-utils";
+import { useClock } from "@/infrastructure/clock/ClockContext";
 import type { Message, ServiceProposalSummary } from "@/domain/messaging/types";
 
 const sharedScrollPositions = new Map<string, number>();
+
+function getChatDayLabel(day: ChatDaySeparatorInfo): string {
+  if (day.kind === "today") return t.messaging.chatDaySeparator.today;
+  if (day.kind === "yesterday") return t.messaging.chatDaySeparator.yesterday;
+  if (day.kind === "weekday") {
+    return t.messaging.chatDaySeparator.weekdays[day.weekdayIndex] ?? "";
+  }
+  return format(day.date, "dd/MM/yyyy");
+}
 
 export interface MessagesListPendingBanner {
   show?: boolean;
@@ -50,6 +62,8 @@ export default function MessagesList({
   proposals,
   className,
 }: MessagesListProps) {
+  const { now } = useClock();
+  const referenceDate = now();
   const showPendingBanner = pendingBanner?.show ?? false;
   const pendingBannerText = pendingBanner?.text ?? t.messaging.pendingBannerDefault;
   const expandedMessages = expandState?.expandedMessages ?? new Set();
@@ -126,6 +140,8 @@ export default function MessagesList({
     setHasNewMessage(false);
   };
 
+  let previousDayKey: string | null = null;
+
   return (
     <div
       ref={containerRef}
@@ -138,35 +154,43 @@ export default function MessagesList({
       )}
 
       {timelineItems.map((item) => {
-        if (item.type === "proposal") {
-          return (
-            <ProposalTimelineCard
-              key={item.id}
-              proposal={item.data}
-              isProvider={isProvider}
-              onClick={() => onOpenProposal?.(item.data)}
-            />
-          );
-        }
+        const day = getChatDaySeparatorInfo(item.timestamp, referenceDate);
+        const showDaySeparator = day !== null && day.key !== previousDayKey;
+        if (day) previousDayKey = day.key;
 
-        const msg = item.data;
-        const isExpanded = isMessageExpanded(msg.id);
-        const showExpandButton = shouldShowExpandButton(msg.content || "");
-        const isOwnMessage = String(msg.senderId) === myUserId;
-        return (
-          <MessageBubble
-            key={msg.id}
-            id={msg.id}
-            content={msg.content}
-            sentAt={msg.sentAt}
-            isExpanded={isExpanded}
-            showExpandButton={showExpandButton}
-            onToggleExpand={onToggleExpand ?? (() => {})}
-            isOwnMessage={isOwnMessage}
-            images={msg.images}
-            audio={msg.audio}
-            video={msg.video}
+        const content = item.type === "proposal" ? (
+          <ProposalTimelineCard
+            proposal={item.data}
+            isProvider={isProvider}
+            onClick={() => onOpenProposal?.(item.data)}
           />
+        ) : (
+          <MessageBubble
+            id={item.data.id}
+            content={item.data.content}
+            sentAt={item.data.sentAt}
+            isExpanded={isMessageExpanded(item.data.id)}
+            showExpandButton={shouldShowExpandButton(item.data.content || "")}
+            onToggleExpand={onToggleExpand ?? (() => {})}
+            isOwnMessage={String(item.data.senderId) === myUserId}
+            images={item.data.images}
+            audio={item.data.audio}
+            video={item.data.video}
+          />
+        );
+
+        return (
+          <Fragment key={item.id}>
+            {showDaySeparator && day && (
+              <div
+                data-testid="chat-day-separator"
+                className="self-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500"
+              >
+                {getChatDayLabel(day)}
+              </div>
+            )}
+            {content}
+          </Fragment>
         );
       })}
       <div

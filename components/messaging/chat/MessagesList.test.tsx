@@ -3,8 +3,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import MessagesList from "@/components/messaging/chat/MessagesList";
 
 vi.mock("@/components/messaging/chat/MessageBubble", () => ({
-  default: vi.fn(({ isOwnMessage, content }) => (
-    <div data-testid="message-bubble" data-own={isOwnMessage}>
+  default: vi.fn(({ id, isOwnMessage, content }: { id: string; isOwnMessage?: boolean; content?: string }) => (
+    <div data-testid="message-bubble" data-message-id={id} data-own={isOwnMessage}>
       {content}
     </div>
   )),
@@ -282,5 +282,103 @@ describe("MessagesList - scroll preservation across conversations", () => {
     const ctaButton = screen.getByRole("button", { name: /revisar y pagar seña/i });
     fireEvent.click(ctaButton);
     expect(handleOpenProposal).toHaveBeenCalledWith(proposal);
+  });
+
+  it("renders one local-day separator across messages and proposals", () => {
+    const messages = [
+      {
+        id: "day-1",
+        content: "Primer mensaje del día",
+        sentAt: "10:00",
+        createdOn: "2026-08-18T10:00:00-03:00",
+        senderId: "consumer-001",
+      },
+      {
+        id: "day-2",
+        content: "Segundo mensaje del día",
+        sentAt: "10:20",
+        createdOn: "2026-08-18T10:20:00-03:00",
+        senderId: "provider-001",
+      },
+    ];
+    const proposal = {
+      id: 99,
+      conversationId: 10,
+      amountCents: 1500000,
+      scheduledOn: "2026-09-01T15:00:00Z",
+      description: "Instalación",
+      estimatedDurationMinutes: 60,
+      status: "pending" as const,
+      createdOn: "2026-08-18T10:10:00-03:00",
+      counterpart: { id: 2, role: "provider" as const, name: "Juan", surname: "Pérez" },
+    };
+
+    render(
+      <MessagesList
+        messages={messages}
+        myUserId="consumer-001"
+        proposals={{ proposals: [proposal] }}
+      />,
+    );
+
+    const separator = screen.getByTestId("chat-day-separator");
+    expect(screen.getAllByTestId("chat-day-separator")).toHaveLength(1);
+    expect(separator).toHaveTextContent("18/08/2026");
+    expect(separator.nextElementSibling).toHaveAttribute("data-message-id", "day-1");
+  });
+
+  it("does not invent separators for missing or invalid message dates", () => {
+    render(
+      <MessagesList
+        messages={[
+          ...mockMessages,
+          { id: "invalid", content: "Fecha inválida", sentAt: "10:32", createdOn: "no-es-una-fecha" },
+        ]}
+        myUserId="consumer-001"
+      />,
+    );
+
+    expect(screen.queryByTestId("chat-day-separator")).not.toBeInTheDocument();
+  });
+
+  it("does not render a day separator for an empty timeline", () => {
+    render(<MessagesList messages={[]} myUserId="consumer-001" />);
+
+    expect(screen.queryByTestId("chat-day-separator")).not.toBeInTheDocument();
+  });
+
+  it("keeps one separator when a message arrives on the same day", () => {
+    const initialMessages = [
+      {
+        id: "same-day-1",
+        content: "Primer mensaje",
+        sentAt: "10:00",
+        createdOn: "2026-08-18T10:00:00-03:00",
+        senderId: "consumer-001",
+      },
+    ];
+    const { rerender } = render(
+      <MessagesList messages={initialMessages} myUserId="consumer-001" />,
+    );
+
+    expect(screen.getAllByTestId("chat-day-separator")).toHaveLength(1);
+
+    rerender(
+      <MessagesList
+        messages={[
+          ...initialMessages,
+          {
+            id: "same-day-2",
+            content: "Segundo mensaje",
+            sentAt: "10:15",
+            createdOn: "2026-08-18T10:15:00-03:00",
+            senderId: "provider-001",
+          },
+        ]}
+        myUserId="consumer-001"
+      />,
+    );
+
+    expect(screen.getAllByTestId("chat-day-separator")).toHaveLength(1);
   });
 });

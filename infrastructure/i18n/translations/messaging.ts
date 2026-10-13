@@ -22,6 +22,11 @@ export const messaging = {
   viewJobRequest: "Ver Solicitud",
   viewJobRequestLabel: "Ver solicitud de trabajo",
   chatPanelLabel: "Detalle de conversación",
+  chatDaySeparator: {
+    today: "Hoy",
+    yesterday: "Ayer",
+    weekdays: ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"],
+  },
   backToList: "Volver a la lista",
   fileTooLarge: "La imagen no debe superar los 5MB",
   attachedImage: "Imagen adjunta",

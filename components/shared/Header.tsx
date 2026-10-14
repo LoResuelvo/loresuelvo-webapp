@@ -33,27 +33,27 @@ export default function Header({ user }: HeaderProps) {
               <span className="text-body font-medium text-brand-primary">
                 {t.header.greeting}{user.firstName}
               </span>
-              <Link
+              <a
                 href={ROUTES.auth.logout}
                 className="rounded-full bg-slate-100/80 hover:bg-slate-200/80 px-5 py-2.5 text-body font-semibold text-brand-primary transition-all duration-200"
               >
                 {t.header.logout}
-              </Link>
+              </a>
             </div>
           ) : (
             <div className="flex items-center gap-4">
-              <Link
+              <a
                 href={ROUTES.auth.login}
                 className="rounded-full bg-brand-primary/5 hover:bg-brand-primary/10 px-6 py-2.5 text-body font-semibold text-brand-primary transition-all duration-200"
               >
                 {t.header.login}
-              </Link>
-              <Link
+              </a>
+              <a
                 href={ROUTES.auth.signup}
                 className="rounded-full bg-brand-primary text-white hover:bg-brand-primary/90 px-6 py-2.5 text-body font-semibold transition-all duration-200 shadow-[0_4px_12px_rgba(26,43,72,0.12)]"
               >
                 {t.header.signup}
-              </Link>
+              </a>
             </div>
           )}
         </nav>

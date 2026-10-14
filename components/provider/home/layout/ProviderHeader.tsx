@@ -76,13 +76,13 @@ export default function ProviderHeader({ session, categoryName }: ProviderHeader
                 <UserRound className="w-4 h-4" aria-hidden="true" />
                 <span>{t.header.profile}</span>
               </Link>
-              <Link
+              <a
                 href={ROUTES.auth.logout}
                 className="flex items-center gap-2.5 px-4 py-2 text-body text-rose-600 hover:bg-rose-50 font-medium transition-colors w-full text-left"
               >
                 <LogOut className="w-4 h-4" />
                 <span>{t.header.logout}</span>
-              </Link>
+              </a>
             </div>
           </div>
         )}

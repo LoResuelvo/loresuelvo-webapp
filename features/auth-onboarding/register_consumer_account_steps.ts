@@ -16,6 +16,15 @@ When("hago clic en el botón {string}", async function (this: CustomWorld, butto
     .or(this.page.getByRole("link", { name: buttonName }))
     .first();
   await button.waitFor(visibleTimeout);
+  if (buttonName === "Registrarse") {
+    this.auth0SignupRequestObserved = this.page
+      .waitForRequest((req) => req.url().includes(AUTH0_SIGNUP_URL), waitTimeout)
+      .then(
+        () => true,
+        () => false
+      );
+  }
+
   if (buttonName === "Ver conversación") {
     const initialUrl = this.page.url();
     for (let i = 0; i < 5; i++) {
@@ -72,11 +81,8 @@ When("entro al home de consumidores", async function (this: CustomWorld) {
 });
 
 Then("soy redirigido al portal de autenticación de Auth0", async function (this: CustomWorld) {
-  const request = await this.page.waitForRequest(
-    (req) => req.url().includes(AUTH0_SIGNUP_URL),
-    waitTimeout
-  );
-  assert.ok(request, `No navigation was made towards "${AUTH0_SIGNUP_URL}"`);
+  const requestObserved = await this.auth0SignupRequestObserved;
+  assert.equal(requestObserved, true, `No navigation was made towards "${AUTH0_SIGNUP_URL}"`);
 });
 
 Given(

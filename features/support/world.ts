@@ -19,6 +19,7 @@ export class CustomWorld extends World {
   calendarCallbackResult?: "success" | "cancelled";
   calendarAuthorizationAttempts = 0;
   selectedRole: "consumer" | "provider" | null = null;
+  auth0SignupRequestObserved?: Promise<boolean>;
   onboardingStage?: "identidad" | "mercado-pago";
   registeredFirstName?: string;
   registeredLastName?: string;

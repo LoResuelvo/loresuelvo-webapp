@@ -32,7 +32,7 @@ describe("ProviderHome", () => {
     expect(within(navigation).getByRole("link", { name: "Calendario" })).toBeInTheDocument();
     expect(within(navigation).getByRole("link", { name: "Mensajes" })).toBeInTheDocument();
     expect(within(navigation).getByRole("link", { name: "Trabajos" })).toBeInTheDocument();
-    expect(within(navigation).getByRole("link", { name: "Perfil" })).toBeInTheDocument();
+    expect(within(navigation).queryByRole("link", { name: "Perfil" })).not.toBeInTheDocument();
   });
 
   it("shows empty state message when there are no work requests", () => {

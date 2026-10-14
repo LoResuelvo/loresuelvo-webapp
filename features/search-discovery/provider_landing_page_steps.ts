@@ -38,6 +38,14 @@ Then("veo la opción {string}", async function (this: CustomWorld, optionName: s
   assert.ok(await option.isVisible(), `No se visualiza la opción "${optionName}"`);
 });
 
+Then("no veo la opción {string} en la barra lateral", async function (this: CustomWorld, optionName: string) {
+  const option = this.page
+    .getByRole("navigation", { name: "Navegación del prestador" })
+    .getByRole("link", { name: optionName, exact: true });
+  await option.waitFor({ state: "detached" });
+  assert.equal(await option.count(), 0, `La barra lateral incluye la opción "${optionName}"`);
+});
+
 Then("visualizo la sección {string}", async function (this: CustomWorld, sectionName: string) {
   const section = this.page.getByRole("region", { name: sectionName });
   await section.waitFor({ state: "visible" });

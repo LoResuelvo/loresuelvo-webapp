@@ -17,4 +17,14 @@ describe("Sidebar", () => {
       "/consumidor/mensajes-ia",
     );
   });
+
+  it("permite adaptar el menú al ancho disponible en el layout de perfil", () => {
+    render(<Sidebar responsive />);
+
+    expect(screen.getByRole("complementary")).toHaveClass("w-full", "md:w-[260px]");
+    expect(screen.getByRole("navigation")).toHaveClass(
+      "flex-row",
+      "md:flex-col",
+    );
+  });
 });

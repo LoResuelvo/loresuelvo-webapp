@@ -11,7 +11,7 @@ Feature: Dashboard del Prestador
     And veo la opción "Calendario"
     And veo la opción "Mensajes"
     And veo la opción "Trabajos"
-    And veo la opción "Perfil"
+    And no veo la opción "Perfil" en la barra lateral
 
   Scenario: 02.1-HPP Verificar mensaje cuando no hay solicitudes de trabajo
     Given que ingreso a la HomePage como prestador

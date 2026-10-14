@@ -6,7 +6,11 @@ import { Bot, Home, MessageSquare, Briefcase } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
 
-export default function Sidebar() {
+interface SidebarProps {
+  responsive?: boolean;
+}
+
+export default function Sidebar({ responsive = false }: SidebarProps = {}) {
   const pathname = usePathname();
   const isHomeActive = pathname === ROUTES.consumer.home;
   const isMessagesActive = pathname === ROUTES.consumer.messages;
@@ -14,7 +18,9 @@ export default function Sidebar() {
   const isServicesActive = pathname === ROUTES.consumer.services;
 
   return (
-    <aside className="w-[260px] bg-brand-neutral border-r border-slate-200 flex flex-col h-screen sticky top-0">
+    <aside
+      className={`${responsive ? "w-full md:w-[260px] md:shrink-0 md:h-screen md:sticky" : "w-[260px] h-screen sticky"} bg-brand-neutral border-r border-slate-200 flex flex-col top-0`}
+    >
       <div className="p-6 h-20 flex items-center">
         <Link href={ROUTES.home} className="flex items-center gap-3">
           <span className="text-title font-extrabold tracking-tight text-brand-primary">
@@ -23,7 +29,10 @@ export default function Sidebar() {
         </Link>
       </div>
 
-      <nav aria-label={t.sidebar.navConsumer} className="flex-1 px-4 flex flex-col gap-2 mt-2">
+      <nav
+        aria-label={t.sidebar.navConsumer}
+        className={`flex-1 px-4 flex ${responsive ? "flex-row flex-wrap md:flex-col" : "flex-col"} gap-2 mt-2`}
+      >
         <Link 
           href={ROUTES.consumer.home}
           className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-colors ${

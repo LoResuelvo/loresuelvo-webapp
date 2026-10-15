@@ -212,6 +212,9 @@ describe("ConversionClient", () => {
     await user.clear(throughInput);
     await user.type(throughInput, "2026-05-31");
     await user.click(submitBtn);
+    expect(screen.getByRole("status")).toHaveTextContent(t.providerConversion.loading);
+    expect(screen.getByRole("status").parentElement).toHaveAttribute("aria-busy", "true");
+    expect(submitBtn).not.toBeDisabled();
 
     await user.clear(fromInput);
     await user.type(fromInput, "2026-06-01");

@@ -1,4 +1,5 @@
 import type { ProviderRatingDistribution, ProviderReputation, ProviderReview } from "@/domain/provider/reputation";
+import { statisticsInstantParts } from "@/domain/provider/statistics-instant";
 
 function record(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -15,7 +16,12 @@ function count(value: unknown): number {
 }
 
 function instant(value: unknown): string {
-  if (typeof value !== "string" || Number.isNaN(Date.parse(value))) {
+  if (typeof value !== "string") {
+    throw new Error("Invalid calculated_at instant");
+  }
+  try {
+    statisticsInstantParts(value);
+  } catch {
     throw new Error("Invalid calculated_at instant");
   }
   return value;
@@ -95,6 +101,7 @@ export function mapProviderReputation(raw: unknown): ProviderReputation {
     calculatedAt: instant(source.calculated_at),
     averageRating: averageRating(source.average_rating),
     reviewCount: count(source.review_count),
+    visibleReviewCount: count(source.visible_review_count),
     ratingDistribution: ratingDistribution(source.rating_distribution),
     eligiblePaidOrders: count(source.eligible_paid_orders),
     reviewedPaidOrders: count(source.reviewed_paid_orders),

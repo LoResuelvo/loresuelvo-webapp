@@ -1,4 +1,5 @@
 import type { ProviderReview } from "@/domain/provider/reputation";
+import { Button } from "@/components/ui/button";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { t } from "@/infrastructure/i18n/translations";
 
@@ -20,13 +21,13 @@ function ReviewCard({ review }: { review: ProviderReview }) {
     <article
       data-testid="review-card"
       data-work-order-id={review.workOrderId}
-      className="rounded-xl border border-slate-200 bg-white p-5 min-w-0 space-y-3"
+      className="rounded-xl border border-slate-200 bg-white p-4 min-w-0 space-y-3"
     >
-      <header className="flex items-center justify-between gap-4">
-        <span className="text-sm font-medium text-slate-600">
+      <header className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+        <span className="min-w-0 break-words text-sm font-medium text-slate-600">
           {labels.workOrder} #{review.workOrderId}
         </span>
-        <div className="flex items-center gap-2" aria-label={ratingAria}>
+        <div role="img" className="flex shrink-0 items-center gap-2" aria-label={ratingAria}>
           <RatingStars rating={review.rating} />
           <span className="text-sm font-semibold text-slate-800">
             {review.rating}
@@ -37,7 +38,7 @@ function ReviewCard({ review }: { review: ProviderReview }) {
       {hasDescription && (
         <p
           data-testid="review-description"
-          className="text-sm text-slate-700 leading-relaxed"
+          className="break-words text-sm text-slate-700 leading-relaxed"
         >
           {review.description}
         </p>
@@ -58,7 +59,7 @@ export function ReputationReviewsList({
     <section
       aria-labelledby="reputation-reviews-title"
       data-testid="reputation-reviews"
-      className="space-y-4"
+      className="space-y-3"
     >
       <h2 id="reputation-reviews-title" className="text-xl font-semibold">
         {labels.reviewsTitle}
@@ -75,15 +76,16 @@ export function ReputationReviewsList({
       )}
 
       {hasNextPage && (
-        <div className="flex justify-center pt-2">
-          <button
+        <div className="flex justify-end pt-2">
+          <Button
             type="button"
             onClick={onNextPage}
             disabled={isLoadingNextPage}
-            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:opacity-50"
+            variant="brand"
+            size="lg"
           >
             {labels.nextPage}
-          </button>
+          </Button>
         </div>
       )}
     </section>

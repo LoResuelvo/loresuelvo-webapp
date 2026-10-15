@@ -2,6 +2,8 @@ export const providerReputation = {
   title: "Mi desempeño",
   reputation: "Reputación",
   description: "Calificaciones de clientes y cobertura de reseñas sobre tus trabajos completados.",
+  scope: "Reputación acumulada",
+  scopeHelp: "Los indicadores incluyen todos tus trabajos elegibles y no están filtrados por un período.",
   indicators: "Indicadores de reputación",
   averageRating: "Calificación promedio",
   reviewCount: "Cantidad de reseñas",
@@ -29,5 +31,5 @@ export const providerReputation = {
   reviewsTitle: "Reseñas",
   workOrder: "Trabajo",
   nextPage: "Siguiente página",
-  noReviews: "No tenés reseñas todavía",
+  noReviews: "No hay reseñas visibles para mostrar.",
 };

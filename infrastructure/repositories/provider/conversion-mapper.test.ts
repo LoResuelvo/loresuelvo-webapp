@@ -139,4 +139,40 @@ describe("conversion-mapper", () => {
     };
     expect(() => mapProviderConversion(invalid)).toThrow("Invalid percentage");
   });
+
+  it("requires explicit null for unavailable percentages", () => {
+    const invalid = {
+      ...validRaw,
+      proposals: {
+        ...validRaw.proposals,
+        rates: {
+          ...validRaw.proposals.rates,
+          contracted: {
+            cohort: { numerator: 0, denominator: 0, percentage: undefined },
+            previous_stage: { numerator: 0, denominator: 0, percentage: null },
+          },
+        },
+      },
+    };
+    expect(() => mapProviderConversion(invalid)).toThrow("Invalid percentage");
+  });
+
+  it("rejects malformed, reversed or unzoned conversion response periods", () => {
+    expect(() => mapProviderConversion({
+      ...validRaw,
+      period: { ...validRaw.period, time_zone: "UTC" },
+    })).toThrow("Invalid timeZone for period");
+    expect(() => mapProviderConversion({
+      ...validRaw,
+      period: { ...validRaw.period, from: "2026-08-01T00:00:00" },
+    })).toThrow("Invalid instant for period.from");
+    expect(() => mapProviderConversion({
+      ...validRaw,
+      period: {
+        ...validRaw.period,
+        from: "2026-08-01T00:00:00.000000001Z",
+        to: "2026-08-01T00:00:00.000000000Z",
+      },
+    })).toThrow("Invalid conversion period bounds");
+  });
 });

@@ -12,6 +12,13 @@ describe("activity queries", () => {
   it("requires paired zoned instants", () => {
     expect(() => validateActivityQuery({ from: "2026-08-01T00:00:00" }, now)).toThrow();
   });
+  it("accepts activity bounds that differ by one nanosecond", () => {
+    const query = {
+      from: "2026-08-01T00:00:00.000000001Z",
+      to: "2026-08-01T00:00:00.000000002Z",
+    };
+    expect(validateActivityQuery(query, now)).toEqual(query);
+  });
   it.each(["2026-02-30T00:00:00Z", "2026-08-01T00:00Z", "2026-08-01T24:00:00Z", "2026-08-01T12:00:00+03:60"])("rejects invalid RFC3339 instants without normalizing them", value => {
     expect(() => activityInstant(value)).toThrow();
   });

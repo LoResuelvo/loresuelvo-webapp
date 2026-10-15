@@ -24,18 +24,18 @@ function FunnelStageCard({
   return (
     <div
       data-testid={testId}
-      className="rounded-xl border border-slate-200 bg-white p-5 min-w-0 space-y-3"
+      className="rounded-xl border border-slate-200 bg-white p-4 min-w-0 space-y-2"
     >
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-slate-600">{title}</h3>
       </div>
-      <p className="text-3xl font-bold text-brand-primary">{count}</p>
+      <p className="text-2xl font-bold tabular-nums text-brand-primary">{count}</p>
       {(cohortRate || previousStageRate) && (
-        <dl className="space-y-1.5 pt-2 border-t border-slate-100 text-xs text-slate-600">
+        <dl className="space-y-2 break-words pt-2 border-t border-slate-100 text-xs text-slate-600">
           {cohortRate && (
             <div>
               <dt className="font-medium text-slate-500">{labels.cohortRate}</dt>
-              <dd className="font-semibold text-slate-700">
+              <dd className="font-semibold tabular-nums text-slate-700">
                 {formatConversionRatio(cohortRate.ratio, cohortRate.noun)}
               </dd>
             </div>
@@ -43,7 +43,7 @@ function FunnelStageCard({
           {previousStageRate && (
             <div>
               <dt className="font-medium text-slate-500">{labels.previousStageRate}</dt>
-              <dd className="font-semibold text-slate-700">
+              <dd className="font-semibold tabular-nums text-slate-700">
                 {formatConversionRatio(previousStageRate.ratio, previousStageRate.noun)}
               </dd>
             </div>
@@ -66,12 +66,13 @@ function ConversionPeriodCard({
   return (
     <section
       aria-label={labels.effectivePeriod}
-      className="rounded-xl border border-slate-200 bg-white p-5 min-w-0"
+      className="rounded-xl border border-slate-200 bg-white p-4 min-w-0"
     >
-      <h2 className="font-semibold text-slate-800">{labels.effectivePeriod}</h2>
-      <p data-testid="conversion-period" className="mt-1 text-slate-700 font-medium">
+      <h2 className="font-semibold">{labels.effectivePeriod}</h2>
+      <p data-testid="conversion-period" className="break-words">
         {statisticsRange(period.from, period.to)}
       </p>
+      <p className="mt-1 text-xs text-slate-600">{t.providerActivity.periodBoundsHelp}</p>
       <p data-testid="conversion-observed-at" className="mt-2 text-xs text-slate-500">
         {labels.observedAt}: {statisticsDate(observedAt)}
       </p>
@@ -88,10 +89,10 @@ function UncontractedCard({ count }: { readonly count: number }) {
   return (
     <div
       data-testid="uncontracted-proposals"
-      className="rounded-xl border border-slate-200 bg-white p-5 min-w-0 space-y-2"
+      className="rounded-xl border border-slate-200 bg-white p-4 min-w-0 space-y-2"
     >
       <h3 className="text-sm font-medium text-slate-600">{labels.uncontracted}</h3>
-      <p className="text-3xl font-bold text-brand-primary">{count}</p>
+      <p className="text-2xl font-bold tabular-nums text-brand-primary">{count}</p>
     </div>
   );
 }
@@ -101,17 +102,17 @@ export function ConversionFunnel({ data }: { readonly data: ProviderConversion }
   const { stages, rates, uncontracted } = data.proposals;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-7">
       <ConversionPeriodCard period={data.period} observedAt={data.observedAt} />
 
       <section
         aria-labelledby="conversion-funnel-title"
-        className="space-y-4"
+        className="space-y-3"
       >
         <h2 id="conversion-funnel-title" className="text-xl font-semibold">
           {labels.funnelTitle}
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <FunnelStageCard
             title={labels.issued}
             count={stages.issued}
@@ -121,27 +122,27 @@ export function ConversionFunnel({ data }: { readonly data: ProviderConversion }
             title={labels.contracted}
             count={stages.contracted}
             testId="funnel-stage-contracted"
-            cohortRate={{ ratio: rates.contracted.cohort, noun: "emitidas" }}
-            previousStageRate={{ ratio: rates.contracted.previousStage, noun: "emitidas" }}
+            cohortRate={{ ratio: rates.contracted.cohort, noun: labels.issuedNoun }}
+            previousStageRate={{ ratio: rates.contracted.previousStage, noun: labels.issuedNoun }}
           />
           <FunnelStageCard
             title={labels.reported}
             count={stages.reported}
             testId="funnel-stage-reported"
-            cohortRate={{ ratio: rates.reported.cohort, noun: "emitidas" }}
-            previousStageRate={{ ratio: rates.reported.previousStage, noun: "contratadas" }}
+            cohortRate={{ ratio: rates.reported.cohort, noun: labels.issuedNoun }}
+            previousStageRate={{ ratio: rates.reported.previousStage, noun: labels.contractedNoun }}
           />
           <FunnelStageCard
             title={labels.paid}
             count={stages.paid}
             testId="funnel-stage-paid"
-            cohortRate={{ ratio: rates.paid.cohort, noun: "emitidas" }}
-            previousStageRate={{ ratio: rates.paid.previousStage, noun: "con finalización informada" }}
+            cohortRate={{ ratio: rates.paid.cohort, noun: labels.issuedNoun }}
+            previousStageRate={{ ratio: rates.paid.previousStage, noun: labels.reportedNoun }}
           />
         </div>
       </section>
 
-      <section aria-labelledby="conversion-uncontracted-title" className="space-y-4">
+      <section aria-labelledby="conversion-uncontracted-title" className="space-y-3">
         <h2 id="conversion-uncontracted-title" className="sr-only">
           {labels.uncontracted}
         </h2>

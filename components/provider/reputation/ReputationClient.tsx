@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ProviderReputation } from "@/domain/provider/reputation";
 import type { ReputationQuery } from "@/domain/provider/reputation-query";
 import { getProviderReputationAction } from "@/app/prestador/mi-desempeno/reputacion/actions";
 import { t } from "@/infrastructure/i18n/translations";
-import { Button } from "@/components/ui/button";
+import { StatisticsError } from "../statistics/StatisticsError";
+import { StatisticsLoading } from "../statistics/StatisticsLoading";
+import { statisticsDate } from "../statistics/statistics-format";
 import { ReputationIndicators } from "./ReputationIndicators";
 import { ReputationReviewsList } from "./ReputationReviewsList";
 
@@ -21,69 +23,100 @@ interface ReputationClientProps {
 
 export function ReputationLoading() {
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-600"
-    >
-      {t.providerReputation.loading}
+    <div aria-busy="true">
+      <StatisticsLoading message={t.providerReputation.loading} />
     </div>
   );
 }
 
-function ReputationErrorView({
-  error,
-  isRetrying,
-  onRetry,
-}: {
-  readonly error: string;
-  readonly isRetrying: boolean;
-  readonly onRetry: () => void;
-}) {
+function ReputationScope({ data }: { readonly data: ProviderReputation }) {
   return (
-    <div role="alert" className="rounded-lg bg-red-50 p-4 space-y-3 text-sm text-red-700">
-      <p>{error}</p>
-      <div>
-        <Button
-          type="button"
-          onClick={onRetry}
-          disabled={isRetrying}
-          variant="outline"
-        >
-          {t.providerReputation.retry}
-        </Button>
-      </div>
-    </div>
+    <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+      <h2 className="font-semibold text-slate-900">{t.providerReputation.scope}</h2>
+      <p className="text-sm text-slate-600">{t.providerReputation.scopeHelp}</p>
+      <p className="text-xs text-slate-500">
+        {t.providerActivity.calculatedAt} {statisticsDate(data.calculatedAt)}
+      </p>
+    </section>
   );
 }
 
-function useReputationPagination(
-  result: ReputationActionResult | undefined,
-  setResult: (r: ReputationActionResult) => void,
+function useReputationState(
+  initialResult: ReputationActionResult | undefined,
   getAction: (query?: ReputationQuery) => Promise<ReputationActionResult>
 ) {
+  const [result, setResult] = useState<ReputationActionResult | undefined>(initialResult);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [isLoadingPage, setIsLoadingPage] = useState(false);
   const [paginationError, setPaginationError] = useState<string | null>(null);
+  const requestSequence = useRef(0);
+  const requestPending = useRef(false);
+  const lastPageQuery = useRef<ReputationQuery | undefined>(undefined);
+  useEffect(() => () => { requestSequence.current += 1; }, []);
 
-  const handleNextPage = async () => {
-    if (!result || !result.success || !result.data.nextCursor || isLoadingPage) return;
+  const beginRequest = () => {
+    if (requestPending.current) return undefined;
+    requestPending.current = true;
+    return ++requestSequence.current;
+  };
+
+  const finishRequest = (request: number, setPending: (pending: boolean) => void) => {
+    if (request !== requestSequence.current) return;
+    requestPending.current = false;
+    setPending(false);
+  };
+
+  const handleRetry = async () => {
+    const request = beginRequest();
+    if (request === undefined) return;
+    setIsRetrying(true);
+    try {
+      const nextResult = await getAction();
+      if (request === requestSequence.current) setResult(nextResult);
+    } catch {
+      if (request === requestSequence.current) {
+        setResult({ success: false, error: t.providerReputation.error });
+      }
+    } finally {
+      finishRequest(request, setIsRetrying);
+    }
+  };
+
+  const loadPage = async (query: ReputationQuery) => {
+    const request = beginRequest();
+    if (request === undefined) return;
+    lastPageQuery.current = query;
     setIsLoadingPage(true);
     setPaginationError(null);
     try {
-      const nextResult = await getAction({ cursor: result.data.nextCursor });
+      const nextResult = await getAction(query);
+      if (request !== requestSequence.current) return;
       if (nextResult.success) {
         setResult(nextResult);
       } else {
         setPaginationError(nextResult.error || t.providerReputation.error);
       }
     } catch {
-      setPaginationError(t.providerReputation.error);
+      if (request === requestSequence.current) {
+        setPaginationError(t.providerReputation.error);
+      }
     } finally {
-      setIsLoadingPage(false);
+      finishRequest(request, setIsLoadingPage);
     }
   };
 
-  return { isLoadingPage, paginationError, handleNextPage };
+  const handleNextPage = async () => {
+    if (!result?.success || !result.data.nextCursor) return;
+    await loadPage({ cursor: result.data.nextCursor });
+  };
+
+  const retryNextPage = async () => {
+    const query = lastPageQuery.current;
+    if (!query) return;
+    await loadPage(query);
+  };
+
+  return { result, isRetrying, isLoadingPage, paginationError, handleRetry, handleNextPage, retryNextPage };
 }
 
 export function ReputationClient({
@@ -91,36 +124,41 @@ export function ReputationClient({
   initialPending = false,
   getReputationAction = getProviderReputationAction,
 }: ReputationClientProps) {
-  const [result, setResult] = useState<ReputationActionResult | undefined>(initialResult);
-  const [isRetrying, setIsRetrying] = useState(false);
-  const { isLoadingPage, paginationError, handleNextPage } = useReputationPagination(
+  const {
     result,
-    setResult,
-    getReputationAction
-  );
+    isRetrying,
+    isLoadingPage,
+    paginationError,
+    handleRetry,
+    handleNextPage,
+    retryNextPage,
+  } = useReputationState(initialResult, getReputationAction);
 
-  const handleRetry = async () => {
-    if (isRetrying) return;
-    setIsRetrying(true);
-    try {
-      setResult(await getReputationAction());
-    } catch {
-      setResult({ success: false, error: t.providerReputation.error });
-    } finally {
-      setIsRetrying(false);
-    }
-  };
+  const pending = initialPending || !result || isRetrying || isLoadingPage;
+  const loading = <StatisticsLoading message={t.providerReputation.loading} pending={pending} />;
 
   if (initialPending || !result) {
-    return <ReputationLoading />;
+    return <div aria-busy={pending}>{loading}</div>;
   }
 
   if (!result.success) {
-    return <ReputationErrorView error={result.error} isRetrying={isRetrying} onRetry={handleRetry} />;
+    return (
+      <div className="space-y-6" aria-busy={pending}>
+        {loading}
+        <StatisticsError
+          error={result.error}
+          pending={pending}
+          retryLabel={t.providerReputation.retry}
+          onRetry={handleRetry}
+        />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" aria-busy={pending}>
+      {loading}
+      <ReputationScope data={result.data} />
       <ReputationIndicators data={result.data} />
       <ReputationReviewsList
         reviews={result.data.reviews}
@@ -129,10 +167,11 @@ export function ReputationClient({
         isLoadingNextPage={isLoadingPage}
       />
       {paginationError && (
-        <ReputationErrorView
+        <StatisticsError
           error={paginationError}
-          isRetrying={isLoadingPage}
-          onRetry={handleNextPage}
+          pending={isLoadingPage}
+          retryLabel={t.providerReputation.retry}
+          onRetry={retryNextPage}
         />
       )}
     </div>

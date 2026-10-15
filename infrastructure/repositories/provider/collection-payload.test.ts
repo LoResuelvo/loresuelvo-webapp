@@ -4,6 +4,7 @@ describe("collection temporal payload", () => {
   it("compares exact instants across fractional precision and timezone offsets", () => {
     expect(collectionInstantOrder("2026-08-20T12:00:00.000100-03:00", "2026-08-20T15:00:00.0001Z")).toBe(0);
     expect(collectionInstantOrder("2026-08-20T15:00:00.000900Z", "2026-08-20T15:00:00.000100Z")).toBe(1);
+    expect(collectionInstantOrder("2026-08-20T15:00:00.0000000001Z", "2026-08-20T15:00:00.0000000002Z")).toBe(-1);
   });
   it("preserves the 365-day limit even for submillisecond excess", () => {
     const from = "2025-08-20T15:00:00.000100Z";

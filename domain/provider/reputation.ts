@@ -13,6 +13,7 @@ export interface ProviderReputation {
   readonly calculatedAt: string;
   readonly averageRating: number | null;
   readonly reviewCount: number;
+  readonly visibleReviewCount: number;
   readonly ratingDistribution: readonly ProviderRatingDistribution[];
   readonly eligiblePaidOrders: number;
   readonly reviewedPaidOrders: number;

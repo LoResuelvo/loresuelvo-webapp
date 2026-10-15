@@ -66,6 +66,14 @@ describe("conversion queries", () => {
     expect(validateConversionQuery(valid, now)).toEqual(valid);
   });
 
+  it("compares one-nanosecond conversion bounds exactly", () => {
+    const query = {
+      from: "2026-08-01T00:00:00.000000001Z",
+      to: "2026-08-01T00:00:00.000000002Z",
+    };
+    expect(validateConversionQuery(query, now)).toEqual(query);
+  });
+
   it("requires paired zoned instants in validateConversionQuery", () => {
     expect(() =>
       validateConversionQuery({ from: "2026-08-01T00:00:00-03:00" }, now)
@@ -77,6 +85,7 @@ describe("conversion queries", () => {
     "2026-08-01T00:00Z",
     "2026-08-01T24:00:00Z",
     "2026-08-01T12:00:00+03:60",
+    "2026-08-01T12:00:00.1234567890Z",
   ])("rejects invalid RFC3339 instants without normalizing them (%s)", (value) => {
     expect(() => conversionInstant(value)).toThrow(InvalidConversionRangeError);
   });

@@ -3,11 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ReputationClient } from "./ReputationClient";
 import type { ProviderReputation } from "@/domain/provider/reputation";
+import { t } from "@/infrastructure/i18n/translations";
 
 const mockReputation: ProviderReputation = {
   calculatedAt: "2026-08-31T00:00:00-03:00",
   averageRating: 4.8,
   reviewCount: 5,
+  visibleReviewCount: 5,
   ratingDistribution: [
     { rating: 5, count: 4 },
     { rating: 4, count: 1 },
@@ -65,7 +67,7 @@ describe("ReputationClient", () => {
     expect(status).toHaveTextContent("Consultando reputación…");
     expect(screen.queryByTestId("reputation-indicators")).not.toBeInTheDocument();
     expect(screen.queryByTestId("reputation-reviews")).not.toBeInTheDocument();
-    expect(screen.queryByText("No tenés reseñas todavía")).not.toBeInTheDocument();
+    expect(screen.queryByText(t.providerReputation.noReviews)).not.toBeInTheDocument();
   });
 
   it("renders accessible loading state when initialResult is not provided", () => {

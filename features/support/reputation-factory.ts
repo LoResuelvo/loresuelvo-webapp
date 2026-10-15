@@ -5,6 +5,7 @@ export function aReputationResponse(overrides?: Partial<ApiProviderReputation>):
     calculated_at: "2026-08-31T00:00:00-03:00",
     average_rating: 4.8,
     review_count: 5,
+    visible_review_count: 5,
     rating_distribution: [
       { rating: 5, count: 4 },
       { rating: 4, count: 1 },
@@ -55,6 +56,7 @@ export function aPaginatedReputationSecondPage(overrides?: Partial<ApiProviderRe
   return aReputationResponse({
     average_rating: 4.8,
     review_count: 5,
+    visible_review_count: 5,
     reviews: [
       { work_order_id: 108, rating: 4, description: "Trabajo 108" },
       { work_order_id: 107, rating: 4, description: "Trabajo 107" },
@@ -79,6 +81,7 @@ export function anEmptyReputationResponse(
     calculated_at: "2026-08-31T00:00:00-03:00",
     average_rating: null,
     review_count: 0,
+    visible_review_count: 0,
     rating_distribution: [
       { rating: 5, count: 0 },
       { rating: 4, count: 0 },

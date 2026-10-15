@@ -566,6 +566,7 @@ export interface ApiProviderReputation {
   calculated_at: string;
   average_rating: number | null;
   review_count: number;
+  visible_review_count: number;
   rating_distribution: Array<{ rating: number; count: number }>;
   eligible_paid_orders: number;
   reviewed_paid_orders: number;

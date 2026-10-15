@@ -7,7 +7,8 @@ import { getProviderActivityAction } from "@/app/prestador/mi-desempeno/activida
 import { t } from "@/infrastructure/i18n/translations";
 import { ActivityFilters } from "./ActivityFilters";
 import { ActivityView } from "./ActivityView";
-import { Button } from "@/components/ui/button";
+import { StatisticsError } from "../statistics/StatisticsError";
+import { StatisticsLoading } from "../statistics/StatisticsLoading";
 
 export function ActivityClient({ initialResult }: { initialResult: ActivityActionResult }) {
   const [result, setResult] = useState(initialResult);
@@ -33,12 +34,14 @@ export function ActivityClient({ initialResult }: { initialResult: ActivityActio
   return (
     <div className="space-y-6" aria-busy={pending}>
       {result.success && <ActivityFilters key={`${result.data.period.from}|${result.data.period.to}|${result.data.period.granularity}|${Boolean(result.data.comparison)}`} comparison={Boolean(result.data.comparison)} period={result.data.period} pending={pending} onApply={apply} />}
-      <p role="status" className="text-sm">{pending ? t.providerActivity.loading : ""}</p>
+      <StatisticsLoading message={t.providerActivity.loading} pending={pending} />
       {result.success ? <ActivityView activity={result.data} /> : (
-        <div className="space-y-3">
-          <p role="alert">{result.error}</p>
-          <Button disabled={pending} variant="outline" onClick={() => apply(lastQuery.current)}>{t.providerActivity.retry}</Button>
-        </div>
+        <StatisticsError
+          error={result.error}
+          pending={pending}
+          retryLabel={t.providerActivity.retry}
+          onRetry={() => apply(lastQuery.current)}
+        />
       )}
     </div>
   );

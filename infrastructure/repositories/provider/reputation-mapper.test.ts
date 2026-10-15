@@ -5,6 +5,7 @@ const validRaw = {
   calculated_at: "2026-08-31T00:00:00-03:00",
   average_rating: 4.8,
   review_count: 5,
+  visible_review_count: 5,
   rating_distribution: [
     { rating: 5, count: 4 },
     { rating: 4, count: 1 },
@@ -27,6 +28,7 @@ describe("mapProviderReputation", () => {
     expect(result.calculatedAt).toBe("2026-08-31T00:00:00-03:00");
     expect(result.averageRating).toBe(4.8);
     expect(result.reviewCount).toBe(5);
+    expect(result.visibleReviewCount).toBe(5);
     expect(result.ratingDistribution).toEqual([
       { rating: 5, count: 4 },
       { rating: 4, count: 1 },
@@ -41,6 +43,32 @@ describe("mapProviderReputation", () => {
       { workOrderId: 101, rating: 5, description: "Excelente trabajo." },
     ]);
     expect(result.nextCursor).toBe("cursor-token");
+  });
+
+  it("keeps hidden reviews in totals while exposing no visible reviews", () => {
+    const result = mapProviderReputation({
+      ...validRaw,
+      average_rating: 5,
+      review_count: 1,
+      visible_review_count: 0,
+      rating_distribution: [
+        { rating: 5, count: 1 },
+        { rating: 4, count: 0 },
+        { rating: 3, count: 0 },
+        { rating: 2, count: 0 },
+        { rating: 1, count: 0 },
+      ],
+      eligible_paid_orders: 1,
+      reviewed_paid_orders: 1,
+      coverage_percentage: 100,
+      reviews: [],
+      next_cursor: null,
+    });
+
+    expect(result.reviewCount).toBe(1);
+    expect(result.visibleReviewCount).toBe(0);
+    expect(result.ratingDistribution[0]).toEqual({ rating: 5, count: 1 });
+    expect(result.reviews).toEqual([]);
   });
 
   it("handles null average rating, null coverage percentage and null cursor", () => {
@@ -64,6 +92,7 @@ describe("mapProviderReputation", () => {
 
   it("throws on invalid calculated_at", () => {
     expect(() => mapProviderReputation({ ...validRaw, calculated_at: "not-a-date" })).toThrow("Invalid calculated_at instant");
+    expect(() => mapProviderReputation({ ...validRaw, calculated_at: "2026-08-31" })).toThrow("Invalid calculated_at instant");
   });
 
   it("throws on negative count", () => {

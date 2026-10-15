@@ -13,6 +13,7 @@ export function ActivityView({ activity }: { activity: ProviderActivity }) {
       <section aria-label={labels.period} className="rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="font-semibold">{labels.period}</h2>
         <p data-testid="activity-period">{activityRange(activity.period.from, activity.period.to)}</p>
+        <p className="mt-1 text-xs text-slate-600">{labels.periodBoundsHelp}</p>
         <p className="mt-2 text-xs text-slate-500">{labels.calculatedAt} {activityDate(activity.calculatedAt)}</p>
       </section>
       <ActivityResults results={activity.results} />

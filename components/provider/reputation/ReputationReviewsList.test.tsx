@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ReputationReviewsList } from "./ReputationReviewsList";
 import type { ProviderReview } from "@/domain/provider/reputation";
+import { t } from "@/infrastructure/i18n/translations";
 
 describe("ReputationReviewsList", () => {
   it("renders review with rating and description when provided", () => {
@@ -66,6 +67,6 @@ describe("ReputationReviewsList", () => {
 
   it("renders empty state message when reviews list is empty", () => {
     render(<ReputationReviewsList reviews={[]} />);
-    expect(screen.getByText("No tenés reseñas todavía")).toBeInTheDocument();
+    expect(screen.getByText(t.providerReputation.noReviews)).toBeInTheDocument();
   });
 });

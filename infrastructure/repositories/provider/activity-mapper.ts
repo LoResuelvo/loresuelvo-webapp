@@ -1,5 +1,6 @@
 import type { ActivityChange, ActivityComparison, ActivityInterval, ActivityPeriod, ActivityResults, ProviderActivity } from "@/domain/provider/activity";
 import { activityInstant } from "@/domain/provider/activity-query";
+import { compareStatisticsInstants, statisticsPeriodsHaveEqualDuration } from "@/domain/provider/statistics-instant";
 
 function record(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("Invalid activity object");
@@ -21,7 +22,7 @@ function bounds(value: unknown): { from: string; to: string } {
   const source = record(value);
   const from = instant(source.from);
   const to = instant(source.to);
-  if (Date.parse(from) >= Date.parse(to)) throw new Error("Invalid activity bounds");
+  if (compareStatisticsInstants(from, to) >= 0) throw new Error("Invalid activity bounds");
   return { from, to };
 }
 
@@ -72,8 +73,7 @@ function comparison(value: unknown, currentPeriod: ActivityPeriod, current: Acti
   const previousPeriod = period(source.period);
   const previous = results(source.results);
   const changes = record(source.changes);
-  const duration = Date.parse(currentPeriod.to) - Date.parse(currentPeriod.from);
-  if (Date.parse(previousPeriod.to) !== Date.parse(currentPeriod.from) || Date.parse(previousPeriod.to) - Date.parse(previousPeriod.from) !== duration || previousPeriod.granularity !== currentPeriod.granularity) throw new Error("Invalid comparison period");
+  if (compareStatisticsInstants(previousPeriod.to, currentPeriod.from) !== 0 || !statisticsPeriodsHaveEqualDuration(previousPeriod, currentPeriod) || previousPeriod.granularity !== currentPeriod.granularity) throw new Error("Invalid comparison period");
   return { period: previousPeriod, results: previous, changes: {
     confirmedBookings: change(changes.confirmed_bookings, previous.confirmedBookings, current.confirmedBookings),
     reportedCompletions: change(changes.reported_completions, previous.reportedCompletions, current.reportedCompletions),
@@ -95,9 +95,9 @@ export function mapProviderActivity(value: unknown): ProviderActivity {
   const evolution = source.evolution.map(interval);
   for (const [index, bucket] of evolution.entries()) {
     const expectedFrom = index === 0 ? effectivePeriod.from : evolution[index - 1].to;
-    if (Date.parse(bucket.from) !== Date.parse(expectedFrom) || Date.parse(bucket.to) > Date.parse(effectivePeriod.to)) throw new Error("Invalid evolution bounds");
+    if (compareStatisticsInstants(bucket.from, expectedFrom) !== 0 || compareStatisticsInstants(bucket.to, effectivePeriod.to) > 0) throw new Error("Invalid evolution bounds");
   }
-  if (!evolution.length || Date.parse(evolution[evolution.length - 1].to) !== Date.parse(effectivePeriod.to)) throw new Error("Incomplete evolution");
+  if (!evolution.length || compareStatisticsInstants(evolution[evolution.length - 1].to, effectivePeriod.to) !== 0) throw new Error("Incomplete evolution");
   return {
     period: effectivePeriod,
     calculatedAt: instant(source.calculated_at),

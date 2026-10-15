@@ -3,6 +3,7 @@ export const providerActivity = {
   activity: "Actividad",
   description: "Los hitos de tus trabajos, según el período consultado.",
   period: "Período efectivo",
+  periodBoundsHelp: "Inicio incluido · fin excluido.",
   calculatedAt: "Consulta calculada al",
   results: "Resultados del período",
   confirmedBookings: "Contrataciones confirmadas",

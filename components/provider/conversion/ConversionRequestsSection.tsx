@@ -12,10 +12,10 @@ function MetricCard({ title, value, testId }: MetricCardProps) {
   return (
     <div
       data-testid={testId}
-      className="rounded-xl border border-slate-200 bg-white p-5 min-w-0 space-y-2"
+      className="rounded-xl border border-slate-200 bg-white p-4 min-w-0 space-y-2"
     >
       <h3 className="text-sm font-medium text-slate-600">{title}</h3>
-      <p className="text-3xl font-bold text-brand-primary">{value}</p>
+      <p className="text-2xl font-bold tabular-nums text-brand-primary">{value}</p>
     </div>
   );
 }
@@ -31,15 +31,15 @@ export function ConversionRequestsSection({
     <section
       aria-labelledby="conversion-requests-title"
       data-testid="conversion-requests-section"
-      className="space-y-4"
+      className="space-y-3"
     >
       <h2 id="conversion-requests-title" className="text-xl font-semibold">
         {labels.requestsTitle}
       </h2>
-      <p className="text-xs text-slate-500">
+      <p className="text-sm text-slate-600">
         {labels.requestsHelp}
       </p>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title={labels.requestsReceived}
           value={requests.received}
@@ -57,10 +57,10 @@ export function ConversionRequestsSection({
         />
         <div
           data-testid="requests-acceptance-rate"
-          className="rounded-xl border border-slate-200 bg-white p-5 min-w-0 space-y-2"
+          className="rounded-xl border border-slate-200 bg-white p-4 min-w-0 space-y-2"
         >
           <h3 className="text-sm font-medium text-slate-600">{labels.acceptanceRate}</h3>
-          <p className="text-sm font-semibold text-brand-primary pt-2">
+          <p className="break-words text-sm font-semibold tabular-nums text-brand-primary pt-2">
             {formatConversionRatio(requests.acceptanceRate, labels.acceptanceRateNoun)}
           </p>
         </div>

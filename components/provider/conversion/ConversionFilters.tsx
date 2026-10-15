@@ -9,17 +9,9 @@ import {
   type ConversionQuery,
 } from "@/domain/provider/conversion-query";
 import { t } from "@/infrastructure/i18n/translations";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-
-function buenosAiresDay(instant: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Argentina/Buenos_Aires",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(instant));
-}
+import { StatisticsDateFields } from "../statistics/StatisticsDateFields";
+import { statisticsDay } from "../statistics/statistics-format";
 
 interface ConversionFiltersProps {
   readonly period: ConversionPeriod;
@@ -29,8 +21,8 @@ interface ConversionFiltersProps {
 }
 
 function useConversionFilterState(period: ConversionPeriod) {
-  const initialFrom = buenosAiresDay(period.from);
-  const initialThrough = buenosAiresDay(new Date(Date.parse(period.to) - 1).toISOString());
+  const initialFrom = statisticsDay(period.from);
+  const initialThrough = statisticsDay(new Date(Date.parse(period.to) - 1).toISOString());
   const [from, setFrom] = useState(initialFrom);
   const [through, setThrough] = useState(initialThrough);
   const [error, setError] = useState<string | null>(null);
@@ -57,24 +49,7 @@ function FilterInputs({
   const labels = t.providerConversion;
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 items-end">
-      <label className="space-y-1 text-sm font-medium text-slate-700">
-        {labels.from}
-        <Input
-          type="date"
-          value={from}
-          onChange={(e) => onFromChange(e.target.value)}
-          aria-describedby="conversion-filter-help"
-        />
-      </label>
-      <label className="space-y-1 text-sm font-medium text-slate-700">
-        {labels.through}
-        <Input
-          type="date"
-          value={through}
-          onChange={(e) => onThroughChange(e.target.value)}
-          aria-describedby="conversion-filter-help"
-        />
-      </label>
+      <StatisticsDateFields from={from} through={through} onFromChange={onFromChange} onThroughChange={onThroughChange} helpId="conversion-filter-help" />
       <Button type="submit" variant="brand">
         {labels.applyFilters}
       </Button>

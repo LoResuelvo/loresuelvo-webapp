@@ -61,4 +61,16 @@ describe("mapProviderActivity", () => {
     dto.comparison.period.from = "2026-07-03T00:00:00-03:00";
     expect(() => mapProviderActivity(dto)).toThrow();
   });
+  it("rejects an evolution boundary that differs by one nanosecond", () => {
+    const dto = anActivityResponse();
+    dto.period.from = "2026-08-01T00:00:00.000000000Z";
+    dto.evolution[0].from = "2026-08-01T00:00:00.000000001Z";
+    expect(() => mapProviderActivity(dto)).toThrow("Invalid evolution bounds");
+  });
+  it("compares adjacent comparison periods at fractional precision", () => {
+    const dto = aComparedActivityResponse();
+    if (!dto.comparison) throw new Error("Missing comparison fixture");
+    dto.comparison.period.from = "2026-07-02T00:00:00.000000001-03:00";
+    expect(() => mapProviderActivity(dto)).toThrow("Invalid comparison period");
+  });
 });

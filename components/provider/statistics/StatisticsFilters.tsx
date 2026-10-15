@@ -4,18 +4,15 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { StatisticsGranularity, StatisticsPeriod } from "@/domain/provider/statistics-period";
 import { FutureStatisticsDateError, statisticsQueryForDays, statisticsQueryForPeriod, type StatisticsQuery } from "@/domain/provider/statistics-query";
 import { t } from "@/infrastructure/i18n/translations";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-
-function buenosAiresDay(instant: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(instant));
-}
+import { StatisticsDateFields } from "./StatisticsDateFields";
+import { statisticsDay } from "./statistics-format";
 
 export function StatisticsFilters({ period, pending, onApply, comparison, title }: { period: StatisticsPeriod; pending: boolean; onApply: (query: StatisticsQuery) => void; comparison?: boolean; title: string }) {
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
-  const initialFrom = buenosAiresDay(period.from);
-  const initialThrough = buenosAiresDay(new Date(Date.parse(period.to) - 1).toISOString());
+  const initialFrom = statisticsDay(period.from);
+  const initialThrough = statisticsDay(new Date(Date.parse(period.to) - 1).toISOString());
   const [from, setFrom] = useState(initialFrom);
   const [through, setThrough] = useState(initialThrough);
   const [granularity, setGranularity] = useState<StatisticsGranularity>(period.granularity);
@@ -41,8 +38,7 @@ export function StatisticsFilters({ period, pending, onApply, comparison, title 
       <fieldset disabled={!ready || pending} className="space-y-3">
         <legend className="sr-only">{title}</legend>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 items-end">
-          <label className="space-y-1 text-sm">{labels.from}<Input type="date" required value={from} onChange={event => setFrom(event.target.value)} aria-describedby="statistics-filter-help" /></label>
-          <label className="space-y-1 text-sm">{labels.through}<Input type="date" required value={through} onChange={event => setThrough(event.target.value)} aria-describedby="statistics-filter-help" /></label>
+          <StatisticsDateFields from={from} through={through} onFromChange={setFrom} onThroughChange={setThrough} helpId="statistics-filter-help" required />
           <label className="space-y-1 text-sm">{labels.granularity}<select value={granularity} onChange={event => setGranularity(event.target.value as StatisticsGranularity)} className="block w-full rounded-lg border border-slate-300 h-8 px-2 focus-visible:outline-2 focus-visible:outline-brand-secondary">
             {(["day", "week", "month"] as const).map(value => <option key={value} value={value}>{labels[value]}</option>)}
           </select></label>

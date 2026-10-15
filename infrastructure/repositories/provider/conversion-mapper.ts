@@ -6,6 +6,8 @@ import type {
   ConversionRequests,
   ProviderConversion,
 } from "@/domain/provider/conversion";
+import { compareStatisticsInstants } from "@/domain/provider/statistics-instant";
+import { conversionInstant } from "@/domain/provider/conversion-query";
 
 function record(value: unknown, label: string = "conversion"): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -22,14 +24,19 @@ function count(value: unknown, fieldName: string): number {
 }
 
 function isoString(value: unknown, fieldName: string): string {
-  if (typeof value !== "string" || Number.isNaN(Date.parse(value))) {
+  if (typeof value !== "string") {
+    throw new Error(`Invalid instant for ${fieldName}`);
+  }
+  try {
+    conversionInstant(value);
+  } catch {
     throw new Error(`Invalid instant for ${fieldName}`);
   }
   return value;
 }
 
 function percentage(value: unknown, fieldName: string): number | null {
-  if (value === null || value === undefined) return null;
+  if (value === null) return null;
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 100) {
     throw new Error(`Invalid percentage for ${fieldName}`);
   }
@@ -92,14 +99,18 @@ export function mapProviderConversion(raw: unknown): ProviderConversion {
   const periodRec = record(root.period, "period");
 
   const timeZone = periodRec.time_zone;
-  if (typeof timeZone !== "string" || timeZone.trim().length === 0) {
+  if (timeZone !== "America/Argentina/Buenos_Aires") {
     throw new Error("Invalid timeZone for period");
   }
 
+  const from = isoString(periodRec.from, "period.from");
+  const to = isoString(periodRec.to, "period.to");
+  if (compareStatisticsInstants(from, to, 9) >= 0) throw new Error("Invalid conversion period bounds");
+
   return {
     period: {
-      from: isoString(periodRec.from, "period.from"),
-      to: isoString(periodRec.to, "period.to"),
+      from,
+      to,
       timeZone,
     },
     observedAt: isoString(root.observed_at, "observed_at"),

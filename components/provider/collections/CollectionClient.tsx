@@ -9,14 +9,18 @@ import { StatisticsFilters } from "../statistics/StatisticsFilters";
 import type { CollectionTransactionsActionResult } from "@/app/prestador/mi-desempeno/cobros/transaction-actions";
 import { CollectionDetailClient } from "./CollectionDetailClient";
 import { CollectionView } from "./CollectionView";
+import { StatisticsError } from "../statistics/StatisticsError";
+import { StatisticsLoading } from "../statistics/StatisticsLoading";
 
 export function CollectionClient({ initialResult, initialDetail }: { initialResult: CollectionActionResult; initialDetail?: CollectionTransactionsActionResult }) {
   const [result, setResult] = useState(initialResult);
   const [pending, setPending] = useState(false);
+  const lastQuery = useRef<StatisticsQuery | undefined>(undefined);
   const sequence = useRef(0);
   useEffect(() => () => { sequence.current += 1; }, []);
 
-  async function apply(query: StatisticsQuery) {
+  async function apply(query?: StatisticsQuery) {
+    lastQuery.current = query;
     const request = ++sequence.current;
     setPending(true);
     try {
@@ -30,10 +34,15 @@ export function CollectionClient({ initialResult, initialDetail }: { initialResu
   }
   return <div className="space-y-6" aria-busy={pending}>
     {result.success && <StatisticsFilters key={`${result.data.period.from}|${result.data.period.to}|${result.data.period.granularity}|${Boolean(result.data.comparison)}`} period={result.data.period} pending={pending} comparison={Boolean(result.data.comparison)} title={t.providerCollections.filters} onApply={apply} />}
-    <p role="status" className="text-sm">{pending ? t.providerCollections.loading : ""}</p>
+    <StatisticsLoading message={t.providerCollections.loading} pending={pending} />
     {result.success ? <>
       <CollectionView collections={result.data} />
       <CollectionDetailClient key={`${result.data.period.from}|${result.data.period.to}`} period={result.data.period} initialResult={initialResult.success && initialResult.data.period.from === result.data.period.from && initialResult.data.period.to === result.data.period.to ? initialDetail : undefined} />
-    </> : <p role="alert">{result.error}</p>}
+    </> : <StatisticsError
+      error={result.error}
+      pending={pending}
+      retryLabel={t.providerCollections.retry}
+      onRetry={() => apply(lastQuery.current)}
+    />}
   </div>;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { t } from "@/infrastructure/i18n/translations";
@@ -16,6 +16,8 @@ import { ReviewWorkOrderModal } from "./ReviewWorkOrderModal";
 import type { WorkOrderDetail } from "@/domain/work-order/types";
 import type { WorkOrderCalendarConnectionState } from "@/components/work-orders/useWorkOrderCalendarConnection";
 import WorkOrderCalendarConnection, { type WorkOrderCalendarAuthorization } from "./WorkOrderCalendarConnection";
+import { Button } from "@/components/ui/button";
+import { useResourceUpdate } from "@/infrastructure/notifications/NotificationContext";
 import { ROUTES } from "@/lib/routes";
 
 export interface WorkOrderDetailModalProps {
@@ -46,28 +48,54 @@ export function WorkOrderDetailModal({
   const [detail, setDetail] = useState<WorkOrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [refreshError, setRefreshError] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const detailRef = useRef(detail);
+  detailRef.current = detail;
+
+  const fetchDetail = useCallback(async (isBackground = false) => {
+    if (!open || !workOrderId) return;
+    if (!isBackground) {
+      setIsLoading(true);
+      setHasError(false);
+    }
+    try {
+      const res = await getWorkOrderDetailAction(workOrderId);
+      if (res.ok) {
+        setDetail(res.detail);
+        setRefreshError(false);
+        setHasError(false);
+      } else {
+        if (isBackground && detailRef.current) {
+          setRefreshError(true);
+        } else {
+          setHasError(true);
+        }
+      }
+    } catch {
+      if (isBackground && detailRef.current) {
+        setRefreshError(true);
+      } else {
+        setHasError(true);
+      }
+    } finally {
+      if (!isBackground) {
+        setIsLoading(false);
+      }
+    }
+  }, [open, workOrderId]);
 
   useEffect(() => {
     if (open && workOrderId) {
-      setIsLoading(true);
-      setHasError(false);
-      getWorkOrderDetailAction(workOrderId)
-        .then((res) => {
-          if (res.ok) {
-            setDetail(res.detail);
-          } else {
-            setHasError(true);
-          }
-        })
-        .catch(() => {
-          setHasError(true);
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
+      fetchDetail(false);
     }
-  }, [open, workOrderId]);
+  }, [open, workOrderId, fetchDetail]);
+
+  useResourceUpdate("work_order", workOrderId, () => {
+    if (open) {
+      fetchDetail(true);
+    }
+  });
 
   const currentStatus = detail?.status ?? "scheduled";
   const amountCents = detail?.amountCents ?? initialAmountCents;
@@ -94,6 +122,24 @@ export function WorkOrderDetailModal({
             profileHref={isConsumer ? ROUTES.consumer.profile : ROUTES.provider.profile}
             authorization={calendarAuthorization}
           />
+          {refreshError && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              data-testid="work-order-refresh-error"
+              className="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-caption"
+            >
+              <span>{t.notifications.refreshError.message}</span>
+              <Button
+                size="sm"
+                variant="brand"
+                onClick={() => fetchDetail(true)}
+                className="h-7 px-2.5 text-xs font-semibold"
+              >
+                {t.notifications.refreshError.retry}
+              </Button>
+            </div>
+          )}
           {hasError ? (
             <div
               data-testid="work-order-detail-error"

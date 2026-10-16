@@ -1,4 +1,8 @@
-import { ApiMessageAudio, ApiMessageImage } from "@/infrastructure/api/types";
+import {
+  ApiMessageAudio,
+  ApiMessageImage,
+  ApiNotificationCreatedEvent,
+} from "@/infrastructure/api/types";
 
 export interface WsEventMessage {
   id: number;
@@ -9,10 +13,14 @@ export interface WsEventMessage {
   audio?: ApiMessageAudio;
 }
 
-export interface WsEvent {
+export interface WsConversationMessageEvent {
   type: "conversation.message.created";
   conversation_id: number;
   message: WsEventMessage;
 }
+
+export type WsNotificationCreatedEvent = ApiNotificationCreatedEvent;
+
+export type WsEvent = WsConversationMessageEvent | WsNotificationCreatedEvent;
 
 export type WsMessageHandler = (event: WsEvent) => void;

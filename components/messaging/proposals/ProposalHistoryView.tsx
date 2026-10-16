@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 import { ProposalCard } from "@/components/messaging/proposals/ProposalCard";
 import ServiceProposalDetailModal from "@/components/messaging/proposals/ServiceProposalDetailModal";
@@ -11,6 +11,9 @@ import WorkOrderCalendarConnection from "@/components/work-orders/WorkOrderCalen
 import { useWorkOrderCalendarConnection } from "@/components/work-orders/useWorkOrderCalendarConnection";
 import { ROUTES } from "@/lib/routes";
 import { useCalendarAuthorization } from "@/components/profile/useCalendarAuthorization";
+import { useResourceUpdate } from "@/infrastructure/notifications/NotificationContext";
+import { getServiceProposalsAction } from "@/app/prestador/mensajes/actions";
+import { Button } from "@/components/ui/button";
 
 interface ProposalHistoryViewProps {
   proposals: ServiceProposalSummary[];
@@ -19,12 +22,31 @@ interface ProposalHistoryViewProps {
 
 type TabType = "pending" | "accepted" | "rejected";
 
-export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryViewProps) {
+export function ProposalHistoryView({ proposals: initialProposals, isProvider }: ProposalHistoryViewProps) {
+  const [proposals, setProposals] = useState(initialProposals);
+  const [refreshError, setRefreshError] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("pending");
   const [selectedProposal, setSelectedProposal] = useState<ServiceProposalSummary | null>(null);
   const router = useRouter();
   const calendarConnection = useWorkOrderCalendarConnection();
   const calendarAuthorization = useCalendarAuthorization();
+
+  useEffect(() => {
+    setProposals(initialProposals);
+  }, [initialProposals]);
+
+  const handleRefresh = useCallback(async () => {
+    try {
+      const updated = await getServiceProposalsAction();
+      setProposals(updated);
+      setRefreshError(false);
+    } catch {
+      setRefreshError(true);
+    }
+  }, []);
+
+  useResourceUpdate("service_proposal", undefined, handleRefresh);
+  useResourceUpdate("work_order", undefined, handleRefresh);
 
   const filteredProposals = useMemo(() => {
     return proposals
@@ -44,6 +66,25 @@ export function ProposalHistoryView({ proposals, isProvider }: ProposalHistoryVi
         authorization={calendarAuthorization}
         showError={!selectedProposal}
       />
+
+      {refreshError && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          data-testid="proposal-refresh-error"
+          className="flex items-center justify-between p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-body"
+        >
+          <span>{t.notifications.refreshError.message}</span>
+          <Button
+            size="sm"
+            variant="brand"
+            onClick={handleRefresh}
+            className="h-8 px-3 text-caption font-semibold"
+          >
+            {t.notifications.refreshError.retry}
+          </Button>
+        </div>
+      )}
 
       <div className="flex gap-2 border-b border-gray-200" role="tablist">
         {(["pending", "accepted", "rejected"] as TabType[]).map((tab) => (

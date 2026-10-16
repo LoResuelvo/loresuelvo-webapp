@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, useCallback, ReactNode } from "react";
 import type { WsEvent, WsMessageHandler } from "./types";
+import { validateWsEvent } from "./notification-validator";
 import { requestWsTicket, TicketError } from "../api/ws-tickets-client";
 
 interface WebSocketContextValue {
@@ -54,7 +55,10 @@ export function WebSocketProvider({ children, wsUrl, role, enabled = true }: Pro
 
         ws.onmessage = (event) => {
           try {
-            const data: WsEvent = JSON.parse(event.data);
+            const raw = JSON.parse(event.data);
+            const data = validateWsEvent(raw);
+            if (!data) return;
+
             handlersRef.current.forEach((handler) => {
               try {
                 handler(data);
@@ -62,7 +66,9 @@ export function WebSocketProvider({ children, wsUrl, role, enabled = true }: Pro
                 console.error("WebSocket handler error:", e);
               }
             });
-            setUnreadCount((prev) => prev + 1);
+            if (data.type === "conversation.message.created") {
+              setUnreadCount((prev) => prev + 1);
+            }
           } catch (e) {
             console.error("WebSocket parse error:", e);
           }

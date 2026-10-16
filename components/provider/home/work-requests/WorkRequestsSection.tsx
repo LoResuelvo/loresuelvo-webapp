@@ -10,6 +10,7 @@ import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
 
 import WorkRequestCard from "./WorkRequestCard";
+import { useResourceUpdate } from "@/infrastructure/notifications/NotificationContext";
 
 interface WorkRequestsSectionProps {
   requests: ProviderWorkRequest[];
@@ -20,6 +21,32 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
   const [requests, setRequests] = useState(initialRequests);
   const [selectedRequest, setSelectedRequest] = useState<ProviderWorkRequest | null>(null);
   const [, startTransition] = useTransition();
+
+  useResourceUpdate("job_request", undefined, (_event, jobRequest) => {
+    if (jobRequest) {
+      setRequests((prev) => {
+        const idStr = String(jobRequest.id);
+        if (prev.some((r) => r.id === idStr)) return prev;
+        const newRequest: ProviderWorkRequest = {
+          id: idStr,
+          conversationId: String(jobRequest.conversationId),
+          clientName: `${jobRequest.requester.name} ${jobRequest.requester.surname}`.trim(),
+          problemTitle: jobRequest.title,
+          category: "",
+          description: jobRequest.description,
+          location: "",
+          publishedAtLabel: "Recién",
+          unreadMessagesCount: 0,
+          images: jobRequest.images.map((img) => ({
+            id: String(img.id),
+            url: img.url,
+            originalName: img.originalName,
+          })),
+        };
+        return [newRequest, ...prev];
+      });
+    }
+  });
 
   const handleAccept = (requestId: string, conversationId: string) => {
     startTransition(async () => {

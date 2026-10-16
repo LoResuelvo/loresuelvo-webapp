@@ -4,6 +4,7 @@ import WorkRequestsSection from "./WorkRequestsSection";
 import { ProviderWorkRequest } from "@/domain/provider/types";
 import * as actions from "@/app/prestador/home/actions";
 import * as messagingActions from "@/app/prestador/mensajes/actions";
+import * as NotificationContextModule from "@/infrastructure/notifications/NotificationContext";
 
 const mockPush = vi.fn();
 
@@ -113,5 +114,34 @@ describe("WorkRequestsSection handleAccept redirect", () => {
 
     expect(screen.getByText("Imágenes adjuntas")).toBeInTheDocument();
     expect(screen.getByAltText("leak.jpg")).toBeInTheDocument();
+  });
+
+  it("adds new incoming job request when notification arrives without duplicates", () => {
+    let capturedCallback: any;
+    vi.spyOn(NotificationContextModule, "useResourceUpdate").mockImplementation(
+      (_type: any, _id: any, cb: any) => {
+        capturedCallback = cb;
+      }
+    );
+
+    render(<WorkRequestsSection requests={mockWorkRequests} />);
+    expect(screen.queryByText("Reparación urgente")).not.toBeInTheDocument();
+
+    act(() => {
+      capturedCallback?.(
+        { id: 1, type: "job_request_received", resourceType: "job_request", resourceId: 99 },
+        {
+          id: 99,
+          conversationId: 50,
+          title: "Reparación urgente",
+          description: "Cañería rota",
+          status: "pending",
+          requester: { name: "Pedro", surname: "López" },
+          images: [],
+        }
+      );
+    });
+
+    expect(screen.getByText("Reparación urgente")).toBeInTheDocument();
   });
 });

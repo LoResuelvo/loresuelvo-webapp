@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, within, act } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProposalHistoryView } from "./ProposalHistoryView";
 import { getCurrentUserAction } from "@/app/api/me/actions";
@@ -8,8 +8,14 @@ import { getWorkOrderByProposalAction, getWorkOrderDetailAction } from "@/app/wo
 import { t } from "@/infrastructure/i18n/translations";
 import userEvent from "@testing-library/user-event";
 
+import { getServiceProposalsAction } from "@/app/prestador/mensajes/actions";
+import * as NotificationContextModule from "@/infrastructure/notifications/NotificationContext";
+
 vi.mock("@/app/api/me/actions", () => ({ getCurrentUserAction: vi.fn() }));
 vi.mock("@/app/profile/calendar-actions", () => ({ startCalendarAuthorizationAction: vi.fn() }));
+vi.mock("@/app/prestador/mensajes/actions", () => ({
+  getServiceProposalsAction: vi.fn(),
+}));
 vi.mock("@/app/work-orders/actions", () => ({
   getWorkOrderByProposalAction: vi.fn().mockResolvedValue({ ok: true, workOrder: null }),
   getWorkOrderDetailAction: vi.fn().mockResolvedValue({ ok: false, status: 500 }),
@@ -289,5 +295,75 @@ describe("ProposalHistoryView", () => {
 
     expect(screen.getByTestId("service-proposal-detail-modal")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ver conversación/i })).toBeInTheDocument();
+  });
+
+  it("updates proposals list when realtime notification arrives", async () => {
+    let capturedCallback: any;
+    vi.spyOn(NotificationContextModule, "useResourceUpdate").mockImplementation(
+      (_type: any, _id: any, cb: any) => {
+        capturedCallback = cb;
+      }
+    );
+
+    const updatedProposals = [
+      ...mockProposals,
+      {
+        id: 3,
+        conversationId: 4,
+        amountCents: 3000000,
+        scheduledOn: "2026-07-07T10:00:00-03:00",
+        description: "Nueva propuesta en vivo",
+        estimatedDurationMinutes: 120,
+        status: "pending" as const,
+        createdOn: "2026-07-06T10:00:00-03:00",
+        counterpart: { id: 3, role: "consumer" as const, name: "Mario", surname: "Rossi" },
+      },
+    ];
+
+    vi.mocked(getServiceProposalsAction).mockResolvedValue(updatedProposals);
+
+    render(<ProposalHistoryView proposals={mockProposals} isProvider={false} />);
+    expect(screen.queryByText("Mario Rossi")).not.toBeInTheDocument();
+
+    await act(async () => {
+      await capturedCallback?.({
+        id: 10,
+        type: "service_proposal_received",
+        resourceType: "service_proposal",
+        resourceId: 3,
+      });
+    });
+
+    expect(screen.getByText("Mario Rossi")).toBeInTheDocument();
+  });
+
+  it("preserves visible proposals and offers retry when refresh fails", async () => {
+    let capturedCallback: any;
+    vi.spyOn(NotificationContextModule, "useResourceUpdate").mockImplementation(
+      (_type: any, _id: any, cb: any) => {
+        capturedCallback = cb;
+      }
+    );
+
+    vi.mocked(getServiceProposalsAction).mockRejectedValue(new Error("Network failed"));
+
+    render(<ProposalHistoryView proposals={mockProposals} isProvider={false} />);
+    expect(screen.getByText("Juan Gómez")).toBeInTheDocument();
+
+    await act(async () => {
+      await capturedCallback?.({
+        id: 11,
+        type: "service_proposal_received",
+        resourceType: "service_proposal",
+        resourceId: 99,
+      });
+    });
+
+    // Data remains visible!
+    expect(screen.getByText("Juan Gómez")).toBeInTheDocument();
+    // Error banner appears with retry button
+    expect(screen.getByTestId("proposal-refresh-error")).toBeInTheDocument();
+    expect(screen.getByText(t.notifications.refreshError.message)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: t.notifications.refreshError.retry })).toBeInTheDocument();
   });
 });

@@ -21,6 +21,7 @@ import { clientFileUploadRepository } from "@/app/files/client-file-upload";
 import { ClientConversationCommandRepository } from "@/infrastructure/repositories/messaging/client-conversation-command-repository";
 import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/shared/local-offline-queue-repository";
 import { useMessagingCore } from "@/hooks/messaging/useMessagingCore";
+import { useResourceUpdate } from "@/infrastructure/notifications/NotificationContext";
 
 const conversationRepository = new ClientConversationCommandRepository({
   create: createConversation,
@@ -92,6 +93,18 @@ export function useProviderMessages(
         })
         .catch(() => setActiveServiceProposal(null));
     },
+  });
+
+  useResourceUpdate("service_proposal", undefined, () => {
+    getServiceProposalsAction()
+      .then((proposals) => {
+        const convId = core.selectedContact?.id?.replace("conv-", "");
+        if (convId) {
+          const prop = proposals.find((p) => p.conversationId === Number(convId));
+          setActiveServiceProposal(prop || null);
+        }
+      })
+      .catch(() => {});
   });
 
   const handleContactClick = (consumerId: string) => {

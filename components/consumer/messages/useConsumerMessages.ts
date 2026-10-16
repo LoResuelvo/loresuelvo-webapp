@@ -21,6 +21,7 @@ import { ClientConversationCommandRepository } from "@/infrastructure/repositori
 import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/shared/local-offline-queue-repository";
 import type { MessageInputHandle } from "@/components/messaging/chat/MessageInput";
 import { useMessagingCore } from "@/hooks/messaging/useMessagingCore";
+import { useResourceUpdate } from "@/infrastructure/notifications/NotificationContext";
 
 const conversationRepository = new ClientConversationCommandRepository({
   create: createConversation,
@@ -97,6 +98,18 @@ export function useConsumerMessages(
         })
         .catch(() => setActiveServiceProposal(null));
     },
+  });
+
+  useResourceUpdate("service_proposal", undefined, () => {
+    getServiceProposalsAction()
+      .then((proposals) => {
+        const convId = selectedContact?.id?.replace("conv-", "");
+        if (convId) {
+          const prop = proposals.find((p) => p.conversationId === Number(convId));
+          setActiveServiceProposal(prop || null);
+        }
+      })
+      .catch(() => {});
   });
 
   const handleContactClick = (providerId: string) => {

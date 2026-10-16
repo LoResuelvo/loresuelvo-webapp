@@ -1,8 +1,9 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { WorkOrderDetailModal } from "./WorkOrderDetailModal";
 import { ROUTES } from "@/lib/routes";
+import * as NotificationContextModule from "@/infrastructure/notifications/NotificationContext";
 import {
   getWorkOrderDetailAction,
   createWorkOrderReviewAction,
@@ -428,5 +429,109 @@ describe("WorkOrderDetailModal", () => {
       expect(screen.getByTestId("work-order-review-section")).toBeInTheDocument();
       expect(screen.getByText("“Excelente servicio”")).toBeInTheDocument();
     });
+  });
+
+  it("updates order detail when work_order realtime notification arrives", async () => {
+    let capturedCallback: any;
+    vi.spyOn(NotificationContextModule, "useResourceUpdate").mockImplementation(
+      (_type: any, _id: any, cb: any) => {
+        capturedCallback = cb;
+      }
+    );
+
+    const initialOrder = {
+      id: 15,
+      serviceProposalId: 10,
+      consumerId: 2,
+      providerId: 5,
+      status: "scheduled" as const,
+      amountCents: 100000,
+      scheduledOn: "2026-08-20T10:00:00Z",
+      description: "Reparación pendiente",
+      acceptedOn: "2026-08-19T10:00:00Z",
+    };
+
+    const completedOrder = {
+      ...initialOrder,
+      status: "awaiting_payment" as const,
+      completionReport: {
+        id: 1,
+        description: "Trabajo terminado con éxito",
+        reportedOn: "2026-08-20T12:00:00Z",
+        images: [],
+      },
+    };
+
+    vi.mocked(getWorkOrderDetailAction)
+      .mockResolvedValueOnce({ ok: true, detail: initialOrder })
+      .mockResolvedValueOnce({ ok: true, detail: completedOrder });
+
+    render(<WorkOrderDetailModal open={true} workOrderId={15} onClose={() => {}} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("#15")).toBeInTheDocument();
+      expect(screen.getByText("Programada")).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      await capturedCallback?.({
+        id: 200,
+        type: "work_order_completion_reported",
+        resourceType: "work_order",
+        resourceId: 15,
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Pendiente de pago")).toBeInTheDocument();
+    });
+  });
+
+  it("preserves visible order details and displays recovery retry when background refresh fails", async () => {
+    let capturedCallback: any;
+    vi.spyOn(NotificationContextModule, "useResourceUpdate").mockImplementation(
+      (_type: any, _id: any, cb: any) => {
+        capturedCallback = cb;
+      }
+    );
+
+    const initialOrder = {
+      id: 15,
+      serviceProposalId: 10,
+      consumerId: 2,
+      providerId: 5,
+      status: "scheduled" as const,
+      amountCents: 100000,
+      scheduledOn: "2026-08-20T10:00:00Z",
+      description: "Reparación pendiente",
+      acceptedOn: "2026-08-19T10:00:00Z",
+    };
+
+    vi.mocked(getWorkOrderDetailAction)
+      .mockResolvedValueOnce({ ok: true, detail: initialOrder })
+      .mockRejectedValueOnce(new Error("Network disconnect"));
+
+    render(<WorkOrderDetailModal open={true} workOrderId={15} onClose={() => {}} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("#15")).toBeInTheDocument();
+      expect(screen.getByText("Programada")).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      await capturedCallback?.({
+        id: 201,
+        type: "work_order_completion_reported",
+        resourceType: "work_order",
+        resourceId: 15,
+      });
+    });
+
+    // Detail is still visible!
+    expect(screen.getByText("#15")).toBeInTheDocument();
+    expect(screen.getByText("Programada")).toBeInTheDocument();
+    // Recovery banner is shown
+    expect(screen.getByTestId("work-order-refresh-error")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
   });
 });

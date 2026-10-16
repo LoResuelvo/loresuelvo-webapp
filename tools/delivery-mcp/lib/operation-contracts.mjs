@@ -31,23 +31,37 @@ export const DeliveryPrepareInputSchema = withExecutionMode(DeliveryInspectInput
   mode: executionMode,
   async: z.boolean().optional(),
   acknowledgement: z
-    .object({
-      snapshotHash: z.string().length(64),
-      reason: z.string().max(1000).optional(),
-      decisions: z
-        .union([
-          z.record(z.string(), z.string().min(12)),
-          z.array(
-            z.object({
-              id: z.string().optional(),
-              signalId: z.string().optional(),
-              reason: z.string().optional(),
-              justification: z.string().optional(),
-            }).strict()
-          ),
-        ])
-        .optional(),
-    }).strict()
+    .preprocess(
+      (val) => {
+        if (typeof val === "string") {
+          try {
+            return JSON.parse(val);
+          } catch {
+            return val;
+          }
+        }
+        return val;
+      },
+      z
+        .object({
+          snapshotHash: z.string().length(64),
+          reason: z.string().max(1000).optional(),
+          decisions: z
+            .union([
+              z.record(z.string(), z.string().min(12)),
+              z.array(
+                z.object({
+                  id: z.string().optional(),
+                  signalId: z.string().optional(),
+                  reason: z.string().optional(),
+                  justification: z.string().optional(),
+                }).strict()
+              ),
+            ])
+            .optional(),
+        })
+        .strict()
+    )
     .optional(),
 }), "mode", "auto");
 

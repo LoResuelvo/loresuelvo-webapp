@@ -621,3 +621,42 @@ export interface ApiProviderConversion {
   requests: ApiConversionRequests;
 }
 
+export interface ApiRealtimeNotification {
+  id: number;
+  user_id: number;
+  type: string;
+  resource_type: string;
+  resource_id: number;
+  estimated_duration_minutes?: number;
+  read_at?: string | null;
+  created_at: string;
+}
+
+export interface ApiRealtimeJobRequestRequester {
+  name: string;
+  surname: string;
+}
+
+export interface ApiRealtimeJobRequestImage {
+  id: number;
+  original_name: string;
+  url: string;
+}
+
+export interface ApiRealtimeJobRequest {
+  id: number;
+  conversation_id: number;
+  title: string;
+  description: string;
+  status: string;
+  requester: ApiRealtimeJobRequestRequester;
+  images: ApiRealtimeJobRequestImage[];
+}
+
+export interface ApiNotificationCreatedEvent {
+  type: "notification.created";
+  notification: ApiRealtimeNotification;
+  job_request?: ApiRealtimeJobRequest;
+}
+
+

@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import { Auth0Provider } from "@auth0/nextjs-auth0/client";
 import { getAuthService } from "@/infrastructure/auth";
 import { WebSocketProvider } from "@/infrastructure/websocket";
+import { NotificationProvider } from "@/infrastructure/notifications/NotificationContext";
+import { NotificationToasts } from "@/components/notifications/NotificationToasts";
 import { ClockProvider } from "@/infrastructure/clock/ClockContext";
 import { TimeProviderWidget } from "@/components/dev/TimeProviderWidget";
 import { getCurrentUserAction } from "@/app/api/me/actions";
@@ -52,7 +54,10 @@ export default async function RootLayout({
         <Auth0Provider>
           <ClockProvider>
             <WebSocketProvider wsUrl={wsUrl} role={role} enabled={!!role}>
-              {children}
+              <NotificationProvider role={role}>
+                {children}
+                <NotificationToasts role={role} />
+              </NotificationProvider>
               {isDevOrTest && <TimeProviderWidget />}
             </WebSocketProvider>
           </ClockProvider>

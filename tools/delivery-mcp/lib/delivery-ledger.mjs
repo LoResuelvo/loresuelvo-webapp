@@ -173,26 +173,27 @@ export async function getActiveCiIncidents({
         closeCi = null;
       }
       if (closeCi?.status === "passed") {
+        supersededFailures.add(closeSha);
         const usId = String(entry.usId).trim().toLowerCase();
         for (const candidate of entries || []) {
-          if (
-            candidate.usId &&
-            String(candidate.usId).trim().toLowerCase() === usId &&
-            candidate.commitSha.toLowerCase() !== closeSha
-          ) {
-            const candSha = candidate.commitSha.toLowerCase();
-            let isAnc = false;
-            try {
-              execFileSync("git", ["merge-base", "--is-ancestor", candSha, closeSha], {
-                cwd: root,
-                stdio: ["ignore", "ignore", "ignore"],
-              });
-              isAnc = true;
-            } catch {
-              isAnc = false;
-            }
-            if (isAnc) {
-              supersededFailures.add(candSha);
+          const candSha = candidate.commitSha.toLowerCase();
+          if (candSha !== closeSha) {
+            const matchesUs = candidate.usId && String(candidate.usId).trim().toLowerCase() === usId;
+            const hasNoUs = !candidate.usId;
+            if (matchesUs || hasNoUs) {
+              let isAnc = false;
+              try {
+                execFileSync("git", ["merge-base", "--is-ancestor", candSha, closeSha], {
+                  cwd: root,
+                  stdio: ["ignore", "ignore", "ignore"],
+                });
+                isAnc = true;
+              } catch {
+                isAnc = false;
+              }
+              if (isAnc) {
+                supersededFailures.add(candSha);
+              }
             }
           }
         }

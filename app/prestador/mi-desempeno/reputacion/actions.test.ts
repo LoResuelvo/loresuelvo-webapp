@@ -13,6 +13,7 @@ const mockReputation: ProviderReputation = {
   calculatedAt: "2026-08-31T00:00:00-03:00",
   averageRating: 4.8,
   reviewCount: 5,
+  visibleReviewCount: 5,
   ratingDistribution: [
     { rating: 5, count: 4 },
     { rating: 4, count: 1 },

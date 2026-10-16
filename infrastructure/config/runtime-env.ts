@@ -28,5 +28,5 @@ export function usesE2EAdapters(env: EnvSource = process.env): boolean {
 }
 
 export function showsDevelopmentTools(env: EnvSource = process.env): boolean {
-  return usesE2EAdapters(env);
+  return usesE2EAdapters(env) || getAppEnvironment(env) === "staging";
 }

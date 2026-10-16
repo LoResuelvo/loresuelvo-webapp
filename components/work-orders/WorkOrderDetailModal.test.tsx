@@ -4,6 +4,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { WorkOrderDetailModal } from "./WorkOrderDetailModal";
 import { ROUTES } from "@/lib/routes";
 import * as NotificationContextModule from "@/infrastructure/notifications/NotificationContext";
+import type { ResourceListener } from "@/infrastructure/notifications/NotificationContext";
 import {
   getWorkOrderDetailAction,
   createWorkOrderReviewAction,
@@ -432,9 +433,9 @@ describe("WorkOrderDetailModal", () => {
   });
 
   it("updates order detail when work_order realtime notification arrives", async () => {
-    let capturedCallback: any;
+    let capturedCallback: ResourceListener | undefined;
     vi.spyOn(NotificationContextModule, "useResourceUpdate").mockImplementation(
-      (_type: any, _id: any, cb: any) => {
+      (_type, _id, cb: ResourceListener) => {
         capturedCallback = cb;
       }
     );
@@ -488,9 +489,9 @@ describe("WorkOrderDetailModal", () => {
   });
 
   it("preserves visible order details and displays recovery retry when background refresh fails", async () => {
-    let capturedCallback: any;
+    let capturedCallback: ResourceListener | undefined;
     vi.spyOn(NotificationContextModule, "useResourceUpdate").mockImplementation(
-      (_type: any, _id: any, cb: any) => {
+      (_type, _id, cb: ResourceListener) => {
         capturedCallback = cb;
       }
     );

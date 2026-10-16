@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 
 import { getServiceProposalsAction } from "@/app/prestador/mensajes/actions";
 import * as NotificationContextModule from "@/infrastructure/notifications/NotificationContext";
+import type { ResourceListener } from "@/infrastructure/notifications/NotificationContext";
 
 vi.mock("@/app/api/me/actions", () => ({ getCurrentUserAction: vi.fn() }));
 vi.mock("@/app/profile/calendar-actions", () => ({ startCalendarAuthorizationAction: vi.fn() }));
@@ -298,9 +299,9 @@ describe("ProposalHistoryView", () => {
   });
 
   it("updates proposals list when realtime notification arrives", async () => {
-    let capturedCallback: any;
+    let capturedCallback: ResourceListener | undefined;
     vi.spyOn(NotificationContextModule, "useResourceUpdate").mockImplementation(
-      (_type: any, _id: any, cb: any) => {
+      (_type, _id, cb: ResourceListener) => {
         capturedCallback = cb;
       }
     );
@@ -338,9 +339,9 @@ describe("ProposalHistoryView", () => {
   });
 
   it("preserves visible proposals and offers retry when refresh fails", async () => {
-    let capturedCallback: any;
+    let capturedCallback: ResourceListener | undefined;
     vi.spyOn(NotificationContextModule, "useResourceUpdate").mockImplementation(
-      (_type: any, _id: any, cb: any) => {
+      (_type, _id, cb: ResourceListener) => {
         capturedCallback = cb;
       }
     );

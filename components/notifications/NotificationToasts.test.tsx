@@ -22,7 +22,15 @@ vi.mock("@/infrastructure/notifications/NotificationContext", () => ({
 }));
 
 vi.mock("@/components/work-orders/WorkOrderDetailModal", () => {
-  const MockModal = ({ open, workOrderId, onClose }: any) => (
+  const MockModal = ({
+    open,
+    workOrderId,
+    onClose,
+  }: {
+    open: boolean;
+    workOrderId: number | null;
+    onClose: () => void;
+  }) => (
     open ? (
       <div data-testid="mock-work-order-modal">
         Order #{workOrderId}
@@ -40,7 +48,7 @@ describe("NotificationToasts", () => {
   it("renders nothing when there are no notices and modal is closed", () => {
     mockNotices = [];
     mockActiveModalWorkOrderId = null;
-    const { container } = render(<NotificationToasts role="consumer" />);
+    render(<NotificationToasts role="consumer" />);
     expect(screen.queryByTestId("notification-toasts-container")).not.toBeInTheDocument();
     expect(screen.queryByTestId("mock-work-order-modal")).not.toBeInTheDocument();
   });

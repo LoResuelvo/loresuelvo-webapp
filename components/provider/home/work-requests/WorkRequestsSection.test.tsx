@@ -5,6 +5,7 @@ import { ProviderWorkRequest } from "@/domain/provider/types";
 import * as actions from "@/app/prestador/home/actions";
 import * as messagingActions from "@/app/prestador/mensajes/actions";
 import * as NotificationContextModule from "@/infrastructure/notifications/NotificationContext";
+import type { ResourceListener } from "@/infrastructure/notifications/NotificationContext";
 
 const mockPush = vi.fn();
 
@@ -117,9 +118,9 @@ describe("WorkRequestsSection handleAccept redirect", () => {
   });
 
   it("adds new incoming job request when notification arrives without duplicates", () => {
-    let capturedCallback: any;
+    let capturedCallback: ResourceListener | undefined;
     vi.spyOn(NotificationContextModule, "useResourceUpdate").mockImplementation(
-      (_type: any, _id: any, cb: any) => {
+      (_type, _id, cb: ResourceListener) => {
         capturedCallback = cb;
       }
     );

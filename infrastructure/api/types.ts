@@ -660,3 +660,20 @@ export interface ApiNotificationCreatedEvent {
 }
 
 
+
+export type ApiClaimReference =
+  | { job_request_id: number } | { service_proposal_id: number }
+  | { work_order_id: number } | { payment_intent_id: string };
+export interface ApiClaimSubmission {
+  reference: ApiClaimReference;
+  reason: "non_compliance" | "improper_charge" | "damage" | "poor_quality";
+  description: string;
+  image_file_ids: string[];
+}
+export interface ApiClaimAcknowledgment {
+  id: number;
+  operation_id: string;
+  reference: ApiClaimReference;
+  status: "open" | "in_review" | "resolved" | "dismissed";
+  created_on: string;
+}

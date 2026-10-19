@@ -9,6 +9,7 @@ export const sidebar = {
   jobs: "Trabajos",
   performance: "Mi desempeño",
   services: "Mis Servicios",
+  claims: "Mis reclamos",
   profile: "Perfil",
 };
 

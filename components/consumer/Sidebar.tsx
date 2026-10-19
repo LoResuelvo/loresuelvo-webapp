@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Bot, Home, MessageSquare, Briefcase } from "lucide-react";
+import { Bot, Home, MessageSquare, Briefcase, MessageSquareWarning } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
 
@@ -16,6 +16,7 @@ export default function Sidebar({ responsive = false }: SidebarProps = {}) {
   const isMessagesActive = pathname === ROUTES.consumer.messages;
   const isAiMessagesActive = pathname === ROUTES.consumer.aiMessages;
   const isServicesActive = pathname === ROUTES.consumer.services;
+  const isClaimsActive = pathname === ROUTES.consumer.claims;
 
   return (
     <aside
@@ -79,6 +80,18 @@ export default function Sidebar({ responsive = false }: SidebarProps = {}) {
         >
           <Briefcase className="w-5 h-5" />
           <span>{t.sidebar.services}</span>
+        </Link>
+        <Link
+          href={ROUTES.consumer.claims}
+          aria-current={isClaimsActive ? "page" : undefined}
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-colors ${
+            isClaimsActive
+              ? "bg-brand-secondary/20 text-brand-secondary"
+              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          }`}
+        >
+          <MessageSquareWarning className="w-5 h-5" aria-hidden="true" />
+          <span>{t.sidebar.claims}</span>
         </Link>
       </nav>
     </aside>

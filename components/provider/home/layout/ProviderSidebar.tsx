@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BriefcaseBusiness, CalendarDays, Home, MessageSquare } from "lucide-react";
+import { BarChart3, BriefcaseBusiness, CalendarDays, Home, MessageSquare, MessageSquareWarning } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
 
@@ -11,6 +11,7 @@ const providerNavigationItems = [
   { label: t.sidebar.calendar, href: "", icon: CalendarDays },
   { label: t.sidebar.messages, href: ROUTES.provider.messages, icon: MessageSquare },
   { label: t.sidebar.jobs, href: ROUTES.provider.jobs, icon: BriefcaseBusiness },
+  { label: t.sidebar.claims, href: ROUTES.provider.claims, icon: MessageSquareWarning },
   { label: t.sidebar.performance, href: ROUTES.provider.activity, icon: BarChart3 },
 ];
 

@@ -15,6 +15,7 @@ import { providerReputation } from "./translations/provider-reputation";
 import { serviceProposals } from "./translations/service-proposals";
 import { workOrderCompletion, workOrderDetail, workOrderReview } from "./translations/work-orders";
 import { notifications } from "./translations/notifications";
+import { claims } from "./translations/claims";
 
 export const t = {
   payments,
@@ -39,4 +40,5 @@ export const t = {
   workOrderDetail,
   workOrderReview,
   notifications,
+  claims,
 };

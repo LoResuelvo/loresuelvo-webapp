@@ -4,7 +4,8 @@ export type FileUploadPurpose =
   | "conversation_message_audio"
   | "conversation_message_video"
   | "job_request_image"
-  | "work_order_completion_image";
+  | "work_order_completion_image"
+  | "claim_evidence_image";
 
 export interface PrepareFileUploadCommand {
   originalName: string;

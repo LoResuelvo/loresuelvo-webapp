@@ -14,6 +14,7 @@ import { ProposalStatusSection } from "./ProposalStatusSection";
 import { ProposalActionsSection } from "./ProposalActionsSection";
 import type { WorkOrderCalendarConnectionState } from "@/components/work-orders/useWorkOrderCalendarConnection";
 import type { WorkOrderCalendarAuthorization } from "@/components/work-orders/WorkOrderCalendarConnection";
+import { ClaimOperationLink } from "@/components/claims/ClaimOperationLink";
 
 export interface ServiceProposalDetailModalProps {
   proposal: ServiceProposalSummary;
@@ -78,6 +79,7 @@ export default function ServiceProposalDetailModal({
             onOpenCompletionModal={() => setIsCompletionModalOpen(true)}
             onOpenWorkOrderDetail={() => setIsWorkOrderDetailOpen(true)}
           />
+          <ClaimOperationLink reference={{ kind: "service_proposal", id: proposal.id }} isConsumer={!isProvider} />
         </div>
       </Modal>
 

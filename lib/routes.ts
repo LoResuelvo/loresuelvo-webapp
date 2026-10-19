@@ -24,6 +24,7 @@ export const ROUTES = {
     aiMessages: "/consumidor/mensajes-ia",
     diagnostico: "/consumidor/diagnostico",
     services: "/consumidor/mis-servicios",
+    claims: "/consumidor/mis-reclamos",
     profile: "/consumidor/mi-perfil",
     providerProfile: (providerId: number | string) => `/consumidor/prestadores/${providerId}`,
   },
@@ -36,6 +37,7 @@ export const ROUTES = {
     calendar: "/prestador/calendario",
     messages: "/prestador/mensajes",
     jobs: "/prestador/trabajos",
+    claims: "/prestador/mis-reclamos",
     profile: "/prestador/mi-perfil",
     mercadoPagoCallback: "/provider/register/mercado-pago",
   }

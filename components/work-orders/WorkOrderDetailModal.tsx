@@ -19,6 +19,7 @@ import WorkOrderCalendarConnection, { type WorkOrderCalendarAuthorization } from
 import { Button } from "@/components/ui/button";
 import { useResourceUpdate } from "@/infrastructure/notifications/NotificationContext";
 import { ROUTES } from "@/lib/routes";
+import { ClaimOperationLink } from "@/components/claims/ClaimOperationLink";
 
 export interface WorkOrderDetailModalProps {
   open: boolean;
@@ -226,6 +227,7 @@ export function WorkOrderDetailModal({
                 canRate={canRate}
                 onOpenReview={() => setIsReviewModalOpen(true)}
               />
+              {detail && <ClaimOperationLink reference={{ kind: "work_order", id: detail.id }} isConsumer={isConsumer} />}
             </>
           )}
         </div>

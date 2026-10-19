@@ -131,7 +131,8 @@ export class ApiClient {
 
     if (!response.ok) {
       const message = this.getErrorMessage(parsedBody) || responseBody || response.statusText;
-      console.error(`[ApiClient] Error ${response.status} en ${url}: ${responseBody}`);
+      // Error bodies can contain private testimony or temporary evidence URLs.
+      console.error("[ApiClient] Request failed", { status: response.status, method: options.method });
       throw new ApiClientError(response.status, response.statusText, message, parsedBody);
     }
 
@@ -167,10 +168,11 @@ export class ApiClient {
     return this.request<T>(endpoint, { method: "GET" });
   }
 
-  async post<T>(endpoint: string, body: unknown): Promise<T> {
+  async post<T>(endpoint: string, body: unknown, headers?: Record<string, string>): Promise<T> {
     return this.request<T>(endpoint, {
       method: "POST",
       body: JSON.stringify(body),
+      headers,
     });
   }
 

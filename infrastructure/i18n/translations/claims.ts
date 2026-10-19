@@ -33,6 +33,7 @@ export const claims = {
   submit: "Enviar reclamo",
   submitting: "Enviando reclamo…",
   confirmationTitle: (id: number) => `Reclamo #${id} creado`,
+  newClaim: "Presentar otro reclamo",
   status: {
     open: "Estado: Abierto",
     in_review: "Estado: En revisión",

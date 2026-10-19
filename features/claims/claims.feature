@@ -18,19 +18,16 @@ Feature: US31 Reclamos de participantes
     When intenta presentar el reclamo
     Then recibe indicaciones comprensibles para corregir los datos, reintentar la carga o quitar imágenes, conserva lo ingresado y no se confirma un reclamo incompleto.
 
-  @wip
   Scenario: 04 Recuperar un envío sin duplicar el reclamo
     Given un participante cuyo reclamo quedó sin confirmación por un problema de conexión
     When reintenta la misma presentación
     Then obtiene la confirmación del expediente y su estado actual sin crear un reclamo duplicado.
 
-  @wip
   Scenario: 05 Evitar reclamos propios simultáneos sobre la misma operación
     Given un participante con un reclamo propio abierto o en revisión sobre una operación
     When intenta presentar otro reclamo sobre esa misma operación
     Then recibe un aviso de que ya tiene un reclamo en curso y el expediente anterior se conserva sin cambios.
 
-  @wip
   Scenario: 06 Presentar un nuevo expediente cuando corresponde
     Given un participante cuya contraparte tiene un reclamo en la operación o cuyo reclamo propio anterior ya fue resuelto o desestimado
     When presenta un nuevo reclamo válido sobre la operación

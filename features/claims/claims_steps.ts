@@ -184,3 +184,111 @@ Then(
     assert.strictEqual(await this.page.getByTestId("claim-confirmation").count(), 0);
   },
 );
+
+Given(
+  "un participante cuyo reclamo quedó sin confirmación por un problema de conexión",
+  async function (this: CustomWorld) {
+    await openClaimsForm(this);
+    await this.stubPost("/claims", 504, { error: "Connection lost" });
+    await selectOwnOperation(this);
+    await enterValidClaimDetails(this);
+    await this.page.getByTestId("claim-submit").click();
+    const error = this.page.locator("#claim-form-error");
+    await error.waitFor({ state: "visible" });
+    assert.match(await error.innerText(), /no pudimos enviar el reclamo/i);
+
+    await this.stubPost("/claims", 200, {
+      id: CLAIM_ID,
+      operation_id: OPERATION_ID,
+      reference: { job_request_id: JOB_REQUEST_ID },
+      status: "in_review",
+      created_on: "2026-10-19T12:00:00Z",
+    });
+  },
+);
+
+When(
+  "reintenta la misma presentación",
+  async function (this: CustomWorld) {
+    await this.page.getByTestId("claim-submit").click();
+  },
+);
+
+Then(
+  "obtiene la confirmación del expediente y su estado actual sin crear un reclamo duplicado.",
+  async function (this: CustomWorld) {
+    const confirmation = this.page.getByTestId("claim-confirmation");
+    await confirmation.waitFor({ state: "visible" });
+    const text = await confirmation.innerText();
+    assert.ok(text.includes(`Reclamo #${CLAIM_ID} creado`));
+    assert.ok(text.includes("Estado: En revisión"));
+    assert.ok(text.includes(`Operación: ${OPERATION_ID}`));
+  },
+);
+
+Given(
+  "un participante con un reclamo propio abierto o en revisión sobre una operación",
+  async function (this: CustomWorld) {
+    await openClaimsForm(this);
+    await this.stubPost("/claims", 409, {
+      error: "an unfinished claim already exists for this operation",
+    });
+    await selectOwnOperation(this);
+    await enterValidClaimDetails(this);
+  },
+);
+
+When(
+  "intenta presentar otro reclamo sobre esa misma operación",
+  async function (this: CustomWorld) {
+    await this.page.getByTestId("claim-submit").click();
+  },
+);
+
+Then(
+  "recibe un aviso de que ya tiene un reclamo en curso y el expediente anterior se conserva sin cambios.",
+  async function (this: CustomWorld) {
+    const error = this.page.locator("#claim-form-error");
+    await error.waitFor({ state: "visible" });
+    assert.ok((await error.innerText()).includes("Ya tenés un reclamo en curso"));
+    assert.strictEqual(await this.page.getByTestId("claim-reference").inputValue(), `job_request:${JOB_REQUEST_ID}`);
+    assert.strictEqual(await this.page.getByTestId("claim-description").inputValue(), TESTIMONY);
+    assert.strictEqual(await this.page.getByTestId("claim-confirmation").count(), 0);
+  },
+);
+
+Given(
+  "un participante cuya contraparte tiene un reclamo en la operación o cuyo reclamo propio anterior ya fue resuelto o desestimado",
+  async function (this: CustomWorld) {
+    await openClaimsForm(this);
+    await this.stubPost("/claims", 201, {
+      id: CLAIM_ID + 1,
+      operation_id: OPERATION_ID,
+      reference: { job_request_id: JOB_REQUEST_ID },
+      status: "open",
+      created_on: "2026-10-19T12:05:00Z",
+    });
+  },
+);
+
+When(
+  "presenta un nuevo reclamo válido sobre la operación",
+  async function (this: CustomWorld) {
+    await selectOwnOperation(this);
+    await enterValidClaimDetails(this);
+    await this.page.getByTestId("claim-submit").click();
+  },
+);
+
+Then(
+  "obtiene un expediente propio nuevo sin modificar los anteriores ni acceder al expediente de la contraparte.",
+  async function (this: CustomWorld) {
+    const confirmation = this.page.getByTestId("claim-confirmation");
+    await confirmation.waitFor({ state: "visible" });
+    const text = await confirmation.innerText();
+    assert.ok(text.includes(`Reclamo #${CLAIM_ID + 1} creado`));
+    assert.ok(text.includes("Estado: Abierto"));
+    assert.ok(text.includes(`Operación: ${OPERATION_ID}`));
+    assert.ok(!text.includes(`#${CLAIM_ID}`));
+  },
+);

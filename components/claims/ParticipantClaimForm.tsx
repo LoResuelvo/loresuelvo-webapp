@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { validateClaimDescription } from "@/domain/claim/validation";
+import { normalizeClaimSubmission, validateClaimDescription } from "@/domain/claim/validation";
 import type {
   ClaimAcknowledgment,
   ClaimReferenceOption,
@@ -45,8 +45,27 @@ export function ParticipantClaimForm({
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<ClaimAcknowledgment | null>(null);
   const idempotencyRef = useRef<{ fingerprint: string; key: string } | null>(null);
+  const referenceRef = useRef<HTMLSelectElement>(null);
+  const focusReferenceAfterRestart = useRef(false);
   const descriptionLength = Array.from(description).length;
   const canSubmit = references.length > 0 && !referencesError;
+
+  useEffect(() => {
+    if (confirmation || !focusReferenceAfterRestart.current) return;
+    focusReferenceAfterRestart.current = false;
+    referenceRef.current?.focus();
+  }, [confirmation]);
+
+  function startNewClaim() {
+    evidence.reset();
+    idempotencyRef.current = null;
+    setReason("");
+    setDescription("");
+    setFormError(null);
+    setValidationField(null);
+    focusReferenceAfterRestart.current = true;
+    setConfirmation(null);
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -78,12 +97,12 @@ export function ParticipantClaimForm({
         return;
       }
 
-      const submission: ClaimSubmission = {
+      const submission = normalizeClaimSubmission({
         reference: selectedReference.reference,
         reason: reason as ClaimSubmission["reason"],
         description,
         imageFileIds,
-      };
+      });
       const fingerprint = JSON.stringify(submission);
       if (idempotencyRef.current?.fingerprint !== fingerprint) {
         idempotencyRef.current = { fingerprint, key: createIdempotencyKey() };
@@ -118,6 +137,9 @@ export function ParticipantClaimForm({
         {evidence.items.length > 0 && (
           <p className="mt-1 text-sm text-slate-700">{t.claims.evidenceCount(evidence.items.length)}</p>
         )}
+        <Button type="button" variant="brand" className="mt-5" onClick={startNewClaim}>
+          {t.claims.newClaim}
+        </Button>
       </section>
     );
   }
@@ -139,6 +161,7 @@ export function ParticipantClaimForm({
               {t.claims.referenceLabel}
             </label>
             <select
+              ref={referenceRef}
               id="claim-reference"
               data-testid="claim-reference"
               value={referenceValue}

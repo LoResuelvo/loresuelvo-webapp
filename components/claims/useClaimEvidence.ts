@@ -109,6 +109,12 @@ export function useClaimEvidence() {
     commit((current) => current.filter((item) => item.id !== id));
   }, [commit]);
 
+  const reset = useCallback(() => {
+    itemsRef.current.forEach((item) => revokePreviewUrl(item.previewUrl));
+    commit(() => []);
+    setValidationError(null);
+  }, [commit]);
+
   const ensureUploaded = useCallback(async (): Promise<string[] | null> => {
     const pending = itemsRef.current.map((item) => {
       if (item.status === "uploaded") return Promise.resolve();
@@ -124,5 +130,5 @@ export function useClaimEvidence() {
     itemsRef.current.forEach((item) => revokePreviewUrl(item.previewUrl));
   }, []);
 
-  return { items, validationError, addFiles, remove, ensureUploaded };
+  return { items, validationError, addFiles, remove, reset, ensureUploaded };
 }

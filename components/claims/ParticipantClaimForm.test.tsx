@@ -106,4 +106,110 @@ describe("ParticipantClaimForm", () => {
     fireEvent.click(screen.getByTestId("claim-evidence-remove-0"));
     await waitFor(() => expect(screen.queryByTestId("claim-upload-error")).not.toBeInTheDocument());
   });
+
+  it("reuses one key for a normalized retry and shows the replay's current status", async () => {
+    const lowerEvidenceId = "00000000-0000-4000-8000-000000000001";
+    const higherEvidenceId = "f0000000-0000-4000-8000-000000000001";
+    vi.mocked(executeFileUpload).mockImplementation(async (_repository, request) => ({
+      fileId: request.originalName === "first.png" ? higherEvidenceId : lowerEvidenceId,
+      url: "",
+      originalName: request.originalName,
+    }));
+    const createClaim = vi.fn()
+      .mockRejectedValueOnce(new Error("Connection lost"))
+      .mockResolvedValueOnce({
+        ok: true,
+        data: { ...acknowledgment, status: "in_review" },
+      });
+    renderForm(createClaim);
+    enterValidDetails();
+    fireEvent.change(screen.getByTestId("claim-description"), {
+      target: { value: "\n  El trabajo causó daños.\t " },
+    });
+    fireEvent.change(screen.getByTestId("claim-evidence"), {
+      target: {
+        files: [
+          new File(["first"], "first.png", { type: "image/png" }),
+          new File(["second"], "second.png", { type: "image/png" }),
+        ],
+      },
+    });
+    await waitFor(() => expect(screen.getAllByText("Imagen cargada")).toHaveLength(2));
+
+    fireEvent.click(screen.getByTestId("claim-submit"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos enviar el reclamo");
+    fireEvent.click(screen.getByTestId("claim-submit"));
+
+    expect(await screen.findByTestId("claim-confirmation")).toHaveTextContent("Estado: En revisión");
+    expect(createClaim).toHaveBeenCalledTimes(2);
+    for (const [submission] of createClaim.mock.calls) {
+      expect(submission).toEqual(expect.objectContaining({
+        description: "El trabajo causó daños.",
+        imageFileIds: [lowerEvidenceId, higherEvidenceId],
+      }));
+    }
+    expect(createClaim.mock.calls[0][1]).toBe(createClaim.mock.calls[1][1]);
+  });
+
+  it("shows an unfinished-claim conflict and preserves the entered submission", async () => {
+    const createClaim = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      error: "unfinished_claim",
+    });
+    renderForm(createClaim);
+    enterValidDetails();
+
+    fireEvent.click(screen.getByTestId("claim-submit"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Ya tenés un reclamo en curso sobre esta operación.",
+    );
+    expect(screen.getByTestId("claim-description")).toHaveValue("El trabajo causó daños.");
+    expect(screen.getByTestId("claim-reference")).toHaveValue("job_request:47");
+    expect(screen.queryByTestId("claim-confirmation")).not.toBeInTheDocument();
+  });
+
+  it("starts a new claim with a fresh key and fresh evidence after confirmation", async () => {
+    const previousEvidenceId = "00000000-0000-4000-8000-000000000011";
+    const newEvidenceId = "00000000-0000-4000-8000-000000000012";
+    vi.mocked(executeFileUpload).mockImplementation(async (_repository, request) => ({
+      fileId: request.originalName === "previous.png" ? previousEvidenceId : newEvidenceId,
+      url: "",
+      originalName: request.originalName,
+    }));
+    const createClaim = vi.fn()
+      .mockResolvedValueOnce({ ok: true, data: acknowledgment })
+      .mockResolvedValueOnce({ ok: true, data: { ...acknowledgment, id: 322 } });
+    renderForm(createClaim);
+    enterValidDetails();
+    fireEvent.change(screen.getByTestId("claim-evidence"), {
+      target: { files: [new File(["previous"], "previous.png", { type: "image/png" })] },
+    });
+    await screen.findByText("Imagen cargada");
+    fireEvent.click(screen.getByTestId("claim-submit"));
+    expect(await screen.findByTestId("claim-confirmation")).toHaveTextContent("Reclamo #321 creado");
+    const firstKey = createClaim.mock.calls[0][1];
+
+    fireEvent.click(screen.getByRole("button", { name: "Presentar otro reclamo" }));
+
+    expect(screen.getByTestId("claim-reference")).toHaveValue("job_request:47");
+    expect(screen.getByTestId("claim-reason")).toHaveValue("");
+    expect(screen.getByTestId("claim-description")).toHaveValue("");
+    expect(screen.queryByText("previous.png")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("claim-evidence"), {
+      target: { files: [new File(["new"], "new.png", { type: "image/png" })] },
+    });
+    await screen.findByText("Imagen cargada");
+    enterValidDetails();
+    fireEvent.change(screen.getByTestId("claim-description"), {
+      target: { value: "El problema volvió a ocurrir." },
+    });
+    fireEvent.click(screen.getByTestId("claim-submit"));
+
+    expect(await screen.findByTestId("claim-confirmation")).toHaveTextContent("Reclamo #322 creado");
+    expect(createClaim.mock.calls[0][0].imageFileIds).toEqual([previousEvidenceId]);
+    expect(createClaim.mock.calls[1][0].imageFileIds).toEqual([newEvidenceId]);
+    expect(createClaim.mock.calls[1][1]).not.toBe(firstKey);
+  });
 });

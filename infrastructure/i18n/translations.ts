@@ -16,6 +16,7 @@ import { serviceProposals } from "./translations/service-proposals";
 import { workOrderCompletion, workOrderDetail, workOrderReview } from "./translations/work-orders";
 import { notifications } from "./translations/notifications";
 import { claims } from "./translations/claims";
+import { errors } from "./translations/errors";
 
 export const t = {
   payments,
@@ -41,4 +42,5 @@ export const t = {
   workOrderReview,
   notifications,
   claims,
+  errors,
 };

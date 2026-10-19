@@ -14,6 +14,7 @@ describe("ApiClient private claim requests", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    vi.useRealTimers();
     fetchMock.mockReset();
   });
 
@@ -36,5 +37,79 @@ describe("ApiClient private claim requests", () => {
       name: "ApiClientError", status: 500, body: privateBody,
     } satisfies Partial<ApiClientError>);
     expect(JSON.stringify(log.mock.calls)).not.toContain(privateBody.error);
+  });
+  it("reports timeout diagnostics without exposing request or abort details", async () => {
+    vi.useFakeTimers();
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const privateToken = "private-access-token";
+    const privateId = "550e8400-e29b-41d4-a716-446655440000";
+    fetchMock.mockImplementation((_input, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => {
+        reject(new DOMException(`Aborted ${privateToken}`, "AbortError"));
+      }, { once: true });
+    }));
+
+    const request = new ApiClient().get(`/claims/${privateId}?access_token=${privateToken}`);
+    const errorPromise = request.catch((reason: unknown) => reason);
+    await vi.advanceTimersByTimeAsync(5000);
+    const error = await errorPromise;
+
+    expect(error).toBeInstanceOf(ApiClientError);
+    expect(error).toMatchObject({ status: 504, statusText: "Gateway Timeout" });
+
+    const diagnostic = log.mock.calls
+      .map(([, context]) => context)
+      .find((context) => typeof context === "object" && context !== null && "kind" in context && context.kind === "timeout");
+    expect(diagnostic).toMatchObject({ kind: "timeout", method: "GET", causeName: "AbortError" });
+    expect(diagnostic?.durationMs).toBeGreaterThanOrEqual(5000);
+    expect(JSON.stringify(log.mock.calls)).not.toContain(privateToken);
+    expect(JSON.stringify(log.mock.calls)).not.toContain(privateId);
+  });
+
+  it("reports network diagnostics and safe cause metadata without logging the cause message", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const privateToken = "private-network-token";
+    const privateId = "550e8400-e29b-41d4-a716-446655440000";
+    const privateCauseMessage = `Private fetch cause ${privateToken}`;
+    const networkError = Object.assign(
+      new TypeError(`Failed to fetch https://api.example.test/claims/${privateId}?access_token=${privateToken}`),
+      { cause: Object.assign(new Error(privateCauseMessage), { code: "ECONNRESET" }) },
+    );
+    fetchMock.mockRejectedValue(networkError);
+
+    const error = await new ApiClient()
+      .get(`/claims/${privateId}?access_token=${privateToken}`)
+      .catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(ApiClientError);
+    expect(error).toMatchObject({ status: 504, statusText: "Gateway Timeout" });
+
+    const diagnostic = log.mock.calls
+      .map(([, context]) => context)
+      .find((context) => typeof context === "object" && context !== null && "kind" in context && context.kind === "network");
+    expect(diagnostic).toMatchObject({
+      kind: "network",
+      method: "GET",
+      causeName: "TypeError",
+      causeCode: "ECONNRESET",
+    });
+    expect(typeof diagnostic?.durationMs).toBe("number");
+    expect(JSON.stringify(log.mock.calls)).not.toContain(privateToken);
+    expect(JSON.stringify(log.mock.calls)).not.toContain(privateId);
+    expect(JSON.stringify(log.mock.calls)).not.toContain(networkError.message);
+    expect(JSON.stringify(log.mock.calls)).not.toContain(privateCauseMessage);
+  });
+
+  it("omits unrecognized cause metadata that may contain private data", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const privateValue = "private-token";
+    fetchMock.mockRejectedValue({ name: privateValue, code: privateValue });
+
+    await expect(new ApiClient().get("/claims")).rejects.toBeInstanceOf(ApiClientError);
+
+    expect(log).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      kind: "network", causeName: "UnknownError",
+    }));
+    expect(JSON.stringify(log.mock.calls)).not.toContain(privateValue);
   });
 });

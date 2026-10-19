@@ -9,6 +9,52 @@ import { logger } from "@/infrastructure/logging/logger";
 import { getApiUrl } from "@/infrastructure/config/server-env";
 import { usesE2EAdapters } from "@/infrastructure/config/runtime-env";
 
+const API_REQUEST_TIMEOUT_MS = 5000;
+const SAFE_ERROR_NAMES = new Set(["AbortError", "TypeError", "Error", "NetworkError", "TimeoutError"]);
+const SAFE_NETWORK_ERROR_CODES = new Set([
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "EAI_AGAIN",
+  "ENOTFOUND",
+  "ETIMEDOUT",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_HEADERS_TIMEOUT",
+  "UND_ERR_SOCKET",
+]);
+
+function readErrorProperty(error: unknown, property: string): unknown {
+  if (typeof error !== "object" || error === null) return undefined;
+
+  try {
+    return (error as Record<string, unknown>)[property];
+  } catch {
+    return undefined;
+  }
+}
+
+function getSafeErrorName(error: unknown): string {
+  const name = readErrorProperty(error, "name");
+  return typeof name === "string" && SAFE_ERROR_NAMES.has(name) ? name : "UnknownError";
+}
+
+function getSafeErrorCode(error: unknown): string | undefined {
+  let candidate: unknown = error;
+  const visited = new Set<unknown>();
+
+  for (let depth = 0; depth < 3 && candidate !== undefined; depth += 1) {
+    if (visited.has(candidate)) return undefined;
+    visited.add(candidate);
+
+    const code = readErrorProperty(candidate, "code");
+    if (typeof code === "string" && SAFE_NETWORK_ERROR_CODES.has(code)) return code;
+    candidate = readErrorProperty(candidate, "cause");
+  }
+
+  return undefined;
+}
+
 export class ApiClientError extends Error {
   constructor(
     public status: number,
@@ -101,9 +147,10 @@ export class ApiClient {
       }
     }
 
-    // Default timeout of 5000ms for all API calls to prevent hanging
+    // Default timeout for all API calls to prevent hanging.
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const startedAt = Date.now();
+    const timeoutId = setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
 
     let response: Response;
     try {
@@ -116,7 +163,18 @@ export class ApiClient {
           ...options.headers,
         },
       });
-    } catch (e) {
+    } catch (error) {
+      const kind = controller.signal.aborted ? "timeout" : "network";
+      const safeErrorCode = getSafeErrorCode(error);
+
+      logger.error("[ApiClient] Request failed", {
+        kind,
+        method: options.method ?? "GET",
+        durationMs: Math.max(0, Date.now() - startedAt),
+        causeName: getSafeErrorName(error),
+        ...(safeErrorCode ? { causeCode: safeErrorCode } : {}),
+      });
+
       throw new ApiClientError(504, "Gateway Timeout", "The API request timed out or failed to connect", null);
     } finally {
       clearTimeout(timeoutId);

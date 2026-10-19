@@ -1,6 +1,7 @@
 import { AuthSession } from "../../infrastructure/auth/types";
 import {
   Category,
+  ApiCompletionReport,
   ApiConversation,
   ApiConversationDetail,
   ApiConversationMessage, ApiAiConversationMessage,
@@ -407,13 +408,20 @@ export function aCompletionReport(overrides: Partial<MockCompletionReport> = {})
   };
 }
 
-export function aCompletionReportSubmission(overrides: Partial<any> = {}) {
+export function aCompletionReportSubmission(
+  overrides: Partial<ApiCompletionReport> = {}
+): ApiCompletionReport {
   return {
     id: 1,
-    work_order_id: 10,
     description: "Trabajo finalizado exitosamente.",
-    image_file_ids: ["mock-completion-file-id"],
-    created_on: new Date().toISOString(),
+    reported_on: new Date().toISOString(),
+    images: [
+      {
+        file_id: "mock-completion-file-id",
+        original_name: "evidencia.jpg",
+        url: "https://example.com/evidencia.jpg",
+      },
+    ],
     ...overrides,
   };
 }

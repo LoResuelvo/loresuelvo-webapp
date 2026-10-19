@@ -449,10 +449,9 @@ export interface ApiCompletionReportInput {
 
 export interface ApiCompletionReport {
   id: number;
-  work_order_id: number;
   description: string;
-  image_file_ids: string[];
-  created_on: string;
+  reported_on: string;
+  images: ApiCompletionImage[];
 }
 
 export interface ApiCompletionImage {

@@ -143,13 +143,15 @@ describe("work-order-mapper", () => {
   it("transforms ApiCompletionReport to CompletionReport", () => {
     const api: ApiCompletionReport = {
       id: 1,
-      work_order_id: 10,
       description: "Finalizado",
-      image_file_ids: ["img-1", "img-2"],
-      created_on: "2026-08-20T12:00:00Z",
+      images: [
+        { file_id: "img-1", original_name: "first.jpg", url: "https://example.com/first.jpg" },
+        { file_id: "img-2", original_name: "second.jpg", url: "https://example.com/second.jpg" },
+      ],
+      reported_on: "2026-08-20T12:00:00Z",
     };
 
-    const result = transformApiToCompletionReport(api);
+    const result = transformApiToCompletionReport(api, 10);
 
     expect(result).toEqual({
       id: 1,

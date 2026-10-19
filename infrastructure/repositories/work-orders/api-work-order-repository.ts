@@ -69,7 +69,7 @@ export class ApiWorkOrderRepository implements WorkOrderRepository {
       payload
     );
 
-    return transformApiToCompletionReport(res);
+    return transformApiToCompletionReport(res, workOrderId);
   }
 
   async createReview(

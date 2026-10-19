@@ -158,10 +158,12 @@ describe("ApiWorkOrderRepository", () => {
     it("calls POST /work-orders/:id/completion-reports with correct snake_case body and maps response", async () => {
       const mockApiResponse: ApiCompletionReport = {
         id: 1,
-        work_order_id: 10,
         description: "Se finalizó el trabajo correctamente con cambio de caños.",
-        image_file_ids: ["file-1", "file-2"],
-        created_on: "2026-08-20T12:00:00Z",
+        images: [
+          { file_id: "file-1", original_name: "first.jpg", url: "https://example.com/first.jpg" },
+          { file_id: "file-2", original_name: "second.jpg", url: "https://example.com/second.jpg" },
+        ],
+        reported_on: "2026-08-20T12:00:00Z",
       };
 
       vi.mocked(baseClient.api.post).mockResolvedValue(mockApiResponse);

@@ -107,13 +107,16 @@ export function transformApiToWorkOrderDetail(api: ApiWorkOrderDetail): WorkOrde
   return result;
 }
 
-export function transformApiToCompletionReport(api: ApiCompletionReport): CompletionReport {
-  const createdOn = ScheduledDateTime.create(api.created_on);
+export function transformApiToCompletionReport(
+  api: ApiCompletionReport,
+  workOrderId: number
+): CompletionReport {
+  const createdOn = ScheduledDateTime.create(api.reported_on);
   return {
     id: api.id,
-    workOrderId: api.work_order_id,
+    workOrderId,
     description: api.description,
-    imageFileIds: api.image_file_ids,
+    imageFileIds: api.images.map((image) => image.file_id),
     createdOn: createdOn.isoString,
   };
 }

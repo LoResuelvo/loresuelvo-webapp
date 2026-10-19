@@ -13,15 +13,15 @@ import {
   getServiceProposalsAction,
 } from "@/app/prestador/mensajes/actions";
 import type { ProviderWorkRequest } from "@/domain/provider/types";
-import {
+import type {
+  ConversationDetailInfo,
   ProviderConversationContact as ConversationContact,
-  ServiceProposalSummary,
 } from "@/domain/messaging/types";
 import { clientFileUploadRepository } from "@/app/files/client-file-upload";
 import { ClientConversationCommandRepository } from "@/infrastructure/repositories/messaging/client-conversation-command-repository";
 import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/shared/local-offline-queue-repository";
+import { useConversationRelatedData } from "@/components/messaging/useConversationRelatedData";
 import { useMessagingCore } from "@/hooks/messaging/useMessagingCore";
-import { useResourceUpdate } from "@/infrastructure/notifications/NotificationContext";
 
 const conversationRepository = new ClientConversationCommandRepository({
   create: createConversation,
@@ -31,6 +31,27 @@ const conversationRepository = new ClientConversationCommandRepository({
 });
 const fileRepository = clientFileUploadRepository;
 const offlineQueueRepo = new LocalOfflineQueueRepository();
+
+interface ProviderMessageJobRequest {
+  id: number;
+  title: string;
+  description: string;
+  consumerName: string;
+  images?: { id: string; url: string; originalName: string }[];
+}
+
+function mapProviderJobRequest(
+  jobRequest: NonNullable<Awaited<ReturnType<typeof getJobRequestForConversation>>>,
+  conversation: ConversationDetailInfo
+): ProviderMessageJobRequest {
+  return {
+    id: jobRequest.id,
+    title: jobRequest.title,
+    description: jobRequest.description,
+    consumerName: `${conversation.counterpart.name} ${conversation.counterpart.surname}`,
+    images: jobRequest.images,
+  };
+}
 
 export function useProviderMessages(
   session: AuthSession | null,
@@ -44,18 +65,19 @@ export function useProviderMessages(
     urlConsumerId ?? (contacts.length > 0 ? contacts[0].consumerId : null);
 
   const [acceptedConversations, setAcceptedConversations] = useState<Set<string>>(new Set());
-  const [activeJobRequest, setActiveJobRequest] = useState<{
-    id: number;
-    title: string;
-    description: string;
-    consumerName: string;
-    images?: { id: string; url: string; originalName: string }[];
-  } | null | undefined>(undefined);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showServiceProposalModal, setShowServiceProposalModal] = useState(false);
-  const [activeServiceProposal, setActiveServiceProposal] = useState<ServiceProposalSummary | null>(
-    null
-  );
+  const relatedData = useConversationRelatedData({
+    selectedCounterpartId: selectedConsumerId,
+    getJobRequest: getJobRequestForConversation,
+    getServiceProposals: getServiceProposalsAction,
+    mapJobRequest: mapProviderJobRequest,
+  });
+  const {
+    activeJobRequest,
+    activeServiceProposal,
+    clearActiveJobRequest,
+  } = relatedData;
 
   const core = useMessagingCore<ConversationContact>({
     session,
@@ -68,43 +90,7 @@ export function useProviderMessages(
     conversationRepository,
     fileRepository,
     offlineQueueRepository: offlineQueueRepo,
-    onConversationLoaded: (effectiveConvId, data) => {
-      setActiveJobRequest(undefined);
-      getJobRequestForConversation(effectiveConvId)
-        .then((jr) =>
-          setActiveJobRequest(
-            jr
-              ? {
-                  id: jr.id,
-                  title: jr.title,
-                  description: jr.description,
-                  consumerName: `${data.counterpart.name} ${data.counterpart.surname}`,
-                  images: jr.images,
-                }
-              : null
-          )
-        )
-        .catch(() => setActiveJobRequest(null));
-
-      getServiceProposalsAction()
-        .then((proposals) => {
-          const prop = proposals.find((p) => p.conversationId === Number(effectiveConvId));
-          setActiveServiceProposal(prop || null);
-        })
-        .catch(() => setActiveServiceProposal(null));
-    },
-  });
-
-  useResourceUpdate("service_proposal", undefined, () => {
-    getServiceProposalsAction()
-      .then((proposals) => {
-        const convId = core.selectedContact?.id?.replace("conv-", "");
-        if (convId) {
-          const prop = proposals.find((p) => p.conversationId === Number(convId));
-          setActiveServiceProposal(prop || null);
-        }
-      })
-      .catch(() => {});
+    onConversationLoaded: relatedData.onConversationLoaded,
   });
 
   const handleContactClick = (consumerId: string) => {
@@ -118,7 +104,7 @@ export function useProviderMessages(
       if (core.selectedContact) {
         setAcceptedConversations((prev) => new Set([...prev, core.selectedContact!.id]));
       }
-      setActiveJobRequest(null);
+      clearActiveJobRequest();
       setShowRequestModal(false);
     } catch (error) {
       console.error("Error accepting job request:", error);
@@ -175,6 +161,8 @@ export function useProviderMessages(
     handleReject,
     activeJobRequest,
     activeServiceProposal,
+    relatedDataError: relatedData.relatedDataError,
+    retryRelatedData: relatedData.retryRelatedData,
     showRequestModal,
     setShowRequestModal,
     modalRequest,

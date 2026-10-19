@@ -21,7 +21,7 @@ interface UseCalendarAuthorizationOptions {
 interface CalendarAuthorizationState {
   isAuthorizing: boolean;
   error: string | null;
-  startAuthorization: () => Promise<void>;
+  startAuthorization: () => Promise<boolean>;
 }
 
 function navigateToAuthorization(authorizationUrl: string): void {
@@ -44,7 +44,7 @@ export function useCalendarAuthorization({
   }, []);
 
   const startAuthorization = useCallback(async () => {
-    if (!isMounted.current || isRequestPending.current) return;
+    if (!isMounted.current || isRequestPending.current) return false;
 
     isRequestPending.current = true;
     setIsAuthorizing(true);
@@ -52,15 +52,17 @@ export function useCalendarAuthorization({
 
     try {
       const result = await startAuthorizationAction();
-      if (!isMounted.current) return;
+      if (!isMounted.current) return false;
       if (!result.ok || !isSafeCalendarAuthorizationUrl(result.authorizationUrl)) {
         setError(result.ok ? genericError : result.error);
-        return;
+        return false;
       }
 
       navigate(result.authorizationUrl);
+      return true;
     } catch {
       if (isMounted.current) setError(genericError);
+      return false;
     } finally {
       isRequestPending.current = false;
       if (isMounted.current) setIsAuthorizing(false);

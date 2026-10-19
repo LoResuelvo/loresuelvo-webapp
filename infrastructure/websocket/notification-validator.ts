@@ -34,6 +34,15 @@ function isValidRealtimeNotification(raw: unknown): raw is ApiRealtimeNotificati
   return true;
 }
 
+function isValidRealtimeJobRequestImage(raw: unknown): boolean {
+  if (!isObject(raw)) return false;
+  return (
+    typeof raw.id === "string" &&
+    typeof raw.original_name === "string" &&
+    typeof raw.url === "string"
+  );
+}
+
 function isValidRealtimeJobRequest(raw: unknown): raw is ApiRealtimeJobRequest {
   if (!isObject(raw)) return false;
   if (typeof raw.id !== "number") return false;
@@ -48,6 +57,7 @@ function isValidRealtimeJobRequest(raw: unknown): raw is ApiRealtimeJobRequest {
   }
 
   if (!Array.isArray(raw.images)) return false;
+  if (!raw.images.every(isValidRealtimeJobRequestImage)) return false;
 
   return true;
 }

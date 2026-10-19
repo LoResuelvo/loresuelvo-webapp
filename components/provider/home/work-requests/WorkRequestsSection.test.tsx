@@ -117,7 +117,7 @@ describe("WorkRequestsSection handleAccept redirect", () => {
     expect(screen.getByAltText("leak.jpg")).toBeInTheDocument();
   });
 
-  it("adds new incoming job request when notification arrives without duplicates", () => {
+  it("adds each incoming job request once when notifications arrive in a burst", () => {
     let capturedCallback: ResourceListener | undefined;
     vi.spyOn(NotificationContextModule, "useResourceUpdate").mockImplementation(
       (_type, _id, cb: ResourceListener) => {
@@ -130,7 +130,7 @@ describe("WorkRequestsSection handleAccept redirect", () => {
 
     act(() => {
       capturedCallback?.(
-        { id: 1, type: "job_request_received", resourceType: "job_request", resourceId: 99 },
+        { id: 1, userId: 1, type: "job_request_received", resourceType: "job_request", resourceId: 99, createdAt: "2026-07-06T10:00:00-03:00" },
         {
           id: 99,
           conversationId: 50,
@@ -141,8 +141,34 @@ describe("WorkRequestsSection handleAccept redirect", () => {
           images: [],
         }
       );
+      capturedCallback?.(
+        { id: 2, userId: 1, type: "job_request_received", resourceType: "job_request", resourceId: 100, createdAt: "2026-07-06T10:00:00-03:00" },
+        {
+          id: 100,
+          conversationId: 51,
+          title: "Presupuesto de pintura",
+          description: "Paredes con humedad",
+          status: "pending",
+          requester: { name: "Lucía", surname: "Gómez" },
+          images: [],
+        }
+      );
+      capturedCallback?.(
+        { id: 2, userId: 1, type: "job_request_received", resourceType: "job_request", resourceId: 100, createdAt: "2026-07-06T10:00:00-03:00" },
+        {
+          id: 100,
+          conversationId: 51,
+          title: "Presupuesto de pintura",
+          description: "Paredes con humedad",
+          status: "pending",
+          requester: { name: "Lucía", surname: "Gómez" },
+          images: [],
+        }
+      );
     });
 
     expect(screen.getByText("Reparación urgente")).toBeInTheDocument();
+    expect(screen.getByText("Presupuesto de pintura")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
   });
 });

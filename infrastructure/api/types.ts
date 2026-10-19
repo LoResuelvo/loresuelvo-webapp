@@ -638,7 +638,7 @@ export interface ApiRealtimeJobRequestRequester {
 }
 
 export interface ApiRealtimeJobRequestImage {
-  id: number;
+  id: string;
   original_name: string;
   url: string;
 }

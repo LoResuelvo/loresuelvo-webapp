@@ -35,7 +35,7 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
           category: "",
           description: jobRequest.description,
           location: "",
-          publishedAtLabel: "Recién",
+          publishedAtLabel: t.providerHome.workRequestsSection.justReceivedLabel,
           unreadMessagesCount: 0,
           images: jobRequest.images.map((img) => ({
             id: String(img.id),

@@ -6,6 +6,7 @@ import {
   useNotifications,
   useResourceUpdate,
 } from "./NotificationContext";
+import type { ResourceListener } from "./NotificationContext";
 import type { WsEvent } from "@/infrastructure/websocket/types";
 
 let mockWsSubscriber: ((event: WsEvent) => void) | null = null;
@@ -25,10 +26,12 @@ vi.mock("@/infrastructure/websocket", () => ({
 }));
 
 const mockStartAuthorization = vi.fn();
+let mockCalendarAuthorizationPending = false;
+let mockCalendarAuthorizationError: string | null = null;
 vi.mock("@/components/profile/useCalendarAuthorization", () => ({
   useCalendarAuthorization: () => ({
-    isAuthorizing: false,
-    error: null,
+    isAuthorizing: mockCalendarAuthorizationPending,
+    error: mockCalendarAuthorizationError,
     startAuthorization: mockStartAuthorization,
   }),
 }));
@@ -44,9 +47,14 @@ function TestConsumer() {
         <div key={n.id} data-testid={`notice-${n.id}`}>
           <span>{n.title}</span>
           <span>{n.description}</span>
+          {n.actionError && <span role="alert">{n.actionError}</span>}
           {n.actionLabel && (
-            <button onClick={n.onAction} data-testid={`action-${n.id}`}>
-              {n.actionLabel}
+            <button
+              onClick={n.onAction}
+              disabled={n.isActionPending}
+              data-testid={`action-${n.id}`}
+            >
+              {n.isActionPending ? "Conectando con Google Calendar…" : n.actionLabel}
             </button>
           )}
           <button onClick={() => dismissNotice(n.id)}>Dismiss</button>
@@ -63,9 +71,9 @@ function ResourceListenerConsumer({
 }: {
   resourceType: "job_request" | "service_proposal" | "work_order" | "calendar_connection";
   resourceId?: number;
-  onUpdate: (event: any) => void;
+  onUpdate: ResourceListener;
 }) {
-  useResourceUpdate(resourceType, resourceId, onUpdate, 0);
+  useResourceUpdate(resourceType, resourceId, onUpdate);
   return <div>Listener</div>;
 }
 
@@ -73,6 +81,9 @@ describe("NotificationContext", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockWsSubscriber = null;
+    mockCalendarAuthorizationPending = false;
+    mockCalendarAuthorizationError = null;
+    mockStartAuthorization.mockReset();
   });
 
   it("queues actionable notice for work_order_close_to_scheduled_time", () => {
@@ -146,7 +157,7 @@ describe("NotificationContext", () => {
           type: "calendar_reauthorization_required",
           resource_type: "calendar_connection",
           resource_id: 10,
-          created_at: "2026-10-15T12:00:00Z",
+          created_at: "2026-10-15T12:00:01Z",
         },
       });
       // Send duplicate
@@ -168,12 +179,74 @@ describe("NotificationContext", () => {
     expect(screen.getByText("Reautorización requerida")).toBeInTheDocument();
 
     const actionButton = screen.getByRole("button", { name: "Reautorizar" });
+    mockStartAuthorization.mockResolvedValue(true);
     await user.click(actionButton);
 
     expect(mockStartAuthorization).toHaveBeenCalled();
   });
 
-  it("dispatches resource update to mounted listeners and cleans up on unmount", async () => {
+  it("keeps a failed calendar reauthorization available for retry and reflects pending state", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <NotificationProvider>
+        <TestConsumer />
+      </NotificationProvider>
+    );
+
+    act(() => {
+      mockWsSubscriber?.({
+        type: "notification.created",
+        notification: {
+          id: 0,
+          user_id: 10,
+          type: "calendar_reauthorization_required",
+          resource_type: "calendar_connection",
+          resource_id: 10,
+          created_at: "2026-10-15T12:00:00Z",
+        },
+      });
+    });
+
+    let completeAuthorization: ((started: boolean) => void) | undefined;
+    mockStartAuthorization.mockImplementation(() => {
+      mockCalendarAuthorizationPending = true;
+      return new Promise<boolean>((resolve) => {
+        completeAuthorization = resolve;
+      });
+    });
+
+    await user.click(screen.getByRole("button", { name: "Reautorizar" }));
+    rerender(
+      <NotificationProvider>
+        <TestConsumer />
+      </NotificationProvider>
+    );
+    expect(screen.getByRole("button", { name: "Conectando con Google Calendar…" })).toBeDisabled();
+
+    mockCalendarAuthorizationPending = false;
+    mockCalendarAuthorizationError = "No se pudo iniciar la autorización";
+    await act(async () => {
+      completeAuthorization?.(false);
+    });
+    rerender(
+      <NotificationProvider>
+        <TestConsumer />
+      </NotificationProvider>
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("No se pudo iniciar la autorización");
+    expect(screen.getByTestId("notices-count")).toHaveTextContent("1");
+    expect(screen.getByRole("button", { name: "Reautorizar" })).toBeEnabled();
+
+    mockCalendarAuthorizationError = null;
+    mockStartAuthorization.mockResolvedValue(true);
+    await user.click(screen.getByRole("button", { name: "Reautorizar" }));
+
+    expect(screen.getByTestId("notices-count")).toHaveTextContent("0");
+    expect(mockStartAuthorization).toHaveBeenCalledTimes(2);
+  });
+
+  it("dispatches each distinct resource update once and cancels pending work on unmount", () => {
     vi.useFakeTimers();
     const handleUpdate = vi.fn();
 
@@ -187,45 +260,64 @@ describe("NotificationContext", () => {
       </NotificationProvider>
     );
 
+    const firstEvent: WsEvent = {
+      type: "notification.created",
+      notification: {
+        id: 201,
+        user_id: 10,
+        type: "work_order_completion_reported",
+        resource_type: "work_order",
+        resource_id: 50,
+        created_at: "2026-10-15T12:00:00Z",
+      },
+    };
+    const secondEvent: WsEvent = {
+      type: "notification.created",
+      notification: {
+        id: 202,
+        user_id: 10,
+        type: "work_order_final_payment_approved",
+        resource_type: "work_order",
+        resource_id: 50,
+        created_at: "2026-10-15T12:05:00Z",
+      },
+    };
+
+    act(() => {
+      mockWsSubscriber?.(firstEvent);
+      mockWsSubscriber?.(secondEvent);
+      mockWsSubscriber?.(secondEvent);
+    });
+
+    expect(handleUpdate).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
+    expect(handleUpdate.mock.calls.map(([event]) => event.id)).toEqual([201, 202]);
+
     act(() => {
       mockWsSubscriber?.({
         type: "notification.created",
         notification: {
-          id: 201,
-          user_id: 10,
-          type: "work_order_completion_reported",
-          resource_type: "work_order",
-          resource_id: 50,
-          created_at: "2026-10-15T12:00:00Z",
-        },
-      });
-    });
-
-    act(() => {
-      vi.runAllTimers();
-    });
-
-    expect(handleUpdate).toHaveBeenCalledTimes(1);
-
-    unmount();
-
-    act(() => {
-      mockWsSubscriber?.({
-        type: "notification.created",
-        notification: {
-          id: 202,
+          id: 203,
           user_id: 10,
           type: "work_order_final_payment_approved",
           resource_type: "work_order",
           resource_id: 50,
-          created_at: "2026-10-15T12:05:00Z",
+          created_at: "2026-10-15T12:10:00Z",
         },
       });
+    });
+
+    unmount();
+
+    act(() => {
       vi.runAllTimers();
     });
 
-    // Should still be 1 because it unmounted
-    expect(handleUpdate).toHaveBeenCalledTimes(1);
+    expect(handleUpdate.mock.calls.map(([event]) => event.id)).toEqual([201, 202]);
     vi.useRealTimers();
   });
 });

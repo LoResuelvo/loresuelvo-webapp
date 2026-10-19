@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
 import { ProposalCard } from "@/components/messaging/proposals/ProposalCard";
 import ServiceProposalDetailModal from "@/components/messaging/proposals/ServiceProposalDetailModal";
@@ -11,9 +11,9 @@ import WorkOrderCalendarConnection from "@/components/work-orders/WorkOrderCalen
 import { useWorkOrderCalendarConnection } from "@/components/work-orders/useWorkOrderCalendarConnection";
 import { ROUTES } from "@/lib/routes";
 import { useCalendarAuthorization } from "@/components/profile/useCalendarAuthorization";
-import { useResourceUpdate } from "@/infrastructure/notifications/NotificationContext";
 import { getServiceProposalsAction } from "@/app/prestador/mensajes/actions";
 import { Button } from "@/components/ui/button";
+import { useRealtimeProposalList } from "@/components/messaging/proposals/useRealtimeProposalList";
 
 interface ProposalHistoryViewProps {
   proposals: ServiceProposalSummary[];
@@ -23,36 +23,23 @@ interface ProposalHistoryViewProps {
 type TabType = "pending" | "accepted" | "rejected";
 
 export function ProposalHistoryView({ proposals: initialProposals, isProvider }: ProposalHistoryViewProps) {
-  const [proposals, setProposals] = useState(initialProposals);
-  const [refreshError, setRefreshError] = useState(false);
+  const { items: proposals, refreshError, retry } = useRealtimeProposalList(
+    initialProposals,
+    getServiceProposalsAction
+  );
   const [activeTab, setActiveTab] = useState<TabType>("pending");
-  const [selectedProposal, setSelectedProposal] = useState<ServiceProposalSummary | null>(null);
+  const [selectedProposalId, setSelectedProposalId] = useState<number | null>(null);
   const router = useRouter();
   const calendarConnection = useWorkOrderCalendarConnection();
   const calendarAuthorization = useCalendarAuthorization();
 
-  useEffect(() => {
-    setProposals(initialProposals);
-  }, [initialProposals]);
-
-  const handleRefresh = useCallback(async () => {
-    try {
-      const updated = await getServiceProposalsAction();
-      setProposals(updated);
-      setRefreshError(false);
-    } catch {
-      setRefreshError(true);
-    }
-  }, []);
-
-  useResourceUpdate("service_proposal", undefined, handleRefresh);
-  useResourceUpdate("work_order", undefined, handleRefresh);
 
   const filteredProposals = useMemo(() => {
     return proposals
       .filter(p => p.status === activeTab)
       .sort((a, b) => new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime());
   }, [proposals, activeTab]);
+  const selectedProposal = proposals.find((proposal) => proposal.id === selectedProposalId) ?? null;
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto">
@@ -78,7 +65,7 @@ export function ProposalHistoryView({ proposals: initialProposals, isProvider }:
           <Button
             size="sm"
             variant="brand"
-            onClick={handleRefresh}
+            onClick={retry}
             className="h-8 px-3 text-caption font-semibold"
           >
             {t.notifications.refreshError.retry}
@@ -117,7 +104,7 @@ export function ProposalHistoryView({ proposals: initialProposals, isProvider }:
                 <ProposalCard 
                   proposal={proposal} 
                   isProvider={isProvider} 
-                  onClick={() => setSelectedProposal(proposal)}
+                  onClick={() => setSelectedProposalId(proposal.id)}
                 />
               </div>
             ))
@@ -130,10 +117,10 @@ export function ProposalHistoryView({ proposals: initialProposals, isProvider }:
           proposal={selectedProposal}
           calendarConnection={calendarConnection}
           calendarAuthorization={calendarAuthorization}
-          onClose={() => setSelectedProposal(null)}
+          onClose={() => setSelectedProposalId(null)}
           onViewConversation={() => {
             const counterpartId = selectedProposal.counterpart.id;
-            setSelectedProposal(null);
+            setSelectedProposalId(null);
             if (isProvider) {
               router.push(`/prestador/mensajes?consumer_id=${counterpartId}`);
             } else {

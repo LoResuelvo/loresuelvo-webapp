@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Sidebar from "@/components/consumer/Sidebar";
 import { AuthSession } from "@/infrastructure/auth/types";
 import { Category } from "@/domain/shared/types";
@@ -11,6 +12,11 @@ import { t } from "@/infrastructure/i18n/translations";
 import { useRouter } from "next/navigation";
 import { Clock, CalendarCheck } from "lucide-react";
 import { ProposalCarousel } from "./ProposalCarousel";
+import { getServiceProposalsAction } from "@/app/consumidor/mensajes/actions";
+import { Button } from "@/components/ui/button";
+import { useRealtimeProposalList } from "@/components/messaging/proposals/useRealtimeProposalList";
+
+const EMPTY_PROPOSALS: ServiceProposalSummary[] = [];
 
 interface ConsumerHomeProps {
   session: AuthSession | null;
@@ -22,10 +28,21 @@ interface ConsumerHomeProps {
 export default function ConsumerHome({ 
   session, 
   categories = [],
-  pendingProposals = [],
-  acceptedProposals = []
+  pendingProposals: initialPendingProposals = EMPTY_PROPOSALS,
+  acceptedProposals: initialAcceptedProposals = EMPTY_PROPOSALS
 }: ConsumerHomeProps) {
   const router = useRouter();
+  const initialProposals = useMemo(() => [
+    ...initialPendingProposals,
+    ...initialAcceptedProposals,
+  ], [initialPendingProposals, initialAcceptedProposals]);
+  const { items: proposals, refreshError, retry } = useRealtimeProposalList(
+    initialProposals,
+    getServiceProposalsAction
+  );
+
+  const pendingProposals = proposals.filter((proposal) => proposal.status === "pending");
+  const acceptedProposals = proposals.filter((proposal) => proposal.status === "accepted");
 
   const handleViewConversation = (proposal: ServiceProposalSummary) => {
     router.push(`/consumidor/mensajes?provider_id=${proposal.counterpart.id}`);
@@ -53,6 +70,19 @@ export default function ConsumerHome({
                 aria-label="Panel de actividad y servicios" 
                 className="lg:col-span-5 flex flex-col gap-8"
               >
+                {refreshError && (
+                  <div
+                    role="alert"
+                    aria-live="assertive"
+                    data-testid="consumer-home-proposals-refresh-error"
+                    className="flex items-center justify-between gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-caption"
+                  >
+                    <span>{t.notifications.refreshError.message}</span>
+                    <Button size="sm" variant="brand" onClick={retry}>
+                      {t.notifications.refreshError.retry}
+                    </Button>
+                  </div>
+                )}
                 {/* Carousel de Propuestas Pendientes */}
                 <ProposalCarousel
                   config={{

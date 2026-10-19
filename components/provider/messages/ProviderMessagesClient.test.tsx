@@ -114,4 +114,40 @@ describe("ProviderMessagesClient handleAccept redirect", () => {
       expect(actions.acceptJobRequest).toHaveBeenCalledWith(1);
     });
   });
+
+  it("shows a related-data error and retries loading proposals for the selected contact", async () => {
+    (actions.getConversationDetail as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 1,
+      status: "accepted",
+      counterpart: { id: 10, role: "consumer", name: "María", surname: "Fernández", categoryName: "Plomería" },
+      messages: [],
+      updatedOn: "2026-05-31T12:00:00Z",
+    });
+    (actions.getJobRequestForConversation as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    const recoveredProposal = {
+      id: 5,
+      conversationId: 1,
+      amountCents: 1500000,
+      scheduledOn: "2026-06-05T12:00:00Z",
+      description: "Propuesta recuperada",
+      estimatedDurationMinutes: 60,
+      status: "pending" as const,
+      createdOn: "2026-05-31T12:00:00Z",
+      counterpart: { id: 10, role: "consumer" as const, name: "María", surname: "Fernández" },
+    };
+    (actions.getServiceProposalsAction as ReturnType<typeof vi.fn>)
+      .mockRejectedValueOnce(new Error("Network failed"))
+      .mockResolvedValueOnce([recoveredProposal]);
+
+    render(
+      <ProviderMessagesClient session={mockSession} contacts={mockContacts} myUserId="provider-001" />
+    );
+
+    expect(await screen.findByTestId("related-data-refresh-error")).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    });
+    expect(await screen.findByTestId("service-proposal-panel")).toHaveTextContent("Propuesta recuperada");
+    expect(screen.queryByTestId("related-data-refresh-error")).not.toBeInTheDocument();
+  });
 });

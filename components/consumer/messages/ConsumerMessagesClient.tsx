@@ -13,6 +13,8 @@ import ServiceProposalDetailModal from "@/components/messaging/proposals/Service
 import { AuthSession } from "@/infrastructure/auth/types";
 import { ConsumerConversationContact as ConversationContact, ServiceProposalSummary } from "@/domain/messaging/types";
 import { useConsumerMessages } from "./useConsumerMessages";
+import { Button } from "@/components/ui/button";
+import { t } from "@/infrastructure/i18n/translations";
 
 interface ConsumerMessagesClientProps {
   session: AuthSession | null;
@@ -32,6 +34,8 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
     inputRef,
     activeJobRequest,
     activeServiceProposal,
+    relatedDataError,
+    retryRelatedData,
     isConversationPending,
     selectedContact,
     selectedProviderId,
@@ -100,23 +104,38 @@ export default function ConsumerMessagesClient({ session, contacts = [], myUserI
                   />
                 }
               >
-                <MessagesList
-                  messages={viewMessages}
-                  myUserId={myUserId}
-                  conversationId={selectedContact.id}
-                  messagesEndRef={messagesEndRef}
-                  pendingBanner={{
-                    show: isConversationPending,
-                  }}
-                  expandState={{
-                    expandedMessages,
-                    onToggleExpand: toggleMessageExpanded,
-                  }}
-                  proposals={{
-                    serviceProposal: activeServiceProposal || undefined,
-                    onOpenProposal: (proposal) => setSelectedProposalModal(proposal),
-                  }}
-                />
+                <>
+                  {relatedDataError && (
+                    <div
+                      role="alert"
+                      aria-live="assertive"
+                      data-testid="related-data-refresh-error"
+                      className="flex items-center justify-between gap-3 p-3 bg-amber-50 border-b border-amber-200 text-amber-800 text-caption"
+                    >
+                      <span>{t.notifications.refreshError.message}</span>
+                      <Button size="sm" variant="brand" onClick={retryRelatedData}>
+                        {t.notifications.refreshError.retry}
+                      </Button>
+                    </div>
+                  )}
+                  <MessagesList
+                    messages={viewMessages}
+                    myUserId={myUserId}
+                    conversationId={selectedContact.id}
+                    messagesEndRef={messagesEndRef}
+                    pendingBanner={{
+                      show: isConversationPending,
+                    }}
+                    expandState={{
+                      expandedMessages,
+                      onToggleExpand: toggleMessageExpanded,
+                    }}
+                    proposals={{
+                      serviceProposal: activeServiceProposal || undefined,
+                      onOpenProposal: (proposal) => setSelectedProposalModal(proposal),
+                    }}
+                  />
+                </>
               </ChatPanel>
             ) : (
               <ChatPanel />

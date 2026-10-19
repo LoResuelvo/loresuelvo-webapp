@@ -29,6 +29,7 @@ export const providerHome = {
     title: "Solicitudes de Trabajo",
     emptyState: "Todavía no tienes ninguna solicitud de trabajo :(",
     listLabel: "Lista de solicitudes de trabajo",
+    justReceivedLabel: "Recién",
     viewDetails: "Ver Solicitud",
     modal: {
       title: "Detalle de Solicitud",

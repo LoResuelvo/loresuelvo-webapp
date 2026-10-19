@@ -20,7 +20,7 @@ export interface RealtimeJobRequester {
 }
 
 export interface RealtimeJobRequestImage {
-  id: number;
+  id: string;
   originalName: string;
   url: string;
 }

@@ -51,44 +51,66 @@ export function WorkOrderDetailModal({
   const [refreshError, setRefreshError] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const detailRef = useRef(detail);
+  const requestGenerationRef = useRef(0);
+  const currentWorkOrderIdRef = useRef(workOrderId);
+  const isOpenRef = useRef(open);
   detailRef.current = detail;
+  currentWorkOrderIdRef.current = workOrderId;
+  isOpenRef.current = open;
+
+  const isCurrentRequest = useCallback(
+    (requestGeneration: number, requestedWorkOrderId: number) =>
+      requestGeneration === requestGenerationRef.current &&
+      isOpenRef.current &&
+      currentWorkOrderIdRef.current === requestedWorkOrderId,
+    []
+  );
 
   const fetchDetail = useCallback(async (isBackground = false) => {
     if (!open || !workOrderId) return;
+    const requestGeneration = ++requestGenerationRef.current;
     if (!isBackground) {
       setIsLoading(true);
       setHasError(false);
     }
     try {
       const res = await getWorkOrderDetailAction(workOrderId);
+      if (!isCurrentRequest(requestGeneration, workOrderId)) return;
       if (res.ok) {
         setDetail(res.detail);
         setRefreshError(false);
         setHasError(false);
       } else {
-        if (isBackground && detailRef.current) {
+        if (isBackground && detailRef.current?.id === workOrderId) {
           setRefreshError(true);
         } else {
           setHasError(true);
         }
       }
     } catch {
-      if (isBackground && detailRef.current) {
+      if (!isCurrentRequest(requestGeneration, workOrderId)) return;
+      if (isBackground && detailRef.current?.id === workOrderId) {
         setRefreshError(true);
       } else {
         setHasError(true);
       }
     } finally {
-      if (!isBackground) {
+      if (isCurrentRequest(requestGeneration, workOrderId)) {
         setIsLoading(false);
       }
     }
-  }, [open, workOrderId]);
+  }, [isCurrentRequest, open, workOrderId]);
 
   useEffect(() => {
     if (open && workOrderId) {
-      fetchDetail(false);
+      setDetail(null);
+      setRefreshError(false);
+      setHasError(false);
+      void fetchDetail(false);
     }
+    return () => {
+      requestGenerationRef.current += 1;
+    };
   }, [open, workOrderId, fetchDetail]);
 
   useResourceUpdate("work_order", workOrderId, () => {
@@ -151,6 +173,14 @@ export function WorkOrderDetailModal({
               <p className="text-body font-semibold text-slate-800">
                 {t.workOrderDetail.errorMessage}
               </p>
+              <Button
+                size="sm"
+                variant="brand"
+                onClick={() => fetchDetail(false)}
+                className="h-8 px-3 text-caption font-semibold"
+              >
+                {t.notifications.refreshError.retry}
+              </Button>
             </div>
           ) : isLoading && !detail ? (
             <div

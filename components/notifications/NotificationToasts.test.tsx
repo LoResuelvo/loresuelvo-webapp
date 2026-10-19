@@ -84,6 +84,29 @@ describe("NotificationToasts", () => {
     expect(mockDismissNotice).toHaveBeenCalledWith("notice-1");
   });
 
+  it("shows authorization errors and disables the action while it is pending", () => {
+    mockNotices = [
+      {
+        id: "calendar-authorization",
+        type: "calendar_reauthorization_required",
+        title: "Reautorización requerida",
+        description: "Vuelve a conectar tu calendario.",
+        actionLabel: "Reautorizar",
+        resourceType: "calendar_connection",
+        resourceId: 10,
+        actionError: "No se pudo iniciar la autorización",
+        isActionPending: true,
+        onAction: vi.fn(),
+      },
+    ];
+    mockActiveModalWorkOrderId = null;
+
+    render(<NotificationToasts role="consumer" />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("No se pudo iniciar la autorización");
+    expect(screen.getByRole("button", { name: "Conectando con Google Calendar…" })).toBeDisabled();
+  });
+
   it("renders WorkOrderDetailModal when activeModalWorkOrderId is set", async () => {
     const user = userEvent.setup();
     mockNotices = [];

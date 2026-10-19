@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, within, act } from "@testing-library/react";
+import { render, screen, fireEvent, within, act, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProposalHistoryView } from "./ProposalHistoryView";
 import { getCurrentUserAction } from "@/app/api/me/actions";
@@ -329,13 +329,114 @@ describe("ProposalHistoryView", () => {
     await act(async () => {
       await capturedCallback?.({
         id: 10,
+        userId: 1,
         type: "service_proposal_received",
         resourceType: "service_proposal",
         resourceId: 3,
+        createdAt: "2026-07-06T10:00:00-03:00",
       });
     });
 
     expect(screen.getByText("Mario Rossi")).toBeInTheDocument();
+  });
+
+  it("updates the open proposal detail when realtime refresh returns a newer proposal", async () => {
+    let capturedCallback: ResourceListener | undefined;
+    vi.spyOn(NotificationContextModule, "useResourceUpdate").mockImplementation(
+      (_type, _id, cb: ResourceListener) => {
+        capturedCallback = cb;
+      }
+    );
+    const updatedProposals = [
+      { ...mockProposals[0], description: "Reparación con presupuesto actualizado" },
+      mockProposals[1],
+    ];
+    vi.mocked(getServiceProposalsAction).mockResolvedValueOnce(updatedProposals);
+
+    const user = userEvent.setup();
+    render(<ProposalHistoryView proposals={mockProposals} isProvider={false} />);
+    await user.click(screen.getByTestId("proposal-card"));
+
+    const modal = within(screen.getByTestId("service-proposal-detail-modal"));
+    expect(modal.getByText("Reparación")).toBeInTheDocument();
+
+    await act(async () => {
+      capturedCallback?.({
+        id: 12,
+        userId: 1,
+        type: "service_proposal_received",
+        resourceType: "service_proposal",
+        resourceId: 1,
+        createdAt: "2026-07-06T10:00:00-03:00",
+      });
+    });
+
+    expect(await modal.findByText("Reparación con presupuesto actualizado")).toBeInTheDocument();
+    expect(modal.queryByText("Reparación")).not.toBeInTheDocument();
+  });
+
+  it("keeps only the newest proposal refresh when responses arrive out of order", async () => {
+    let capturedCallback: ResourceListener | undefined;
+    vi.spyOn(NotificationContextModule, "useResourceUpdate").mockImplementation(
+      (_type, _id, cb: ResourceListener) => {
+        capturedCallback = cb;
+      }
+    );
+
+    const olderProposals = [
+      { ...mockProposals[0], description: "Respuesta anterior" },
+      mockProposals[1],
+    ];
+    const latestProposals = [
+      { ...mockProposals[0], description: "Respuesta más reciente" },
+      mockProposals[1],
+    ];
+    let resolveOlder!: (proposals: Awaited<ReturnType<typeof getServiceProposalsAction>>) => void;
+    let resolveLatest!: (proposals: Awaited<ReturnType<typeof getServiceProposalsAction>>) => void;
+    const olderRefresh = new Promise<Awaited<ReturnType<typeof getServiceProposalsAction>>>((resolve) => {
+      resolveOlder = resolve;
+    });
+    const latestRefresh = new Promise<Awaited<ReturnType<typeof getServiceProposalsAction>>>((resolve) => {
+      resolveLatest = resolve;
+    });
+    vi.mocked(getServiceProposalsAction)
+      .mockReturnValueOnce(olderRefresh)
+      .mockReturnValueOnce(latestRefresh);
+    vi.mocked(getServiceProposalsAction).mockClear();
+
+    render(<ProposalHistoryView proposals={mockProposals} isProvider={false} />);
+    act(() => {
+      capturedCallback?.({
+        id: 13,
+        userId: 1,
+        type: "service_proposal_received",
+        resourceType: "service_proposal",
+        resourceId: 1,
+        createdAt: "2026-07-06T10:00:00-03:00",
+      });
+      capturedCallback?.({
+        id: 14,
+        userId: 1,
+        type: "service_proposal_accepted",
+        resourceType: "service_proposal",
+        resourceId: 1,
+        createdAt: "2026-07-06T10:00:00-03:00",
+      });
+    });
+    await waitFor(() => expect(getServiceProposalsAction).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      resolveLatest(latestProposals);
+      await latestRefresh;
+    });
+    expect(await screen.findByText("Respuesta más reciente")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveOlder(olderProposals);
+      await olderRefresh;
+    });
+    expect(screen.getByText("Respuesta más reciente")).toBeInTheDocument();
+    expect(screen.queryByText("Respuesta anterior")).not.toBeInTheDocument();
   });
 
   it("preserves visible proposals and offers retry when refresh fails", async () => {
@@ -346,7 +447,23 @@ describe("ProposalHistoryView", () => {
       }
     );
 
-    vi.mocked(getServiceProposalsAction).mockRejectedValue(new Error("Network failed"));
+    const refreshedProposals = [
+      ...mockProposals,
+      {
+        id: 3,
+        conversationId: 4,
+        amountCents: 3000000,
+        scheduledOn: "2026-07-07T10:00:00-03:00",
+        description: "Nueva propuesta recuperada",
+        estimatedDurationMinutes: 120,
+        status: "pending" as const,
+        createdOn: "2026-07-06T10:00:00-03:00",
+        counterpart: { id: 3, role: "consumer" as const, name: "Mario", surname: "Rossi" },
+      },
+    ];
+    vi.mocked(getServiceProposalsAction)
+      .mockRejectedValueOnce(new Error("Network failed"))
+      .mockResolvedValueOnce(refreshedProposals);
 
     render(<ProposalHistoryView proposals={mockProposals} isProvider={false} />);
     expect(screen.getByText("Juan Gómez")).toBeInTheDocument();
@@ -354,9 +471,11 @@ describe("ProposalHistoryView", () => {
     await act(async () => {
       await capturedCallback?.({
         id: 11,
+        userId: 1,
         type: "service_proposal_received",
         resourceType: "service_proposal",
         resourceId: 99,
+        createdAt: "2026-07-06T10:00:00-03:00",
       });
     });
 
@@ -366,5 +485,9 @@ describe("ProposalHistoryView", () => {
     expect(screen.getByTestId("proposal-refresh-error")).toBeInTheDocument();
     expect(screen.getByText(t.notifications.refreshError.message)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: t.notifications.refreshError.retry })).toBeInTheDocument();
+
+    await userEvent.setup().click(screen.getByRole("button", { name: t.notifications.refreshError.retry }));
+    expect(await screen.findByText("Mario Rossi")).toBeInTheDocument();
+    expect(screen.queryByTestId("proposal-refresh-error")).not.toBeInTheDocument();
   });
 });

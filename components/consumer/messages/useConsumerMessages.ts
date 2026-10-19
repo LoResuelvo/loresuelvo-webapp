@@ -11,17 +11,17 @@ import {
   sendVideoMessage as sendVideoMessageAction,
   getServiceProposalsAction,
 } from "@/app/consumidor/mensajes/actions";
-import {
+import type {
   JobRequestInfo,
+  ConversationDetailInfo,
   ConsumerConversationContact as ConversationContact,
-  ServiceProposalSummary,
 } from "@/domain/messaging/types";
 import { clientFileUploadRepository } from "@/app/files/client-file-upload";
 import { ClientConversationCommandRepository } from "@/infrastructure/repositories/messaging/client-conversation-command-repository";
 import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/shared/local-offline-queue-repository";
 import type { MessageInputHandle } from "@/components/messaging/chat/MessageInput";
+import { useConversationRelatedData } from "@/components/messaging/useConversationRelatedData";
 import { useMessagingCore } from "@/hooks/messaging/useMessagingCore";
-import { useResourceUpdate } from "@/infrastructure/notifications/NotificationContext";
 
 const conversationRepository = new ClientConversationCommandRepository({
   create: createConversation,
@@ -31,6 +31,20 @@ const conversationRepository = new ClientConversationCommandRepository({
 });
 const fileRepository = clientFileUploadRepository;
 const offlineQueueRepo = new LocalOfflineQueueRepository();
+
+function mapConsumerJobRequest(
+  jobRequest: NonNullable<Awaited<ReturnType<typeof getJobRequestForConversation>>>,
+  conversation: ConversationDetailInfo
+): JobRequestInfo {
+  return {
+    title: jobRequest.title,
+    description: jobRequest.description,
+    providerName: conversation.counterpart.name,
+    providerSurname: conversation.counterpart.surname,
+    providerProfilePhotoUrl: conversation.counterpart.profilePhotoUrl,
+    images: jobRequest.images,
+  };
+}
 
 export function useConsumerMessages(
   session: AuthSession | null,
@@ -43,16 +57,17 @@ export function useConsumerMessages(
   const selectedProviderId =
     urlProviderId ?? (contacts.length > 0 ? contacts[0].providerId : null);
 
-  const [activeJobRequest, setActiveJobRequest] = useState<JobRequestInfo | null | undefined>(
-    undefined
-  );
-  const [activeServiceProposal, setActiveServiceProposal] = useState<ServiceProposalSummary | null>(
-    null
-  );
   const [isConversationPending, setIsConversationPending] = useState<boolean>(false);
   const inputRef = useRef<MessageInputHandle>(null);
 
   const selectedContact = contacts.find((c) => c.providerId === selectedProviderId);
+
+  const relatedData = useConversationRelatedData({
+    selectedCounterpartId: selectedProviderId,
+    getJobRequest: getJobRequestForConversation,
+    getServiceProposals: getServiceProposalsAction,
+    mapJobRequest: mapConsumerJobRequest,
+  });
 
   useEffect(() => {
     setIsConversationPending(selectedContact?.pending ?? false);
@@ -72,44 +87,7 @@ export function useConsumerMessages(
     onNewIncomingMessage: () => {
       setIsConversationPending(false);
     },
-    onConversationLoaded: (effectiveConvId, data) => {
-      setActiveJobRequest(undefined);
-      getJobRequestForConversation(effectiveConvId)
-        .then((jr) =>
-          setActiveJobRequest(
-            jr
-              ? {
-                  title: jr.title,
-                  description: jr.description,
-                  providerName: data.counterpart.name,
-                  providerSurname: data.counterpart.surname,
-                  providerProfilePhotoUrl: data.counterpart.profilePhotoUrl,
-                  images: jr.images,
-                }
-              : null
-          )
-        )
-        .catch(() => setActiveJobRequest(null));
-
-      getServiceProposalsAction()
-        .then((proposals) => {
-          const prop = proposals.find((p) => p.conversationId === Number(effectiveConvId));
-          setActiveServiceProposal(prop || null);
-        })
-        .catch(() => setActiveServiceProposal(null));
-    },
-  });
-
-  useResourceUpdate("service_proposal", undefined, () => {
-    getServiceProposalsAction()
-      .then((proposals) => {
-        const convId = selectedContact?.id?.replace("conv-", "");
-        if (convId) {
-          const prop = proposals.find((p) => p.conversationId === Number(convId));
-          setActiveServiceProposal(prop || null);
-        }
-      })
-      .catch(() => {});
+    onConversationLoaded: relatedData.onConversationLoaded,
   });
 
   const handleContactClick = (providerId: string) => {
@@ -130,8 +108,10 @@ export function useConsumerMessages(
     expandedMessages: core.expandedMessages,
     messagesEndRef: core.messagesEndRef,
     inputRef,
-    activeJobRequest,
-    activeServiceProposal,
+    activeJobRequest: relatedData.activeJobRequest,
+    activeServiceProposal: relatedData.activeServiceProposal,
+    relatedDataError: relatedData.relatedDataError,
+    retryRelatedData: relatedData.retryRelatedData,
     isConversationPending,
     selectedContact: core.selectedContact,
     selectedProviderId,

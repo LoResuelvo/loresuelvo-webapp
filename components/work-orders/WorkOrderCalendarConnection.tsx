@@ -9,7 +9,7 @@ import WorkOrderCalendarReauthorization from "./WorkOrderCalendarReauthorization
 export interface WorkOrderCalendarAuthorization {
   isAuthorizing: boolean;
   error: string | null;
-  startAuthorization: () => Promise<void>;
+  startAuthorization: () => Promise<boolean>;
 }
 
 interface WorkOrderCalendarConnectionProps {

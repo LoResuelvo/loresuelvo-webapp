@@ -79,7 +79,13 @@ describe("validateWsEvent", () => {
           name: "Carlos",
           surname: "García",
         },
-        images: [{ id: 1, original_name: "canilla.png", url: "https://example.com/canilla.png" }],
+        images: [
+          {
+            id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+            original_name: "canilla.png",
+            url: "https://example.com/canilla.png",
+          },
+        ],
       },
     };
 
@@ -87,6 +93,7 @@ describe("validateWsEvent", () => {
     expect(result).not.toBeNull();
     if (result && result.type === "notification.created") {
       expect(result.job_request?.title).toBe("Arreglar canilla");
+      expect(result.job_request?.images[0]?.id).toBe("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11");
     }
   });
 
@@ -134,6 +141,31 @@ describe("validateWsEvent", () => {
         id: "not-a-number",
       },
     };
+    expect(validateWsEvent(raw)).toBeNull();
+  });
+
+  it("rejects notification job_request when an image entry is malformed", () => {
+    const raw = {
+      type: "notification.created",
+      notification: {
+        id: 2,
+        user_id: 10,
+        type: "job_request_received",
+        resource_type: "job_request",
+        resource_id: 77,
+        created_at: "2026-10-15T12:00:00Z",
+      },
+      job_request: {
+        id: 77,
+        conversation_id: 88,
+        title: "Arreglar canilla",
+        description: "Pierde agua en la cocina",
+        status: "pending",
+        requester: { name: "Carlos", surname: "García" },
+        images: [null],
+      },
+    };
+
     expect(validateWsEvent(raw)).toBeNull();
   });
 });

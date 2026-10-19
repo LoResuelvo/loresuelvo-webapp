@@ -477,15 +477,91 @@ describe("WorkOrderDetailModal", () => {
     await act(async () => {
       await capturedCallback?.({
         id: 200,
+        userId: 1,
         type: "work_order_completion_reported",
         resourceType: "work_order",
         resourceId: 15,
+        createdAt: "2026-07-06T10:00:00-03:00",
       });
     });
 
     await waitFor(() => {
       expect(screen.getByText("Pendiente de pago")).toBeInTheDocument();
     });
+  });
+
+  it("keeps the latest order refresh when responses arrive out of order", async () => {
+    let capturedCallback: ResourceListener | undefined;
+    vi.spyOn(NotificationContextModule, "useResourceUpdate").mockImplementation(
+      (_type, _id, cb: ResourceListener) => {
+        capturedCallback = cb;
+      }
+    );
+
+    const initialOrder = {
+      id: 15,
+      serviceProposalId: 10,
+      consumerId: 2,
+      providerId: 5,
+      status: "scheduled" as const,
+      amountCents: 100000,
+      scheduledOn: "2026-08-20T10:00:00Z",
+      description: "Reparación pendiente",
+      acceptedOn: "2026-08-19T10:00:00Z",
+    };
+    const olderOrder = { ...initialOrder, description: "Respuesta anterior" };
+    const latestOrder = { ...initialOrder, description: "Respuesta más reciente" };
+
+    let resolveOlder!: (result: Awaited<ReturnType<typeof getWorkOrderDetailAction>>) => void;
+    let resolveLatest!: (result: Awaited<ReturnType<typeof getWorkOrderDetailAction>>) => void;
+    const olderRefresh = new Promise<Awaited<ReturnType<typeof getWorkOrderDetailAction>>>((resolve) => {
+      resolveOlder = resolve;
+    });
+    const latestRefresh = new Promise<Awaited<ReturnType<typeof getWorkOrderDetailAction>>>((resolve) => {
+      resolveLatest = resolve;
+    });
+
+    vi.mocked(getWorkOrderDetailAction)
+      .mockResolvedValueOnce({ ok: true, detail: initialOrder })
+      .mockReturnValueOnce(olderRefresh)
+      .mockReturnValueOnce(latestRefresh);
+
+    render(<WorkOrderDetailModal open={true} workOrderId={15} onClose={() => {}} />);
+    expect(await screen.findByText("Reparación pendiente")).toBeInTheDocument();
+
+    act(() => {
+      capturedCallback?.({
+        id: 210,
+        userId: 1,
+        type: "work_order_completion_reported",
+        resourceType: "work_order",
+        resourceId: 15,
+        createdAt: "2026-07-06T10:00:00-03:00",
+      });
+      capturedCallback?.({
+        id: 211,
+        userId: 1,
+        type: "work_order_final_payment_approved",
+        resourceType: "work_order",
+        resourceId: 15,
+        createdAt: "2026-07-06T10:00:00-03:00",
+      });
+    });
+    await waitFor(() => expect(getWorkOrderDetailAction).toHaveBeenCalledTimes(3));
+
+    await act(async () => {
+      resolveLatest({ ok: true, detail: latestOrder });
+      await latestRefresh;
+    });
+    expect(await screen.findByText("Respuesta más reciente")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveOlder({ ok: true, detail: olderOrder });
+      await olderRefresh;
+    });
+
+    expect(screen.getByText("Respuesta más reciente")).toBeInTheDocument();
+    expect(screen.queryByText("Respuesta anterior")).not.toBeInTheDocument();
   });
 
   it("preserves visible order details and displays recovery retry when background refresh fails", async () => {
@@ -508,9 +584,11 @@ describe("WorkOrderDetailModal", () => {
       acceptedOn: "2026-08-19T10:00:00Z",
     };
 
+    const refreshedOrder = { ...initialOrder, status: "awaiting_payment" as const };
     vi.mocked(getWorkOrderDetailAction)
       .mockResolvedValueOnce({ ok: true, detail: initialOrder })
-      .mockRejectedValueOnce(new Error("Network disconnect"));
+      .mockRejectedValueOnce(new Error("Network disconnect"))
+      .mockResolvedValueOnce({ ok: true, detail: refreshedOrder });
 
     render(<WorkOrderDetailModal open={true} workOrderId={15} onClose={() => {}} />);
 
@@ -522,9 +600,11 @@ describe("WorkOrderDetailModal", () => {
     await act(async () => {
       await capturedCallback?.({
         id: 201,
+        userId: 1,
         type: "work_order_completion_reported",
         resourceType: "work_order",
         resourceId: 15,
+        createdAt: "2026-07-06T10:00:00-03:00",
       });
     });
 
@@ -533,6 +613,11 @@ describe("WorkOrderDetailModal", () => {
     expect(screen.getByText("Programada")).toBeInTheDocument();
     // Recovery banner is shown
     expect(screen.getByTestId("work-order-refresh-error")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Reintentar" }));
+    expect(await screen.findByText("Pendiente de pago")).toBeInTheDocument();
+    expect(screen.queryByTestId("work-order-refresh-error")).not.toBeInTheDocument();
+    expect(screen.getByText("Reparación pendiente")).toBeInTheDocument();
   });
 });

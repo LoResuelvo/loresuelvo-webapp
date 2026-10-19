@@ -18,7 +18,7 @@ describe("useCalendarAuthorization", () => {
     const { result, unmount } = renderHook(() =>
       useCalendarAuthorization({ startAuthorizationAction, navigate }),
     );
-    let authorization: Promise<void> | undefined;
+    let authorization: Promise<boolean> | undefined;
     await act(async () => { authorization = result.current.startAuthorization(); });
     unmount();
 
@@ -39,7 +39,7 @@ describe("useCalendarAuthorization", () => {
       useCalendarAuthorization({ startAuthorizationAction, navigate }),
     );
 
-    let firstRequest: Promise<void> | undefined;
+    let firstRequest: Promise<boolean> | undefined;
     await act(async () => {
       firstRequest = result.current.startAuthorization();
     });

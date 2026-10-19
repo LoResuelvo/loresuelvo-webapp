@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError, api } from "@/infrastructure/api/base-client";
-import { createClaimAction, listClaimReferencesAction } from "./actions";
+import { createClaimAction, listClaimReferencesAction, listClaimsAction, getClaimDetailAction } from "./actions";
 import type { ClaimSubmission } from "@/domain/claim/types";
 const {getSession}=vi.hoisted(() => ({getSession:vi.fn()}));
 vi.mock("@/infrastructure/auth", () => ({getAuthService:()=>({getSession})}));
@@ -17,7 +17,19 @@ describe("Claim Server Actions", () => {
     getSession.mockResolvedValue(null);
     expect(await createClaimAction(input,key)).toMatchObject({ok:false,status:401,error:"unauthenticated"});
     expect(await listClaimReferencesAction()).toMatchObject({ok:false,status:401});
+    expect(await listClaimsAction()).toMatchObject({ok:false,status:401});
+    expect(await getClaimDetailAction(9)).toMatchObject({ok:false,status:401});
     expect(api.post).not.toHaveBeenCalled(); expect(api.get).not.toHaveBeenCalled();
+  });
+  it("supports an authenticated provider and filters private claims through the API", async () => {
+    getSession.mockResolvedValue({user:{role:"provider"}});
+    vi.mocked(api.get).mockResolvedValue({items:[],page:2,limit:20,total:0});
+    expect(await listClaimsAction({page:2,status:"dismissed"})).toEqual({ok:true,data:{items:[],page:2,limit:20,total:0}});
+    expect(api.get).toHaveBeenCalledWith("/claims?page=2&limit=20&status=dismissed");
+  });
+  it("does not query invalid list criteria", async () => {
+    expect(await listClaimsAction({limit:101})).toMatchObject({ok:false,status:400,error:"invalid"});
+    expect(api.get).not.toHaveBeenCalled();
   });
   it("does not send invalid testimony to the API", async () => {
     expect(await createClaimAction({...input,description:" "},key)).toMatchObject({ok:false,status:400,error:"invalid"});
@@ -50,4 +62,15 @@ describe("Claim Server Actions", () => {
     vi.mocked(api.post).mockRejectedValue(new ApiClientError(status,"error",message));
     expect(await createClaimAction(input,key)).toEqual({ok:false,status,error});
   });
+  it("validates the detail identifier before querying", async () => {
+    expect(await getClaimDetailAction(0)).toEqual({ok:false,status:400,error:"invalid"});
+    expect(api.get).not.toHaveBeenCalled();
+  });
+  it.each([401,403,404,500])("does not expose private detail after status %s", async status => {
+    vi.mocked(api.get).mockRejectedValue(new ApiClientError(status,"error","Private testimony and storage URL"));
+    const result = await getClaimDetailAction(9);
+    expect(result).toEqual({ok:false,status,error:status===401 ? "unauthenticated" : status===403 ? "forbidden" : status===404 ? "not_found" : "unavailable"});
+    expect(JSON.stringify(result)).not.toContain("Private testimony");
+  });
+
 });

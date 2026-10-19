@@ -1,7 +1,7 @@
-import { createClaimAction, listClaimReferencesAction } from "@/app/claims/actions";
+import { createClaimAction, getClaimDetailAction, listClaimReferencesAction, listClaimsAction } from "@/app/claims/actions";
 import ProviderHeader from "@/components/provider/home/layout/ProviderHeader";
 import ProviderSidebar from "@/components/provider/home/layout/ProviderSidebar";
-import { ParticipantClaimForm } from "@/components/claims/ParticipantClaimForm";
+import { ParticipantClaimsWorkspace } from "@/components/claims/ParticipantClaimsWorkspace";
 import { getAuthService } from "@/infrastructure/auth";
 import { t } from "@/infrastructure/i18n/translations";
 import { ROUTES } from "@/lib/routes";
@@ -37,11 +37,13 @@ export default async function ProviderClaimsPage({
               <h1 className="text-2xl font-bold tracking-tight text-brand-primary sm:text-3xl">{t.claims.title}</h1>
               <p className="max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">{t.claims.intro}</p>
             </header>
-            <ParticipantClaimForm
+            <ParticipantClaimsWorkspace
               references={referencesResult.ok ? referencesResult.data : []}
               initialReference={initialReference}
-              referencesError={!referencesResult.ok}
+              referencesError={!referencesResult.ok ? referencesResult.error : undefined}
               onCreateClaim={createClaimAction}
+              onListClaims={listClaimsAction}
+              onGetClaim={getClaimDetailAction}
             />
           </div>
         </main>

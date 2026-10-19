@@ -212,4 +212,56 @@ describe("ParticipantClaimForm", () => {
     expect(createClaim.mock.calls[1][0].imageFileIds).toEqual([newEvidenceId]);
     expect(createClaim.mock.calls[1][1]).not.toBe(firstKey);
   });
+
+  it("displays typed errors for references without collapsing into an empty list", () => {
+    const { rerender } = render(
+      <ParticipantClaimForm references={[]} referencesError="unauthenticated" onCreateClaim={vi.fn()} />
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Tu sesión venció. Iniciá sesión y volvé a intentar.");
+    expect(screen.queryByText("No encontramos operaciones pendientes disponibles para reclamar.")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("claim-submit")).not.toBeInTheDocument();
+
+    rerender(
+      <ParticipantClaimForm references={[]} referencesError="forbidden" onCreateClaim={vi.fn()} />
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Tu cuenta todavía no puede presentar reclamos.");
+
+    rerender(
+      <ParticipantClaimForm references={[]} referencesError="not_found" onCreateClaim={vi.fn()} />
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("La operación ya no está disponible para reclamar.");
+
+    rerender(
+      <ParticipantClaimForm references={[]} referencesError="unavailable" onCreateClaim={vi.fn()} />
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("No pudimos cargar tus operaciones. Actualizá la página para volver a intentar.");
+  });
+
+  it("focuses the first invalid field upon submission and focuses reference upon restart", async () => {
+    const createClaim = vi.fn().mockResolvedValue({ ok: true, data: acknowledgment });
+    render(<ParticipantClaimForm references={referenceOptions} onCreateClaim={createClaim} />);
+
+    // 1. Submit without reference -> focuses reference
+    fireEvent.click(screen.getByTestId("claim-submit"));
+    expect(document.activeElement).toBe(screen.getByTestId("claim-reference"));
+
+    // 2. Select reference, submit without reason -> focuses reason
+    fireEvent.change(screen.getByTestId("claim-reference"), { target: { value: "job_request:47" } });
+    fireEvent.click(screen.getByTestId("claim-submit"));
+    expect(document.activeElement).toBe(screen.getByTestId("claim-reason"));
+
+    // 3. Select reason, submit without description -> focuses description
+    fireEvent.change(screen.getByTestId("claim-reason"), { target: { value: "damage" } });
+    fireEvent.click(screen.getByTestId("claim-submit"));
+    expect(document.activeElement).toBe(screen.getByTestId("claim-description"));
+
+    // 4. Fill description and submit successfully
+    fireEvent.change(screen.getByTestId("claim-description"), { target: { value: "Descripción válida" } });
+    fireEvent.click(screen.getByTestId("claim-submit"));
+    expect(await screen.findByTestId("claim-confirmation")).toBeInTheDocument();
+
+    // 5. Restart -> focuses reference
+    fireEvent.click(screen.getByRole("button", { name: "Presentar otro reclamo" }));
+    expect(document.activeElement).toBe(screen.getByTestId("claim-reference"));
+  });
 });

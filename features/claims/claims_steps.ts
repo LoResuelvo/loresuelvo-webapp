@@ -25,7 +25,7 @@ async function openClaimsForm(world: CustomWorld) {
     }),
   ]);
   await world.stubGet("/service-proposals", []);
-  await world.stubGet("/claims", { items: [], page: 1, limit: 20, total: 0 });
+  await world.stubGet("/claims?page=1&limit=20", { items: [], page: 1, limit: 20, total: 0 });
   await world.stubPost("/claims", 201, {
     id: CLAIM_ID,
     operation_id: OPERATION_ID,

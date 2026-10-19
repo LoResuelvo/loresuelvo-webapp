@@ -7,9 +7,11 @@ import { ApiJobRequestRepository } from "@/infrastructure/repositories/messaging
 import { ApiServiceProposalRepository } from "@/infrastructure/repositories/messaging/api-service-proposal-repository";
 import { ApiWorkOrderRepository } from "@/infrastructure/repositories/work-orders/api-work-order-repository";
 import { getClaimReferences } from "@/application/claims/get-claim-references";
+import { getClaimDetail, isClaimId } from "@/application/claims/get-claim-detail";
 import { submitClaim } from "@/application/claims/submit-claim";
+import { isClaimListCriteria, listClaims } from "@/application/claims/list-claims";
 import { isClaimUuid, normalizeClaimSubmission } from "@/domain/claim/validation";
-import type { ClaimAcknowledgment, ClaimReferenceOption, ClaimSubmission } from "@/domain/claim/types";
+import type { ClaimAcknowledgment, ClaimReferenceOption, ClaimSubmission, ClaimListCriteria, ClaimPage, ClaimDetail } from "@/domain/claim/types";
 import { t } from "@/infrastructure/i18n/translations";
 
 export type ClaimActionError = "unauthenticated" | "forbidden" | "not_found" | "unfinished_claim" | "key_conflict" | "invalid" | "unavailable";
@@ -52,5 +54,22 @@ export async function createClaimAction(input: ClaimSubmission, idempotencyKey: 
     } catch { return {ok:false,status:400,error:"invalid"}; }
     const data = await submitClaim(new ApiClaimRepository(), input, idempotencyKey);
     return {ok:true,data};
+  } catch (error: unknown) { return failure(error); }
+}
+export async function listClaimsAction(criteria: ClaimListCriteria = {}): Promise<ClaimActionResult<ClaimPage>> {
+  try {
+    const access = await authorize();
+    if (!access.ok) return access;
+    if (!isClaimListCriteria(criteria)) return {ok:false,status:400,error:"invalid"};
+    return {ok:true,data:await listClaims(new ApiClaimRepository(),criteria)};
+  } catch (error: unknown) { return failure(error); }
+}
+
+export async function getClaimDetailAction(id: number): Promise<ClaimActionResult<ClaimDetail>> {
+  try {
+    const access = await authorize();
+    if (!access.ok) return access;
+    if (!isClaimId(id)) return {ok:false,status:400,error:"invalid"};
+    return {ok:true,data:await getClaimDetail(new ApiClaimRepository(),id)};
   } catch (error: unknown) { return failure(error); }
 }

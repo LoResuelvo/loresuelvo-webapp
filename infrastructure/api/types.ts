@@ -677,3 +677,26 @@ export interface ApiClaimAcknowledgment {
   status: "open" | "in_review" | "resolved" | "dismissed";
   created_on: string;
 }
+export interface ApiClaimSummary extends ApiClaimAcknowledgment {
+  reason: ApiClaimSubmission["reason"];
+  review_started_on: string | null;
+  closed_on: string | null;
+}
+export interface ApiClaimPage {
+  items: ApiClaimSummary[];
+  page: number;
+  limit: number;
+  total: number;
+}
+
+export interface ApiClaimResolution {
+  type: "consumer_favor" | "provider_favor" | "agreement" | "without_merit";
+  reasoning: string;
+  resolved_on: string;
+  suggested_compensation: { amount_minor: number; currency: "ARS"; unit: "minor" } | null;
+}
+export interface ApiClaimDetail extends ApiClaimSummary {
+  description: string;
+  images: { file_id: string; url: string }[];
+  resolution: ApiClaimResolution | null;
+}

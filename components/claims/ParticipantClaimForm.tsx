@@ -8,14 +8,14 @@ import type {
   ClaimReferenceOption,
   ClaimSubmission,
 } from "@/domain/claim/types";
-import type { ClaimActionResult } from "@/app/claims/actions";
+import type { ClaimActionError, ClaimActionResult } from "@/app/claims/actions";
 import { t } from "@/infrastructure/i18n/translations";
 import { useClaimEvidence } from "./useClaimEvidence";
 
 export interface ParticipantClaimFormProps {
   references: ClaimReferenceOption[];
   initialReference?: string;
-  referencesError?: boolean;
+  referencesError?: ClaimActionError | boolean | null;
   onCreateClaim: (
     submission: ClaimSubmission,
     idempotencyKey: string
@@ -26,6 +26,22 @@ const REASONS = ["non_compliance", "improper_charge", "damage", "poor_quality"] 
 
 function createIdempotencyKey(): string {
   return crypto.randomUUID();
+}
+
+function getReferencesErrorMessage(error: ClaimActionError | boolean): string {
+  if (typeof error === "string") {
+    switch (error) {
+      case "unauthenticated":
+        return t.claims.errors.unauthenticated;
+      case "forbidden":
+        return t.claims.errors.forbidden;
+      case "not_found":
+        return t.claims.errors.not_found;
+      default:
+        return t.claims.referencesError;
+    }
+  }
+  return t.claims.referencesError;
 }
 
 export function ParticipantClaimForm({
@@ -46,6 +62,8 @@ export function ParticipantClaimForm({
   const [confirmation, setConfirmation] = useState<ClaimAcknowledgment | null>(null);
   const idempotencyRef = useRef<{ fingerprint: string; key: string } | null>(null);
   const referenceRef = useRef<HTMLSelectElement>(null);
+  const reasonRef = useRef<HTMLSelectElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const focusReferenceAfterRestart = useRef(false);
   const descriptionLength = Array.from(description).length;
   const canSubmit = references.length > 0 && !referencesError;
@@ -76,16 +94,19 @@ export function ParticipantClaimForm({
     if (!selectedReference) {
       setFormError(t.claims.validation.reference);
       setValidationField("reference");
+      referenceRef.current?.focus();
       return;
     }
     if (!REASONS.some((candidate) => candidate === reason)) {
       setFormError(t.claims.validation.reason);
       setValidationField("reason");
+      reasonRef.current?.focus();
       return;
     }
     if (!validateClaimDescription(description)) {
       setFormError(t.claims.validation.description);
       setValidationField("description");
+      descriptionRef.current?.focus();
       return;
     }
 
@@ -148,7 +169,7 @@ export function ParticipantClaimForm({
     <form onSubmit={handleSubmit} noValidate className="space-y-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
       {referencesError ? (
         <p role="alert" className="rounded-lg bg-rose-50 p-4 text-sm text-rose-800">
-          {t.claims.referencesError}
+          {getReferencesErrorMessage(referencesError)}
         </p>
       ) : references.length === 0 ? (
         <p role="status" className="rounded-lg bg-slate-50 p-4 text-sm text-slate-700">
@@ -182,6 +203,7 @@ export function ParticipantClaimForm({
               {t.claims.reasonLabel}
             </label>
             <select
+              ref={reasonRef}
               id="claim-reason"
               data-testid="claim-reason"
               value={reason}
@@ -202,6 +224,7 @@ export function ParticipantClaimForm({
               {t.claims.descriptionLabel}
             </label>
             <textarea
+              ref={descriptionRef}
               id="claim-description"
               data-testid="claim-description"
               value={description}

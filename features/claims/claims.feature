@@ -33,37 +33,31 @@ Feature: US31 Reclamos de participantes
     When presenta un nuevo reclamo válido sobre la operación
     Then obtiene un expediente propio nuevo sin modificar los anteriores ni acceder al expediente de la contraparte.
 
-  @wip
   Scenario: 07 Consultar y encontrar mis reclamos
     Given un consumidor o prestador autenticado con reclamos propios
     When consulta Mis reclamos con el filtro de estado y la página elegidos
     Then ve únicamente sus reclamos con motivo, operación, estado y fechas disponibles, ordenados del más reciente al más antiguo, con navegación entre páginas y un mensaje claro cuando no hay resultados.
 
-  @wip
   Scenario: 08 Consultar el seguimiento y resultado de un reclamo
     Given un participante con un reclamo propio
     When abre el detalle del reclamo
     Then ve su testimonio, motivo, operación, estado y fechas registradas, además del dictamen si existe o la indicación de que aún no hay resolución; cualquier compensación se informa como sugerida, sin afirmar que fue pagada.
 
-  @wip
   Scenario: 09 Consultar la evidencia privada del reclamo
     Given un participante con un reclamo propio que tiene imágenes adjuntas
     When consulta la evidencia en el detalle
     Then puede visualizar exclusivamente las imágenes vinculadas mediante acceso temporal privado y dispone de un reintento si una imagen deja de estar disponible, sin perder la evidencia del expediente.
 
-  @wip
   Scenario: 10 Proteger el acceso a reclamos privados
     Given una persona sin sesión válida, sin cuenta habilitada o que intenta acceder a un reclamo o referencia inexistente o ajeno
     When intenta presentar o consultar el reclamo
     Then recibe la indicación de autenticarse, la falta de habilitación o un mensaje de recurso no disponible según corresponda, sin acceder a información privada ni evidencia de otra persona.
 
-  @wip
   Scenario: 11 Recuperarse de errores del servicio
     Given un participante que está presentando un reclamo o consultando el listado o detalle y el servicio demora o falla
     When consulta el resultado de su acción
     Then ve un estado de carga mientras espera o un mensaje de error con una acción de recuperación si falla, sin confundir el fallo con un éxito o con la ausencia de reclamos.
 
-  @wip
   Scenario: 12 Gestionar reclamos desde distintos dispositivos y con teclado
     Given un participante que usa un móvil, tablet o escritorio, o navega con teclado
     When recorre el flujo de presentación y consulta de reclamos

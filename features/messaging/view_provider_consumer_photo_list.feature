@@ -17,7 +17,6 @@ Feature: Foto de perfil del consumidor en el listado de conversaciones del prest
       | null          |
       | cadena vacía  |
 
-  @wip
   Scenario: 03-US42 Fallo al cargar una foto del listado
     Given que soy un prestador con una conversación cuya foto del consumidor falla al cargar y otra cuya foto está disponible
     When visualizo mi listado de conversaciones

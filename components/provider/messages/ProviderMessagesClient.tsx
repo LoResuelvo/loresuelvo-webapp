@@ -77,6 +77,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
                 providerId: c.consumerId,
                 providerName: c.consumerName,
                 providerSurname: c.consumerSurname,
+                profilePhotoUrl: c.profilePhotoUrl,
                 lastMessage: c.lastMessage,
                 lastMessageAt: c.lastMessageAt,
                 pending: c.pending,

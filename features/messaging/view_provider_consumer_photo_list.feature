@@ -1,6 +1,5 @@
 Feature: Foto de perfil del consumidor en el listado de conversaciones del prestador
 
-  @wip
   Scenario: 01-US42 Fotos de consumidores en el listado
     Given que soy un prestador con conversaciones pendientes y aceptadas de distintos consumidores con fotos de perfil disponibles
     When visualizo mi listado de conversaciones

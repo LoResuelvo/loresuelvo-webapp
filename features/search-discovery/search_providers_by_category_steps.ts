@@ -3,6 +3,7 @@ import { CustomWorld, APP_URL } from "../support/world";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 import { aCategory, aProvider } from "../support/factories";
+import { stubProfilePhoto } from "../support/profile-photo";
 
 const CONSUMER_URL = APP_URL + ROUTES.consumer.home;
 
@@ -23,6 +24,9 @@ Given("existen los siguientes prestadores registrados:", async function (this: C
   const providersByCategory: Record<string, any[]> = {};
 
   for (const provider of providers) {
+    if (provider.profile_photo_url) {
+      await stubProfilePhoto(this.page, provider.profile_photo_url);
+    }
     const categoryId = provider.category_id;
     if (!providersByCategory[categoryId]) {
       providersByCategory[categoryId] = [];

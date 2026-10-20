@@ -5,13 +5,14 @@ import { ROUTES } from "../../lib/routes";
 import { aConversation, aConversationDetail, aConversationMessage, aCounterpart } from "../support/factories";
 
 Given("que tengo una conversacion iniciada con un prestador", async function (this: CustomWorld) {
+  const profilePhotoUrl = "https://example.com/a";
   const counterpart = aCounterpart({
     id: 20,
     role: "provider",
     name: "Juan",
     surname: "Pérez",
     category_name: "Plomería",
-    profile_photo_url: "https://example.com/a",
+    profile_photo_url: profilePhotoUrl,
   });
 
   const message = aConversationMessage({

@@ -11,6 +11,7 @@ import {
   anApiError,
   aCategory,
 } from "../support/factories";
+import { stubProfilePhoto } from "../support/profile-photo";
 
 async function setSession(world: CustomWorld, role: "consumer" | "provider") {
   await world.setSession(role, {
@@ -29,6 +30,8 @@ Given(
   async function (this: CustomWorld, providerName: string, category: string) {
     await setSession(this, "consumer");
     const [name, surname] = providerName.split(" ");
+    const profilePhotoUrl = "https://example.com/photo.jpg";
+    await stubProfilePhoto(this.page, profilePhotoUrl);
     await this.stubGet("/service-proposals", [
       aProposal("consumer", {
         id: 1,
@@ -44,7 +47,7 @@ Given(
           name,
           surname,
           category_name: category,
-          profile_photo_url: "https://example.com/photo.jpg",
+          profile_photo_url: profilePhotoUrl,
         }),
         booking_terms: aBookingTerms(1500050, { booking_payment_deadline: "2026-07-04T12:00:00-03:00" }),
       }),

@@ -1,19 +1,21 @@
 import { Given, Then } from "@cucumber/cucumber";
 import { CustomWorld, visibleTimeout, attachedTimeout, waitTimeout, attachedState } from "../support/world";
 import { aPresignedUpload, aConfirmedFile, aConsumer } from "../support/factories";
+import { stubProfilePhoto } from "../support/profile-photo";
 import assert from "assert";
 
 Given(
   "elegí la foto de perfil de consumidor {string} desde mi dispositivo",
   async function (this: CustomWorld, fileName: string) {
+    const confirmedFile = aConfirmedFile();
     await this.stubPost("/files/presign", 200, aPresignedUpload());
-    await this.stubPost("/files/test-file-id/confirm", 200, aConfirmedFile());
+    await this.stubPost("/files/test-file-id/confirm", 200, confirmedFile);
 
     await this.stubPost("/consumers", 201, aConsumer({
       id: 1,
       name: "Ana",
       surname: "Pérez",
-      profile_photo_url: "http://localhost:3001/mock-s3-url/avatar.png",
+      profile_photo_url: confirmedFile.url,
     }));
 
     await this.stubGet("/conversations", []);
@@ -26,6 +28,7 @@ Given(
         await route.continue();
       }
     });
+    await stubProfilePhoto(this.page, confirmedFile.url);
 
     const fileInput = this.page.locator('input[type="file"]');
     await fileInput.waitFor(attachedTimeout);

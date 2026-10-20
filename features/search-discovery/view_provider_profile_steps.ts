@@ -4,6 +4,7 @@ import { CustomWorld, APP_URL } from "../support/world";
 import { t } from "../../infrastructure/i18n/translations";
 import { ROUTES } from "../../lib/routes";
 import { aCategory, aProvider, aProviderProfile } from "../support/factories";
+import { stubProfilePhoto } from "../support/profile-photo";
 
 function splitProviderName(fullName: string): { name: string; surname: string } {
   const [name, ...surnameParts] = fullName.trim().split(/\s+/);
@@ -35,9 +36,14 @@ Given(
   "el perfil de {string} está disponible con foto",
   async function (this: CustomWorld, providerName: string) {
     const { name, surname } = splitProviderName(providerName);
+    const profile = aProviderProfile({ name, surname, category: { id: 1, name: "Plomería" } });
+    const photoUrl = profile.profile_photo?.url;
+    if (photoUrl) {
+      await stubProfilePhoto(this.page, photoUrl);
+    }
     await this.stubGet(
       "/providers/1",
-      aProviderProfile({ name, surname, category: { id: 1, name: "Plomería" } }),
+      profile,
     );
   },
 );

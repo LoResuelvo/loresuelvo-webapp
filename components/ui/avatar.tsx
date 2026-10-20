@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import { User } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -50,6 +52,16 @@ export interface AvatarProps
 const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
   ({ className, src, alt, size = "md", initials, imgTestId, fallbackTestId, ...props }, ref) => {
     const sizeKey = size ?? "md";
+    const [failedSrc, setFailedSrc] = React.useState<string | undefined>();
+    const displaySrc = src && failedSrc !== src ? src : undefined;
+    const handleImageRef = React.useCallback(
+      (image: HTMLImageElement | null) => {
+        if (image?.complete && image.naturalWidth === 0 && displaySrc) {
+          setFailedSrc(displaySrc);
+        }
+      },
+      [displaySrc],
+    );
 
     return (
       <div
@@ -57,20 +69,28 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
         className={cn(avatarVariants({ size }), className)}
         {...props}
       >
-        {src ? (
+        {displaySrc ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
-            src={src}
+            key={displaySrc}
+            src={displaySrc}
             alt={alt}
             className="w-full h-full object-cover"
             data-testid={imgTestId}
+            ref={handleImageRef}
+            onError={() => setFailedSrc(displaySrc)}
           />
         ) : initials ? (
           <span className={cn("font-bold text-slate-600", textSizeMap[sizeKey])} data-testid={fallbackTestId}>
             {initials}
           </span>
         ) : (
-          <User className={cn("text-slate-400", iconSizeMap[sizeKey])} data-testid={fallbackTestId} />
+          <User
+            role="img"
+            aria-label={alt}
+            className={cn("text-slate-400", iconSizeMap[sizeKey])}
+            data-testid={fallbackTestId}
+          />
         )}
       </div>
     );

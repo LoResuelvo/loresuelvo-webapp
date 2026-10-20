@@ -3,6 +3,7 @@ import assert from "assert";
 import { CustomWorld, APP_URL, visibleTimeout, attachedTimeout, waitTimeout, attachedState } from "../support/world";
 import { ROUTES } from "../../lib/routes";
 import { aAiConversation, aAiConversationDetail, aCategory, aJobRequest, aProvider, anAiMessage, anApiError } from "../support/factories";
+import { stubProfilePhoto } from "../support/profile-photo";
 
 const PROMPT_REPLY = "Entiendo. ¿La pérdida ocurre de forma constante o solamente cuando utilizas la canilla?";
 const ADVISORY_MSG = "Las respuestas brindadas son una orientación preliminar y no constituyen un diagnóstico técnico definitivo";
@@ -283,7 +284,11 @@ Then("el contenido completo permanece accesible", async function (this: CustomWo
 Given(
   "la IA concluyó el diagnóstico y recomienda prestadores del rubro {string}",
   async function (this: CustomWorld, rubro: string) {
+    const provider1PhotoUrl = "https://cdn.example/files/provider1.jpg";
+    const provider2PhotoUrl = "https://cdn.example/files/provider2.jpg";
     await this.setSession("consumer");
+    await stubProfilePhoto(this.page, provider1PhotoUrl);
+    await stubProfilePhoto(this.page, provider2PhotoUrl);
 
     await this.stubGet("/chatbot/conversations", [
       aAiConversation({
@@ -311,8 +316,8 @@ Given(
           anAiMessage({ id: 2, sender_role: "chatbot", content: DIAG_EXPLANATION, created_on: "2026-06-18T10:00:01Z" }),
         ],
         recommended_providers: [
-          aProvider({ id: 10, name: "Juan", surname: "Gómez", category_name: rubro, profile_photo_url: "https://cdn.example/files/provider1.jpg" }),
-          aProvider({ id: 11, name: "María", surname: "López", category_name: rubro, profile_photo_url: "https://cdn.example/files/provider2.jpg" }),
+          aProvider({ id: 10, name: "Juan", surname: "Gómez", category_name: rubro, profile_photo_url: provider1PhotoUrl }),
+          aProvider({ id: 11, name: "María", surname: "López", category_name: rubro, profile_photo_url: provider2PhotoUrl }),
         ],
       })
     );

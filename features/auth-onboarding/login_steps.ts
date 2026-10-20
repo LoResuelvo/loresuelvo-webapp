@@ -1,6 +1,7 @@
 import { Given, Then, When } from "@cucumber/cucumber";
 import { CustomWorld, APP_URL, visibleTimeout, attachedTimeout, waitTimeout, attachedState } from "../support/world";
 import { aCurrentUser, aConfirmedFile, aCategory } from "../support/factories";
+import { stubProfilePhoto } from "../support/profile-photo";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
 
@@ -73,16 +74,18 @@ Given("la API devuelve mi perfil completo de consumidor sin foto", async functio
 });
 
 Given("la API devuelve mi perfil completo de consumidor con foto", async function (this: CustomWorld) {
+  const profilePhoto = aConfirmedFile();
   const profile = aCurrentUser("consumer", {
     name: this.registeredFirstName || "Ana",
     surname: this.registeredLastName || "Pérez",
     email: this.registeredEmail || "consumidor@loresuelvo.test",
-    profile_photo: aConfirmedFile(),
+    profile_photo: profilePhoto,
   });
 
   await this.stubGet("/me", profile);
   await this.stubGet("/categories", []);
   await this.stubGet("/service-proposals", []);
+  await stubProfilePhoto(this.page, profilePhoto.url);
 });
 
 Given(

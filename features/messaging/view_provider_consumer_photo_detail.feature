@@ -17,7 +17,6 @@ Feature: Foto de perfil del consumidor en el detalle de conversación del presta
       | null          |
       | cadena vacía  |
 
-  @wip
   Scenario: 03-US41 Fallo al cargar la foto del encabezado
     Given que soy un prestador con una conversación cuya foto del consumidor falla al cargar
     When abro esa conversación

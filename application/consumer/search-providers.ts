@@ -17,9 +17,11 @@ export async function searchProviders(
     return { providers: [], selectedCategory: null };
   }
 
-  const categories = await categoryRepository.getAll();
+  const [categories, providers] = await Promise.all([
+    categoryRepository.getAll(),
+    providerRepository.findByCategory(categoryId),
+  ]);
   const selectedCategory = categories.find(c => c.id === categoryId) || null;
-  const providers = await providerRepository.findByCategory(categoryId);
 
   return { providers, selectedCategory };
 }

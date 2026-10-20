@@ -38,6 +38,26 @@ function createRepositoryMocks() {
 }
 
 describe("searchProviders", () => {
+  it("starts provider lookup before the category catalog resolves", async () => {
+    const { categoryRepository, providerRepository } = createRepositoryMocks();
+    let resolveCategories!: (value: Category[]) => void;
+    const categoriesPromise = new Promise<Category[]>(resolve => {
+      resolveCategories = resolve;
+    });
+    categoryRepository.getAll.mockReturnValueOnce(categoriesPromise);
+    providerRepository.findByCategory.mockResolvedValueOnce(providers);
+
+    const resultPromise = searchProviders(categoryRepository, providerRepository, 2);
+
+    expect(providerRepository.findByCategory).toHaveBeenCalledWith(2);
+
+    resolveCategories(categories);
+    await expect(resultPromise).resolves.toEqual({
+      providers,
+      selectedCategory: categories[1],
+    });
+  });
+
   it("returns providers in repository order and selects the matching category", async () => {
     const { categoryRepository, providerRepository } = createRepositoryMocks();
     categoryRepository.getAll.mockResolvedValueOnce(categories);
@@ -101,6 +121,34 @@ describe("searchProviders", () => {
     expect(categoryRepository.getAll).toHaveBeenCalledTimes(1);
   });
 
+  it("starts provider lookup even when the category lookup rejects", async () => {
+    const { categoryRepository, providerRepository } = createRepositoryMocks();
+    const error = new Error("Categories unavailable");
+    categoryRepository.getAll.mockRejectedValueOnce(error);
+    providerRepository.findByCategory.mockResolvedValueOnce(providers);
+
+    await expect(searchProviders(categoryRepository, providerRepository, 1)).rejects.toBe(error);
+
+    expect(providerRepository.findByCategory).toHaveBeenCalledWith(1);
+  });
+
+  it("propagates either original error when both repository reads reject", async () => {
+    const { categoryRepository, providerRepository } = createRepositoryMocks();
+    const categoryError = new Error("Categories unavailable");
+    const providerError = new Error("Providers unavailable");
+    categoryRepository.getAll.mockRejectedValueOnce(categoryError);
+    providerRepository.findByCategory.mockRejectedValueOnce(providerError);
+
+    const rejection = await searchProviders(categoryRepository, providerRepository, 1).then(
+      () => undefined,
+      error => error
+    );
+
+    expect([categoryError, providerError]).toContain(rejection);
+    expect(categoryRepository.getAll).toHaveBeenCalledTimes(1);
+    expect(providerRepository.findByCategory).toHaveBeenCalledWith(1);
+  });
+
   it("propagates a provider repository error", async () => {
     const { categoryRepository, providerRepository } = createRepositoryMocks();
     const error = new Error("Providers unavailable");
@@ -127,5 +175,35 @@ describe("searchProviders", () => {
     expect(results.map(result => result.selectedCategory)).toEqual([categories[0], categories[1]]);
     expect(providerRepository.findByCategory).toHaveBeenNthCalledWith(1, 1);
     expect(providerRepository.findByCategory).toHaveBeenNthCalledWith(2, 2);
+  });
+
+  it("keeps concurrent results independent when provider lookups resolve out of order", async () => {
+    const { categoryRepository, providerRepository } = createRepositoryMocks();
+    let resolveFirst!: (value: Provider[]) => void;
+    let resolveSecond!: (value: Provider[]) => void;
+    const firstProviders = new Promise<Provider[]>(resolve => {
+      resolveFirst = resolve;
+    });
+    const secondProviders = new Promise<Provider[]>(resolve => {
+      resolveSecond = resolve;
+    });
+    categoryRepository.getAll.mockResolvedValue(categories);
+    providerRepository.findByCategory
+      .mockReturnValueOnce(firstProviders)
+      .mockReturnValueOnce(secondProviders);
+
+    const firstResult = searchProviders(categoryRepository, providerRepository, 1);
+    const secondResult = searchProviders(categoryRepository, providerRepository, 2);
+
+    resolveSecond([providers[1]]);
+    await expect(secondResult).resolves.toEqual({
+      providers: [providers[1]],
+      selectedCategory: categories[1],
+    });
+    resolveFirst([providers[0]]);
+    await expect(firstResult).resolves.toEqual({
+      providers: [providers[0]],
+      selectedCategory: categories[0],
+    });
   });
 });

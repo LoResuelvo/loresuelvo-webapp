@@ -94,6 +94,7 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
                     contact={{
                       name: selectedContact.consumerName,
                       surname: selectedContact.consumerSurname,
+                      photoUrl: selectedContact.profilePhotoUrl,
                     }}
                     conversationState={{
                       pending: isContactPending,

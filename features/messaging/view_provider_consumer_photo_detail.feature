@@ -1,6 +1,5 @@
 Feature: Foto de perfil del consumidor en el detalle de conversación del prestador
 
-  @wip
   Scenario: 01-US41 Foto del consumidor en el encabezado
     Given que soy un prestador con una conversación cuyo consumidor tiene una foto de perfil disponible
     When abro esa conversación

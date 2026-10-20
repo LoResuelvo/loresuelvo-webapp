@@ -148,3 +148,17 @@ Then(
     }
   },
 );
+
+Then(
+  "esa conversación muestra el avatar de respaldo y el nombre del consumidor",
+  async function (this: CustomWorld) {
+    const item = this.page
+      .getByRole("list", { name: "Lista de conversaciones" })
+      .getByRole("listitem")
+      .filter({ has: this.page.getByText("María Fernández", { exact: true }) });
+    assert.equal(await item.count(), 1, "No aparece la conversación del consumidor");
+    assert.ok(await item.getByText("María Fernández", { exact: true }).isVisible());
+    assert.ok(await item.getByRole("img", { name: "Foto de María" }).isVisible());
+    assert.equal(await item.getByTestId("chat-list-profile-photo").count(), 0);
+  },
+);

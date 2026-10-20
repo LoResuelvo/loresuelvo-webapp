@@ -6,7 +6,6 @@ Feature: Foto de perfil del consumidor en el listado de conversaciones del prest
     Then cada conversación muestra la foto y el nombre de su consumidor correspondiente
     And cada imagen tiene un texto alternativo que identifica al consumidor
 
-  @wip
   Scenario Outline: 02-US42 Conversación sin foto en el listado
     Given que soy un prestador con una conversación cuya foto del consumidor llega como <valor>
     When visualizo mi listado de conversaciones

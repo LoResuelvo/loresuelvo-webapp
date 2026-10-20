@@ -6,7 +6,6 @@ Feature: Foto de perfil del consumidor en el detalle de conversación del presta
     Then el encabezado muestra la foto y el nombre del consumidor correspondiente
     And la imagen tiene un texto alternativo que identifica al consumidor
 
-  @wip
   Scenario Outline: 02-US41 Encabezado de consumidor sin foto
     Given que soy un prestador con una conversación cuya foto del consumidor llega como <valor>
     When abro esa conversación

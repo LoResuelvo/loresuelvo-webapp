@@ -42,6 +42,15 @@ describe("transformApiToConsumerContact", () => {
     expect(contact.lastMessage).toBe("");
     expect(contact.lastMessageAt).toBe("");
   });
+
+  it("normalizes a null counterpart photo URL to an absent domain value", () => {
+    const apiConversation: ApiConversation = {
+      ...mockApiConv,
+      counterpart: { ...mockApiConv.counterpart, profile_photo_url: null },
+    };
+
+    expect(transformApiToConsumerContact(apiConversation).profilePhotoUrl).toBeUndefined();
+  });
 });
 
 describe("transformApiToProviderContact", () => {
@@ -54,6 +63,15 @@ describe("transformApiToProviderContact", () => {
     expect(contact.lastMessage).toBe("Hola Andrés, ¿en qué te puedo ayudar?");
     expect(contact.lastMessageAt).toBeTruthy();
     expect(contact.pending).toBe(true);
+  });
+
+  it("normalizes a null counterpart photo URL to an absent domain value", () => {
+    const apiConversation: ApiConversation = {
+      ...mockApiConv,
+      counterpart: { ...mockApiConv.counterpart, profile_photo_url: null },
+    };
+
+    expect(transformApiToProviderContact(apiConversation).profilePhotoUrl).toBeUndefined();
   });
 });
 

@@ -63,8 +63,8 @@ export interface ApiConversation {
     role: string;
     name: string;
     surname: string;
-    category_name: string;
-    profile_photo_url?: string;
+    category_name?: string;
+    profile_photo_url?: string | null;
   };
   last_message?: {
     id: number;

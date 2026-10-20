@@ -90,7 +90,7 @@ export function transformApiToConsumerContact(apiConv: ApiConversation): Consume
     lastMessage: formatMessagePreview(apiConv.last_message),
     lastMessageAt: formatConversationLastMessageDate(apiConv.last_message?.created_on),
     pending: apiConv.status === "pending",
-    profilePhotoUrl: apiConv.counterpart.profile_photo_url,
+    profilePhotoUrl: apiConv.counterpart.profile_photo_url ?? undefined,
   };
 }
 
@@ -103,7 +103,7 @@ export function transformApiToProviderContact(apiConv: ApiConversation): Provide
     lastMessage: formatMessagePreview(apiConv.last_message),
     lastMessageAt: formatConversationLastMessageDate(apiConv.last_message?.created_on),
     pending: apiConv.status === "pending",
-    profilePhotoUrl: apiConv.counterpart.profile_photo_url,
+    profilePhotoUrl: apiConv.counterpart.profile_photo_url ?? undefined,
   };
 }
 

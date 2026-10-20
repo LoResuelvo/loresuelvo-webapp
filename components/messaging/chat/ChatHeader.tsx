@@ -69,6 +69,7 @@ export default function ChatHeader({
             alt={`${t.messaging.photoAlt} ${contact.name}`}
             size="sm"
             imgTestId="chat-header-profile-photo"
+            fallbackTestId="chat-header-profile-photo-fallback"
           />
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-brand-primary truncate">

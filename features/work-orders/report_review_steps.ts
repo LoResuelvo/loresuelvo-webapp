@@ -54,6 +54,21 @@ Given(
 );
 
 Given(
+  "que soy el prestador titular y completé el formulario para reportar una reseña",
+  async function (this: CustomWorld) {
+    await setupReviewReportScenario(this);
+    await openWorkOrderDetailModal(this);
+
+    const detail = this.page.getByTestId("work-order-detail-modal");
+    await detail.getByRole("button", { name: /reportar reseña/i }).click();
+    const modal = this.page.getByTestId("report-review-modal");
+    await modal.waitFor({ state: "visible" });
+    await modal.getByLabel(/motivo/i).selectOption({ label: "Datos personales" });
+    await modal.getByLabel(/explicación/i).fill("Publica mi teléfono sin mi autorización.");
+  }
+);
+
+Given(
   "que soy el prestador titular de una orden con una reseña visible",
   async function (this: CustomWorld) {
     await setupReviewReportScenario(this);
@@ -99,6 +114,13 @@ When(
       .getByTestId("report-review-modal")
       .getByRole("button", { name: /enviar reporte/i })
       .click();
+  }
+);
+
+When(
+  "cancelo el reporte",
+  async function (this: CustomWorld) {
+    await this.page.getByTestId("report-review-modal").getByRole("button", { name: "Cancelar" }).click();
   }
 );
 
@@ -238,5 +260,17 @@ Then(
       .getByRole("dialog", { name: /reportar reseña/i })
       .getByRole("button", { name: /cerrar/i })
       .click();
+  }
+);
+
+Then(
+  "regreso al detalle de la orden sin enviar el reporte",
+  async function (this: CustomWorld) {
+    await this.page.getByTestId("report-review-modal").waitFor({ state: "detached" });
+    await this.page.getByTestId("work-order-detail-modal").waitFor({ state: "visible" });
+    await this.page
+      .getByTestId("work-order-detail-modal")
+      .getByRole("button", { name: "Reportar reseña" })
+      .waitFor({ state: "visible" });
   }
 );

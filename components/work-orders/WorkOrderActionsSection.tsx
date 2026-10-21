@@ -15,6 +15,7 @@ export interface WorkOrderActionsSectionProps {
   canRate: boolean;
   onOpenReview: () => void;
   canReportReview: boolean;
+  isReportSubmitting: boolean;
   onReportReview: () => void;
   reportButtonRef?: Ref<HTMLButtonElement>;
 }
@@ -26,6 +27,7 @@ export function WorkOrderActionsSection({
   canRate,
   onOpenReview,
   canReportReview,
+  isReportSubmitting,
   onReportReview,
   reportButtonRef,
 }: WorkOrderActionsSectionProps) {
@@ -63,9 +65,13 @@ export function WorkOrderActionsSection({
             data-testid="report-review-button"
             ref={reportButtonRef}
             onClick={onReportReview}
+            disabled={isReportSubmitting}
+            aria-busy={isReportSubmitting}
           >
             <Flag className="w-4 h-4" />
-            {t.workOrderReviewReport.reportButton}
+            {isReportSubmitting
+              ? t.workOrderReviewReport.submittingButton
+              : t.workOrderReviewReport.reportButton}
           </Button>
         </div>
       )}

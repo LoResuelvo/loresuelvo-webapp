@@ -9,12 +9,12 @@ import { WorkOrder } from "@/domain/work-order/WorkOrder";
 import {
   getWorkOrderDetailAction,
   createWorkOrderReviewAction,
-  reportWorkOrderReviewAction,
 } from "@/app/work-orders/actions";
 import { WorkOrderSummarySection } from "./WorkOrderSummarySection";
 import { WorkOrderActionsSection } from "./WorkOrderActionsSection";
 import { ReviewWorkOrderModal } from "./ReviewWorkOrderModal";
 import { ReportReviewModal } from "./ReportReviewModal";
+import { useWorkOrderReviewReport } from "./useWorkOrderReviewReport";
 import type { WorkOrderDetail } from "@/domain/work-order/types";
 import type { WorkOrderCalendarConnectionState } from "@/components/work-orders/useWorkOrderCalendarConnection";
 import WorkOrderCalendarConnection, { type WorkOrderCalendarAuthorization } from "./WorkOrderCalendarConnection";
@@ -54,10 +54,8 @@ export function WorkOrderDetailModal({
   const [refreshError, setRefreshError] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [reportedReviewWorkOrderId, setReportedReviewWorkOrderId] = useState<number | null>(null);
   const detailRef = useRef(detail);
   const requestGenerationRef = useRef(0);
-  const reportScopeGenerationRef = useRef(0);
   const reportButtonRef = useRef<HTMLButtonElement | null>(null);
   const reviewSectionRef = useRef<HTMLDivElement | null>(null);
   const detailContentRef = useRef<HTMLDivElement | null>(null);
@@ -111,8 +109,6 @@ export function WorkOrderDetailModal({
   }, [isCurrentRequest, open, workOrderId]);
 
   useEffect(() => {
-    reportScopeGenerationRef.current += 1;
-    setReportedReviewWorkOrderId(null);
     setIsReportModalOpen(false);
     if (open && workOrderId) {
       setDetail(null);
@@ -122,7 +118,6 @@ export function WorkOrderDetailModal({
     }
     return () => {
       requestGenerationRef.current += 1;
-      reportScopeGenerationRef.current += 1;
     };
   }, [open, workOrderId, fetchDetail]);
 
@@ -141,17 +136,22 @@ export function WorkOrderDetailModal({
   const { label: statusLabel, variant: statusVariant } = WorkOrder.getStatusBadge(currentStatus);
   const canRate = WorkOrder.canReview({ status: currentStatus, review: detail?.review }, isConsumer);
   const resolvedWorkOrderId = workOrderId ?? detail?.id ?? 0;
+  const {
+    hasBeenReported: hasReportedReview,
+    isPending: isReportSubmitting,
+    submitReport,
+  } = useWorkOrderReviewReport(resolvedWorkOrderId);
   const canReportReview = Boolean(
     !isConsumer &&
       detail?.review &&
       detail.id === resolvedWorkOrderId &&
-      reportedReviewWorkOrderId !== detail.id
+      !hasReportedReview
   );
   const restoreReportFocus = useCallback((event: Event) => {
     event.preventDefault();
     const reportButton = reportButtonRef.current;
     const reviewSection = reviewSectionRef.current;
-    const focusTarget = reportButton?.isConnected
+    const focusTarget = reportButton?.isConnected && !reportButton.disabled
       ? reportButton
       : reviewSection?.isConnected
         ? reviewSection
@@ -262,6 +262,7 @@ export function WorkOrderDetailModal({
                 canRate={canRate}
                 onOpenReview={() => setIsReviewModalOpen(true)}
                 canReportReview={canReportReview}
+                isReportSubmitting={isReportSubmitting}
                 onReportReview={() => setIsReportModalOpen(true)}
                 reportButtonRef={reportButtonRef}
               />
@@ -276,20 +277,7 @@ export function WorkOrderDetailModal({
           open={true}
           onClose={() => setIsReportModalOpen(false)}
           onCloseAutoFocus={restoreReportFocus}
-          onSubmitReport={async (input) => {
-            const reportWorkOrderId = resolvedWorkOrderId;
-            const reportScopeGeneration = reportScopeGenerationRef.current;
-            const res = await reportWorkOrderReviewAction(reportWorkOrderId, input);
-            if (
-              (res.ok || (!res.ok && res.status === 409)) &&
-              reportScopeGeneration === reportScopeGenerationRef.current &&
-              isOpenRef.current &&
-              currentWorkOrderIdRef.current === reportWorkOrderId
-            ) {
-              setReportedReviewWorkOrderId(reportWorkOrderId);
-            }
-            return res;
-          }}
+          onSubmitReport={submitReport}
         />
       )}
 

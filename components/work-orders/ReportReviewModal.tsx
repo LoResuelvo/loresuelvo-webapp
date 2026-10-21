@@ -20,6 +20,8 @@ const reportReasons = [
   { value: "unrelated_content", label: t.workOrderReviewReport.reasons.unrelatedContent },
 ] as const;
 
+type ReportFormStatus = "editing" | "submitting" | "success" | "already_reported";
+
 interface ReportReviewModalProps {
   open: boolean;
   onClose: () => void;
@@ -37,11 +39,12 @@ export function ReportReviewModal({
 }: ReportReviewModalProps) {
   const [category, setCategory] = useState<WorkOrderReviewReportCategory | "">("");
   const [explanation, setExplanation] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [isAlreadyReported, setIsAlreadyReported] = useState(false);
+  const [formStatus, setFormStatus] = useState<ReportFormStatus>("editing");
   const [validationError, setValidationError] =
     useState<WorkOrderReviewReportValidationError | null>(null);
+  const isSubmitting = formStatus === "submitting";
+  const isSuccess = formStatus === "success";
+  const isAlreadyReported = formStatus === "already_reported";
 
   const reasonError =
     validationError === "category_required" || validationError === "invalid_category";
@@ -57,9 +60,7 @@ export function ReportReviewModal({
   const handleClose = () => {
     setCategory("");
     setExplanation("");
-    setIsSubmitting(false);
-    setIsSuccess(false);
-    setIsAlreadyReported(false);
+    setFormStatus("editing");
     setValidationError(null);
     onClose();
   };
@@ -77,13 +78,13 @@ export function ReportReviewModal({
     }
 
     setValidationError(null);
-    setIsSubmitting(true);
+    setFormStatus("submitting");
     try {
       const result = await onSubmitReport(validation.input);
-      if (result.ok) setIsSuccess(true);
-      else if (result.status === 409) setIsAlreadyReported(true);
+      if (result.ok) setFormStatus("success");
+      else if (result.status === 409) setFormStatus("already_reported");
     } finally {
-      setIsSubmitting(false);
+      setFormStatus((current) => (current === "submitting" ? "editing" : current));
     }
   };
 
@@ -199,7 +200,15 @@ export function ReportReviewModal({
               )}
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-between gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                disabled={isSubmitting || isAlreadyReported}
+              >
+                {t.workOrderReviewReport.cancelButton}
+              </Button>
               <Button
                 type="submit"
                 variant="brand"

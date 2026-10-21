@@ -17,6 +17,7 @@ describe("WorkOrderActionsSection", () => {
         canRate={false}
         onOpenReview={vi.fn()}
         canReportReview={false}
+        isReportSubmitting={false}
         onReportReview={vi.fn()}
       />
     );
@@ -39,6 +40,7 @@ describe("WorkOrderActionsSection", () => {
         canRate={true}
         onOpenReview={handleOpenReview}
         canReportReview={false}
+        isReportSubmitting={false}
         onReportReview={vi.fn()}
       />
     );
@@ -62,6 +64,7 @@ describe("WorkOrderActionsSection", () => {
         canRate={false}
         onOpenReview={vi.fn()}
         canReportReview={true}
+        isReportSubmitting={false}
         onReportReview={handleReportReview}
       />
     );

@@ -62,7 +62,6 @@ Feature: US-30.2 Reportar una reseña
 
   Rule: El prestador puede desistir antes de enviar
 
-    @wip
     Scenario: 05-RR Cancelar el reporte de una reseña
       Given que soy el prestador titular y completé el formulario para reportar una reseña
       When cancelo el reporte

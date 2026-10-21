@@ -47,6 +47,26 @@ describe("ReportReviewModal", () => {
     );
   });
 
+  it("should close a completed report without submitting it", async () => {
+    const user = userEvent.setup();
+    const close = vi.fn();
+    const submitReport = vi.fn().mockResolvedValue({ ok: true });
+
+    render(
+      <ReportReviewModal open={true} onClose={close} onSubmitReport={submitReport} />
+    );
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Motivo" }), "personal_data");
+    await user.type(
+      screen.getByRole("textbox", { name: "Explicación (opcional)" }),
+      "Publica mi teléfono sin mi autorización."
+    );
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(submitReport).not.toHaveBeenCalled();
+  });
+
   it("should show an already-reported notice without showing submission success", async () => {
     const user = userEvent.setup();
     const submitReport = vi.fn().mockResolvedValue({ ok: false, status: 409 });

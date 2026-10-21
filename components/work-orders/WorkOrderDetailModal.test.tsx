@@ -373,7 +373,7 @@ describe("WorkOrderDetailModal", () => {
     vi.mocked(getWorkOrderDetailAction).mockResolvedValue({
       ok: true,
       detail: {
-        id: 10,
+        id: 110,
         serviceProposalId: 42,
         consumerId: 10,
         providerId: 1,
@@ -398,7 +398,7 @@ describe("WorkOrderDetailModal", () => {
       <WorkOrderDetailModal
         open={true}
         onClose={vi.fn()}
-        workOrderId={10}
+        workOrderId={110}
         isConsumer={false}
       />
     );
@@ -412,7 +412,7 @@ describe("WorkOrderDetailModal", () => {
     );
     await user.click(within(modal).getByRole("button", { name: "Enviar reporte" }));
 
-    expect(reportWorkOrderReviewAction).toHaveBeenCalledWith(10, {
+    expect(reportWorkOrderReviewAction).toHaveBeenCalledWith(110, {
       category: "personal_data",
       explanation: "Publica mi teléfono sin autorización.",
     });
@@ -435,7 +435,7 @@ describe("WorkOrderDetailModal", () => {
     vi.mocked(getWorkOrderDetailAction).mockResolvedValue({
       ok: true,
       detail: {
-        id: 10,
+        id: 111,
         serviceProposalId: 42,
         consumerId: 10,
         providerId: 1,
@@ -453,7 +453,7 @@ describe("WorkOrderDetailModal", () => {
       <WorkOrderDetailModal
         open
         onClose={vi.fn()}
-        workOrderId={10}
+        workOrderId={111}
         isConsumer={false}
       />
     );
@@ -479,6 +479,112 @@ describe("WorkOrderDetailModal", () => {
     expect(screen.queryByRole("button", { name: "Reportar reseña" })).not.toBeInTheDocument();
     expect(screen.getByText("“La reseña original se conserva.”")).toBeInTheDocument();
     expect(screen.getAllByTestId("star-filled")).toHaveLength(4);
+  });
+
+  it("returns focus to the report action after cancelling without submitting", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getWorkOrderDetailAction).mockResolvedValue({
+      ok: true,
+      detail: {
+        id: 112,
+        serviceProposalId: 42,
+        consumerId: 10,
+        providerId: 1,
+        status: "paid",
+        amountCents: 1500000,
+        scheduledOn: "2026-08-20T10:00:00Z",
+        description: "Reparación de cañería en cocina",
+        acceptedOn: "2026-08-05T10:00:00Z",
+        review: { rating: 4, comment: "La reseña original se conserva." },
+      },
+    });
+
+    render(
+      <WorkOrderDetailModal
+        open
+        onClose={vi.fn()}
+        workOrderId={112}
+        isConsumer={false}
+      />
+    );
+
+    const reportButton = await screen.findByRole("button", { name: "Reportar reseña" });
+    await user.click(reportButton);
+    const reportModal = screen.getByTestId("report-review-modal");
+    await user.selectOptions(
+      within(reportModal).getByRole("combobox", { name: "Motivo" }),
+      "personal_data"
+    );
+    await user.type(
+      within(reportModal).getByRole("textbox", { name: "Explicación (opcional)" }),
+      "Publica mi teléfono sin mi autorización."
+    );
+    await user.click(within(reportModal).getByRole("button", { name: "Cancelar" }));
+
+    expect(reportWorkOrderReviewAction).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(reportButton).toHaveFocus();
+    });
+    expect(screen.getByText("“La reseña original se conserva.”")).toBeInTheDocument();
+    expect(screen.getAllByTestId("star-filled")).toHaveLength(4);
+  });
+
+  it("keeps a pending report owned by its order after the dialog closes", async () => {
+    const user = userEvent.setup();
+    let resolveReport: ((result: { ok: true; receipt: { id: number; status: "pending" } }) => void) | undefined;
+    const pendingReport = new Promise<{ ok: true; receipt: { id: number; status: "pending" } }>(
+      (resolve) => {
+        resolveReport = resolve;
+      }
+    );
+    vi.mocked(getWorkOrderDetailAction).mockResolvedValue({
+      ok: true,
+      detail: {
+        id: 113,
+        serviceProposalId: 42,
+        consumerId: 10,
+        providerId: 1,
+        status: "paid",
+        amountCents: 1500000,
+        scheduledOn: "2026-08-20T10:00:00Z",
+        description: "Reparación de cañería en cocina",
+        acceptedOn: "2026-08-05T10:00:00Z",
+        review: { rating: 4, comment: "La reseña original se conserva." },
+      },
+    });
+    vi.mocked(reportWorkOrderReviewAction).mockReturnValue(pendingReport);
+
+    render(
+      <WorkOrderDetailModal
+        open
+        onClose={vi.fn()}
+        workOrderId={113}
+        isConsumer={false}
+      />
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Reportar reseña" }));
+    const reportModal = screen.getByTestId("report-review-modal");
+    await user.selectOptions(
+      within(reportModal).getByRole("combobox", { name: "Motivo" }),
+      "personal_data"
+    );
+    await user.click(within(reportModal).getByRole("button", { name: "Enviar reporte" }));
+    expect(reportWorkOrderReviewAction).toHaveBeenCalledTimes(1);
+
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.getByTestId("work-order-review-section")).toHaveFocus();
+    });
+    const pendingButton = screen.getByRole("button", { name: "Enviando reporte..." });
+    expect(pendingButton).toBeDisabled();
+    await user.click(pendingButton);
+    expect(reportWorkOrderReviewAction).toHaveBeenCalledTimes(1);
+
+    resolveReport?.({ ok: true, receipt: { id: 71, status: "pending" } });
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Reportar reseña" })).not.toBeInTheDocument();
+    });
   });
 
   it("does not apply a report response to a different order", async () => {
@@ -508,7 +614,7 @@ describe("WorkOrderDetailModal", () => {
 
     const onClose = vi.fn();
     const { rerender } = render(
-      <WorkOrderDetailModal open onClose={onClose} workOrderId={10} isConsumer={false} />
+      <WorkOrderDetailModal open onClose={onClose} workOrderId={114} isConsumer={false} />
     );
 
     await user.click(await screen.findByRole("button", { name: "Reportar reseña" }));
@@ -517,9 +623,9 @@ describe("WorkOrderDetailModal", () => {
     await user.click(within(modal).getByRole("button", { name: "Enviar reporte" }));
 
     rerender(
-      <WorkOrderDetailModal open onClose={onClose} workOrderId={11} isConsumer={false} />
+      <WorkOrderDetailModal open onClose={onClose} workOrderId={115} isConsumer={false} />
     );
-    await screen.findByText("#11");
+    await screen.findByText("#115");
     expect(await screen.findByRole("button", { name: "Reportar reseña" })).toBeInTheDocument();
 
     resolveReport?.({ ok: true, receipt: { id: 71, status: "pending" } });
@@ -540,21 +646,21 @@ describe("WorkOrderDetailModal", () => {
         scheduledOn: "2026-08-20T10:00:00Z",
         description: "Reparación de cañería en cocina",
         acceptedOn: "2026-08-05T10:00:00Z",
-        ...(id === 10 ? { review: { rating: 4, comment: "Reseña visible" } } : {}),
+        ...(id === 116 ? { review: { rating: 4, comment: "Reseña visible" } } : {}),
       },
     }));
 
     const onClose = vi.fn();
     const { rerender } = render(
-      <WorkOrderDetailModal open onClose={onClose} workOrderId={10} isConsumer={false} />
+      <WorkOrderDetailModal open onClose={onClose} workOrderId={116} isConsumer={false} />
     );
 
     await user.click(await screen.findByRole("button", { name: "Reportar reseña" }));
     rerender(
-      <WorkOrderDetailModal open onClose={onClose} workOrderId={11} isConsumer={false} />
+      <WorkOrderDetailModal open onClose={onClose} workOrderId={117} isConsumer={false} />
     );
 
-    await screen.findByText("#11");
+    await screen.findByText("#117");
     await waitFor(() => {
       expect(screen.queryByTestId("report-review-modal")).not.toBeInTheDocument();
       expect(screen.getByTestId("work-order-detail-modal")).toHaveFocus();

@@ -20,6 +20,7 @@ import {
   WorkOrderReview,
   WorkOrderReviewReportReceipt,
 } from "@/domain/work-order/types";
+import { WorkOrderReviewReportValidationException } from "@/domain/work-order/review-report-validation";
 import { createWorkOrderReviewAction, reportWorkOrderReviewAction } from "./actions";
 
 vi.mock("@/application/payments/create-service-balance-checkout", () => ({
@@ -390,6 +391,18 @@ describe("reportWorkOrderReviewAction", () => {
       ok: false,
       status: null,
     });
+  });
+
+  it("maps domain input validation failures to a safe 400 status", async () => {
+    vi.mocked(reportWorkOrderReview).mockRejectedValue(
+      new WorkOrderReviewReportValidationException("category_required")
+    );
+
+    const result = await reportWorkOrderReviewAction(10, {
+      category: "spam_advertising",
+    });
+
+    expect(result).toEqual({ ok: false, status: 400 });
   });
 });
 

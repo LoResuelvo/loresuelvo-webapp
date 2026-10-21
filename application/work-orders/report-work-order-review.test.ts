@@ -32,6 +32,34 @@ describe("reportWorkOrderReview Use Case", () => {
     expect(result).toEqual(receipt);
   });
 
+  it("trims Go whitespace and omits an empty optional explanation", async () => {
+    const receipt = { id: 71, status: "pending" as const };
+    vi.mocked(mockRepository.reportReview).mockResolvedValue(receipt);
+
+    await reportWorkOrderReview(mockRepository, 10, {
+      category: "personal_data",
+      explanation: " \u0085 comparte mi teléfono \u3000 ",
+    });
+
+    expect(mockRepository.reportReview).toHaveBeenCalledWith(10, {
+      category: "personal_data",
+      explanation: "comparte mi teléfono",
+    });
+  });
+
+  it("rejects invalid input before calling the repository", async () => {
+    await expect(
+      reportWorkOrderReview(mockRepository, 10, {
+        category: "unknown",
+      })
+    ).rejects.toMatchObject({
+      name: "WorkOrderReviewReportValidationException",
+      validationError: "invalid_category",
+    });
+
+    expect(mockRepository.reportReview).not.toHaveBeenCalled();
+  });
+
   it("propagates repository errors", async () => {
     vi.mocked(mockRepository.reportReview).mockRejectedValue(new Error("Network Error"));
 

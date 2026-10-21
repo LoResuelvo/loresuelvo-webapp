@@ -24,7 +24,6 @@ Feature: US-30.2 Reportar una reseña
 
   Rule: El reporte necesita un motivo y admite una explicación de hasta 500 caracteres
 
-    @wip
     Scenario Outline: 02-RR Corregir los datos antes de enviar el reporte
       Given que soy el prestador titular y tengo abierto el formulario para reportar una reseña
       And el formulario tiene "<problema>"

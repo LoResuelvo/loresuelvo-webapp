@@ -72,6 +72,8 @@ export const workOrderReviewReport = {
   modalTitle: "Reportar reseña",
   reasonLabel: "Motivo",
   reasonPlaceholder: "Seleccioná un motivo",
+  reasonRequired: "Seleccioná un motivo para enviar el reporte.",
+  invalidReason: "Seleccioná un motivo válido.",
   reasons: {
     abusiveLanguage: "Lenguaje abusivo",
     personalData: "Datos personales",
@@ -80,6 +82,8 @@ export const workOrderReviewReport = {
   },
   explanationLabel: "Explicación (opcional)",
   explanationPlaceholder: "Contanos por qué considerás que la reseña es inapropiada...",
+  explanationTooLong: "Reducí la explicación a 500 caracteres o menos.",
+  explanationInvalid: "Revisá la explicación e intentá nuevamente.",
   submitButton: "Enviar reporte",
   submittingButton: "Enviando reporte...",
   closeButton: "Cerrar",

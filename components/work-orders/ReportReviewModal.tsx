@@ -7,6 +7,10 @@ import type {
   WorkOrderReviewReportCategory,
   WorkOrderReviewReportInput,
 } from "@/domain/work-order/types";
+import {
+  validateWorkOrderReviewReportInput,
+  type WorkOrderReviewReportValidationError,
+} from "@/domain/work-order/review-report-validation";
 import { t } from "@/infrastructure/i18n/translations";
 
 const reportReasons = [
@@ -33,25 +37,45 @@ export function ReportReviewModal({
   const [explanation, setExplanation] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [validationError, setValidationError] =
+    useState<WorkOrderReviewReportValidationError | null>(null);
+
+  const reasonError =
+    validationError === "category_required" || validationError === "invalid_category";
+  const explanationError = validationError !== null && !reasonError;
+
+  function getValidationMessage(error: WorkOrderReviewReportValidationError): string {
+    if (error === "category_required") return t.workOrderReviewReport.reasonRequired;
+    if (error === "explanation_too_long") return t.workOrderReviewReport.explanationTooLong;
+    if (error === "invalid_category") return t.workOrderReviewReport.invalidReason;
+    return t.workOrderReviewReport.explanationInvalid;
+  }
 
   const handleClose = () => {
     setCategory("");
     setExplanation("");
     setIsSubmitting(false);
     setIsSuccess(false);
+    setValidationError(null);
     onClose();
   };
 
   const handleSubmit = async () => {
-    if (!category || isSubmitting) return;
+    if (isSubmitting) return;
 
+    const validation = validateWorkOrderReviewReportInput({
+      category,
+      explanation,
+    });
+    if (!validation.valid) {
+      setValidationError(validation.error);
+      return;
+    }
+
+    setValidationError(null);
     setIsSubmitting(true);
     try {
-      const hasExplanation = explanation.length > 0;
-      const result = await onSubmitReport({
-        category,
-        ...(hasExplanation ? { explanation } : {}),
-      });
+      const result = await onSubmitReport(validation.input);
       if (result.ok) setIsSuccess(true);
     } finally {
       setIsSubmitting(false);
@@ -106,8 +130,11 @@ export function ReportReviewModal({
                     (reason) => reason.value === event.target.value
                   );
                   setCategory(selectedReason?.value ?? "");
+                  setValidationError(null);
                 }}
                 disabled={isSubmitting}
+                aria-invalid={reasonError}
+                aria-describedby={reasonError ? "report-review-reason-error" : undefined}
                 className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/30 disabled:bg-slate-50"
               >
                 <option value="">{t.workOrderReviewReport.reasonPlaceholder}</option>
@@ -117,6 +144,15 @@ export function ReportReviewModal({
                   </option>
                 ))}
               </select>
+              {reasonError && (
+                <p
+                  id="report-review-reason-error"
+                  role="alert"
+                  className="text-sm text-red-700"
+                >
+                  {getValidationMessage(validationError!)}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -129,12 +165,28 @@ export function ReportReviewModal({
               <textarea
                 id="report-review-explanation"
                 value={explanation}
-                onChange={(event) => setExplanation(event.target.value)}
+                onChange={(event) => {
+                  setExplanation(event.target.value);
+                  setValidationError(null);
+                }}
                 placeholder={t.workOrderReviewReport.explanationPlaceholder}
                 disabled={isSubmitting}
                 rows={4}
+                aria-invalid={explanationError}
+                aria-describedby={
+                  explanationError ? "report-review-explanation-error" : undefined
+                }
                 className="w-full resize-y rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/30 disabled:bg-slate-50"
               />
+              {explanationError && (
+                <p
+                  id="report-review-explanation-error"
+                  role="alert"
+                  className="text-sm text-red-700"
+                >
+                  {getValidationMessage(validationError!)}
+                </p>
+              )}
             </div>
 
             <div className="flex justify-end pt-2">
@@ -142,7 +194,7 @@ export function ReportReviewModal({
                 type="submit"
                 variant="brand"
                 data-testid="submit-report-review-button"
-                disabled={!category || isSubmitting}
+                disabled={isSubmitting}
                 className="min-w-[140px]"
               >
                 {isSubmitting

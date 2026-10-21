@@ -13,9 +13,9 @@ import type {
   CompletionReport,
   WorkOrderReview,
   WorkOrderReviewInput,
-  WorkOrderReviewReportInput,
   WorkOrderReviewReportReceipt,
 } from "@/domain/work-order/types";
+import { WorkOrderReviewReportValidationException } from "@/domain/work-order/review-report-validation";
 import { ApiClientError } from "@/infrastructure/api/base-client";
 import { ApiPaymentRepository } from "@/infrastructure/repositories/payments/api-payment-repository";
 import { ApiWorkOrderRepository } from "@/infrastructure/repositories/work-orders/api-work-order-repository";
@@ -116,7 +116,7 @@ export async function createWorkOrderReviewAction(
 
 export async function reportWorkOrderReviewAction(
   workOrderId: number,
-  input: WorkOrderReviewReportInput
+  input: unknown
 ): Promise<ReportWorkOrderReviewResult> {
   try {
     const repository = new ApiWorkOrderRepository();
@@ -125,7 +125,12 @@ export async function reportWorkOrderReviewAction(
   } catch (error: unknown) {
     return {
       ok: false,
-      status: error instanceof ApiClientError ? error.status : null,
+      status:
+        error instanceof WorkOrderReviewReportValidationException
+          ? 400
+          : error instanceof ApiClientError
+            ? error.status
+            : null,
     };
   }
 }

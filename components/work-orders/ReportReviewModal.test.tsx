@@ -86,4 +86,67 @@ describe("ReportReviewModal", () => {
       explanation: "\uFEFF",
     });
   });
+
+  it("should ask for a reason and preserve the form without submitting", async () => {
+    const user = userEvent.setup();
+    const submitReport = vi.fn().mockResolvedValue({ ok: true });
+
+    render(
+      <ReportReviewModal open={true} onClose={vi.fn()} onSubmitReport={submitReport} />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Enviar reporte" }));
+
+    const correction = screen.getByRole("alert");
+    const reason = screen.getByRole("combobox", { name: "Motivo" });
+    expect(correction).toHaveTextContent("Seleccioná un motivo para enviar el reporte.");
+    expect(reason).toHaveAttribute("aria-invalid", "true");
+    expect(reason).toHaveAttribute("aria-describedby", correction.id);
+    expect(reason).toHaveValue("");
+    expect(submitReport).not.toHaveBeenCalled();
+  });
+
+  it("should explain the 500 code point limit and preserve an overlong explanation", async () => {
+    const user = userEvent.setup();
+    const submitReport = vi.fn().mockResolvedValue({ ok: true });
+    const explanation = "😀".repeat(501);
+
+    render(
+      <ReportReviewModal open={true} onClose={vi.fn()} onSubmitReport={submitReport} />
+    );
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Motivo" }), "personal_data");
+    fireEvent.change(screen.getByRole("textbox", { name: "Explicación (opcional)" }), {
+      target: { value: explanation },
+    });
+    await user.click(screen.getByRole("button", { name: "Enviar reporte" }));
+
+    const correction = screen.getByRole("alert");
+    const explanationField = screen.getByRole("textbox", { name: "Explicación (opcional)" });
+    expect(correction).toHaveTextContent("Reducí la explicación a 500 caracteres o menos.");
+    expect(explanationField).toHaveAttribute("aria-invalid", "true");
+    expect(explanationField).toHaveAttribute("aria-describedby", correction.id);
+    expect(explanationField).toHaveValue(explanation);
+    expect(submitReport).not.toHaveBeenCalled();
+  });
+
+  it("should omit an explanation made only of Go-trimmed whitespace", async () => {
+    const user = userEvent.setup();
+    const submitReport = vi.fn().mockResolvedValue({ ok: true });
+
+    render(
+      <ReportReviewModal open={true} onClose={vi.fn()} onSubmitReport={submitReport} />
+    );
+
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "Motivo" }),
+      "spam_advertising"
+    );
+    fireEvent.change(screen.getByRole("textbox", { name: "Explicación (opcional)" }), {
+      target: { value: " \u0085\u00a0\u3000 " },
+    });
+    await user.click(screen.getByRole("button", { name: "Enviar reporte" }));
+
+    expect(submitReport).toHaveBeenCalledWith({ category: "spam_advertising" });
+  });
 });

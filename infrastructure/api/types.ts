@@ -486,6 +486,16 @@ export interface ApiWorkOrderReview {
   created_on?: string;
 }
 
+export type CreateWorkOrderReviewReportCategory =
+  | "abusive_language"
+  | "personal_data"
+  | "spam_advertising"
+  | "unrelated_content";
+
+export interface CreateWorkOrderReviewReportRequest {
+  category: CreateWorkOrderReviewReportCategory;
+  explanation?: string;
+}
 
 export interface ApiWorkOrderDetail {
   id: number;

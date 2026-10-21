@@ -50,6 +50,22 @@ export interface WorkOrderReview {
   createdOn?: string;
 }
 
+export type WorkOrderReviewReportCategory =
+  | "abusive_language"
+  | "personal_data"
+  | "spam_advertising"
+  | "unrelated_content";
+
+export interface WorkOrderReviewReportInput {
+  category: WorkOrderReviewReportCategory;
+  explanation?: string;
+}
+
+export interface WorkOrderReviewReportReceipt {
+  id: number;
+  status: "pending";
+}
+
 export interface WorkOrderDetail {
   id: number;
   serviceProposalId: number;

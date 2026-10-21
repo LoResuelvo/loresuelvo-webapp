@@ -6,6 +6,7 @@ import {
   CreateWorkOrderReviewRequest,
   CreateWorkOrderReviewResponse,
   ApiWorkOrderReview,
+  CreateWorkOrderReviewReportRequest,
 } from "@/infrastructure/api/types";
 import {
   WorkOrder,
@@ -14,6 +15,8 @@ import {
   CompletionReportDetail,
   WorkOrderReview,
   WorkOrderReviewInput,
+  WorkOrderReviewReportInput,
+  WorkOrderReviewReportReceipt,
 } from "@/domain/work-order/types";
 import { Money } from "@/domain/shared/Money";
 import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
@@ -71,6 +74,37 @@ export function toWorkOrderReview(
     ...(text ? { comment: text, description: text } : {}),
     ...(api.created_on ? { createdOn: ScheduledDateTime.create(api.created_on).isoString } : {}),
   };
+}
+
+export function toCreateReviewReportRequest(
+  input: WorkOrderReviewReportInput
+): CreateWorkOrderReviewReportRequest {
+  return {
+    category: input.category,
+    ...(input.explanation && input.explanation.length > 0
+      ? { explanation: input.explanation }
+      : {}),
+  };
+}
+
+export function toWorkOrderReviewReportReceipt(
+  api: unknown
+): WorkOrderReviewReportReceipt {
+  if (!api || typeof api !== "object" || Array.isArray(api)) {
+    throw new Error("Invalid review report receipt");
+  }
+
+  const receipt = api as Record<string, unknown>;
+  if (
+    typeof receipt.id !== "number" ||
+    !Number.isSafeInteger(receipt.id) ||
+    receipt.id <= 0 ||
+    receipt.status !== "pending"
+  ) {
+    throw new Error("Invalid review report receipt");
+  }
+
+  return { id: receipt.id, status: "pending" };
 }
 
 export function transformApiToWorkOrderDetail(api: ApiWorkOrderDetail): WorkOrderDetail {

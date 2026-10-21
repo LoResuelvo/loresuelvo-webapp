@@ -8,6 +8,7 @@ import type { ResourceListener } from "@/infrastructure/notifications/Notificati
 import {
   getWorkOrderDetailAction,
   createWorkOrderReviewAction,
+  reportWorkOrderReviewAction,
 } from "@/app/work-orders/actions";
 
 
@@ -15,6 +16,7 @@ vi.mock("@/app/work-orders/actions", () => ({
   getWorkOrderDetailAction: vi.fn(),
   createServiceBalanceCheckoutAction: vi.fn(),
   createWorkOrderReviewAction: vi.fn(),
+  reportWorkOrderReviewAction: vi.fn(),
 }));
 
 
@@ -363,6 +365,148 @@ describe("WorkOrderDetailModal", () => {
     await waitFor(() => {
       expect(screen.queryByTestId("open-review-button")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Calificar servicio" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("lets a provider report a visible review and hides the report action after success", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getWorkOrderDetailAction).mockResolvedValue({
+      ok: true,
+      detail: {
+        id: 10,
+        serviceProposalId: 42,
+        consumerId: 10,
+        providerId: 1,
+        status: "paid",
+        amountCents: 1500000,
+        scheduledOn: "2026-08-20T10:00:00Z",
+        description: "Reparación de cañería en cocina",
+        acceptedOn: "2026-08-05T10:00:00Z",
+        review: {
+          rating: 4,
+          comment: "La reseña original se conserva.",
+          description: "La reseña original se conserva.",
+        },
+      },
+    });
+    vi.mocked(reportWorkOrderReviewAction).mockResolvedValue({
+      ok: true,
+      receipt: { id: 71, status: "pending" },
+    });
+
+    render(
+      <WorkOrderDetailModal
+        open={true}
+        onClose={vi.fn()}
+        workOrderId={10}
+        isConsumer={false}
+      />
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Reportar reseña" }));
+    const modal = screen.getByTestId("report-review-modal");
+    await user.selectOptions(within(modal).getByRole("combobox", { name: "Motivo" }), "personal_data");
+    await user.type(
+      within(modal).getByRole("textbox", { name: "Explicación (opcional)" }),
+      "Publica mi teléfono sin autorización."
+    );
+    await user.click(within(modal).getByRole("button", { name: "Enviar reporte" }));
+
+    expect(reportWorkOrderReviewAction).toHaveBeenCalledWith(10, {
+      category: "personal_data",
+      explanation: "Publica mi teléfono sin autorización.",
+    });
+    expect(await within(modal).findByRole("status")).toHaveTextContent(
+      "Reporte recibido para revisión."
+    );
+    await user.click(within(modal).getByRole("button", { name: "Cerrar" }));
+
+    expect(screen.queryByRole("button", { name: "Reportar reseña" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("work-order-review-section")).toBeInTheDocument();
+    expect(screen.getByText("“La reseña original se conserva.”")).toBeInTheDocument();
+    expect(screen.getAllByTestId("star-filled")).toHaveLength(4);
+    await waitFor(() => {
+      expect(screen.getByTestId("work-order-review-section")).toHaveFocus();
+    });
+  });
+
+  it("does not apply a report response to a different order", async () => {
+    const user = userEvent.setup();
+    let resolveReport: ((result: { ok: true; receipt: { id: number; status: "pending" } }) => void) | undefined;
+    const pendingReport = new Promise<{ ok: true; receipt: { id: number; status: "pending" } }>(
+      (resolve) => {
+        resolveReport = resolve;
+      }
+    );
+    vi.mocked(getWorkOrderDetailAction).mockImplementation(async (id) => ({
+      ok: true,
+      detail: {
+        id,
+        serviceProposalId: 42,
+        consumerId: 10,
+        providerId: 1,
+        status: "paid",
+        amountCents: 1500000,
+        scheduledOn: "2026-08-20T10:00:00Z",
+        description: "Reparación de cañería en cocina",
+        acceptedOn: "2026-08-05T10:00:00Z",
+        review: { rating: 4, comment: "Reseña visible" },
+      },
+    }));
+    vi.mocked(reportWorkOrderReviewAction).mockReturnValue(pendingReport);
+
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <WorkOrderDetailModal open onClose={onClose} workOrderId={10} isConsumer={false} />
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Reportar reseña" }));
+    const modal = screen.getByTestId("report-review-modal");
+    await user.selectOptions(within(modal).getByRole("combobox", { name: "Motivo" }), "spam_advertising");
+    await user.click(within(modal).getByRole("button", { name: "Enviar reporte" }));
+
+    rerender(
+      <WorkOrderDetailModal open onClose={onClose} workOrderId={11} isConsumer={false} />
+    );
+    await screen.findByText("#11");
+    expect(await screen.findByRole("button", { name: "Reportar reseña" })).toBeInTheDocument();
+
+    resolveReport?.({ ok: true, receipt: { id: 71, status: "pending" } });
+    expect(await screen.findByRole("button", { name: "Reportar reseña" })).toBeInTheDocument();
+  });
+
+  it("returns focus to the detail region when the active order has no review", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getWorkOrderDetailAction).mockImplementation(async (id) => ({
+      ok: true,
+      detail: {
+        id,
+        serviceProposalId: 42,
+        consumerId: 10,
+        providerId: 1,
+        status: "paid",
+        amountCents: 1500000,
+        scheduledOn: "2026-08-20T10:00:00Z",
+        description: "Reparación de cañería en cocina",
+        acceptedOn: "2026-08-05T10:00:00Z",
+        ...(id === 10 ? { review: { rating: 4, comment: "Reseña visible" } } : {}),
+      },
+    }));
+
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <WorkOrderDetailModal open onClose={onClose} workOrderId={10} isConsumer={false} />
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Reportar reseña" }));
+    rerender(
+      <WorkOrderDetailModal open onClose={onClose} workOrderId={11} isConsumer={false} />
+    );
+
+    await screen.findByText("#11");
+    await waitFor(() => {
+      expect(screen.queryByTestId("report-review-modal")).not.toBeInTheDocument();
+      expect(screen.getByTestId("work-order-detail-modal")).toHaveFocus();
     });
   });
 

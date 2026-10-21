@@ -5,6 +5,8 @@ import {
   CompletionReportInput,
   WorkOrderReview,
   WorkOrderReviewInput,
+  WorkOrderReviewReportInput,
+  WorkOrderReviewReportReceipt,
 } from "@/domain/work-order/types";
 
 export interface WorkOrderRepository {
@@ -13,5 +15,9 @@ export interface WorkOrderRepository {
   getDetail(workOrderId: number): Promise<WorkOrderDetail>;
   reportCompletion(workOrderId: number, input: CompletionReportInput): Promise<CompletionReport>;
   createReview(workOrderId: number, input: WorkOrderReviewInput): Promise<WorkOrderReview>;
+  reportReview(
+    workOrderId: number,
+    input: WorkOrderReviewReportInput
+  ): Promise<WorkOrderReviewReportReceipt>;
 }
 

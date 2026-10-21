@@ -9,10 +9,12 @@ import { WorkOrder } from "@/domain/work-order/WorkOrder";
 import {
   getWorkOrderDetailAction,
   createWorkOrderReviewAction,
+  reportWorkOrderReviewAction,
 } from "@/app/work-orders/actions";
 import { WorkOrderSummarySection } from "./WorkOrderSummarySection";
 import { WorkOrderActionsSection } from "./WorkOrderActionsSection";
 import { ReviewWorkOrderModal } from "./ReviewWorkOrderModal";
+import { ReportReviewModal } from "./ReportReviewModal";
 import type { WorkOrderDetail } from "@/domain/work-order/types";
 import type { WorkOrderCalendarConnectionState } from "@/components/work-orders/useWorkOrderCalendarConnection";
 import WorkOrderCalendarConnection, { type WorkOrderCalendarAuthorization } from "./WorkOrderCalendarConnection";
@@ -51,8 +53,14 @@ export function WorkOrderDetailModal({
   const [hasError, setHasError] = useState(false);
   const [refreshError, setRefreshError] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportedReviewWorkOrderId, setReportedReviewWorkOrderId] = useState<number | null>(null);
   const detailRef = useRef(detail);
   const requestGenerationRef = useRef(0);
+  const reportScopeGenerationRef = useRef(0);
+  const reportButtonRef = useRef<HTMLButtonElement | null>(null);
+  const reviewSectionRef = useRef<HTMLDivElement | null>(null);
+  const detailContentRef = useRef<HTMLDivElement | null>(null);
   const currentWorkOrderIdRef = useRef(workOrderId);
   const isOpenRef = useRef(open);
   detailRef.current = detail;
@@ -103,6 +111,9 @@ export function WorkOrderDetailModal({
   }, [isCurrentRequest, open, workOrderId]);
 
   useEffect(() => {
+    reportScopeGenerationRef.current += 1;
+    setReportedReviewWorkOrderId(null);
+    setIsReportModalOpen(false);
     if (open && workOrderId) {
       setDetail(null);
       setRefreshError(false);
@@ -111,6 +122,7 @@ export function WorkOrderDetailModal({
     }
     return () => {
       requestGenerationRef.current += 1;
+      reportScopeGenerationRef.current += 1;
     };
   }, [open, workOrderId, fetchDetail]);
 
@@ -129,6 +141,23 @@ export function WorkOrderDetailModal({
   const { label: statusLabel, variant: statusVariant } = WorkOrder.getStatusBadge(currentStatus);
   const canRate = WorkOrder.canReview({ status: currentStatus, review: detail?.review }, isConsumer);
   const resolvedWorkOrderId = workOrderId ?? detail?.id ?? 0;
+  const canReportReview = Boolean(
+    !isConsumer &&
+      detail?.review &&
+      detail.id === resolvedWorkOrderId &&
+      reportedReviewWorkOrderId !== detail.id
+  );
+  const restoreReportFocus = useCallback((event: Event) => {
+    event.preventDefault();
+    const reportButton = reportButtonRef.current;
+    const reviewSection = reviewSectionRef.current;
+    const focusTarget = reportButton?.isConnected
+      ? reportButton
+      : reviewSection?.isConnected
+        ? reviewSection
+        : detailContentRef.current;
+    focusTarget?.focus();
+  }, []);
 
   return (
     <>
@@ -139,7 +168,12 @@ export function WorkOrderDetailModal({
         closeLabel={t.workOrderDetail.closeButton}
         className="z-[60]"
       >
-        <div className="p-6 space-y-5" data-testid="work-order-detail-modal">
+        <div
+          className="p-6 space-y-5"
+          data-testid="work-order-detail-modal"
+          ref={detailContentRef}
+          tabIndex={-1}
+        >
           <WorkOrderCalendarConnection
             connection={calendarConnection}
             profileHref={isConsumer ? ROUTES.consumer.profile : ROUTES.provider.profile}
@@ -218,6 +252,7 @@ export function WorkOrderDetailModal({
                 paidOn={detail?.paidOn}
                 completionReport={detail?.completionReport}
                 review={detail?.review}
+                reviewSectionRef={reviewSectionRef}
               />
 
               <WorkOrderActionsSection
@@ -226,12 +261,37 @@ export function WorkOrderDetailModal({
                 amountCents={amountCents}
                 canRate={canRate}
                 onOpenReview={() => setIsReviewModalOpen(true)}
+                canReportReview={canReportReview}
+                onReportReview={() => setIsReportModalOpen(true)}
+                reportButtonRef={reportButtonRef}
               />
               {detail && <ClaimOperationLink reference={{ kind: "work_order", id: detail.id }} isConsumer={isConsumer} />}
             </>
           )}
         </div>
       </Modal>
+
+      {isReportModalOpen && (
+        <ReportReviewModal
+          open={true}
+          onClose={() => setIsReportModalOpen(false)}
+          onCloseAutoFocus={restoreReportFocus}
+          onSubmitReport={async (input) => {
+            const reportWorkOrderId = resolvedWorkOrderId;
+            const reportScopeGeneration = reportScopeGenerationRef.current;
+            const res = await reportWorkOrderReviewAction(reportWorkOrderId, input);
+            if (
+              res.ok &&
+              reportScopeGeneration === reportScopeGenerationRef.current &&
+              isOpenRef.current &&
+              currentWorkOrderIdRef.current === reportWorkOrderId
+            ) {
+              setReportedReviewWorkOrderId(reportWorkOrderId);
+            }
+            return res;
+          }}
+        />
+      )}
 
       {isReviewModalOpen && (
         <ReviewWorkOrderModal

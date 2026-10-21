@@ -16,6 +16,8 @@ describe("WorkOrderActionsSection", () => {
         amountCents={1500000}
         canRate={false}
         onOpenReview={vi.fn()}
+        canReportReview={false}
+        onReportReview={vi.fn()}
       />
     );
 
@@ -36,6 +38,8 @@ describe("WorkOrderActionsSection", () => {
         amountCents={1500000}
         canRate={true}
         onOpenReview={handleOpenReview}
+        canReportReview={false}
+        onReportReview={vi.fn()}
       />
     );
 
@@ -44,5 +48,27 @@ describe("WorkOrderActionsSection", () => {
     await user.click(button);
 
     expect(handleOpenReview).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the report button when a review can be reported", async () => {
+    const user = userEvent.setup();
+    const handleReportReview = vi.fn();
+
+    render(
+      <WorkOrderActionsSection
+        workOrderId={10}
+        status="paid"
+        amountCents={1500000}
+        canRate={false}
+        onOpenReview={vi.fn()}
+        canReportReview={true}
+        onReportReview={handleReportReview}
+      />
+    );
+
+    const button = screen.getByRole("button", { name: "Reportar reseña" });
+    await user.click(button);
+
+    expect(handleReportReview).toHaveBeenCalledTimes(1);
   });
 });

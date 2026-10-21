@@ -11,14 +11,16 @@ import { getWorkOrderByProposal } from "@/application/work-orders/get-work-order
 import { getWorkOrderDetail } from "@/application/work-orders/get-work-order-detail";
 import { reportWorkCompletion } from "@/application/work-orders/report-work-completion";
 import { createWorkOrderReview } from "@/application/work-orders/create-work-order-review";
+import { reportWorkOrderReview } from "@/application/work-orders/report-work-order-review";
 import { CheckoutSession } from "@/domain/payment/types";
 import {
   WorkOrder,
   WorkOrderDetail,
   CompletionReport,
   WorkOrderReview,
+  WorkOrderReviewReportReceipt,
 } from "@/domain/work-order/types";
-import { createWorkOrderReviewAction } from "./actions";
+import { createWorkOrderReviewAction, reportWorkOrderReviewAction } from "./actions";
 
 vi.mock("@/application/payments/create-service-balance-checkout", () => ({
   createServiceBalanceCheckout: vi.fn(),
@@ -38,6 +40,10 @@ vi.mock("@/application/work-orders/report-work-completion", () => ({
 
 vi.mock("@/application/work-orders/create-work-order-review", () => ({
   createWorkOrderReview: vi.fn(),
+}));
+
+vi.mock("@/application/work-orders/report-work-order-review", () => ({
+  reportWorkOrderReview: vi.fn(),
 }));
 
 vi.mock("@/infrastructure/repositories/payments/api-payment-repository", () => ({
@@ -329,6 +335,60 @@ describe("createWorkOrderReviewAction", () => {
       ok: false,
       status: null,
       message: "Unexpected error",
+    });
+  });
+});
+
+describe("reportWorkOrderReviewAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns the minimal receipt when reporting succeeds", async () => {
+    const receipt: WorkOrderReviewReportReceipt = { id: 71, status: "pending" };
+    vi.mocked(reportWorkOrderReview).mockResolvedValue(receipt);
+
+    const result = await reportWorkOrderReviewAction(10, {
+      category: "personal_data",
+      explanation: "Publica mi teléfono sin autorización.",
+    });
+
+    expect(reportWorkOrderReview).toHaveBeenCalledWith(
+      expect.anything(),
+      10,
+      {
+        category: "personal_data",
+        explanation: "Publica mi teléfono sin autorización.",
+      }
+    );
+    expect(result).toEqual({ ok: true, receipt });
+  });
+
+  it("returns an HTTP status without exposing the API error message", async () => {
+    vi.mocked(reportWorkOrderReview).mockRejectedValue(
+      new ApiClientError(409, "Conflict", "Review already reported")
+    );
+
+    const result = await reportWorkOrderReviewAction(10, {
+      category: "spam_advertising",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      status: 409,
+    });
+  });
+
+  it("returns a safe failure when an unexpected error occurs", async () => {
+    vi.mocked(reportWorkOrderReview).mockRejectedValue(new Error("Network failure"));
+
+    const result = await reportWorkOrderReviewAction(10, {
+      category: "spam_advertising",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      status: null,
     });
   });
 });

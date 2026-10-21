@@ -66,3 +66,22 @@ export const workOrderReview = {
     generic: "Ocurrió un error inesperado al enviar la reseña.",
   },
 };
+
+export const workOrderReviewReport = {
+  reportButton: "Reportar reseña",
+  modalTitle: "Reportar reseña",
+  reasonLabel: "Motivo",
+  reasonPlaceholder: "Seleccioná un motivo",
+  reasons: {
+    abusiveLanguage: "Lenguaje abusivo",
+    personalData: "Datos personales",
+    spamAdvertising: "Spam o publicidad",
+    unrelatedContent: "Contenido ajeno al servicio",
+  },
+  explanationLabel: "Explicación (opcional)",
+  explanationPlaceholder: "Contanos por qué considerás que la reseña es inapropiada...",
+  submitButton: "Enviar reporte",
+  submittingButton: "Enviando reporte...",
+  closeButton: "Cerrar",
+  successMessage: "Reporte recibido para revisión.",
+};

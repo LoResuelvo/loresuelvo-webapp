@@ -1,7 +1,8 @@
 "use client";
 
+import type { Ref } from "react";
 import { Button } from "@/components/ui/button";
-import { Star } from "lucide-react";
+import { Flag, Star } from "lucide-react";
 import { t } from "@/infrastructure/i18n/translations";
 import { ServiceBalancePayment } from "@/components/payments/ServiceBalancePayment";
 import { createServiceBalanceCheckoutAction } from "@/app/work-orders/actions";
@@ -13,6 +14,9 @@ export interface WorkOrderActionsSectionProps {
   amountCents: number;
   canRate: boolean;
   onOpenReview: () => void;
+  canReportReview: boolean;
+  onReportReview: () => void;
+  reportButtonRef?: Ref<HTMLButtonElement>;
 }
 
 export function WorkOrderActionsSection({
@@ -21,6 +25,9 @@ export function WorkOrderActionsSection({
   amountCents,
   canRate,
   onOpenReview,
+  canReportReview,
+  onReportReview,
+  reportButtonRef,
 }: WorkOrderActionsSectionProps) {
   return (
     <>
@@ -43,6 +50,22 @@ export function WorkOrderActionsSection({
           >
             <Star className="w-4 h-4 fill-current" />
             {t.workOrderDetail.rateServiceButton}
+          </Button>
+        </div>
+      )}
+
+      {canReportReview && (
+        <div className="pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-11 rounded-xl text-sm font-semibold gap-2 cursor-pointer"
+            data-testid="report-review-button"
+            ref={reportButtonRef}
+            onClick={onReportReview}
+          >
+            <Flag className="w-4 h-4" />
+            {t.workOrderReviewReport.reportButton}
           </Button>
         </div>
       )}

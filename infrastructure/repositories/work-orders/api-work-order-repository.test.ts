@@ -216,5 +216,54 @@ describe("ApiWorkOrderRepository", () => {
       });
     });
   });
+
+  describe("reportReview", () => {
+    it("posts the report category and explanation and maps only the minimal receipt", async () => {
+      vi.mocked(baseClient.api.post).mockResolvedValue({
+        id: 71,
+        status: "pending",
+        explanation: "must not be returned to the caller",
+      });
+
+      const result = await repository.reportReview(10, {
+        category: "personal_data",
+        explanation: "Publica mi teléfono sin autorización.",
+      });
+
+      expect(baseClient.api.post).toHaveBeenCalledWith(
+        "/work-orders/10/reviews/reports",
+        {
+          category: "personal_data",
+          explanation: "Publica mi teléfono sin autorización.",
+        }
+      );
+      expect(result).toEqual({ id: 71, status: "pending" });
+    });
+
+    it("omits an empty optional explanation from the request", async () => {
+      vi.mocked(baseClient.api.post).mockResolvedValue({
+        id: 72,
+        status: "pending",
+      });
+
+      await repository.reportReview(10, {
+        category: "spam_advertising",
+        explanation: "",
+      });
+
+      expect(baseClient.api.post).toHaveBeenCalledWith(
+        "/work-orders/10/reviews/reports",
+        { category: "spam_advertising" }
+      );
+    });
+
+    it("rejects a malformed success receipt", async () => {
+      vi.mocked(baseClient.api.post).mockResolvedValue({ id: "71", status: "pending" });
+
+      await expect(
+        repository.reportReview(10, { category: "abusive_language" })
+      ).rejects.toThrow("Invalid review report receipt");
+    });
+  });
 });
 

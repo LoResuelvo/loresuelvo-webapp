@@ -12,6 +12,7 @@ describe("createWorkOrderReview Use Case", () => {
       getDetail: vi.fn(),
       reportCompletion: vi.fn(),
       createReview: vi.fn(),
+      reportReview: vi.fn(),
     };
   });
 

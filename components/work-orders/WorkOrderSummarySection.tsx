@@ -1,5 +1,6 @@
 "use client";
 
+import type { Ref } from "react";
 import { DollarSign, Calendar, FileText, CheckCircle2, Star, Clock } from "lucide-react";
 import { Money } from "@/domain/shared/Money";
 import { ScheduledDateTime } from "@/domain/shared/ScheduledDateTime";
@@ -17,6 +18,7 @@ export interface WorkOrderSummarySectionProps {
   paidOn?: string;
   completionReport?: WorkOrderDetail["completionReport"];
   review?: WorkOrderDetail["review"];
+  reviewSectionRef?: Ref<HTMLDivElement>;
 }
 
 export function WorkOrderSummarySection({
@@ -27,6 +29,7 @@ export function WorkOrderSummarySection({
   paidOn,
   completionReport,
   review,
+  reviewSectionRef,
 }: WorkOrderSummarySectionProps) {
   return (
     <div className="space-y-4">
@@ -90,6 +93,10 @@ export function WorkOrderSummarySection({
       {review && (
         <div
           data-testid="work-order-review-section"
+          role="region"
+          aria-label={t.workOrderDetail.reviewSectionTitle}
+          tabIndex={-1}
+          ref={reviewSectionRef}
           className="bg-amber-50/60 border border-amber-200/60 rounded-xl p-4 space-y-2.5"
         >
           <div className="flex items-center justify-between">

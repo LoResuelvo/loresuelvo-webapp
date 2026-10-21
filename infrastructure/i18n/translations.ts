@@ -13,7 +13,12 @@ import { providerActivity } from "./translations/provider-activity";
 import { providerConversion } from "./translations/provider-conversion";
 import { providerReputation } from "./translations/provider-reputation";
 import { serviceProposals } from "./translations/service-proposals";
-import { workOrderCompletion, workOrderDetail, workOrderReview } from "./translations/work-orders";
+import {
+  workOrderCompletion,
+  workOrderDetail,
+  workOrderReview,
+  workOrderReviewReport,
+} from "./translations/work-orders";
 import { notifications } from "./translations/notifications";
 import { claims } from "./translations/claims";
 import { errors } from "./translations/errors";
@@ -40,6 +45,7 @@ export const t = {
   workOrderCompletion,
   workOrderDetail,
   workOrderReview,
+  workOrderReviewReport,
   notifications,
   claims,
   errors,

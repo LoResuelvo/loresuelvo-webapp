@@ -5,7 +5,6 @@ Feature: US-30.2 Reportar una reseña
 
   Rule: El prestador puede solicitar la revisión sin modificar la reseña
 
-    @wip
     Scenario Outline: 01-RR Reportar una reseña con un motivo admitido
       Given que soy el prestador titular de una orden con una reseña visible
       And tengo abierto el formulario para reportar la reseña

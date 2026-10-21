@@ -5,6 +5,7 @@ import { getWorkOrderByProposal } from "@/application/work-orders/get-work-order
 import { getWorkOrderDetail } from "@/application/work-orders/get-work-order-detail";
 import { reportWorkCompletion } from "@/application/work-orders/report-work-completion";
 import { createWorkOrderReview } from "@/application/work-orders/create-work-order-review";
+import { reportWorkOrderReview } from "@/application/work-orders/report-work-order-review";
 import type { CheckoutSession } from "@/domain/payment/types";
 import type {
   WorkOrder,
@@ -12,6 +13,8 @@ import type {
   CompletionReport,
   WorkOrderReview,
   WorkOrderReviewInput,
+  WorkOrderReviewReportInput,
+  WorkOrderReviewReportReceipt,
 } from "@/domain/work-order/types";
 import { ApiClientError } from "@/infrastructure/api/base-client";
 import { ApiPaymentRepository } from "@/infrastructure/repositories/payments/api-payment-repository";
@@ -36,6 +39,10 @@ export type ReportWorkCompletionResult =
 export type CreateWorkOrderReviewResult =
   | { ok: true; review: WorkOrderReview }
   | { ok: false; status: number | null; message?: string | null };
+
+export type ReportWorkOrderReviewResult =
+  | { ok: true; receipt: WorkOrderReviewReportReceipt }
+  | { ok: false; status: number | null };
 
 export async function getWorkOrderByProposalAction(
   serviceProposalId: number
@@ -103,6 +110,22 @@ export async function createWorkOrderReviewAction(
       ok: false,
       status: error instanceof ApiClientError ? error.status : null,
       message: error instanceof Error ? error.message : null,
+    };
+  }
+}
+
+export async function reportWorkOrderReviewAction(
+  workOrderId: number,
+  input: WorkOrderReviewReportInput
+): Promise<ReportWorkOrderReviewResult> {
+  try {
+    const repository = new ApiWorkOrderRepository();
+    const receipt = await reportWorkOrderReview(repository, workOrderId, input);
+    return { ok: true, receipt };
+  } catch (error: unknown) {
+    return {
+      ok: false,
+      status: error instanceof ApiClientError ? error.status : null,
     };
   }
 }

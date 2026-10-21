@@ -90,4 +90,11 @@ export const workOrderReviewReport = {
   closeButton: "Cerrar",
   alreadyReported: "La reseña ya fue reportada y no se puede enviar otro reporte.",
   successMessage: "Reporte recibido para revisión.",
+  submitErrors: {
+    invalidData: "Revisá los datos del reporte e intentá nuevamente.",
+    session: "No se pudo confirmar tu sesión. Iniciá sesión nuevamente.",
+    forbidden: "No tenés permiso para reportar esta reseña.",
+    unavailable: "La reseña no está disponible para reportar.",
+    generic: "No se pudo enviar el reporte. Intentá nuevamente.",
+  },
 };

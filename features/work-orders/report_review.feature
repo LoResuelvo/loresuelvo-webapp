@@ -70,7 +70,6 @@ Feature: US-30.2 Reportar una reseña
 
   Rule: Un fallo al enviar permite recuperar el reporte
 
-    @wip
     Scenario: 06-RR Conservar los datos para reintentar el envío
       Given que soy el prestador titular y completé el reporte con el motivo "Datos personales"
       And ingresé la explicación "Publica mi teléfono sin mi autorización."

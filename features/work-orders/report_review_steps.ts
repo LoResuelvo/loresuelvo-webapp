@@ -69,6 +69,41 @@ Given(
 );
 
 Given(
+  "que soy el prestador titular y completé el reporte con el motivo {string}",
+  async function (this: CustomWorld, reason: string) {
+    await setupReviewReportScenario(this);
+    await openWorkOrderDetailModal(this);
+
+    const detail = this.page.getByTestId("work-order-detail-modal");
+    await detail.getByRole("button", { name: /reportar reseña/i }).click();
+    const modal = this.page.getByTestId("report-review-modal");
+    await modal.waitFor({ state: "visible" });
+    await modal.getByLabel(/motivo/i).selectOption({ label: reason });
+  }
+);
+
+Given(
+  "ingresé la explicación {string}",
+  async function (this: CustomWorld, explanation: string) {
+    await this.page
+      .getByTestId("report-review-modal")
+      .getByLabel(/explicación/i)
+      .fill(explanation);
+  }
+);
+
+Given(
+  "el servicio de reportes no está disponible temporalmente",
+  async function (this: CustomWorld) {
+    await this.stubPost(
+      `/work-orders/${WORK_ORDER_ID}/reviews/reports`,
+      503,
+      { error: "service_unavailable" }
+    );
+  }
+);
+
+Given(
   "que soy el prestador titular de una orden con una reseña visible",
   async function (this: CustomWorld) {
     await setupReviewReportScenario(this);
@@ -163,6 +198,39 @@ Then(
       assert.strictEqual(Array.from(explanationValue).length, 501);
       assert.strictEqual(explanationValue, "😀".repeat(501));
     }
+  }
+);
+
+Then(
+  "veo un mensaje indicando que no se pudo enviar el reporte",
+  async function (this: CustomWorld) {
+    const alert = this.page.getByTestId("report-review-modal").getByRole("alert");
+    await alert.waitFor({ state: "visible", timeout: 5000 });
+    assert.match(await alert.innerText(), /no se pudo enviar el reporte/i);
+    assert.doesNotMatch(await alert.innerText(), /service_unavailable|error/i);
+  }
+);
+
+Then(
+  "conservo el motivo y la explicación ingresados",
+  async function (this: CustomWorld) {
+    const modal = this.page.getByTestId("report-review-modal");
+    assert.strictEqual(await modal.getByLabel(/motivo/i).inputValue(), "personal_data");
+    assert.strictEqual(
+      await modal.getByLabel(/explicación/i).inputValue(),
+      "Publica mi teléfono sin mi autorización."
+    );
+  }
+);
+
+Then(
+  "tengo disponible la opción de reintentar",
+  async function (this: CustomWorld) {
+    const retryButton = this.page
+      .getByTestId("report-review-modal")
+      .getByRole("button", { name: /enviar reporte/i });
+    await retryButton.waitFor({ state: "visible", timeout: 5000 });
+    assert.strictEqual(await retryButton.isEnabled(), true);
   }
 );
 

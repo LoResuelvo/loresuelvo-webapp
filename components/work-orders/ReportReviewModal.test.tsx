@@ -87,6 +87,62 @@ describe("ReportReviewModal", () => {
     expect(screen.queryByTestId("report-review-success-message")).not.toBeInTheDocument();
   });
 
+  it.each([
+    { status: 400, message: "Revisá los datos del reporte e intentá nuevamente." },
+    { status: 401, message: "No se pudo confirmar tu sesión. Iniciá sesión nuevamente." },
+    { status: 403, message: "No tenés permiso para reportar esta reseña." },
+    { status: 404, message: "La reseña no está disponible para reportar." },
+    { status: 500, message: "No se pudo enviar el reporte. Intentá nuevamente." },
+    { status: null, message: "No se pudo enviar el reporte. Intentá nuevamente." },
+  ])("should show safe retry feedback for server status $status", async ({ status, message }) => {
+    const user = userEvent.setup();
+    const submitReport = vi.fn().mockResolvedValue({ ok: false, status });
+
+    render(
+      <ReportReviewModal open={true} onClose={vi.fn()} onSubmitReport={submitReport} />
+    );
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Motivo" }), "personal_data");
+    await user.click(screen.getByRole("button", { name: "Enviar reporte" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    expect(screen.getByRole("button", { name: "Enviar reporte" })).toBeEnabled();
+    expect(screen.queryByTestId("report-review-success-message")).not.toBeInTheDocument();
+  });
+
+  it("should preserve the filled form and allow retry after a rejected submission", async () => {
+    const user = userEvent.setup();
+    const submitReport = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("private backend response"))
+      .mockResolvedValueOnce({ ok: true });
+
+    render(
+      <ReportReviewModal open={true} onClose={vi.fn()} onSubmitReport={submitReport} />
+    );
+
+    const reason = screen.getByRole("combobox", { name: "Motivo" });
+    const explanation = screen.getByRole("textbox", { name: "Explicación (opcional)" });
+    await user.selectOptions(reason, "personal_data");
+    await user.type(explanation, "Publica mi teléfono sin mi autorización.");
+    await user.click(screen.getByRole("button", { name: "Enviar reporte" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudo enviar el reporte. Intentá nuevamente."
+    );
+    expect(screen.getByRole("alert")).not.toHaveTextContent("private backend response");
+    expect(reason).toHaveValue("personal_data");
+    expect(explanation).toHaveValue("Publica mi teléfono sin mi autorización.");
+    expect(screen.getByRole("button", { name: "Enviar reporte" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "Enviar reporte" }));
+
+    expect(submitReport).toHaveBeenCalledTimes(2);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Reporte recibido para revisión."
+    );
+  });
+
   it("should omit an empty optional explanation from the submission", async () => {
     const user = userEvent.setup();
     const submitReport = vi.fn().mockResolvedValue({ ok: true });

@@ -20,7 +20,20 @@ const reportReasons = [
   { value: "unrelated_content", label: t.workOrderReviewReport.reasons.unrelatedContent },
 ] as const;
 
-type ReportFormStatus = "editing" | "submitting" | "success" | "already_reported";
+function getSubmissionErrorMessage(status: number | null): string {
+  if (status === 400) return t.workOrderReviewReport.submitErrors.invalidData;
+  if (status === 401) return t.workOrderReviewReport.submitErrors.session;
+  if (status === 403) return t.workOrderReviewReport.submitErrors.forbidden;
+  if (status === 404) return t.workOrderReviewReport.submitErrors.unavailable;
+  return t.workOrderReviewReport.submitErrors.generic;
+}
+
+type ReportFormState =
+  | { kind: "editing" }
+  | { kind: "submitting" }
+  | { kind: "success" }
+  | { kind: "already_reported" }
+  | { kind: "failed"; status: number | null };
 
 interface ReportReviewModalProps {
   open: boolean;
@@ -39,12 +52,12 @@ export function ReportReviewModal({
 }: ReportReviewModalProps) {
   const [category, setCategory] = useState<WorkOrderReviewReportCategory | "">("");
   const [explanation, setExplanation] = useState("");
-  const [formStatus, setFormStatus] = useState<ReportFormStatus>("editing");
+  const [formState, setFormState] = useState<ReportFormState>({ kind: "editing" });
   const [validationError, setValidationError] =
     useState<WorkOrderReviewReportValidationError | null>(null);
-  const isSubmitting = formStatus === "submitting";
-  const isSuccess = formStatus === "success";
-  const isAlreadyReported = formStatus === "already_reported";
+  const isSubmitting = formState.kind === "submitting";
+  const isSuccess = formState.kind === "success";
+  const isAlreadyReported = formState.kind === "already_reported";
 
   const reasonError =
     validationError === "category_required" || validationError === "invalid_category";
@@ -60,7 +73,7 @@ export function ReportReviewModal({
   const handleClose = () => {
     setCategory("");
     setExplanation("");
-    setFormStatus("editing");
+    setFormState({ kind: "editing" });
     setValidationError(null);
     onClose();
   };
@@ -73,18 +86,24 @@ export function ReportReviewModal({
       explanation,
     });
     if (!validation.valid) {
+      setFormState({ kind: "editing" });
       setValidationError(validation.error);
       return;
     }
 
     setValidationError(null);
-    setFormStatus("submitting");
+    setFormState({ kind: "submitting" });
     try {
       const result = await onSubmitReport(validation.input);
-      if (result.ok) setFormStatus("success");
-      else if (result.status === 409) setFormStatus("already_reported");
+      if (result.ok) setFormState({ kind: "success" });
+      else if (result.status === 409) setFormState({ kind: "already_reported" });
+      else setFormState({ kind: "failed", status: result.status });
+    } catch {
+      setFormState({ kind: "failed", status: null });
     } finally {
-      setFormStatus((current) => (current === "submitting" ? "editing" : current));
+      setFormState((current) =>
+        current.kind === "submitting" ? { kind: "editing" } : current
+      );
     }
   };
 
@@ -124,6 +143,11 @@ export function ReportReviewModal({
             {isAlreadyReported && (
               <p role="alert" aria-live="assertive" className="text-sm text-amber-800">
                 {t.workOrderReviewReport.alreadyReported}
+              </p>
+            )}
+            {formState.kind === "failed" && (
+              <p role="alert" aria-live="assertive" className="text-sm text-red-700">
+                {getSubmissionErrorMessage(formState.status)}
               </p>
             )}
             <div className="space-y-2">

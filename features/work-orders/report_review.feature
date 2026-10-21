@@ -39,7 +39,6 @@ Feature: US-30.2 Reportar una reseña
 
   Rule: Solo se ofrece reportar una reseña al prestador de la orden
 
-    @wip
     Scenario Outline: 03-RR No ofrecer el reporte cuando no corresponde
       Given que consulto una orden de trabajo como "<actor>"
       And la orden "<resena>"

@@ -47,6 +47,26 @@ describe("ReportReviewModal", () => {
     );
   });
 
+  it("should show an already-reported notice without showing submission success", async () => {
+    const user = userEvent.setup();
+    const submitReport = vi.fn().mockResolvedValue({ ok: false, status: 409 });
+
+    render(
+      <ReportReviewModal open={true} onClose={vi.fn()} onSubmitReport={submitReport} />
+    );
+
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "Motivo" }),
+      "spam_advertising"
+    );
+    await user.click(screen.getByRole("button", { name: "Enviar reporte" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "La reseña ya fue reportada y no se puede enviar otro reporte."
+    );
+    expect(screen.queryByTestId("report-review-success-message")).not.toBeInTheDocument();
+  });
+
   it("should omit an empty optional explanation from the submission", async () => {
     const user = userEvent.setup();
     const submitReport = vi.fn().mockResolvedValue({ ok: true });

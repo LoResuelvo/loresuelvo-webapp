@@ -87,5 +87,6 @@ export const workOrderReviewReport = {
   submitButton: "Enviar reporte",
   submittingButton: "Enviando reporte...",
   closeButton: "Cerrar",
+  alreadyReported: "La reseña ya fue reportada y no se puede enviar otro reporte.",
   successMessage: "Reporte recibido para revisión.",
 };

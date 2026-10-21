@@ -24,7 +24,9 @@ interface ReportReviewModalProps {
   open: boolean;
   onClose: () => void;
   onCloseAutoFocus?: (event: Event) => void;
-  onSubmitReport: (input: WorkOrderReviewReportInput) => Promise<{ ok: boolean }>;
+  onSubmitReport: (
+    input: WorkOrderReviewReportInput
+  ) => Promise<{ ok: true } | { ok: false; status: number | null }>;
 }
 
 export function ReportReviewModal({
@@ -37,6 +39,7 @@ export function ReportReviewModal({
   const [explanation, setExplanation] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isAlreadyReported, setIsAlreadyReported] = useState(false);
   const [validationError, setValidationError] =
     useState<WorkOrderReviewReportValidationError | null>(null);
 
@@ -56,6 +59,7 @@ export function ReportReviewModal({
     setExplanation("");
     setIsSubmitting(false);
     setIsSuccess(false);
+    setIsAlreadyReported(false);
     setValidationError(null);
     onClose();
   };
@@ -77,6 +81,7 @@ export function ReportReviewModal({
     try {
       const result = await onSubmitReport(validation.input);
       if (result.ok) setIsSuccess(true);
+      else if (result.status === 409) setIsAlreadyReported(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -115,6 +120,11 @@ export function ReportReviewModal({
               void handleSubmit();
             }}
           >
+            {isAlreadyReported && (
+              <p role="alert" aria-live="assertive" className="text-sm text-amber-800">
+                {t.workOrderReviewReport.alreadyReported}
+              </p>
+            )}
             <div className="space-y-2">
               <label
                 htmlFor="report-review-reason"
@@ -132,7 +142,7 @@ export function ReportReviewModal({
                   setCategory(selectedReason?.value ?? "");
                   setValidationError(null);
                 }}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isAlreadyReported}
                 aria-invalid={reasonError}
                 aria-describedby={reasonError ? "report-review-reason-error" : undefined}
                 className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/30 disabled:bg-slate-50"
@@ -170,7 +180,7 @@ export function ReportReviewModal({
                   setValidationError(null);
                 }}
                 placeholder={t.workOrderReviewReport.explanationPlaceholder}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isAlreadyReported}
                 rows={4}
                 aria-invalid={explanationError}
                 aria-describedby={
@@ -194,7 +204,7 @@ export function ReportReviewModal({
                 type="submit"
                 variant="brand"
                 data-testid="submit-report-review-button"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isAlreadyReported}
                 className="min-w-[140px]"
               >
                 {isSubmitting

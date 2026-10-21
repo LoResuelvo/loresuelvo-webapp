@@ -15,7 +15,7 @@ const WORK_ORDER_ID = 10;
 const REVIEW_RATING = 4;
 const REVIEW_COMMENT = "La reseña original se conserva.";
 
-async function setupReviewReportScenario(world: CustomWorld) {
+async function setupReviewReportScenario(world: CustomWorld, reportStatus = 201) {
   await world.setSession("provider");
   await world.stubGet("/categories", [aCategory()]);
   await world.stubGet(
@@ -34,11 +34,24 @@ async function setupReviewReportScenario(world: CustomWorld) {
 
   await world.stubGet(`/work-orders?service_proposal_id=${PROPOSAL_ID}`, workOrder);
   await world.stubGet(`/work-orders/${WORK_ORDER_ID}`, workOrder);
-  await world.stubPost(`/work-orders/${WORK_ORDER_ID}/reviews/reports`, 201, {
-    id: 71,
-    status: "pending",
-  });
+  await world.stubPost(
+    `/work-orders/${WORK_ORDER_ID}/reviews/reports`,
+    reportStatus,
+    reportStatus === 201 ? { id: 71, status: "pending" } : { error: "already_reported" }
+  );
 }
+
+Given(
+  "que soy el prestador titular y tengo abierto el formulario de una reseña reportada anteriormente",
+  async function (this: CustomWorld) {
+    await setupReviewReportScenario(this, 409);
+    await openWorkOrderDetailModal(this);
+
+    const detail = this.page.getByTestId("work-order-detail-modal");
+    await detail.getByRole("button", { name: /reportar reseña/i }).click();
+    await this.page.getByTestId("report-review-modal").waitFor({ state: "visible" });
+  }
+);
 
 Given(
   "que soy el prestador titular de una orden con una reseña visible",
@@ -156,6 +169,16 @@ Given(
 );
 
 Given(
+  "seleccioné un motivo válido",
+  async function (this: CustomWorld) {
+    await this.page
+      .getByTestId("report-review-modal")
+      .getByLabel(/motivo/i)
+      .selectOption({ label: "Datos personales" });
+  }
+);
+
+Given(
   "dejé la explicación {string}",
   async function (this: CustomWorld, explanation: string) {
     const modal = this.page.getByTestId("report-review-modal");
@@ -199,5 +222,21 @@ Then(
       .getByTestId("work-order-detail-modal")
       .getByTestId("report-review-button");
     assert.strictEqual(await reportButton.count(), 0);
+  }
+);
+
+Then(
+  "veo un aviso indicando que la reseña ya fue reportada",
+  async function (this: CustomWorld) {
+    const modal = this.page.getByTestId("report-review-modal");
+    const notice = modal.getByRole("alert");
+    await notice.waitFor({ state: "visible", timeout: 10000 });
+    assert.match(await notice.innerText(), /reseña ya fue reportada/i);
+    assert.doesNotMatch(await notice.innerText(), /pendiente|recibido para revisión/i);
+    assert.strictEqual(await modal.getByTestId("report-review-success-message").count(), 0);
+    await this.page
+      .getByRole("dialog", { name: /reportar reseña/i })
+      .getByRole("button", { name: /cerrar/i })
+      .click();
   }
 );

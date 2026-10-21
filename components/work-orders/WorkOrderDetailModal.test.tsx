@@ -430,6 +430,57 @@ describe("WorkOrderDetailModal", () => {
     });
   });
 
+  it("hides the report action after the server says the review was already reported", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getWorkOrderDetailAction).mockResolvedValue({
+      ok: true,
+      detail: {
+        id: 10,
+        serviceProposalId: 42,
+        consumerId: 10,
+        providerId: 1,
+        status: "paid",
+        amountCents: 1500000,
+        scheduledOn: "2026-08-20T10:00:00Z",
+        description: "Reparación de cañería en cocina",
+        acceptedOn: "2026-08-05T10:00:00Z",
+        review: { rating: 4, comment: "La reseña original se conserva." },
+      },
+    });
+    vi.mocked(reportWorkOrderReviewAction).mockResolvedValue({ ok: false, status: 409 });
+
+    render(
+      <WorkOrderDetailModal
+        open
+        onClose={vi.fn()}
+        workOrderId={10}
+        isConsumer={false}
+      />
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Reportar reseña" }));
+    const reportModal = screen.getByTestId("report-review-modal");
+    await user.selectOptions(
+      within(reportModal).getByRole("combobox", { name: "Motivo" }),
+      "spam_advertising"
+    );
+    await user.click(within(reportModal).getByRole("button", { name: "Enviar reporte" }));
+
+    expect(await within(reportModal).findByRole("alert")).toHaveTextContent(
+      "La reseña ya fue reportada y no se puede enviar otro reporte."
+    );
+    expect(within(reportModal).queryByTestId("report-review-success-message")).not.toBeInTheDocument();
+    await user.click(
+      within(screen.getByRole("dialog", { name: "Reportar reseña" })).getByRole("button", {
+        name: "Cerrar",
+      })
+    );
+
+    expect(screen.queryByRole("button", { name: "Reportar reseña" })).not.toBeInTheDocument();
+    expect(screen.getByText("“La reseña original se conserva.”")).toBeInTheDocument();
+    expect(screen.getAllByTestId("star-filled")).toHaveLength(4);
+  });
+
   it("does not apply a report response to a different order", async () => {
     const user = userEvent.setup();
     let resolveReport: ((result: { ok: true; receipt: { id: number; status: "pending" } }) => void) | undefined;

@@ -281,7 +281,7 @@ export function WorkOrderDetailModal({
             const reportScopeGeneration = reportScopeGenerationRef.current;
             const res = await reportWorkOrderReviewAction(reportWorkOrderId, input);
             if (
-              res.ok &&
+              (res.ok || (!res.ok && res.status === 409)) &&
               reportScopeGeneration === reportScopeGenerationRef.current &&
               isOpenRef.current &&
               currentWorkOrderIdRef.current === reportWorkOrderId

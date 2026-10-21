@@ -52,7 +52,6 @@ Feature: US-30.2 Reportar una reseña
 
   Rule: Una reseña solo puede reportarse una vez
 
-    @wip
     Scenario: 04-RR Informar que la reseña ya fue reportada
       Given que soy el prestador titular y tengo abierto el formulario de una reseña reportada anteriormente
       And seleccioné un motivo válido

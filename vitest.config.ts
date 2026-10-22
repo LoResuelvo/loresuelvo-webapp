@@ -10,6 +10,14 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "lcov"],
+      include: [
+        "{app,components,hooks,lib,domain,ports,application,infrastructure}/**/*.{ts,tsx}",
+      ],
+      exclude: ["**/*.{test,spec}.{ts,tsx}", "**/*.d.ts"],
+    },
     maxWorkers: isCI ? undefined : "25%",
     browser: {
       provider: playwright(),

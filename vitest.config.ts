@@ -4,6 +4,15 @@ import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
 const isCI = Boolean(process.env.CI);
+const coverageRoot = path.resolve(__dirname).replace(/\\/g, "/");
+
+// These modules contain text dictionaries only. Keep claims/diagnosis formatters.
+const translationDictionaries = [
+  "consumer", "errors", "file-upload", "landing", "messaging", "navigation",
+  "notifications", "onboarding", "payments", "profile", "provider-activity",
+  "provider-collections", "provider-conversion", "provider-home",
+  "provider-reputation", "service-proposals", "work-orders",
+];
 
 export default defineConfig({
   plugins: [react()],
@@ -12,11 +21,26 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     coverage: {
       provider: "v8",
-      reporter: ["text", "html", "lcov"],
+      reporter: ["text", "html", "lcov", "json-summary"],
       include: [
-        "{app,components,hooks,lib,domain,ports,application,infrastructure}/**/*.{ts,tsx}",
+        `${coverageRoot}/{app,components,hooks,lib,domain,ports,application,infrastructure}/**/*.{ts,tsx}`,
+        `${coverageRoot}/middleware.ts`,
       ],
-      exclude: ["**/*.{test,spec}.{ts,tsx}", "**/*.d.ts"],
+      excludeAfterRemap: true,
+      exclude: [
+        "**/*.{test,spec}.{ts,tsx}",
+        "**/*.d.ts",
+        "features/**",
+        "tools/**",
+        `${coverageRoot}/infrastructure/i18n/translations.ts`,
+        ...translationDictionaries.map(
+          (name) => `${coverageRoot}/infrastructure/i18n/translations/${name}.ts`,
+        ),
+        `${coverageRoot}/infrastructure/api/e2e-stubs-utils.ts`,
+        `${coverageRoot}/infrastructure/auth/{mock,dev}-adapter.ts`,
+        `${coverageRoot}/infrastructure/maps/mock-map-adapter.ts`,
+        `${coverageRoot}/infrastructure/repositories/provider/mock-provider-home-repository.ts`,
+      ],
     },
     maxWorkers: isCI ? undefined : "25%",
     browser: {

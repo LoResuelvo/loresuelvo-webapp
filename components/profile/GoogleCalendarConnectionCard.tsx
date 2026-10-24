@@ -42,27 +42,29 @@ export default function GoogleCalendarConnectionCard({
     <Card
       role="region"
       aria-labelledby="google-calendar-card-title"
-      className="w-full max-w-2xl"
+      className="w-full"
     >
-      <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-3">
-          <span className="rounded-xl bg-brand-secondary/10 p-2 text-brand-secondary" aria-hidden="true">
+      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="shrink-0 rounded-xl bg-brand-secondary/10 p-2 text-brand-secondary" aria-hidden="true">
             <CalendarDays className="h-5 w-5" />
           </span>
-          <div>
-            <h2 id="google-calendar-card-title" className="font-heading text-lg font-semibold">
+          <div className="min-w-0">
+            <h3 id="google-calendar-card-title" className="font-heading text-lg font-semibold">
               {calendarCopy.title}
-            </h2>
-            <CardDescription>{calendarCopy.description}</CardDescription>
+            </h3>
+            <CardDescription className="mt-1 leading-relaxed">{calendarCopy.description}</CardDescription>
           </div>
         </div>
         <Badge
+          data-state={status}
+          className="shrink-0 self-start px-3 py-1 ring-1 ring-inset ring-slate-200/70 data-[state=disconnected]:bg-slate-100 data-[state=disconnected]:text-slate-600"
           variant={status === "connected" ? "success" : status === "action_required" ? "warning" : "outline"}
         >
           {statusLabel}
         </Badge>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4 sm:pl-18">
         {status === "action_required" && (
           <InfoBanner tone="warning">{calendarCopy.authorizationRequired}</InfoBanner>
         )}
@@ -79,6 +81,8 @@ export default function GoogleCalendarConnectionCard({
           <Button
             type="button"
             variant="brandSecondary"
+            size="action"
+            className="min-h-11 whitespace-normal sm:w-auto sm:px-5"
             disabled={resolvedIsAuthorizing}
             onClick={handleAuthorize}
           >
@@ -89,6 +93,8 @@ export default function GoogleCalendarConnectionCard({
           <Button
             type="button"
             variant="brandSecondary"
+            size="action"
+            className="min-h-11 whitespace-normal sm:w-auto sm:px-5"
             disabled={resolvedIsAuthorizing}
             onClick={handleAuthorize}
           >

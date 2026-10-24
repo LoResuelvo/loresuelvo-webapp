@@ -48,28 +48,32 @@ export default function MercadoPagoConnectionCard({
     <Card
       role="region"
       aria-labelledby="mercado-pago-card-title"
-      className="w-full max-w-2xl"
+      className="w-full"
     >
-      <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-3">
+      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
           <span
-            className="rounded-xl bg-brand-secondary/10 p-2 text-brand-secondary"
+            className="shrink-0 rounded-xl bg-brand-secondary/10 p-2 text-brand-secondary"
             aria-hidden="true"
           >
             <Wallet className="h-5 w-5" />
           </span>
-          <div>
-            <h2 id="mercado-pago-card-title" className="font-heading text-lg font-semibold">
+          <div className="min-w-0">
+            <h3 id="mercado-pago-card-title" className="font-heading text-lg font-semibold">
               {copy.title}
-            </h2>
-            <CardDescription>{copy.description}</CardDescription>
+            </h3>
+            <CardDescription className="mt-1 leading-relaxed">{copy.description}</CardDescription>
           </div>
         </div>
-        <Badge variant={status === "connected" ? "success" : status ? "outline" : "warning"}>
+        <Badge
+          data-state={status}
+          className="shrink-0 self-start px-3 py-1 ring-1 ring-inset ring-slate-200/70 data-[state=pending]:bg-slate-100 data-[state=pending]:text-slate-600"
+          variant={status === "connected" ? "success" : status ? "outline" : "warning"}
+        >
           {statusLabel}
         </Badge>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4 sm:pl-18">
         <MercadoPagoConnectionFeedback result={callbackResult} status={status} />
         {!connection && (
           <div role="alert" aria-live="polite" className="mb-4 text-body text-rose-700">
@@ -85,6 +89,8 @@ export default function MercadoPagoConnectionCard({
           <Button
             type="button"
             variant="brandSecondary"
+            size="action"
+            className="min-h-11 whitespace-normal sm:w-auto sm:px-5"
             disabled={authorization.isAuthorizing}
             onClick={() => void authorization.startAuthorization()}
           >

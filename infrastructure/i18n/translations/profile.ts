@@ -1,6 +1,7 @@
 export const profile = {
   title: "Mi perfil",
   description: "Consultá tus datos y el estado de tus integraciones.",
+  integrationsTitle: "Integraciones",
   photoAlt: "Foto de perfil de",
   nameLabel: "Nombre",
   emailLabel: "Correo electrónico",

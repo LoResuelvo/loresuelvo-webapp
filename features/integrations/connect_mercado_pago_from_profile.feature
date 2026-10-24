@@ -22,7 +22,6 @@ Feature: US-35.3 Vincular Mercado Pago desde Mi perfil
     When selecciono vincular Mercado Pago desde Mi perfil
     Then soy dirigido a la autorización existente de Mercado Pago
 
-  @wip
   Scenario Outline: 03-CMPP Regresar a Mi perfil desde Mercado Pago
     Given que estoy autenticado como prestador
     And inicié la vinculación de Mercado Pago desde Mi perfil

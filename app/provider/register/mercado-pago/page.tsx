@@ -1,10 +1,12 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { t } from "@/infrastructure/i18n/translations";
 import { ROUTES } from "@/lib/routes";
+import { consumeMercadoPagoConnectionOrigin } from "@/lib/mercado-pago-profile-origin";
+import { parseMercadoPagoCallbackResult } from "@/app/profile/mercado-pago-result";
 import { AmbientGlows } from "@/components/landing/ambient-glows";
 import { MercadoPagoSuccess } from "./MercadoPagoSuccess";
 import { MercadoPagoError } from "./MercadoPagoError";
@@ -24,15 +26,30 @@ function LoadingState() {
 function MercadoPagoCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const result = parseMercadoPagoCallbackResult(searchParams.get("result"));
+  const [showOnboardingResult, setShowOnboardingResult] = useState(false);
+  const originCheckCompleted = useRef(false);
 
-  const result = searchParams.get("result");
+  useEffect(() => {
+    if (originCheckCompleted.current) return;
+    originCheckCompleted.current = true;
 
-  if (!result || (result !== "success" && result !== "cancelled")) {
-    if (typeof window !== "undefined") {
+    const returnToProfile = consumeMercadoPagoConnectionOrigin();
+
+    if (!result) {
       router.replace(ROUTES.provider.home);
+      return;
     }
-    return <LoadingState />;
-  }
+
+    if (returnToProfile) {
+      router.replace(`${ROUTES.provider.profile}?mercado_pago_result=${result}`);
+      return;
+    }
+
+    setShowOnboardingResult(true);
+  }, [result, router]);
+
+  if (!showOnboardingResult || !result) return <LoadingState />;
 
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-background px-4 overflow-hidden">

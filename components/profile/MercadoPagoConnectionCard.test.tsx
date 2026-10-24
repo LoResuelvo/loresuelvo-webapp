@@ -105,4 +105,64 @@ describe("MercadoPagoConnectionCard", () => {
     );
     expect(screen.getByRole("alert")).not.toHaveTextContent("Internal Server Error");
   });
+
+  it("confirms a successful callback only when the account is connected", () => {
+    render(
+      <MercadoPagoConnectionCard
+        connection={{
+          status: "pending",
+          canReceivePayments: false,
+          canSendServiceProposals: false,
+        }}
+        callbackResult="success"
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "No pudimos confirmar la vinculación de Mercado Pago",
+    );
+    expect(screen.getByRole("status")).not.toHaveTextContent(
+      "Mercado Pago fue vinculado correctamente",
+    );
+  });
+
+  it("confirms a successful callback when the backend reports connected", () => {
+    render(
+      <MercadoPagoConnectionCard
+        connection={{
+          status: "connected",
+          accountId: "mp-account-1",
+          canReceivePayments: true,
+          canSendServiceProposals: true,
+        }}
+        callbackResult="success"
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Mercado Pago fue vinculado correctamente",
+    );
+    expect(screen.getByRole("status")).not.toHaveTextContent(
+      "No pudimos confirmar la vinculación",
+    );
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("shows cancellation feedback and keeps retry available", () => {
+    render(
+      <MercadoPagoConnectionCard
+        connection={{
+          status: "pending",
+          canReceivePayments: false,
+          canSendServiceProposals: false,
+        }}
+        callbackResult="cancelled"
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "La vinculación de Mercado Pago fue cancelada",
+    );
+    expect(screen.getByRole("button", { name: "Vincular Mercado Pago" })).toBeEnabled();
+  });
 });

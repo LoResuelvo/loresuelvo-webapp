@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { CurrentUser } from "@/domain/user/types";
 import type { PaymentAccountConnection } from "@/domain/payment-account/types";
 import { t } from "@/infrastructure/i18n/translations";
+import type { MercadoPagoCallbackResult } from "@/app/profile/mercado-pago-result";
 import type { CalendarCallbackResult } from "@/app/profile/calendar-result";
 import CalendarConnectionFeedback from "./CalendarConnectionFeedback";
 import GoogleCalendarConnectionCard from "./GoogleCalendarConnectionCard";
@@ -12,12 +13,14 @@ interface ProfileViewProps {
   user: CurrentUser;
   calendarResult?: CalendarCallbackResult | null;
   paymentAccountConnection: PaymentAccountConnection | null;
+  mercadoPagoResult?: MercadoPagoCallbackResult | null;
 }
 
 export default function ProfileView({
   user,
   calendarResult,
   paymentAccountConnection,
+  mercadoPagoResult,
 }: ProfileViewProps) {
   const fullName = `${user.firstName} ${user.lastName}`.trim();
   const initials = user.firstName.charAt(0).toUpperCase();
@@ -55,7 +58,10 @@ export default function ProfileView({
 
         <GoogleCalendarConnectionCard status={user.calendarConnectionStatus} />
         {user.role === "provider" && (
-          <MercadoPagoConnectionCard connection={paymentAccountConnection} />
+          <MercadoPagoConnectionCard
+            connection={paymentAccountConnection}
+            callbackResult={mercadoPagoResult}
+          />
         )}
       </div>
     </main>

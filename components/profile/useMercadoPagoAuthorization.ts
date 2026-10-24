@@ -10,6 +10,8 @@ type NavigateToAuthorization = (authorizationUrl: string) => void;
 interface UseMercadoPagoAuthorizationOptions {
   startAuthorizationAction?: StartAuthorizationAction;
   navigate?: NavigateToAuthorization;
+  onAuthorizationStarting?: () => void;
+  onAuthorizationFailed?: () => void;
 }
 
 interface MercadoPagoAuthorizationState {
@@ -25,6 +27,8 @@ function navigateToAuthorization(authorizationUrl: string): void {
 export function useMercadoPagoAuthorization({
   startAuthorizationAction = startMercadoPagoConnectionAction,
   navigate = navigateToAuthorization,
+  onAuthorizationStarting,
+  onAuthorizationFailed,
 }: UseMercadoPagoAuthorizationOptions = {}): MercadoPagoAuthorizationState {
   const [isAuthorizing, setIsAuthorizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +52,7 @@ export function useMercadoPagoAuthorization({
     let authorizationStarted = false;
 
     try {
+      onAuthorizationStarting?.();
       const { authorizationUrl } = await startAuthorizationAction();
       if (!isMounted.current) return false;
 
@@ -55,6 +60,7 @@ export function useMercadoPagoAuthorization({
       authorizationStarted = true;
       return true;
     } catch {
+      onAuthorizationFailed?.();
       if (isMounted.current) setError(genericError);
       return false;
     } finally {
@@ -63,7 +69,13 @@ export function useMercadoPagoAuthorization({
         if (isMounted.current) setIsAuthorizing(false);
       }
     }
-  }, [genericError, navigate, startAuthorizationAction]);
+  }, [
+    genericError,
+    navigate,
+    onAuthorizationFailed,
+    onAuthorizationStarting,
+    startAuthorizationAction,
+  ]);
 
   return { isAuthorizing, error, startAuthorization };
 }

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Wallet, AlertCircle } from "lucide-react";
 import { t } from "@/infrastructure/i18n/translations";
 import { ROUTES } from "@/lib/routes";
+import { clearMercadoPagoConnectionOrigin } from "@/lib/mercado-pago-profile-origin";
 import { startMercadoPagoConnectionAction } from "@/app/onboarding/mercado-pago-actions";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,7 @@ export function MercadoPagoConnectionStep({ className }: MercadoPagoConnectionSt
   const router = useRouter();
 
   async function handleConnect() {
+    clearMercadoPagoConnectionOrigin();
     setIsLoading(true);
     setError(null);
     try {

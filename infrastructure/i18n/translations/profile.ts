@@ -38,5 +38,8 @@ export const profile = {
     connecting: "Conectando con Mercado Pago…",
     connectionError: "No pudimos consultar el estado de tu cuenta de Mercado Pago.",
     authorizationError: "No pudimos iniciar la vinculación con Mercado Pago. Intentá nuevamente.",
+    connectionSuccess: "Mercado Pago fue vinculado correctamente.",
+    connectionCancelled: "La vinculación de Mercado Pago fue cancelada.",
+    connectionSuccessUnconfirmed: "No pudimos confirmar la vinculación de Mercado Pago. Revisá el estado de tu cuenta.",
   },
 };

@@ -2,6 +2,7 @@
 
 import { Wallet } from "lucide-react";
 import type { PaymentAccountConnection } from "@/domain/payment-account/types";
+import type { MercadoPagoCallbackResult } from "@/app/profile/mercado-pago-result";
 import { t } from "@/infrastructure/i18n/translations";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,10 +12,16 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
+import MercadoPagoConnectionFeedback from "./MercadoPagoConnectionFeedback";
+import {
+  clearMercadoPagoConnectionOrigin,
+  markMercadoPagoConnectionFromProfile,
+} from "@/lib/mercado-pago-profile-origin";
 import { useMercadoPagoAuthorization } from "./useMercadoPagoAuthorization";
 
 interface MercadoPagoConnectionCardProps {
   connection: PaymentAccountConnection | null;
+  callbackResult?: MercadoPagoCallbackResult | null;
 }
 
 function getConnectionStatusLabel(
@@ -27,9 +34,13 @@ function getConnectionStatusLabel(
 
 export default function MercadoPagoConnectionCard({
   connection,
+  callbackResult,
 }: MercadoPagoConnectionCardProps) {
   const copy = t.profile.mercadoPago;
-  const authorization = useMercadoPagoAuthorization();
+  const authorization = useMercadoPagoAuthorization({
+    onAuthorizationStarting: markMercadoPagoConnectionFromProfile,
+    onAuthorizationFailed: clearMercadoPagoConnectionOrigin,
+  });
   const status = connection?.status;
   const statusLabel = getConnectionStatusLabel(status);
 
@@ -59,6 +70,7 @@ export default function MercadoPagoConnectionCard({
         </Badge>
       </CardHeader>
       <CardContent>
+        <MercadoPagoConnectionFeedback result={callbackResult} status={status} />
         {!connection && (
           <div role="alert" aria-live="polite" className="mb-4 text-body text-rose-700">
             {copy.connectionError}

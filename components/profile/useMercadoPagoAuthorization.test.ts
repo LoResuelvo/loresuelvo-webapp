@@ -15,8 +15,13 @@ describe("useMercadoPagoAuthorization", () => {
     const request = deferred<{ authorizationUrl: string }>();
     const startAuthorizationAction = vi.fn(() => request.promise);
     const navigate = vi.fn();
+    const onAuthorizationStarting = vi.fn();
     const { result } = renderHook(() =>
-      useMercadoPagoAuthorization({ startAuthorizationAction, navigate }),
+      useMercadoPagoAuthorization({
+        startAuthorizationAction,
+        navigate,
+        onAuthorizationStarting,
+      }),
     );
 
     let firstRequest: Promise<boolean> | undefined;
@@ -26,6 +31,7 @@ describe("useMercadoPagoAuthorization", () => {
 
     expect(result.current.isAuthorizing).toBe(true);
     expect(startAuthorizationAction).toHaveBeenCalledOnce();
+    expect(onAuthorizationStarting).toHaveBeenCalledOnce();
 
     await act(async () => {
       await result.current.startAuthorization();
@@ -50,8 +56,14 @@ describe("useMercadoPagoAuthorization", () => {
 
   it("returns to idle with a safe error when authorization fails", async () => {
     const startAuthorizationAction = vi.fn().mockRejectedValue(new Error("private API detail"));
+    const onAuthorizationStarting = vi.fn();
+    const onAuthorizationFailed = vi.fn();
     const { result } = renderHook(() =>
-      useMercadoPagoAuthorization({ startAuthorizationAction }),
+      useMercadoPagoAuthorization({
+        startAuthorizationAction,
+        onAuthorizationStarting,
+        onAuthorizationFailed,
+      }),
     );
 
     await act(async () => {
@@ -63,6 +75,8 @@ describe("useMercadoPagoAuthorization", () => {
       "No pudimos iniciar la vinculación con Mercado Pago. Intentá nuevamente.",
     );
     expect(result.current.error).not.toContain("private API detail");
+    expect(onAuthorizationStarting).toHaveBeenCalledOnce();
+    expect(onAuthorizationFailed).toHaveBeenCalledOnce();
   });
 
   it("ignores the authorization response after the hook unmounts", async () => {

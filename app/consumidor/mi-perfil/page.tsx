@@ -16,6 +16,7 @@ export default async function ConsumerProfilePage({
     <ProfileView
       user={user}
       calendarResult={parseCalendarCallbackResult(params.calendar_result)}
+      paymentAccountConnection={null}
     />
   );
 }

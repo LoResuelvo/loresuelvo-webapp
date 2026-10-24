@@ -3,7 +3,6 @@ Feature: US-35.3 Vincular Mercado Pago desde Mi perfil
   quiero vincular mi cuenta de Mercado Pago desde Mi perfil
   para habilitar mis cobros aunque haya omitido la vinculación durante el registro
 
-  @wip
   Scenario Outline: 01-CMPP Ver Mercado Pago según el rol y la vinculación
     Given que estoy autenticado como <rol>
     And mi cuenta de Mercado Pago para el perfil está "<estado>"

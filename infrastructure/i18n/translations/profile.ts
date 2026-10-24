@@ -28,4 +28,15 @@ export const profile = {
     connectionCancelled: "La vinculación de Google Calendar fue cancelada.",
     connectionSuccessUnconfirmed: "No pudimos confirmar la vinculación de Google Calendar. Revisá el estado de tu cuenta.",
   },
+  mercadoPago: {
+    title: "Mercado Pago",
+    description: "Usá tu cuenta para recibir pagos y enviar propuestas de servicio.",
+    pendingStatus: "Sin vincular",
+    connectedStatus: "Vinculada",
+    unavailableStatus: "Estado no disponible",
+    connectAction: "Vincular Mercado Pago",
+    connecting: "Conectando con Mercado Pago…",
+    connectionError: "No pudimos consultar el estado de tu cuenta de Mercado Pago.",
+    authorizationError: "No pudimos iniciar la vinculación con Mercado Pago. Intentá nuevamente.",
+  },
 };

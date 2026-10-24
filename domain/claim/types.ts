@@ -18,8 +18,25 @@ export interface ClaimAcknowledgment {
 }
 export interface ClaimReferenceOption {
   readonly value: string;
-  readonly label: string;
   readonly reference: ClaimReference;
+  readonly context: ClaimReferenceContext;
+}
+
+export type ClaimReferenceStatus =
+  | "pending"
+  | "accepted"
+  | "rejected"
+  | "scheduled"
+  | "awaiting_payment"
+  | "paid";
+
+export interface ClaimReferenceContext {
+  readonly title: string;
+  readonly description?: string;
+  readonly person?: string;
+  readonly personRole?: "requester" | "counterpart";
+  readonly scheduledOn?: string;
+  readonly status?: ClaimReferenceStatus;
 }
 
 export interface ClaimSummary extends ClaimAcknowledgment {

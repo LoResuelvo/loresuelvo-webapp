@@ -15,6 +15,7 @@ const CLAIM_DATE_FORMATTER = new Intl.DateTimeFormat("es-AR", { dateStyle: "medi
 export interface ParticipantClaimsListProps {
   onListClaims: (criteria: ClaimListCriteria) => Promise<ClaimActionResult<ClaimPage>>;
   onOpenClaim?: (claimId: number, opener: HTMLButtonElement) => void;
+  action?: ReactNode;
 }
 
 function formatClaimDate(value: string): string {
@@ -59,7 +60,7 @@ function ClaimDates({
   );
 }
 
-export function ParticipantClaimsList({ onListClaims, onOpenClaim }: ParticipantClaimsListProps) {
+export function ParticipantClaimsList({ onListClaims, onOpenClaim, action }: ParticipantClaimsListProps) {
   const [status, setStatus] = useState<ClaimStatus | undefined>();
   const [page, setPage] = useState(1);
   const { state, retry } = useClaimList({ status, page, limit: PAGE_SIZE }, onListClaims);
@@ -79,9 +80,12 @@ export function ParticipantClaimsList({ onListClaims, onOpenClaim }: Participant
       className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <h2 id="claim-list-heading" className="text-xl font-bold text-brand-primary">
-          {t.claims.list.title}
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-start">
+          <h2 id="claim-list-heading" className="text-xl font-bold text-brand-primary">
+            {t.claims.list.title}
+          </h2>
+          {action}
+        </div>
         <div className="w-full space-y-2 sm:max-w-xs">
           <label htmlFor="claim-list-status" className="block text-sm font-semibold text-slate-800">
             {t.claims.list.filterLabel}

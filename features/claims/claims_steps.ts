@@ -1,19 +1,27 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import assert from "assert";
 import { ROUTES } from "../../lib/routes";
-import { aConfirmedFile, aJobRequest, aPresignedUpload } from "../support/factories";
+import { aConfirmedFile, aJobRequest, aPresignedUpload, aProposal } from "../support/factories";
 import { APP_URL, CustomWorld } from "../support/world";
+import { aClaimPage, aClaimSummary } from "./claim-fixtures";
 
 const JOB_REQUEST_ID = 47;
+const SERVICE_PROPOSAL_ID = 42;
 const CLAIM_ID = 321;
 const OPERATION_ID = `jr-${JOB_REQUEST_ID}`;
+const SERVICE_PROPOSAL_OPERATION_ID = `sp-${SERVICE_PROPOSAL_ID}`;
+const SERVICE_PROPOSAL_REFERENCE = `service_proposal:${SERVICE_PROPOSAL_ID}`;
 const TESTIMONY = "El servicio no se realizó y no pude resolver el problema con la contraparte.";
 const EVIDENCE_FILE_ID = "550e8400-e29b-41d4-a716-446655440031";
 const EVIDENCE_FILE_NAME = "evidencia.png";
 const EVIDENCE_UPLOAD_URL = "https://mock-upload.test/claim-evidence-upload";
 const PNG_1X1 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
 
-async function openClaimsForm(world: CustomWorld) {
+async function openClaimsPage(
+  world: CustomWorld,
+  operation?: string,
+  claimsPage = aClaimPage([], 1, 0),
+) {
   await world.setSession("consumer");
   await world.stubGet("/job-requests", [
     aJobRequest({
@@ -22,10 +30,18 @@ async function openClaimsForm(world: CustomWorld) {
       description: "Pérdida de agua continua bajo bacha",
       status: "pending",
       consumer: { id: 10, name: "Ana", surname: "Pérez" },
+      created_on: "2026-08-20T10:00:00Z",
     }),
   ]);
-  await world.stubGet("/service-proposals", []);
-  await world.stubGet("/claims?page=1&limit=20", { items: [], page: 1, limit: 20, total: 0 });
+  await world.stubGet("/service-proposals", [
+    aProposal("consumer", {
+      id: SERVICE_PROPOSAL_ID,
+      description: "Reparación de cañería en cocina",
+      scheduled_on: "2026-08-20T10:00:00Z",
+      status: "accepted",
+    }),
+  ]);
+  await world.stubGet("/claims?page=1&limit=20", claimsPage);
   await world.stubPost("/claims", 201, {
     id: CLAIM_ID,
     operation_id: OPERATION_ID,
@@ -34,14 +50,71 @@ async function openClaimsForm(world: CustomWorld) {
     created_on: "2026-10-19T12:00:00Z",
   });
 
-  await world.page.goto(APP_URL + ROUTES.consumer.claims, { waitUntil: "domcontentloaded" });
+  const query = operation ? `?operation=${encodeURIComponent(operation)}` : "";
+  await world.page.goto(APP_URL + ROUTES.consumer.claims + query, { waitUntil: "domcontentloaded" });
+}
+
+async function openClaimsForm(world: CustomWorld) {
+  await openClaimsPage(world);
+
+  const history = world.page.getByRole("region", { name: "Historial de reclamos" });
+  await history.waitFor({ state: "visible" });
+  const startClaim = world.page.getByRole("button", { name: "Iniciar reclamo" });
+  await startClaim.waitFor({ state: "visible" });
+  assert.strictEqual(await world.page.getByTestId("claim-submit").isVisible(), false);
+  await startClaim.click();
   await world.page.getByTestId("claim-submit").waitFor({ state: "visible" });
+}
+
+async function openContextualClaimsForm(world: CustomWorld) {
+  await openClaimsPage(
+    world,
+    SERVICE_PROPOSAL_REFERENCE,
+    aClaimPage([
+      aClaimSummary({
+        id: CLAIM_ID - 1,
+        operation_id: SERVICE_PROPOSAL_OPERATION_ID,
+        reference: { service_proposal_id: SERVICE_PROPOSAL_ID },
+        status: "resolved",
+        closed_on: "2026-10-18T12:00:00Z",
+      }),
+    ]),
+  );
+  const context = world.page.getByTestId("claim-reference-context");
+  await context.waitFor({ state: "visible" });
+  await world.page.getByTestId("claim-submit").waitFor({ state: "visible" });
+  assert.strictEqual(await world.page.getByTestId("claim-reference").count(), 0);
+  const summary = await context.innerText();
+  assert.match(summary, /Reparación de cañería en cocina/i);
+  assert.match(summary, /Juan Gómez/i);
+  assert.match(summary, /20.*(?:ago|08).*2026/i);
+  assert.match(summary, /Aceptad[ao]/i);
+  await world.page.getByRole("button", { name: "Cambiar servicio" }).waitFor({ state: "visible" });
 }
 
 async function selectOwnOperation(world: CustomWorld) {
   const operation = world.page.getByTestId("claim-reference");
   await operation.waitFor({ state: "visible" });
-  await operation.selectOption({ value: `job_request:${JOB_REQUEST_ID}` });
+  const option = operation.locator("option", { hasText: "Pérdida de agua continua bajo bacha" });
+  await option.waitFor({ state: "attached" });
+  await operation.selectOption({ label: (await option.innerText()).trim() });
+  assert.strictEqual(await operation.inputValue(), `job_request:${JOB_REQUEST_ID}`);
+}
+
+async function assertRecognizableOperationOptions(world: CustomWorld) {
+  const selector = world.page.getByTestId("claim-reference");
+  const requestOption = selector.locator("option", { hasText: "Pérdida de agua continua bajo bacha" });
+  const requestLabel = (await requestOption.innerText()).trim();
+  assert.match(requestLabel, /Pérdida de agua continua bajo bacha/i);
+  assert.match(requestLabel, /Ana Pérez/i);
+  assert.ok(requestLabel.indexOf("Reparación de cañería") < requestLabel.indexOf("47"));
+
+  const proposalOption = selector.locator("option", { hasText: "Reparación de cañería en cocina" });
+  const proposalLabel = (await proposalOption.innerText()).trim();
+  assert.match(proposalLabel, /Juan Gómez/i);
+  assert.match(proposalLabel, /20.*(?:ago|08).*2026/i);
+  assert.match(proposalLabel, /Aceptad[ao]/i);
+  assert.ok(proposalLabel.indexOf("Reparación de cañería en cocina") < proposalLabel.indexOf("42"));
 }
 
 async function enterValidClaimDetails(world: CustomWorld) {
@@ -100,6 +173,7 @@ Given(
 When(
   "presenta un reclamo con un motivo y testimonio válidos",
   async function (this: CustomWorld) {
+    await assertRecognizableOperationOptions(this);
     await selectOwnOperation(this);
     await enterValidClaimDetails(this);
     await this.page.getByTestId("claim-submit").click();
@@ -260,11 +334,11 @@ Then(
 Given(
   "un participante cuya contraparte tiene un reclamo en la operación o cuyo reclamo propio anterior ya fue resuelto o desestimado",
   async function (this: CustomWorld) {
-    await openClaimsForm(this);
+    await openContextualClaimsForm(this);
     await this.stubPost("/claims", 201, {
       id: CLAIM_ID + 1,
-      operation_id: OPERATION_ID,
-      reference: { job_request_id: JOB_REQUEST_ID },
+      operation_id: SERVICE_PROPOSAL_OPERATION_ID,
+      reference: { service_proposal_id: SERVICE_PROPOSAL_ID },
       status: "open",
       created_on: "2026-10-19T12:05:00Z",
     });
@@ -274,8 +348,23 @@ Given(
 When(
   "presenta un nuevo reclamo válido sobre la operación",
   async function (this: CustomWorld) {
-    await selectOwnOperation(this);
+    await this.page.getByRole("button", { name: "Cambiar servicio" }).click();
+    const reference = this.page.getByTestId("claim-reference");
+    await reference.waitFor({ state: "visible" });
+    await this.page.waitForFunction(() => document.activeElement?.id === "claim-reference");
+    assert.strictEqual(await reference.inputValue(), SERVICE_PROPOSAL_REFERENCE);
+
     await enterValidClaimDetails(this);
+
+    await this.page.getByRole("button", { name: "Cerrar formulario" }).click();
+    await this.page.getByTestId("claim-submit").waitFor({ state: "hidden" });
+    await this.page.getByRole("button", { name: "Iniciar reclamo" }).click();
+    await this.page.getByTestId("claim-submit").waitFor({ state: "visible" });
+    await this.page.waitForFunction(() => document.activeElement?.id === "claim-form-heading");
+
+    assert.strictEqual(await reference.inputValue(), SERVICE_PROPOSAL_REFERENCE);
+    assert.strictEqual(await this.page.getByTestId("claim-reason").inputValue(), "non_compliance");
+    assert.strictEqual(await this.page.getByTestId("claim-description").inputValue(), TESTIMONY);
     await this.page.getByTestId("claim-submit").click();
   },
 );
@@ -288,7 +377,16 @@ Then(
     const text = await confirmation.innerText();
     assert.ok(text.includes(`Reclamo #${CLAIM_ID + 1} creado`));
     assert.ok(text.includes("Estado: Abierto"));
-    assert.ok(text.includes(`Operación: ${OPERATION_ID}`));
+    assert.ok(text.includes(`Operación: ${SERVICE_PROPOSAL_OPERATION_ID}`));
+    assert.ok(text.includes("Reparación de cañería en cocina"));
+    assert.ok(text.includes(`Referencia #${SERVICE_PROPOSAL_ID}`));
+    assert.strictEqual(await confirmation.getByRole("button", { name: "Cambiar servicio" }).count(), 0);
     assert.ok(!text.includes(`#${CLAIM_ID}`));
+
+    const previousClaim = this.page
+      .getByRole("article")
+      .filter({ has: this.page.getByRole("heading", { name: `Reclamo #${CLAIM_ID - 1}`, exact: true }) });
+    await previousClaim.waitFor({ state: "visible" });
+    assert.match(await previousClaim.innerText(), /Estado: Resuelto/);
   },
 );

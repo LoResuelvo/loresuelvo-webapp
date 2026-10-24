@@ -262,6 +262,12 @@ Given(
 );
 
 When("recorre el flujo de presentación y consulta de reclamos", async function (this: CustomWorld) {
+  await this.page.getByRole("region", { name: "Historial de reclamos" }).waitFor({ state: "visible" });
+  const startClaim = this.page.getByRole("button", { name: "Iniciar reclamo" });
+  await startClaim.waitFor({ state: "visible" });
+  assert.strictEqual(await this.page.getByTestId("claim-submit").isVisible(), false);
+  await startClaim.click();
+  await this.page.getByTestId("claim-submit").waitFor({ state: "visible" });
   await this.page.getByTestId("claim-submit").click();
   const focusedElementId = await this.page.evaluate(() => document.activeElement?.id);
   assert.strictEqual(focusedElementId, "claim-reference");
@@ -286,10 +292,13 @@ Then(
     const focusedLabel = await this.page.evaluate(() => document.activeElement?.getAttribute("aria-label"));
     assert.strictEqual(focusedLabel, "Ver detalle del reclamo #321");
 
-    const isMobileResponsive = await this.page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth + 1,
-    );
-    assert.ok(isMobileResponsive, "Se detectó desborde horizontal en vista móvil");
+    for (const width of [375, 768, 1280]) {
+      await this.page.setViewportSize({ width, height: 720 });
+      const fitsViewport = await this.page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+      );
+      assert.ok(fitsViewport, `Se detectó desborde horizontal en viewport de ${width}px`);
+    }
 
     await this.page.setViewportSize({ width: 1280, height: 720 });
   },

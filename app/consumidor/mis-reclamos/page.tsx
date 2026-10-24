@@ -40,6 +40,7 @@ export default async function ConsumerClaimsPage({
             <ParticipantClaimsWorkspace
               references={referencesResult.ok ? referencesResult.data : []}
               initialReference={initialReference}
+              requestedReference={operation}
               referencesError={!referencesResult.ok ? referencesResult.error : undefined}
               onCreateClaim={createClaimAction}
               onListClaims={listClaimsAction}

@@ -12,10 +12,10 @@ import { submitClaim } from "@/application/claims/submit-claim";
 import { isClaimListCriteria, listClaims } from "@/application/claims/list-claims";
 import { isClaimUuid, normalizeClaimSubmission } from "@/domain/claim/validation";
 import type { ClaimAcknowledgment, ClaimReferenceOption, ClaimSubmission, ClaimListCriteria, ClaimPage, ClaimDetail } from "@/domain/claim/types";
-import { t } from "@/infrastructure/i18n/translations";
 
 export type ClaimActionError = "unauthenticated" | "forbidden" | "not_found" | "unfinished_claim" | "key_conflict" | "invalid" | "unavailable";
 export type ClaimActionResult<T> = {ok:true;data:T} | {ok:false;status:number|null;error:ClaimActionError};
+
 async function authorize(): Promise<ClaimActionResult<true>> {
   const session = await getAuthService().getSession();
   if (!session) return {ok:false,status:401,error:"unauthenticated"};
@@ -37,11 +37,23 @@ export async function listClaimReferencesAction(workOrderId?: number): Promise<C
     const access = await authorize();
     if (!access.ok) return access;
     if (workOrderId !== undefined && (!Number.isInteger(workOrderId) || workOrderId <= 0 || workOrderId > 2147483647)) return {ok:false,status:400,error:"invalid"};
-    const references = await getClaimReferences(new ApiJobRequestRepository(), new ApiServiceProposalRepository(), workOrderId === undefined ? undefined : {workOrderId,orders:new ApiWorkOrderRepository()});
-    return {ok:true,data:references.map(({reference,title}) => ({
-      value:`${reference.kind}:${reference.id}`, reference,
-      label:reference.kind === "job_request" ? `${t.claims.requestReference}: ${title}` : `${reference.kind === "work_order" ? t.claims.orderReference : t.claims.proposalReference} #${title}`,
-    }))};
+    const orderContext = workOrderId === undefined
+      ? undefined
+      : { workOrderId, orders: new ApiWorkOrderRepository() };
+    const references = await getClaimReferences(
+      new ApiJobRequestRepository(),
+      new ApiServiceProposalRepository(),
+      orderContext,
+    );
+
+    return {
+      ok: true,
+      data: references.map(({ reference, context }) => ({
+        value: `${reference.kind}:${reference.id}`,
+        reference,
+        context,
+      })),
+    };
   } catch (error: unknown) { return failure(error); }
 }
 export async function createClaimAction(input: ClaimSubmission, idempotencyKey: string): Promise<ClaimActionResult<ClaimAcknowledgment>> {

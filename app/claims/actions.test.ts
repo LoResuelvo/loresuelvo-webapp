@@ -8,7 +8,6 @@ vi.mock("@/infrastructure/api/base-client", async importOriginal => {
   const actual = await importOriginal<typeof import("@/infrastructure/api/base-client")>();
   return {...actual,api:{get:vi.fn(),post:vi.fn()}};
 });
-vi.mock("@/infrastructure/i18n/translations", () => ({t:{claims:{requestReference:"Solicitud",proposalReference:"Propuesta"}}}));
 const input: ClaimSubmission={reference:{kind:"job_request",id:47},reason:"non_compliance",description:" Testimony ",imageFileIds:[]};
 const key="550e8400-e29b-41d4-a716-446655440000";
 describe("Claim Server Actions", () => {

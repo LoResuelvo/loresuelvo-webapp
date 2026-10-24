@@ -10,8 +10,13 @@ vi.mock("@/application/files/execute-file-upload", () => ({
 
 const referenceOptions: ClaimReferenceOption[] = [{
   value: "job_request:47",
-  label: "Solicitud: Reparación de cañería",
   reference: { kind: "job_request", id: 47 },
+  context: {
+    title: "Reparación de cañería",
+    description: "Reparar una pérdida en la cocina.",
+    person: "Ana Pérez",
+    personRole: "requester",
+  },
 }];
 
 const acknowledgment: ClaimAcknowledgment = {
@@ -57,6 +62,8 @@ describe("ParticipantClaimForm", () => {
     expect(await screen.findByTestId("claim-confirmation")).toHaveTextContent("Reclamo #321 creado");
     expect(screen.getByTestId("claim-confirmation")).toHaveTextContent("Estado: Abierto");
     expect(screen.getByTestId("claim-confirmation")).toHaveTextContent("Operación: jr-47");
+    expect(screen.getByTestId("claim-confirmation")).toHaveTextContent("Reparar una pérdida en la cocina.");
+    expect(screen.getByTestId("claim-confirmation")).not.toHaveTextContent("Cambiar servicio");
     expect(createClaim).toHaveBeenCalledWith(
       expect.objectContaining({
         reference: { kind: "job_request", id: 47 },

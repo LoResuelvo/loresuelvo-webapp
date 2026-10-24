@@ -15,7 +15,6 @@ Feature: US-35.3 Vincular Mercado Pago desde Mi perfil
       | prestador  | connected | Vinculada y sin opción para vincular    |
       | consumidor | pending   | No visible                             |
 
-  @wip
   Scenario: 02-CMPP Iniciar la vinculación desde Mi perfil
     Given que estoy autenticado como prestador
     And mi cuenta de Mercado Pago para el perfil está "pending"

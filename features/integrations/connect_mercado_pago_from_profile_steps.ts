@@ -1,8 +1,13 @@
-import { Given, Then } from "@cucumber/cucumber";
+import { Given, Then, When } from "@cucumber/cucumber";
 import assert from "assert";
 import type { PaymentAccountStatus } from "../../domain/payment-account/types";
-import { CustomWorld, visibleTimeout } from "../support/world";
-import { aConnectedPaymentAccount, aPaymentAccount } from "../support/factories";
+import { ROUTES } from "../../lib/routes";
+import { APP_URL, CustomWorld, visibleTimeout } from "../support/world";
+import {
+  aConnectedPaymentAccount,
+  aPaymentAccount,
+  aPaymentAuthorization,
+} from "../support/factories";
 
 const paymentAccountsEndpoint = "/providers/me/payment-accounts";
 
@@ -25,6 +30,57 @@ Given(
           : aPaymentAccount(),
       );
     }
+  },
+);
+
+Given(
+  "estoy en Mi perfil con una autorización de Mercado Pago disponible",
+  async function (this: CustomWorld) {
+    await this.stubPost(
+      "/providers/me/payment-accounts/authorization",
+      201,
+      aPaymentAuthorization(),
+    );
+    await this.page.route("**/auth.mercadopago.com/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: "<html><body>Mock Mercado Pago Auth Page</body></html>",
+      });
+    });
+
+    await this.page.goto(`${APP_URL}${ROUTES.provider.profile}`, {
+      waitUntil: "domcontentloaded",
+    });
+    const connectButton = this.page
+      .getByRole("region", { name: "Mercado Pago" })
+      .getByRole("button", { name: "Vincular Mercado Pago", exact: true });
+    await connectButton.waitFor(visibleTimeout);
+  },
+);
+
+When(
+  "selecciono vincular Mercado Pago desde Mi perfil",
+  async function (this: CustomWorld) {
+    await this.page
+      .getByRole("region", { name: "Mercado Pago" })
+      .getByRole("button", { name: "Vincular Mercado Pago", exact: true })
+      .click();
+  },
+);
+
+Then(
+  "soy dirigido a la autorización existente de Mercado Pago",
+  async function (this: CustomWorld) {
+    await this.page.waitForURL(
+      (url) => url.hostname === "auth.mercadopago.com",
+      visibleTimeout,
+    );
+    assert.ok(
+      this.page.url().includes("/authorization?state=test-state"),
+      `No se usó la URL de autorización existente. URL actual: ${this.page.url()}`,
+    );
+    await this.page.getByText("Mock Mercado Pago Auth Page").waitFor(visibleTimeout);
   },
 );
 

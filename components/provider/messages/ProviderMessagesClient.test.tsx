@@ -88,6 +88,13 @@ describe("ProviderMessagesClient handleAccept redirect", () => {
       title: "Test Request",
       description: "Test description",
       conversationId: 1,
+      serviceAddress: {
+        street: "Rivadavia",
+        streetNumber: "100",
+        floor: "2",
+        unit: "C",
+      },
+      createdOn: "2026-10-24T12:00:00Z",
     });
 
     (actions.acceptJobRequest as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true });
@@ -104,6 +111,9 @@ describe("ProviderMessagesClient handleAccept redirect", () => {
     await act(async () => {
       fireEvent.click(verSolicitudButton);
     });
+
+    expect(screen.getByText("Rivadavia 100, Piso 2, Depto. C")).toBeInTheDocument();
+    expect(screen.getByText("24/10/2026")).toBeInTheDocument();
 
     const acceptButton = await screen.findByRole("button", { name: "Continuar conversación" });
     await act(async () => {

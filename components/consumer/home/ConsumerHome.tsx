@@ -23,22 +23,25 @@ interface ConsumerHomeProps {
   categories?: Category[];
   pendingProposals?: ServiceProposalSummary[];
   acceptedProposals?: ServiceProposalSummary[];
+  initialProposalsError?: boolean;
 }
 
 export default function ConsumerHome({ 
   session, 
   categories = [],
   pendingProposals: initialPendingProposals = EMPTY_PROPOSALS,
-  acceptedProposals: initialAcceptedProposals = EMPTY_PROPOSALS
+  acceptedProposals: initialAcceptedProposals = EMPTY_PROPOSALS,
+  initialProposalsError = false
 }: ConsumerHomeProps) {
   const router = useRouter();
   const initialProposals = useMemo(() => [
     ...initialPendingProposals,
     ...initialAcceptedProposals,
   ], [initialPendingProposals, initialAcceptedProposals]);
-  const { items: proposals, refreshError, retry } = useRealtimeProposalList(
+  const { items: proposals, refreshError, hasLoaded, retry } = useRealtimeProposalList(
     initialProposals,
-    getServiceProposalsAction
+    getServiceProposalsAction,
+    initialProposalsError
   );
 
   const pendingProposals = proposals.filter((proposal) => proposal.status === "pending");
@@ -84,7 +87,7 @@ export default function ConsumerHome({
                   </div>
                 )}
                 {/* Carousel de Propuestas Pendientes */}
-                <ProposalCarousel
+                {hasLoaded && <ProposalCarousel
                   config={{
                     title: t.serviceProposals.consumerHome.pendingTitle,
                     titleId: "pending-proposals-title",
@@ -98,10 +101,10 @@ export default function ConsumerHome({
                   }}
                   proposals={pendingProposals}
                   onViewConversation={handleViewConversation}
-                />
+                />}
 
                 {/* Carousel de Servicios Próximos */}
-                <ProposalCarousel
+                {hasLoaded && <ProposalCarousel
                   config={{
                     title: t.serviceProposals.consumerHome.acceptedTitle,
                     titleId: "accepted-proposals-title",
@@ -115,7 +118,7 @@ export default function ConsumerHome({
                   }}
                   proposals={acceptedProposals}
                   onViewConversation={handleViewConversation}
-                />
+                />}
               </aside>
             </div>
           </div>

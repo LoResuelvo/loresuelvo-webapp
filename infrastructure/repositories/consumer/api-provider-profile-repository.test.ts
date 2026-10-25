@@ -41,6 +41,7 @@ describe("ApiProviderProfileRepository", () => {
       identityVerified: false,
       categoryName: "Plomería",
       categoryId: 1,
+      coverageZones: [],
       profilePhotoUrl: "https://example.com/juan-gomez.jpg",
       rating: 4.8,
       reviews: 12,

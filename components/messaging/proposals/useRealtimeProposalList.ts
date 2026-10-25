@@ -3,10 +3,12 @@ import { useResourceUpdate } from "@/infrastructure/notifications/NotificationCo
 
 export function useRealtimeProposalList<T>(
   initialItems: T[],
-  loadItems: () => Promise<T[]>
+  loadItems: () => Promise<T[]>,
+  initialLoadFailed = false
 ) {
   const [items, setItems] = useState(initialItems);
-  const [refreshError, setRefreshError] = useState(false);
+  const [refreshError, setRefreshError] = useState(initialLoadFailed);
+  const [hasLoaded, setHasLoaded] = useState(!initialLoadFailed);
   const requestGenerationRef = useRef(0);
   const isMountedRef = useRef(true);
 
@@ -21,8 +23,9 @@ export function useRealtimeProposalList<T>(
   useEffect(() => {
     requestGenerationRef.current += 1;
     setItems(initialItems);
-    setRefreshError(false);
-  }, [initialItems]);
+    setRefreshError(initialLoadFailed);
+    setHasLoaded(!initialLoadFailed);
+  }, [initialItems, initialLoadFailed]);
 
   const refresh = useCallback(async () => {
     const requestGeneration = ++requestGenerationRef.current;
@@ -31,6 +34,7 @@ export function useRealtimeProposalList<T>(
       if (!isMountedRef.current || requestGeneration !== requestGenerationRef.current) return;
       setItems(updatedItems);
       setRefreshError(false);
+      setHasLoaded(true);
     } catch {
       if (!isMountedRef.current || requestGeneration !== requestGenerationRef.current) return;
       setRefreshError(true);
@@ -40,5 +44,5 @@ export function useRealtimeProposalList<T>(
   useResourceUpdate("service_proposal", undefined, refresh);
   useResourceUpdate("work_order", undefined, refresh);
 
-  return { items, refreshError, retry: refresh };
+  return { items, refreshError, hasLoaded, retry: refresh };
 }

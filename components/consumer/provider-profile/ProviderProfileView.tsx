@@ -10,10 +10,12 @@ import ConsumerHeader from "@/components/consumer/home/ConsumerHeader";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 import { ProviderIdentityBadge } from "./ProviderIdentityBadge";
+import ProviderProfileContact from "./ProviderProfileContact";
 
 interface ProviderProfileViewProps {
   provider: ProviderProfile;
   session: AuthSession | null;
+  returnCategoryId?: number;
 }
 
 function WorkOrderArticle({ workOrder }: { workOrder: ProviderProfileWorkOrder }) {
@@ -66,25 +68,28 @@ function WorkOrderArticle({ workOrder }: { workOrder: ProviderProfileWorkOrder }
   );
 }
 
-export default function ProviderProfileView({ provider, session }: ProviderProfileViewProps) {
+export default function ProviderProfileView({ provider, session, returnCategoryId }: ProviderProfileViewProps) {
   const displayName = ProviderModule.getDisplayName(provider);
   const { rating, reviews, workOrders } = provider;
+  const searchCategoryId = returnCategoryId ?? provider.categoryId;
+  const searchHref = searchCategoryId
+    ? `${ROUTES.consumer.buscar}?category_id=${searchCategoryId}`
+    : ROUTES.consumer.buscar;
+  const coverageZones = provider.coverageZones ?? [];
 
   return (
     <div className="min-h-screen bg-brand-neutral/30 flex font-sans text-brand-primary">
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
+      <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <ConsumerHeader session={session} />
 
         <main className="flex-1 p-4 sm:p-8 lg:p-10">
           <div className="mx-auto w-full max-w-4xl">
             <Link
-              href={ROUTES.consumer.home}
+              href={searchHref}
               className="mb-6 inline-flex rounded-lg px-1 py-2 text-body font-semibold text-brand-secondary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-secondary"
             >
-              ← {t.consumerSearch.header.backTitle}
+              ← {t.consumerUx.providerProfile.backToSearch}
             </Link>
 
             <section
@@ -116,8 +121,36 @@ export default function ProviderProfileView({ provider, session }: ProviderProfi
                     </span>{" "}
                     {provider.categoryName}
                   </p>
+                  <div className="mt-5 flex justify-center sm:justify-start">
+                    <ProviderProfileContact provider={provider} />
+                  </div>
                 </div>
               </div>
+            </section>
+
+            <section
+              aria-labelledby="provider-coverage-title"
+              className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
+            >
+              <h2 id="provider-coverage-title" className="text-subtitle font-bold text-brand-primary">
+                {t.consumerUx.providerProfile.coverageTitle}
+              </h2>
+              {coverageZones.length > 0 ? (
+                <ul className="mt-4 flex flex-wrap gap-2" role="list">
+                  {coverageZones.map((zone) => (
+                    <li
+                      key={zone.id}
+                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-small text-slate-700"
+                    >
+                      {zone.name}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p role="status" className="mt-3 text-body text-slate-600">
+                  {t.consumerUx.providerProfile.noCoverageMessage}
+                </p>
+              )}
             </section>
 
             <section

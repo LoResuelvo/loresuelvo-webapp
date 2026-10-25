@@ -22,24 +22,24 @@ export default function SearchClient({
   providers,
   selectedCategory,
 }: SearchClientProps) {
-  const categoryName = selectedCategory?.name || "Búsqueda";
   const [contactingProvider, setContactingProvider] = useState<Provider | null>(null);
 
   return (
     <div className="min-h-screen bg-brand-neutral/30 flex font-sans text-brand-primary">
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
+      <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <ConsumerHeader session={session} />
         
         <main className="flex-1 p-4 sm:p-8 lg:p-10">
           <div className="max-w-6xl mx-auto">
             
-            <CategoryHeader categoryName={categoryName} />
+            <CategoryHeader categoryName={selectedCategory?.name ?? null} />
 
             {providers.length === 0 ? (
-              <EmptyState className="max-w-2xl mx-auto mt-8 h-[260px]" />
+              <EmptyState
+                variant={selectedCategory ? "no-results" : "no-category"}
+                className="max-w-2xl mx-auto mt-8"
+              />
             ) : (
               <div className="flex flex-col gap-6">
                 {providers.map((provider) => {
@@ -47,6 +47,7 @@ export default function SearchClient({
                     <ProviderCard
                       key={provider.id}
                       provider={provider}
+                      searchCategoryId={selectedCategory?.id ?? provider.categoryId}
                       onContact={(p) => setContactingProvider(p)}
                     />
                   );

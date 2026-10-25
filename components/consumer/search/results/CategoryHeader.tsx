@@ -5,7 +5,7 @@ import { t } from "@/infrastructure/i18n/translations";
 import { cn } from "@/lib/utils";
 
 interface CategoryHeaderProps {
-  categoryName: string;
+  categoryName: string | null;
   className?: string;
 }
 
@@ -21,10 +21,12 @@ export default function CategoryHeader({ categoryName, className }: CategoryHead
           <ArrowLeft className="w-5 h-5 transition-transform group-hover:-translate-x-0.5" />
         </Link>
 
-        <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-caption font-extrabold tracking-wider bg-emerald-50 text-emerald-700 uppercase border border-emerald-200/50 shadow-sm">
-          <Wrench className="w-3.5 h-3.5" />
-          {t.consumerSearch.header.categoryPrefix} {categoryName}
-        </span>
+        {categoryName ? (
+          <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-caption font-extrabold tracking-wider bg-emerald-50 text-emerald-700 uppercase border border-emerald-200/50 shadow-sm">
+            <Wrench className="w-3.5 h-3.5" aria-hidden="true" />
+            {t.consumerSearch.header.categoryPrefix} {categoryName}
+          </span>
+        ) : null}
       </div>
 
       <h2 className="text-3xl font-extrabold tracking-tight text-brand-primary">

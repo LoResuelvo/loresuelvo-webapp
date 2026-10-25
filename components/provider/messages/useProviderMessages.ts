@@ -16,11 +16,16 @@ import type { ProviderWorkRequest } from "@/domain/provider/types";
 import type {
   ConversationDetailInfo,
   ProviderConversationContact as ConversationContact,
+  ServiceAddress,
 } from "@/domain/messaging/types";
 import { clientFileUploadRepository } from "@/app/files/client-file-upload";
 import { ClientConversationCommandRepository } from "@/infrastructure/repositories/messaging/client-conversation-command-repository";
 import { LocalOfflineQueueRepository } from "@/infrastructure/repositories/shared/local-offline-queue-repository";
 import { useConversationRelatedData } from "@/components/messaging/useConversationRelatedData";
+import {
+  formatJobRequestAddress,
+  formatJobRequestCreatedDate,
+} from "@/components/messaging/job-request-formatters";
 import { useMessagingCore } from "@/hooks/messaging/useMessagingCore";
 
 const conversationRepository = new ClientConversationCommandRepository({
@@ -36,6 +41,8 @@ interface ProviderMessageJobRequest {
   id: number;
   title: string;
   description: string;
+  serviceAddress?: ServiceAddress;
+  createdOn?: string;
   consumerName: string;
   images?: { id: string; url: string; originalName: string }[];
 }
@@ -48,6 +55,8 @@ function mapProviderJobRequest(
     id: jobRequest.id,
     title: jobRequest.title,
     description: jobRequest.description,
+    serviceAddress: jobRequest.serviceAddress,
+    createdOn: jobRequest.createdOn,
     consumerName: `${conversation.counterpart.name} ${conversation.counterpart.surname}`,
     images: jobRequest.images,
   };
@@ -61,8 +70,7 @@ export function useProviderMessages(
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlConsumerId = searchParams.get("consumer_id");
-  const selectedConsumerId =
-    urlConsumerId ?? (contacts.length > 0 ? contacts[0].consumerId : null);
+  const selectedConsumerId = urlConsumerId;
 
   const [acceptedConversations, setAcceptedConversations] = useState<Set<string>>(new Set());
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -123,8 +131,8 @@ export function useProviderMessages(
         problemTitle: activeJobRequest.title,
         category: "",
         description: activeJobRequest.description,
-        location: "",
-        publishedAtLabel: "",
+        location: formatJobRequestAddress(activeJobRequest.serviceAddress),
+        publishedAtLabel: formatJobRequestCreatedDate(activeJobRequest.createdOn) ?? "",
         unreadMessagesCount: 0,
         images: activeJobRequest.images,
       }

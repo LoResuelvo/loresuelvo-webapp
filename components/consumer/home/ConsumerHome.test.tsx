@@ -61,6 +61,34 @@ describe('ConsumerHome', () => {
         expect(screen.getByText("Electricidad")).toBeInTheDocument();
     });
 
+    it("offers a diagnosis when no categories are available", () => {
+        render(<ConsumerHome session={mockSession} categories={[]} />);
+        expect(screen.getByText(t.consumerShell.categoriesEmpty)).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: t.consumerShell.startDiagnosis })).toHaveAttribute("href", "/consumidor/mensajes-ia");
+    });
+
+    it("recovers from an initial proposals load failure without presenting it as an empty list", async () => {
+        vi.mocked(getServiceProposalsAction).mockResolvedValue([]);
+        render(<ConsumerHome session={mockSession} initialProposalsError />);
+        expect(screen.getByRole("alert")).toHaveTextContent(t.notifications.refreshError.message);
+        expect(screen.queryByText(t.serviceProposals.consumerHome.emptyPending)).not.toBeInTheDocument();
+        await userEvent.setup().click(screen.getByRole("button", { name: t.notifications.refreshError.retry }));
+        expect(await screen.findByText(t.serviceProposals.consumerHome.emptyPending)).toBeInTheDocument();
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("opens accessible navigation and restores focus after closing it", async () => {
+        const user = userEvent.setup();
+        render(<ConsumerHome session={mockSession} />);
+        const trigger = screen.getByRole("button", { name: t.consumerShell.menu });
+        await user.click(trigger);
+        const dialog = screen.getByRole("dialog", { name: t.consumerShell.menuTitle });
+        expect(dialog).toHaveTextContent(t.sidebar.messages);
+        await user.keyboard("{Escape}");
+        await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+        expect(trigger).toHaveFocus();
+    });
+
     it("renders pending proposals when provided", () => {
         const mockPending = [
             {

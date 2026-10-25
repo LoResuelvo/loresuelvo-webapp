@@ -49,7 +49,7 @@ export const consumerSearch = {
   },
   form: {
     title: "Solicitud de Trabajo",
-    description: "Describe tu problema. Proporciona detalles para que el profesional pueda aceptar tu solicitud y eventualmente darte un presupuesto.",
+    description: "Describí el problema para que el profesional pueda evaluar tu solicitud. Se compartirá la dirección registrada en tu perfil; los horarios y detalles de la visita se coordinan por chat.",
     titleLabel: "Título del problema",
     titlePlaceholder: "Ej: Pérdida de agua en termotanque",
     descLabel: "Descripción del problema",

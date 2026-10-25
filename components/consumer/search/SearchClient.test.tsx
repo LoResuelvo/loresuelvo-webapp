@@ -70,9 +70,13 @@ describe('SearchClient', () => {
         expect(screen.getByText("Carlos Mendoza")).toBeInTheDocument();
         expect(screen.getByText("Elena Rodríguez")).toBeInTheDocument();
         expect(screen.getByText("Especialista en fugas y tuberías de alta presión.")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Ver perfil Carlos Mendoza" })).toHaveAttribute(
+            "href",
+            "/consumidor/prestadores/1?category_id=1",
+        );
     });
 
-    it("renders the empty state message when no providers exist", () => {
+    it("renders the no-results state when the selected category has no providers", () => {
         render(
             <SearchClient 
                 session={mockSession} 
@@ -80,7 +84,24 @@ describe('SearchClient', () => {
                 selectedCategory={mockCategories[0]} 
             />
         );
-        expect(screen.getByText("No se encontraron profesionales especializados en esta categoría", { exact: false })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "No encontramos profesionales para este rubro" })).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Cambiar rubro" })).toHaveAttribute("href", "/consumidor/home");
+        expect(screen.getByRole("link", { name: "Probar diagnóstico" })).toHaveAttribute("href", "/consumidor/diagnostico");
+    });
+
+    it("shows a distinct empty state when no category has been selected", () => {
+        render(
+            <SearchClient
+                session={mockSession}
+                providers={[]}
+                selectedCategory={null}
+            />
+        );
+
+        expect(screen.getByRole("heading", { name: "Elegí un rubro para empezar" })).toBeInTheDocument();
+        expect(screen.queryByText(/CATEGORÍA:/i)).not.toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Cambiar rubro" })).toHaveAttribute("href", "/consumidor/home");
+        expect(screen.getByRole("link", { name: "Probar diagnóstico" })).toHaveAttribute("href", "/consumidor/diagnostico");
     });
 
     it("opens the contact modal when the contact button is clicked", () => {

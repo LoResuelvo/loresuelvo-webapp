@@ -33,9 +33,15 @@ export interface ProviderProfileWorkOrder {
   review?: ProviderProfileReview;
 }
 
+export interface ProviderProfileCoverageZone {
+  id: number;
+  name: string;
+}
+
 export interface ProviderProfile extends Provider {
   rating: number;
   reviews: number;
+  coverageZones?: ProviderProfileCoverageZone[];
   workOrders: ProviderProfileWorkOrder[];
 }
 

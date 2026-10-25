@@ -28,7 +28,7 @@ export function RoleColumn({
       >
         Soy {isCliente ? "Cliente" : "Prestador"}
       </div>
-      <p className="text-body-lg text-gray-500 leading-relaxed mt-6 mb-8 min-h-[3.5rem]">
+      <p className="text-body-lg text-gray-500 leading-relaxed mt-4 mb-5 md:mt-6 md:mb-8 min-h-[3.5rem]">
         {description}
       </p>
       <Link
@@ -70,7 +70,7 @@ export default function RoleSelectionCard({
     <Card
       variant="interactive"
       size="none"
-      className="w-full max-w-4xl rounded-[2.25rem] border border-gray-100 p-2 sm:p-4 md:p-8 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-100 gap-6 md:gap-0 mt-2 relative z-10 transition-transform duration-300 shadow-[0_12px_40px_-12px_rgba(26,43,72,0.06)] hover:shadow-[0_20px_50px_-15px_rgba(26,43,72,0.09)]"
+      className="w-full max-w-4xl rounded-[2.25rem] border border-gray-100 p-2 sm:p-4 md:p-8 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-100 gap-2 md:gap-0 mt-2 relative z-10 transition-transform duration-300 shadow-[0_12px_40px_-12px_rgba(26,43,72,0.06)] hover:shadow-[0_20px_50px_-15px_rgba(26,43,72,0.09)]"
     >
       <RoleColumn
         type="cliente"

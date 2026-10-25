@@ -29,6 +29,13 @@ export interface MessageVideo {
   audioCodec?: string | null;
 }
 
+export interface ServiceAddress {
+  street: string;
+  streetNumber: string;
+  floor?: string;
+  unit?: string;
+}
+
 export interface Message {
   id: string;
   content?: string;
@@ -43,6 +50,8 @@ export interface Message {
 export interface JobRequestInfo {
   title: string;
   description: string;
+  serviceAddress?: ServiceAddress;
+  createdOn?: string;
   providerName?: string;
   providerSurname?: string;
   providerProfilePhotoUrl?: string;

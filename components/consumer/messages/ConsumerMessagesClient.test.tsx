@@ -3,6 +3,14 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import ConsumerMessagesClient from "@/components/consumer/messages/ConsumerMessagesClient";
 import * as actions from "@/app/consumidor/mensajes/actions";
 
+const mockNavigation = vi.hoisted(() => {
+  const state: { providerId: string | null } = { providerId: "20" };
+  const push = vi.fn((path: string) => {
+    state.providerId = new URL(path, "http://localhost").searchParams.get("provider_id");
+  });
+  return { state, push };
+});
+
 vi.mock("@/infrastructure/websocket", () => ({
   useWebSocket: vi.fn(() => ({
     subscribe: vi.fn(() => vi.fn()),
@@ -13,14 +21,11 @@ vi.mock("@/infrastructure/websocket", () => ({
 
 vi.mock("next/navigation", () => ({
   useSearchParams: vi.fn(() => ({
-    get: vi.fn((key: string) => {
-      if (key === "provider_id") return "20";
-      return null;
-    }),
+    get: vi.fn((key: string) => key === "provider_id" ? mockNavigation.state.providerId : null),
   })),
   usePathname: vi.fn(() => "/consumidor/mensajes"),
   useRouter: vi.fn(() => ({
-    push: vi.fn(),
+    push: mockNavigation.push,
   })),
 }));
 
@@ -64,6 +69,7 @@ describe("ConsumerMessagesClient", () => {
   beforeEach(() => {
     Element.prototype.scrollIntoView = vi.fn();
     vi.clearAllMocks();
+    mockNavigation.state.providerId = "20";
   });
 
   it("renders the messages section with contact list", async () => {
@@ -80,6 +86,42 @@ describe("ConsumerMessagesClient", () => {
     );
     expect(screen.getByRole("heading", { name: "Mensajes" })).toBeInTheDocument();
     expect(screen.getAllByText("Carlos Méndez")[0]).toBeInTheDocument();
+  });
+
+  it("shows the contact list when no provider is selected in the URL", () => {
+    mockNavigation.state.providerId = null;
+
+    render(
+      <ConsumerMessagesClient myUserId="user-id" session={mockSession} contacts={mockContacts} />
+    );
+
+    expect(screen.getByTestId("resizable-contacts-sidebar")).toHaveClass("flex", "w-full");
+    expect(screen.getByTestId("resizable-contacts-sidebar")).not.toHaveClass("hidden");
+  });
+
+  it("returns to the contact list when using the mobile back button", async () => {
+    (actions.getConversationDetail as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 1,
+      status: "accepted",
+      counterpart: { id: 20, role: "provider", name: "Carlos", surname: "Méndez", categoryName: "Plomería" },
+      messages: [],
+      updated_on: "2026-05-31T12:00:00Z",
+    });
+
+    const { rerender } = render(
+      <ConsumerMessagesClient myUserId="user-id" session={mockSession} contacts={mockContacts} />
+    );
+
+    expect(screen.getByTestId("resizable-contacts-sidebar")).toHaveClass("hidden", "md:flex");
+    fireEvent.click(screen.getByRole("button", { name: "Volver a la lista" }));
+
+    expect(mockNavigation.push).toHaveBeenCalledWith("/consumidor/mensajes");
+    rerender(
+      <ConsumerMessagesClient myUserId="user-id" session={mockSession} contacts={mockContacts} />
+    );
+
+    expect(screen.getByTestId("resizable-contacts-sidebar")).toHaveClass("flex", "w-full");
+    expect(screen.getByTestId("resizable-contacts-sidebar")).not.toHaveClass("hidden");
   });
 
   it("displays loaded messages from API when selecting a contact", async () => {

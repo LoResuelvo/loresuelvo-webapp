@@ -42,6 +42,8 @@ describe("ApiJobRequestRepository", () => {
         conversation_id: 10,
         title: "Test Title",
         description: "Test Description",
+        service_address: { street: "Rivadavia", street_number: "100" },
+        created_on: "2026-10-24T09:30:00-03:00",
         images: [
           { id: "img-1", url: "http://example.com/img-1.jpg", original_name: "test.jpg" }
         ]
@@ -67,6 +69,8 @@ describe("ApiJobRequestRepository", () => {
         conversationId: 10,
         title: "Test Title",
         description: "Test Description",
+        serviceAddress: { street: "Rivadavia", streetNumber: "100" },
+        createdOn: "2026-10-24T09:30:00-03:00",
         images: [
           { id: "img-1", url: "http://example.com/img-1.jpg", originalName: "test.jpg" }
         ]
@@ -93,13 +97,20 @@ describe("ApiJobRequestRepository", () => {
   });
 
   describe("list", () => {
-    it("maps job request summaries and translates images to camelCase", async () => {
+    it("maps request snapshots and translates images to camelCase", async () => {
       const mockResponse = [
         {
           id: 1,
           conversation_id: 10,
           title: "Test Title",
           description: "Test Description",
+          service_address: {
+            street: "Av. Siempre Viva",
+            street_number: "742",
+            floor: "3",
+            unit: "B",
+          },
+          created_on: "2026-10-24T09:30:00-03:00",
           requester: { name: "John", surname: "Doe" },
           images: [
             { id: "img-1", url: "http://example.com/img-1.jpg", original_name: "test.jpg" }
@@ -117,12 +128,43 @@ describe("ApiJobRequestRepository", () => {
           conversationId: 10,
           title: "Test Title",
           description: "Test Description",
+          serviceAddress: {
+            street: "Av. Siempre Viva",
+            streetNumber: "742",
+            floor: "3",
+            unit: "B",
+          },
+          createdOn: "2026-10-24T09:30:00-03:00",
           requester: { name: "John", surname: "Doe" },
           images: [
             { id: "img-1", url: "http://example.com/img-1.jpg", originalName: "test.jpg" }
           ]
         }
       ]);
+    });
+
+    it("keeps legacy requests without a saved address or creation date", async () => {
+      (baseClient.api.get as ReturnType<typeof vi.fn>).mockResolvedValue([
+        {
+          id: 2,
+          conversation_id: 11,
+          title: "Solicitud anterior",
+          description: "Sin datos de dirección",
+          service_address: null,
+          requester: { name: "Ana", surname: "Pérez" },
+        },
+      ]);
+
+      const result = await repository.list();
+
+      expect(result[0]).toEqual({
+        id: 2,
+        conversationId: 11,
+        title: "Solicitud anterior",
+        description: "Sin datos de dirección",
+        requester: { name: "Ana", surname: "Pérez" },
+        images: [],
+      });
     });
   });
 });

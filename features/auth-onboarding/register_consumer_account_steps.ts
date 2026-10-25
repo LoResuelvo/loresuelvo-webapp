@@ -137,7 +137,7 @@ Then("veo mi nombre {string} en el encabezado", async function (this: CustomWorl
   let text = await header.innerText();
   if (!text.includes(name)) {
     const initials = name.charAt(0).toUpperCase();
-    const avatarButton = header.getByRole("button", { name: initials }).or(header.locator("button")).first();
+    const avatarButton = header.getByRole("button", { name: initials, exact: true }).or(header.locator("button:visible")).last();
     await avatarButton.waitFor();
     await avatarButton.click();
     text = await header.innerText();

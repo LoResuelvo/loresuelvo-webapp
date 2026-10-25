@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type {
   ProviderProfile,
@@ -7,6 +7,7 @@ import type {
 import ProviderProfileView from "./ProviderProfileView";
 
 vi.mock("next/navigation", () => ({
+  useRouter: vi.fn(() => ({ push: vi.fn() })),
   usePathname: vi.fn(() => "/consumidor/prestadores/7"),
 }));
 
@@ -57,7 +58,7 @@ describe("ProviderProfileView", () => {
   });
 
   it("renders the provider name, photo and category", () => {
-    render(<ProviderProfileView session={null} provider={aProviderProfile()} />);
+    render(<ProviderProfileView session={null} provider={aProviderProfile({ categoryId: 2 })} />);
 
     expect(screen.getByRole("heading", { name: "Juan Gómez" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /juan gómez/i })).toHaveAttribute(
@@ -65,10 +66,59 @@ describe("ProviderProfileView", () => {
       "https://example.com/juan.jpg",
     );
     expect(screen.getByText("Plomería")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /volver al inicio/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /volver a los resultados/i })).toHaveAttribute(
       "href",
-      "/consumidor/home",
+      "/consumidor/buscar?category_id=2",
     );
+  });
+
+  it("returns to the selected category when it differs from the provider profile category", () => {
+    render(
+      <ProviderProfileView
+        session={null}
+        provider={aProviderProfile({ categoryId: 2 })}
+        returnCategoryId={1}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: /volver a los resultados/i })).toHaveAttribute(
+      "href",
+      "/consumidor/buscar?category_id=1",
+    );
+  });
+
+  it("shows the provider's actual coverage zones", () => {
+    render(
+      <ProviderProfileView
+        session={null}
+        provider={aProviderProfile({
+          coverageZones: [
+            { id: 4, name: "Villa Urquiza" },
+            { id: 5, name: "Saavedra" },
+          ],
+        })}
+      />,
+    );
+
+    const coverage = screen.getByRole("region", { name: "Zonas de cobertura" });
+    expect(within(coverage).getByText("Villa Urquiza")).toBeVisible();
+    expect(within(coverage).getByText("Saavedra")).toBeVisible();
+  });
+
+  it("explains when no coverage zones have been reported", () => {
+    render(<ProviderProfileView session={null} provider={aProviderProfile()} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Este prestador todavía no informó sus zonas de cobertura.",
+    );
+  });
+
+  it("opens the existing work request modal from the profile", () => {
+    render(<ProviderProfileView session={null} provider={aProviderProfile()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Solicitar trabajo" }));
+
+    expect(screen.getByRole("heading", { name: "Crear Solicitud de Trabajo" })).toBeVisible();
   });
 
   it("renders the public rating summary with decorative stars", () => {

@@ -80,7 +80,9 @@ Then("ambos prestadores conservan sus acciones de contacto y acceso al perfil", 
     const card = providerCard(this, name);
     assert.ok(await card.getByRole("button", { name: "Contactar", exact: true }).isEnabled());
     const profile = card.getByRole("link", { name: `Ver perfil ${name}`, exact: true });
-    assert.equal(await profile.getAttribute("href"), ROUTES.consumer.providerProfile(id));
+    const profileUrl = new URL((await profile.getAttribute("href"))!, this.appUrl);
+    assert.equal(profileUrl.pathname, ROUTES.consumer.providerProfile(id));
+    assert.equal(profileUrl.searchParams.get("category_id"), "1");
   }
 });
 

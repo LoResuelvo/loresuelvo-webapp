@@ -98,6 +98,8 @@ export default function ChatHeader({
           jobRequest={{
             title: jobRequest.title,
             description: jobRequest.description,
+            serviceAddress: jobRequest.serviceAddress,
+            createdOn: jobRequest.createdOn,
             providerName: jobRequest.providerName ?? contact.name,
             providerSurname: jobRequest.providerSurname ?? contact.surname,
             providerProfilePhotoUrl: jobRequest.providerProfilePhotoUrl ?? contact.photoUrl,

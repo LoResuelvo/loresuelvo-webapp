@@ -1,4 +1,4 @@
-import { MessageImage } from "@/domain/messaging/types";
+import type { MessageImage, ServiceAddress } from "@/domain/messaging/types";
 
 export interface CreateJobRequestInput {
   providerId: number;
@@ -13,6 +13,8 @@ export interface JobRequestResult {
   title: string;
   description: string;
   images: MessageImage[];
+  serviceAddress?: ServiceAddress;
+  createdOn?: string;
 }
 
 export interface JobRequestSummary {
@@ -25,6 +27,8 @@ export interface JobRequestSummary {
     surname: string;
   };
   images: MessageImage[];
+  serviceAddress?: ServiceAddress;
+  createdOn?: string;
 }
 
 export interface JobRequestRepository {

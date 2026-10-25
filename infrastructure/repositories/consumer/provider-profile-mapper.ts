@@ -10,6 +10,10 @@ export function mapApiProviderProfileToProvider(apiProfile: ApiProviderProfile):
     surname: apiProfile.surname,
     categoryName: apiProfile.category.name,
     categoryId: apiProfile.category.id,
+    coverageZones: (apiProfile.coverage_zones ?? []).map((zone) => ({
+      id: zone.id,
+      name: zone.name,
+    })),
     profilePhotoUrl: apiProfile.profile_photo.url,
     rating: apiProfile.rating_average,
     reviews: apiProfile.rating_count,

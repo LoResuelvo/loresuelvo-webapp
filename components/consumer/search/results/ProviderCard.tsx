@@ -12,15 +12,19 @@ import { ProviderIdentityBadge } from "@/components/consumer/provider-profile/Pr
 interface ProviderCardProps {
   provider: ProviderType;
   className?: string;
+  searchCategoryId?: number;
   onContact?: (provider: ProviderType) => void;
 }
 
-export default function ProviderCard({ provider, className, onContact }: ProviderCardProps) {
+export default function ProviderCard({ provider, className, searchCategoryId, onContact }: ProviderCardProps) {
   const displayName = Provider.getDisplayName(provider);
   const ratingSummary = Provider.getRatingSummary(provider);
   const reviewCount = provider.reviews ?? 0;
   const reviewLabel = reviewCount === 1 ? t.consumerSearch.providerCard.review : t.consumerSearch.providerCard.reviews;
   const hasReviews = ratingSummary.hasReviews;
+  const profileHref = searchCategoryId !== undefined
+    ? `${ROUTES.consumer.providerProfile(provider.id)}?category_id=${searchCategoryId}`
+    : ROUTES.consumer.providerProfile(provider.id);
 
   return (
     <div
@@ -98,7 +102,7 @@ export default function ProviderCard({ provider, className, onContact }: Provide
           className="text-brand-secondary font-bold text-small p-0 h-auto flex items-center gap-0.5 group/link whitespace-nowrap"
         >
           <Link
-            href={ROUTES.consumer.providerProfile(provider.id)}
+            href={profileHref}
             aria-label={`${t.consumerSearch.profileBtn} ${displayName}`}
           >
             {t.consumerSearch.profileBtn}

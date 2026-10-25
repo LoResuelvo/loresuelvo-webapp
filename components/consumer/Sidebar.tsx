@@ -8,9 +8,10 @@ import { t } from "@/infrastructure/i18n/translations";
 
 interface SidebarProps {
   responsive?: boolean;
+  onNavigate?: () => void;
 }
 
-export default function Sidebar({ responsive = false }: SidebarProps = {}) {
+export default function Sidebar({ responsive = false, onNavigate }: SidebarProps = {}) {
   const pathname = usePathname();
   const isHomeActive = pathname === ROUTES.consumer.home;
   const isMessagesActive = pathname === ROUTES.consumer.messages;
@@ -20,10 +21,10 @@ export default function Sidebar({ responsive = false }: SidebarProps = {}) {
 
   return (
     <aside
-      className={`${responsive ? "w-full md:w-[260px] md:shrink-0 md:h-screen md:sticky" : "w-[260px] h-screen sticky"} bg-brand-neutral border-r border-slate-200 flex flex-col top-0`}
+      className={`${responsive ? "flex w-full md:w-[260px] md:shrink-0 md:h-screen md:sticky" : "hidden md:flex md:w-[260px] md:shrink-0 md:h-screen md:sticky"} bg-brand-neutral border-r border-slate-200 flex-col top-0`}
     >
       <div className="p-6 h-20 flex items-center">
-        <Link href={ROUTES.home} className="flex items-center gap-3">
+        <Link onClick={onNavigate} href={ROUTES.home} className="flex items-center gap-3">
           <span className="text-title font-extrabold tracking-tight text-brand-primary">
             {t.sidebar.logo}
           </span>
@@ -34,7 +35,7 @@ export default function Sidebar({ responsive = false }: SidebarProps = {}) {
         aria-label={t.sidebar.navConsumer}
         className={`flex-1 px-4 flex ${responsive ? "flex-row flex-wrap md:flex-col" : "flex-col"} gap-2 mt-2`}
       >
-        <Link 
+        <Link onClick={onNavigate}
           href={ROUTES.consumer.home}
           className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-colors ${
             isHomeActive 
@@ -46,7 +47,7 @@ export default function Sidebar({ responsive = false }: SidebarProps = {}) {
           <span>{t.sidebar.home}</span>
         </Link>
 
-        <Link 
+        <Link onClick={onNavigate}
           href={ROUTES.consumer.messages}
           className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-colors ${
             isMessagesActive 
@@ -58,7 +59,7 @@ export default function Sidebar({ responsive = false }: SidebarProps = {}) {
           <span>{t.sidebar.messages}</span>
         </Link>
 
-        <Link
+        <Link onClick={onNavigate}
           href={ROUTES.consumer.aiMessages}
           className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-colors ${
             isAiMessagesActive
@@ -70,7 +71,7 @@ export default function Sidebar({ responsive = false }: SidebarProps = {}) {
           <span>{t.sidebar.aiChat}</span>
         </Link>
 
-        <Link
+        <Link onClick={onNavigate}
           href={ROUTES.consumer.services}
           className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-colors ${
             isServicesActive
@@ -81,7 +82,7 @@ export default function Sidebar({ responsive = false }: SidebarProps = {}) {
           <Briefcase className="w-5 h-5" />
           <span>{t.sidebar.services}</span>
         </Link>
-        <Link
+        <Link onClick={onNavigate}
           href={ROUTES.consumer.claims}
           aria-current={isClaimsActive ? "page" : undefined}
           className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-colors ${

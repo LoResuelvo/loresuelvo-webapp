@@ -104,6 +104,10 @@ export interface ApiProviderProfile {
     id: number;
     name: string;
   };
+  coverage_zones?: Array<{
+    id: number;
+    name: string;
+  }>;
   rating_average: number;
   rating_count: number;
   work_orders: ApiProviderProfileWorkOrder[];
@@ -132,6 +136,34 @@ export interface ApiMessageImage {
   id: string;
   url: string;
   original_name: string;
+}
+
+export interface ApiServiceAddress {
+  street: string;
+  street_number: string;
+  floor?: string;
+  unit?: string;
+}
+
+export interface ApiJobRequestPayload {
+  provider_id: number;
+  title: string;
+  description: string;
+  image_file_ids?: string[];
+}
+
+export interface ApiJobRequestResponse {
+  id: number;
+  conversation_id: number;
+  title: string;
+  description: string;
+  images?: ApiMessageImage[];
+  service_address?: ApiServiceAddress | null;
+  created_on?: string | null;
+}
+
+export interface ApiJobRequestSummary extends ApiJobRequestResponse {
+  requester: { name: string; surname: string };
 }
 
 export interface ApiMessageAudio {

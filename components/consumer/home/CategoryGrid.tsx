@@ -37,6 +37,14 @@ export default function CategoryGrid({ categories, className }: CategoryGridProp
         </div>
       </div>
 
+      {categories.length === 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          <p className="text-body text-slate-600">{t.consumerShell.categoriesEmpty}</p>
+          <Link href={ROUTES.consumer.aiMessages} className="mt-4 inline-flex min-h-11 items-center font-semibold text-brand-secondary underline underline-offset-4">
+            {t.consumerShell.startDiagnosis}
+          </Link>
+        </div>
+      )}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
         {categories.map((category) => {
           const Icon = ICON_MAP[category.name] || HelpCircle;
@@ -46,11 +54,11 @@ export default function CategoryGrid({ categories, className }: CategoryGridProp
               key={category.id}
               className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-secondary rounded-2xl"
             >
-              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:shadow-md hover:border-brand-secondary/40 transition-all cursor-pointer flex flex-col h-[130px] md:h-[135px] justify-between">
+              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs hover:shadow-md hover:border-brand-secondary/40 transition-all cursor-pointer flex flex-col h-[130px] md:h-[135px] justify-between">
                 <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-brand-primary group-hover:bg-brand-secondary/15 group-hover:text-brand-secondary transition-colors">
                   <Icon className="w-5 h-5" />
                 </div>
-                <span className="text-subtitle font-bold text-brand-primary group-hover:text-brand-secondary transition-colors">
+                <span className="break-words text-base sm:text-subtitle font-bold text-brand-primary group-hover:text-brand-secondary transition-colors">
                   {category.name}
                 </span>
               </div>

@@ -22,8 +22,14 @@ import {
 import { notifications } from "./translations/notifications";
 import { claims } from "./translations/claims";
 import { errors } from "./translations/errors";
+import { consumerShell } from "./translations/consumer-shell";
+import { consumerUx } from "./translations/consumer-ux";
+import { requestDetails } from "./translations/request-details";
 
 export const t = {
+  consumerShell,
+  consumerUx,
+  requestDetails,
   payments,
   home,
   sidebar,

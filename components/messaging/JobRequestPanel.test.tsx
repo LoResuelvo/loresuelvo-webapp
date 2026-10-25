@@ -50,6 +50,41 @@ describe("JobRequestPanel", () => {
     expect(screen.getByText("Necesito reparar un grifo que pierde agua")).toBeInTheDocument();
   });
 
+  it("displays the saved address and the real request date", () => {
+    render(
+      <JobRequestPanel
+        jobRequest={{
+          ...defaultJobRequest,
+          serviceAddress: {
+            street: "Av. Siempre Viva",
+            streetNumber: "742",
+            floor: "3",
+            unit: "B",
+          },
+          createdOn: "2026-10-24T12:00:00Z",
+        }}
+        onClose={() => {}}
+      />
+    );
+
+    expect(screen.getByTestId("job-request-address")).toHaveTextContent(
+      "Av. Siempre Viva 742, Piso 3, Depto. B",
+    );
+    expect(screen.getByTestId("job-request-created-date")).toHaveTextContent("24/10/2026");
+  });
+
+  it("shows the address fallback and omits an absent request date", () => {
+    render(
+      <JobRequestPanel
+        jobRequest={defaultJobRequest}
+        onClose={() => {}}
+      />
+    );
+
+    expect(screen.getByTestId("job-request-address")).toHaveTextContent("Dirección por confirmar");
+    expect(screen.queryByTestId("job-request-created-date")).not.toBeInTheDocument();
+  });
+
   it("displays the provider's full name", () => {
     render(
       <JobRequestPanel

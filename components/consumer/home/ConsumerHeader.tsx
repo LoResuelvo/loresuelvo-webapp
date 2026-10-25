@@ -1,12 +1,15 @@
 "use client";
 
 import { AuthSession } from "@/infrastructure/auth/types";
-import { LogOut, UserRound } from "lucide-react";
+import { LogOut, UserRound, Menu } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
 import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
+import Sidebar from "@/components/consumer/Sidebar";
 
 interface ConsumerHeaderProps {
   session: AuthSession | null;
@@ -14,6 +17,8 @@ interface ConsumerHeaderProps {
 
 export default function ConsumerHeader({ session }: ConsumerHeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const userInitials = session?.user?.firstName 
@@ -31,7 +36,31 @@ export default function ConsumerHeader({ session }: ConsumerHeaderProps) {
   }, []);
 
   return (
-    <header className="h-20 border-b border-slate-200 bg-brand-neutral/30 flex items-center justify-end px-8 gap-6 sticky top-0 z-10">
+    <header className="h-16 md:h-20 shrink-0 border-b border-slate-200 bg-brand-neutral flex items-center justify-between md:justify-end px-4 md:px-8 gap-4 sticky top-0 z-10">
+      <Button
+        ref={menuButtonRef}
+        variant="ghost"
+        size="icon"
+        className="md:hidden size-11"
+        aria-label={t.consumerShell.menu}
+        aria-haspopup="dialog"
+        aria-expanded={isMenuOpen}
+        onClick={() => setIsMenuOpen(true)}
+      >
+        <Menu aria-hidden="true" />
+      </Button>
+      <Modal
+        open={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        title={t.consumerShell.menuTitle}
+        closeLabel={t.consumerShell.closeMenu}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          menuButtonRef.current?.focus();
+        }}
+      >
+        <Sidebar responsive onNavigate={() => setIsMenuOpen(false)} />
+      </Modal>
       <div className="relative" ref={dropdownRef}>
         <button 
           onClick={() => setIsOpen(!isOpen)}

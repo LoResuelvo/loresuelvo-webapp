@@ -13,7 +13,7 @@ export default function HomePage() {
       <div className="relative w-full flex-1 flex flex-col bg-[#FAF9F6] overflow-hidden -mt-20 pt-20">
         <AmbientGlows />
 
-        <Container className="py-12 md:py-16 flex flex-col items-center gap-12 relative z-10">
+        <Container className="py-5 sm:py-12 md:py-16 flex flex-col items-center gap-6 sm:gap-12 relative z-10">
           <HeroContent className="max-w-4xl mx-auto" />
 
           <RoleSelectionCard

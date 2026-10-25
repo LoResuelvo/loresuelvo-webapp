@@ -39,6 +39,8 @@ function mapConsumerJobRequest(
   return {
     title: jobRequest.title,
     description: jobRequest.description,
+    serviceAddress: jobRequest.serviceAddress,
+    createdOn: jobRequest.createdOn,
     providerName: conversation.counterpart.name,
     providerSurname: conversation.counterpart.surname,
     providerProfilePhotoUrl: conversation.counterpart.profilePhotoUrl,
@@ -54,8 +56,7 @@ export function useConsumerMessages(
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlProviderId = searchParams.get("provider_id");
-  const selectedProviderId =
-    urlProviderId ?? (contacts.length > 0 ? contacts[0].providerId : null);
+  const selectedProviderId = urlProviderId;
 
   const [isConversationPending, setIsConversationPending] = useState<boolean>(false);
   const inputRef = useRef<MessageInputHandle>(null);

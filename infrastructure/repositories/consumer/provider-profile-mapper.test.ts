@@ -42,6 +42,10 @@ describe("mapApiProviderProfileToProvider", () => {
         id: 1,
         name: "Plomería",
       },
+      coverage_zones: [
+        { id: 4, name: "Villa Urquiza" },
+        { id: 5, name: "Saavedra" },
+      ],
       rating_average: 4.8,
       rating_count: 12,
       work_orders: [
@@ -79,6 +83,10 @@ describe("mapApiProviderProfileToProvider", () => {
       identityVerified: false,
       categoryName: "Plomería",
       categoryId: 1,
+      coverageZones: [
+        { id: 4, name: "Villa Urquiza" },
+        { id: 5, name: "Saavedra" },
+      ],
       profilePhotoUrl: "https://example.com/juan-gomez.jpg",
       rating: 4.8,
       reviews: 12,
@@ -98,6 +106,10 @@ describe("mapApiProviderProfileToProvider", () => {
         },
       ],
     });
+  });
+
+  it("defaults to an empty coverage list when the API omits coverage zones", () => {
+    expect(mapApiProviderProfileToProvider(aProviderProfile()).coverageZones).toEqual([]);
   });
 
   it("maps an external payload to a public model without private work fields", () => {

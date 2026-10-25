@@ -17,12 +17,12 @@ export default function Header({ user }: HeaderProps) {
   return (
     <header className="flex h-20 items-center border-b border-transparent bg-transparent w-full relative z-50">
       <Container className="flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-title font-extrabold tracking-tight text-brand-primary">
+        <h1 className="flex items-center gap-2 text-lg sm:text-title font-extrabold tracking-tight text-brand-primary">
           <Link href={ROUTES.home} className="hover:opacity-90 transition-opacity">LoResuelvo</Link>
         </h1>
         <nav className="flex items-center">
           {user ? (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Avatar
                 src={user.profilePhotoUrl}
                 alt={t.onboarding.photoUpload.label}
@@ -35,22 +35,22 @@ export default function Header({ user }: HeaderProps) {
               </span>
               <a
                 href={ROUTES.auth.logout}
-                className="rounded-full bg-slate-100/80 hover:bg-slate-200/80 px-5 py-2.5 text-body font-semibold text-brand-primary transition-all duration-200"
+                className="rounded-full bg-slate-100/80 hover:bg-slate-200/80 px-5 py-2.5 text-small sm:text-body whitespace-nowrap font-semibold text-brand-primary transition-all duration-200"
               >
                 {t.header.logout}
               </a>
             </div>
           ) : (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <a
                 href={ROUTES.auth.login}
-                className="rounded-full bg-brand-primary/5 hover:bg-brand-primary/10 px-6 py-2.5 text-body font-semibold text-brand-primary transition-all duration-200"
+                className="rounded-full bg-brand-primary/5 hover:bg-brand-primary/10 px-3 sm:px-6 py-2.5 text-small sm:text-body whitespace-nowrap font-semibold text-brand-primary transition-all duration-200"
               >
                 {t.header.login}
               </a>
               <a
                 href={ROUTES.auth.signup}
-                className="rounded-full bg-brand-primary text-white hover:bg-brand-primary/90 px-6 py-2.5 text-body font-semibold transition-all duration-200 shadow-[0_4px_12px_rgba(26,43,72,0.12)]"
+                className="rounded-full bg-brand-primary text-white hover:bg-brand-primary/90 px-3 sm:px-6 py-2.5 text-small sm:text-body whitespace-nowrap font-semibold transition-all duration-200 shadow-[0_4px_12px_rgba(26,43,72,0.12)]"
               >
                 {t.header.signup}
               </a>

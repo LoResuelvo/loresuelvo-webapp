@@ -105,6 +105,8 @@ export default function ProviderMessagesClient({ session, contacts = [], myUserI
                     jobRequest={activeJobRequest ? {
                       title: activeJobRequest.title,
                       description: activeJobRequest.description,
+                      serviceAddress: activeJobRequest.serviceAddress,
+                      createdOn: activeJobRequest.createdOn,
                       providerName: selectedContact.consumerName,
                       providerSurname: selectedContact.consumerSurname,
                       images: activeJobRequest.images,

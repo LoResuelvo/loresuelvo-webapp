@@ -3,12 +3,19 @@
 import { t } from "@/infrastructure/i18n/translations";
 import { Modal } from "@/components/ui/modal";
 import { Avatar } from "@/components/ui/avatar";
-import { MessageImage } from "@/domain/messaging/types";
+import { CalendarDays, MapPin } from "lucide-react";
+import type { MessageImage, ServiceAddress } from "@/domain/messaging/types";
 import { ImageGalleryPreview } from "@/components/messaging/proposals/ImageGalleryPreview";
+import {
+  formatJobRequestAddress,
+  formatJobRequestCreatedDate,
+} from "@/components/messaging/job-request-formatters";
 
 export interface JobRequestPanelInfo {
   title: string;
   description: string;
+  serviceAddress?: ServiceAddress;
+  createdOn?: string;
   providerName?: string;
   providerSurname?: string;
   providerProfilePhotoUrl?: string;
@@ -24,6 +31,7 @@ export default function JobRequestPanel({ jobRequest, onClose }: JobRequestPanel
   const initials = jobRequest.providerName
     ? jobRequest.providerName.charAt(0).toUpperCase()
     : "P";
+  const createdDate = formatJobRequestCreatedDate(jobRequest.createdOn);
 
   return (
     <Modal
@@ -51,6 +59,35 @@ export default function JobRequestPanel({ jobRequest, onClose }: JobRequestPanel
           <h3 className="text-title font-bold text-brand-primary leading-tight">
             {jobRequest.title}
           </h3>
+
+          <div className="space-y-3 rounded-lg bg-slate-50 p-4">
+            <div>
+              <span className="text-caption font-semibold text-slate-600">
+                {t.requestDetails.addressLabel}
+              </span>
+              <p
+                data-testid="job-request-address"
+                className="mt-1 flex items-start gap-2 text-body text-slate-700"
+              >
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+                {formatJobRequestAddress(jobRequest.serviceAddress)}
+              </p>
+            </div>
+            {createdDate && (
+              <div>
+                <span className="text-caption font-semibold text-slate-600">
+                  {t.requestDetails.createdOnLabel}
+                </span>
+                <p
+                  data-testid="job-request-created-date"
+                  className="mt-1 flex items-center gap-2 text-body text-slate-700"
+                >
+                  <CalendarDays className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+                  {createdDate}
+                </p>
+              </div>
+            )}
+          </div>
 
           {jobRequest.description && (
             <div className="pt-2 space-y-1">

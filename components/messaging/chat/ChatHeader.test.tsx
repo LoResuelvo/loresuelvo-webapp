@@ -89,6 +89,25 @@ describe("ChatHeader", () => {
     expect(providerImage).toHaveAttribute("src", "https://example.com/provider-photo.jpg");
   });
 
+  it("passes the saved address and request date to JobRequestPanel", () => {
+    render(
+      <ChatHeader
+        contact={{ name: "Juan", surname: "Perez" }}
+        jobRequest={{
+          title: "Reparación",
+          description: "Necesito reparar algo",
+          serviceAddress: { street: "Rivadavia", streetNumber: "100", unit: "2" },
+          createdOn: "2026-10-24T12:00:00Z",
+        }}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver solicitud de trabajo" }));
+
+    expect(screen.getByTestId("job-request-address")).toHaveTextContent("Rivadavia 100, Depto. 2");
+    expect(screen.getByTestId("job-request-created-date")).toHaveTextContent("24/10/2026");
+  });
+
   it("shows pending proposal chip when serviceProposal is pending and calls onOpenProposal", () => {
     const handleOpenProposal = vi.fn();
     render(

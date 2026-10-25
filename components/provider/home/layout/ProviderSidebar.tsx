@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BriefcaseBusiness, CalendarDays, Home, MessageSquare, MessageSquareWarning } from "lucide-react";
+import { BarChart3, BriefcaseBusiness, Home, MessageSquare, MessageSquareWarning } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { t } from "@/infrastructure/i18n/translations";
 
 const providerNavigationItems = [
   { label: t.sidebar.home, href: ROUTES.provider.home, icon: Home },
-  { label: t.sidebar.calendar, href: "", icon: CalendarDays },
   { label: t.sidebar.messages, href: ROUTES.provider.messages, icon: MessageSquare },
   { label: t.sidebar.jobs, href: ROUTES.provider.jobs, icon: BriefcaseBusiness },
   { label: t.sidebar.claims, href: ROUTES.provider.claims, icon: MessageSquareWarning },
@@ -37,12 +36,12 @@ export default function ProviderSidebar({ responsive = false }: { responsive?: b
       >
         {providerNavigationItems.map((item) => {
           const Icon = item.icon;
-          const isActive = (pathname === item.href || (item.href === ROUTES.provider.activity && pathname === ROUTES.provider.collections)) && item.href !== "";
+          const isActive = pathname === item.href || (item.href === ROUTES.provider.activity && pathname === ROUTES.provider.collections);
 
           return (
             <Link
               key={item.label}
-              href={item.href || "#"}
+              href={item.href}
               aria-current={isActive ? "page" : undefined}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-colors ${
                 isActive

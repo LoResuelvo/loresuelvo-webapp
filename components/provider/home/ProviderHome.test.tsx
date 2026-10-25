@@ -29,7 +29,7 @@ describe("ProviderHome", () => {
     });
 
     expect(within(navigation).getByRole("link", { name: "Inicio" })).toBeInTheDocument();
-    expect(within(navigation).getByRole("link", { name: "Calendario" })).toBeInTheDocument();
+    expect(within(navigation).queryByRole("link", { name: "Calendario" })).not.toBeInTheDocument();
     expect(within(navigation).getByRole("link", { name: "Mensajes" })).toBeInTheDocument();
     expect(within(navigation).getByRole("link", { name: "Trabajos" })).toBeInTheDocument();
     expect(within(navigation).queryByRole("link", { name: "Perfil" })).not.toBeInTheDocument();

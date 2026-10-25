@@ -8,7 +8,7 @@ Feature: Dashboard del Prestador
     When se carga la pantalla principal
     Then visualizo una barra lateral de navegación
     And veo la opción "Inicio"
-    And veo la opción "Calendario"
+    And no veo la opción "Calendario" en la barra lateral
     And veo la opción "Mensajes"
     And veo la opción "Trabajos"
     And no veo la opción "Perfil" en la barra lateral

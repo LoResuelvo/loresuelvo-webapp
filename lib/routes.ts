@@ -34,7 +34,6 @@ export const ROUTES = {
     reputation: "/prestador/mi-desempeno/reputacion",
     conversion: "/prestador/mi-desempeno/conversion",
     home: "/prestador/home",
-    calendar: "/prestador/calendario",
     messages: "/prestador/mensajes",
     jobs: "/prestador/trabajos",
     claims: "/prestador/mis-reclamos",

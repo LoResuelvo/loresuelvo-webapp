@@ -9,7 +9,7 @@ import { logger } from "@/infrastructure/logging/logger";
 import { getApiUrl } from "@/infrastructure/config/server-env";
 import { usesE2EAdapters } from "@/infrastructure/config/runtime-env";
 
-const API_REQUEST_TIMEOUT_MS = 5000;
+const API_REQUEST_TIMEOUT_MS = 30000;
 const SAFE_ERROR_NAMES = new Set(["AbortError", "TypeError", "Error", "NetworkError", "TimeoutError"]);
 const SAFE_NETWORK_ERROR_CODES = new Set([
   "ECONNRESET",

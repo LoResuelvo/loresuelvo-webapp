@@ -51,7 +51,7 @@ describe("ApiClient private claim requests", () => {
 
     const request = new ApiClient().get(`/claims/${privateId}?access_token=${privateToken}`);
     const errorPromise = request.catch((reason: unknown) => reason);
-    await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(30000);
     const error = await errorPromise;
 
     expect(error).toBeInstanceOf(ApiClientError);
@@ -61,7 +61,7 @@ describe("ApiClient private claim requests", () => {
       .map(([, context]) => context)
       .find((context) => typeof context === "object" && context !== null && "kind" in context && context.kind === "timeout");
     expect(diagnostic).toMatchObject({ kind: "timeout", method: "GET", causeName: "AbortError" });
-    expect(diagnostic?.durationMs).toBeGreaterThanOrEqual(5000);
+    expect(diagnostic?.durationMs).toBeGreaterThanOrEqual(30000);
     expect(JSON.stringify(log.mock.calls)).not.toContain(privateToken);
     expect(JSON.stringify(log.mock.calls)).not.toContain(privateId);
   });

@@ -5,6 +5,13 @@ export interface CurrentUserProfilePhoto {
   url: string;
 }
 
+export interface ConsumerAddress {
+  street: string;
+  streetNumber: string;
+  floor?: string;
+  unit?: string;
+}
+
 export type CalendarConnectionStatus =
   | "disconnected"
   | "connected"
@@ -18,6 +25,7 @@ export interface CurrentUser {
   role: "consumer" | "provider";
   profilePhoto?: CurrentUserProfilePhoto | null;
   calendarConnectionStatus: CalendarConnectionStatus;
+  address?: ConsumerAddress | null;
 }
 
 export interface ConsumerCurrentUser extends CurrentUser {

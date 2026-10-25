@@ -18,6 +18,15 @@ describe("mapApiToCurrentUser", () => {
         original_name: "avatar.png",
         url: "https://example.com/avatar.png",
       },
+      address: {
+        street: "Av. Rivadavia",
+        street_number: "5100",
+        floor: "4",
+        unit: "B",
+        latitude: -34.6208,
+        longitude: -58.4386,
+        coverage_zone_id: 6,
+      },
     };
 
     const user = mapApiToCurrentUser(apiResponse);
@@ -32,6 +41,12 @@ describe("mapApiToCurrentUser", () => {
       profilePhoto: {
         originalName: "avatar.png",
         url: "https://example.com/avatar.png",
+      },
+      address: {
+        street: "Av. Rivadavia",
+        streetNumber: "5100",
+        floor: "4",
+        unit: "B",
       },
     });
   });
@@ -51,6 +66,7 @@ describe("mapApiToCurrentUser", () => {
 
     expect(user.profilePhoto).toBeNull();
     expect(user.calendarConnectionStatus).toBe("connected");
+    expect(user.address).toBeUndefined();
   });
 
   it("maps provider response with category and photo", () => {

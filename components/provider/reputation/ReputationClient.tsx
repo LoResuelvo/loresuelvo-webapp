@@ -31,8 +31,8 @@ export function ReputationLoading() {
 
 function ReputationScope({ data }: { readonly data: ProviderReputation }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-      <h2 className="font-semibold text-slate-900">{t.providerReputation.scope}</h2>
+    <section aria-labelledby="reputation-scope-title" className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+      <h2 id="reputation-scope-title" className="font-semibold text-slate-900">{t.providerReputation.scope}</h2>
       <p className="text-sm text-slate-600">{t.providerReputation.scopeHelp}</p>
       <p className="text-xs text-slate-500">
         {t.providerActivity.calculatedAt} {statisticsDate(data.calculatedAt)}
@@ -158,8 +158,8 @@ export function ReputationClient({
   return (
     <div className="space-y-6" aria-busy={pending}>
       {loading}
-      <ReputationScope data={result.data} />
       <ReputationIndicators data={result.data} />
+      <ReputationScope data={result.data} />
       <ReputationReviewsList
         reviews={result.data.reviews}
         hasNextPage={Boolean(result.data.nextCursor)}

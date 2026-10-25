@@ -152,7 +152,7 @@ Given(
       waitUntil: "domcontentloaded",
     });
     await this.page
-      .getByRole("heading", { name: t.serviceProposals.sectionTitle })
+      .getByRole("heading", { name: t.sidebar.services })
       .waitFor({ state: "visible", timeout: 10000 });
   }
 );
@@ -559,7 +559,7 @@ Then(
   "la pantalla permanece utilizable y los recursos existentes se conservan intactos",
   async function (this: CustomWorld) {
     const title = this.page.getByRole("heading", {
-      name: t.serviceProposals.sectionTitle,
+      name: t.sidebar.services,
     });
     await title.waitFor(visibleTimeout);
     assert.ok(await title.isVisible());

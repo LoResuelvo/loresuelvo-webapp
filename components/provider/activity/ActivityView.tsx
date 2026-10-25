@@ -10,13 +10,13 @@ export function ActivityView({ activity }: { activity: ProviderActivity }) {
   const labels = t.providerActivity;
   return (
     <div className="min-w-0 space-y-7">
-      <section aria-label={labels.period} className="rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="font-semibold">{labels.period}</h2>
-        <p data-testid="activity-period">{activityRange(activity.period.from, activity.period.to)}</p>
-        <p className="mt-1 text-xs text-slate-600">{labels.periodBoundsHelp}</p>
-        <p className="mt-2 text-xs text-slate-500">{labels.calculatedAt} {activityDate(activity.calculatedAt)}</p>
-      </section>
       <ActivityResults results={activity.results} />
+      <section aria-label={labels.period} className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1 rounded-lg bg-slate-50 px-3 py-2">
+        <h2 className="font-semibold text-slate-700">{labels.period}</h2>
+        <p data-testid="activity-period" className="min-w-0 break-words text-sm text-slate-700">{activityRange(activity.period.from, activity.period.to)}</p>
+        <p className="text-xs text-slate-600">{labels.periodBoundsHelp}</p>
+        <p className="text-xs text-slate-500">{labels.calculatedAt} {activityDate(activity.calculatedAt)}</p>
+      </section>
       <ActivityEvolution intervals={activity.evolution} />
       {activity.comparison && <ActivityComparison comparison={activity.comparison} />}
       <section aria-labelledby="activity-pending-title" className="space-y-4">

@@ -48,7 +48,7 @@ function FilterInputs({
 }) {
   const labels = t.providerConversion;
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 items-end">
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 items-end">
       <StatisticsDateFields from={from} through={through} onFromChange={onFromChange} onThroughChange={onThroughChange} helpId="conversion-filter-help" />
       <Button type="submit" variant="brand">
         {labels.applyFilters}
@@ -89,9 +89,9 @@ export function ConversionFilters({
       onSubmit={handleSubmit}
       aria-busy={!ready || pending}
       aria-label={title}
-      className="rounded-xl border border-slate-200 bg-white p-4 space-y-3"
+      className="rounded-xl border border-slate-200 bg-white p-3 space-y-2"
     >
-      <fieldset disabled={!ready || pending} className="space-y-3">
+      <fieldset disabled={!ready || pending} className="space-y-2">
         <legend className="sr-only">{title}</legend>
         <FilterInputs
           from={from}

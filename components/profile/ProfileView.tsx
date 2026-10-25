@@ -56,6 +56,52 @@ export default function ProfileView({
           </CardContent>
         </Card>
 
+        {user.role === "consumer" && (
+          <section aria-labelledby="profile-address-title" className="space-y-4">
+            <h2 id="profile-address-title" className="font-heading text-xl font-semibold">
+              {t.profile.addressTitle}
+            </h2>
+            <Card>
+              <CardContent>
+                {user.address ? (
+                  <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <dt className="text-small font-semibold uppercase tracking-wide text-slate-500">
+                        {t.profile.streetLabel}
+                      </dt>
+                      <dd className="break-words text-body">{user.address.street}</dd>
+                    </div>
+                    <div className="space-y-1">
+                      <dt className="text-small font-semibold uppercase tracking-wide text-slate-500">
+                        {t.profile.streetNumberLabel}
+                      </dt>
+                      <dd className="break-words text-body">{user.address.streetNumber}</dd>
+                    </div>
+                    {user.address.floor && (
+                      <div className="space-y-1">
+                        <dt className="text-small font-semibold uppercase tracking-wide text-slate-500">
+                          {t.profile.floorLabel}
+                        </dt>
+                        <dd className="break-words text-body">{user.address.floor}</dd>
+                      </div>
+                    )}
+                    {user.address.unit && (
+                      <div className="space-y-1">
+                        <dt className="text-small font-semibold uppercase tracking-wide text-slate-500">
+                          {t.profile.unitLabel}
+                        </dt>
+                        <dd className="break-words text-body">{user.address.unit}</dd>
+                      </div>
+                    )}
+                  </dl>
+                ) : (
+                  <p className="text-body text-slate-600">{t.profile.addressMissing}</p>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+        )}
+
         <section aria-labelledby="profile-integrations-title" className="space-y-4">
           <h2 id="profile-integrations-title" className="font-heading text-xl font-semibold">
             {t.profile.integrationsTitle}

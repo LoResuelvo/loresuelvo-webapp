@@ -117,7 +117,7 @@ Then("veo sus referencias comerciales informadas por la API", async function (th
 Then("la cantidad y el importe total corresponden a todas las señas del período y no sólo a la página visible", async function (this: CustomWorld) {
   await assertText(this.page.getByTestId("collection-detail-count"), "23");
   await assertText(this.page.getByTestId("collection-detail-amount"), "12.000,01");
-  await this.page.getByText("Totales de todas las transacciones del período y propósito. Cada consulta refleja su propia instantánea.").waitFor({ state: "visible" });
+  await this.page.getByText(t.providerCollections.detailHelp, { exact: true }).waitFor({ state: "visible" });
   await this.page.getByLabel("Propósito").focus();
   assert.equal(await this.page.getByLabel("Propósito").evaluate(element => element === document.activeElement), true);
   await mkdir(".delivery/runtime/visual", { recursive: true });

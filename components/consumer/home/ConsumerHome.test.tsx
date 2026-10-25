@@ -6,6 +6,7 @@ import { getServiceProposalsAction } from "@/app/consumidor/mensajes/actions";
 import * as NotificationContextModule from "@/infrastructure/notifications/NotificationContext";
 import type { ResourceListener } from "@/infrastructure/notifications/NotificationContext";
 import { t } from "@/infrastructure/i18n/translations";
+import { ClockProvider } from "@/infrastructure/clock/ClockContext";
 
 vi.mock("@/app/consumidor/mensajes/actions", () => ({
   getServiceProposalsAction: vi.fn(),
@@ -122,9 +123,32 @@ describe('ConsumerHome', () => {
                 counterpart: { id: 2, role: "provider" as const, name: "Ana", surname: "Pérez", categoryName: "Pintor" }
             }
         ];
-        render(<ConsumerHome session={mockSession} acceptedProposals={mockAccepted} />);
+        render(<ClockProvider initialDate="2026-08-01T12:00:00-03:00"><ConsumerHome session={mockSession} acceptedProposals={mockAccepted} /></ClockProvider>);
         expect(screen.getByText("Servicios Próximos")).toBeInTheDocument();
         expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
+    });
+
+    it("shows only upcoming accepted services, ordered by their scheduled time", () => {
+        const proposal = {
+            id: 1, conversationId: 1, amountCents: 1000000,
+            scheduledOn: "2026-10-25T09:00:00-03:00",
+            description: "Servicio siguiente", estimatedDurationMinutes: 60,
+            status: "accepted" as const, createdOn: "2026-10-20T12:00:00-03:00",
+            counterpart: { id: 1, role: "provider" as const, name: "Próximo", surname: "Prestador" },
+        };
+        render(
+            <ClockProvider initialDate="2026-10-24T12:00:00-03:00">
+                <ConsumerHome session={mockSession} acceptedProposals={[
+                    { ...proposal, id: 2, scheduledOn: "2026-10-26T09:00:00-03:00", counterpart: { ...proposal.counterpart, name: "Posterior" } },
+                    { ...proposal, id: 3, scheduledOn: "2026-10-24T11:59:00-03:00", counterpart: { ...proposal.counterpart, name: "Pasado" } },
+                    { ...proposal, id: 4, scheduledOn: "invalid", counterpart: { ...proposal.counterpart, name: "Sin fecha" } },
+                    proposal,
+                ]} />
+            </ClockProvider>
+        );
+        expect(screen.getByText("Próximo Prestador")).toBeInTheDocument();
+        expect(screen.queryByText("Pasado Prestador")).not.toBeInTheDocument();
+        expect(screen.queryByText("Sin fecha Prestador")).not.toBeInTheDocument();
     });
 
     it("refreshes mounted proposals after a realtime update", async () => {

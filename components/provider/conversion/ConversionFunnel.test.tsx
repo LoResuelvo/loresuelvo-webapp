@@ -83,10 +83,12 @@ describe("ConversionFunnel", () => {
     expect(/rechazada|rechazadas|perdida|perdidas/i.test(text)).toBe(false);
   });
 
-  it("renders effective period, observed at, and cohort help text", () => {
+  it("shows funnel results before concise period and update details", () => {
     render(<ConversionFunnel data={mockConversion} />);
 
     const period = screen.getByTestId("conversion-period");
+    const firstStage = screen.getByTestId("funnel-stage-issued");
+    expect(firstStage.compareDocumentPosition(period) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(period).toBeInTheDocument();
     expect(period).toHaveTextContent("1/8/26");
     expect(period).toHaveTextContent("31/8/26");

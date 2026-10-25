@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
 import ContactItem from "./ContactItem";
 
 describe("ContactItem", () => {
@@ -42,6 +43,37 @@ describe("ContactItem", () => {
     expect(screen.queryByTestId("chat-list-profile-photo")).not.toBeInTheDocument();
     const svgElement = container.querySelector("svg.lucide-user");
     expect(svgElement).toBeInTheDocument();
+  });
+
+  it("supports keyboard selection with a focused conversation button", async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+
+    render(
+      <ContactItem
+        id="conv-1"
+        providerId="1"
+        providerName="Juan"
+        providerSurname="Perez"
+        lastMessage="Hola"
+        lastMessageAt="10:00"
+        pending={false}
+        isSelected
+        onClick={onClick}
+      />
+    );
+
+    const contactButton = screen.getByRole("button", { name: /Juan Perez/ });
+    expect(contactButton).toHaveAttribute("aria-current", "true");
+
+    await user.tab();
+    expect(contactButton).toHaveFocus();
+
+    await user.keyboard("{Enter}");
+    await user.keyboard(" ");
+
+    expect(onClick).toHaveBeenNthCalledWith(1, "1");
+    expect(onClick).toHaveBeenNthCalledWith(2, "1");
   });
 
   it("renders a microphone icon when lastMessage is an audio preview", () => {

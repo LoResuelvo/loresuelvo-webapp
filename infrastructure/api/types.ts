@@ -427,6 +427,12 @@ export interface ApiCurrentUserCategory {
   name: string;
 }
 
+export interface ApiConsumerCurrentUserAddress extends ApiServiceAddress {
+  latitude: number;
+  longitude: number;
+  coverage_zone_id: number;
+}
+
 export type ApiCalendarConnectionStatus =
   | "disconnected"
   | "connected"
@@ -443,6 +449,7 @@ interface ApiCurrentUserBaseResponse {
 
 export interface ApiConsumerCurrentUserResponse extends ApiCurrentUserBaseResponse {
   role: "consumer";
+  address?: ApiConsumerCurrentUserAddress | null;
 }
 
 export interface ApiProviderCurrentUserResponse extends ApiCurrentUserBaseResponse {

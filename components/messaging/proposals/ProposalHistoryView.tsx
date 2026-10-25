@@ -43,9 +43,12 @@ export function ProposalHistoryView({ proposals: initialProposals, isProvider }:
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-brand-primary">
-        {t.serviceProposals.sectionTitle}
-      </h1>
+      <header className="space-y-1">
+        <h1 className="text-title font-bold text-brand-primary">
+          {isProvider ? t.sidebar.jobs : t.sidebar.services}
+        </h1>
+        <p className="text-body text-slate-600">{t.serviceProposals.sectionTitle}</p>
+      </header>
 
       <WorkOrderCalendarConnection
         connection={calendarConnection}

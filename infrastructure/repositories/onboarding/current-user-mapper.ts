@@ -63,5 +63,17 @@ export function mapApiToCurrentUser(api: ApiCurrentUserResponse): CurrentUser {
     return result;
   }
 
-  return base;
+  if (!api.address) {
+    return base;
+  }
+
+  return {
+    ...base,
+    address: {
+      street: api.address.street,
+      streetNumber: api.address.street_number,
+      ...(api.address.floor !== undefined ? { floor: api.address.floor } : {}),
+      ...(api.address.unit !== undefined ? { unit: api.address.unit } : {}),
+    },
+  };
 }

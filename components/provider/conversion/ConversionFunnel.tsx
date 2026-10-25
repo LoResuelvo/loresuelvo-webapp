@@ -66,17 +66,17 @@ function ConversionPeriodCard({
   return (
     <section
       aria-label={labels.effectivePeriod}
-      className="rounded-xl border border-slate-200 bg-white p-4 min-w-0"
+      className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1 rounded-lg bg-slate-50 px-3 py-2"
     >
-      <h2 className="font-semibold">{labels.effectivePeriod}</h2>
-      <p data-testid="conversion-period" className="break-words">
+      <h2 className="font-semibold text-slate-700">{labels.effectivePeriod}</h2>
+      <p data-testid="conversion-period" className="min-w-0 break-words text-sm text-slate-700">
         {statisticsRange(period.from, period.to)}
       </p>
-      <p className="mt-1 text-xs text-slate-600">{t.providerActivity.periodBoundsHelp}</p>
-      <p data-testid="conversion-observed-at" className="mt-2 text-xs text-slate-500">
+      <p className="text-xs text-slate-600">{t.providerActivity.periodBoundsHelp}</p>
+      <p data-testid="conversion-observed-at" className="text-xs text-slate-500">
         {labels.observedAt}: {statisticsDate(observedAt)}
       </p>
-      <p className="mt-3 text-xs text-slate-500 border-t border-slate-100 pt-2">
+      <p className="basis-full text-xs text-slate-600">
         {labels.cohortHelp}
       </p>
     </section>
@@ -103,8 +103,6 @@ export function ConversionFunnel({ data }: { readonly data: ProviderConversion }
 
   return (
     <div className="min-w-0 space-y-7">
-      <ConversionPeriodCard period={data.period} observedAt={data.observedAt} />
-
       <section
         aria-labelledby="conversion-funnel-title"
         className="space-y-3"
@@ -148,6 +146,8 @@ export function ConversionFunnel({ data }: { readonly data: ProviderConversion }
         </h2>
         <UncontractedCard count={uncontracted} />
       </section>
+
+      <ConversionPeriodCard period={data.period} observedAt={data.observedAt} />
 
       <ConversionRequestsSection requests={data.requests} />
     </div>

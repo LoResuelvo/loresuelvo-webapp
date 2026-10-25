@@ -34,7 +34,7 @@ export function ProposalCard({ proposal, onClick, isProvider, className }: Propo
   return (
     <div 
       className={cn(
-        "bg-card flex flex-col justify-between gap-4 rounded-xl border p-5 shadow-sm transition-shadow",
+        "bg-card flex flex-col justify-between gap-3 rounded-xl border p-4 shadow-sm transition-shadow",
         onClick && "cursor-pointer hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
         className
       )}
@@ -45,8 +45,8 @@ export function ProposalCard({ proposal, onClick, isProvider, className }: Propo
       role={onClick ? "button" : undefined}
       aria-label={onClick ? `Ver detalles de propuesta de ${displayName}` : undefined}
     >
-      <div className="flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <Avatar 
               className="border shrink-0"
@@ -76,7 +76,7 @@ export function ProposalCard({ proposal, onClick, isProvider, className }: Propo
           </Badge>
         </div>
 
-        <div className="bg-muted/30 grid grid-cols-2 gap-3 rounded-lg p-3">
+        <div className="bg-muted/30 grid grid-cols-2 gap-2 rounded-lg p-3">
           <div className="flex flex-col gap-1">
             <span className="text-muted-foreground text-caption font-medium uppercase tracking-wider">Monto</span>
             <span className="text-foreground text-body font-semibold">

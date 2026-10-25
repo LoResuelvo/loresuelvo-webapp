@@ -35,7 +35,7 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
     <section
       aria-label={t.consumerDiagnosis.hero.ariaLabel}
       className={cn(
-        "relative rounded-2xl border border-white/30 shadow-sm overflow-hidden min-h-[340px] md:min-h-[380px]",
+        "relative rounded-2xl border border-white/30 shadow-sm overflow-hidden",
         className
       )}
     >
@@ -46,16 +46,16 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
         aria-hidden="true"
         className="absolute inset-0 w-full h-full object-cover"
       />
-      <div aria-hidden="true" className="absolute inset-0 bg-slate-900/20" />
+      <div aria-hidden="true" className="absolute inset-0 bg-slate-900/50" />
 
-      <div className="relative h-full p-6 md:p-10 flex flex-col justify-center max-w-3xl gap-6">
+      <div className="relative h-full p-4 sm:p-6 lg:p-8 flex flex-col justify-center max-w-3xl gap-4">
         <div className="flex items-center gap-2.5 text-white">
           <Sparkles className="w-6 h-6" aria-hidden="true" />
-          <span className="text-body-lg font-semibold tracking-wide uppercase">
+          <span className="text-small font-semibold tracking-wide uppercase">
             {t.consumerDiagnosis.hero.badge}
           </span>
         </div>
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white drop-shadow">
+        <h1 className="text-title md:text-3xl font-bold tracking-tight text-white drop-shadow">
           {t.consumerDiagnosis.hero.title}
         </h1>
 
@@ -72,7 +72,7 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
               onPreviewImage={setPreviewImage}
               disabled={isSubmitting}
             />
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
               <Button
                 type="button"
                 variant="ghost"
@@ -93,7 +93,7 @@ export default function DiagnosisHero({ className }: DiagnosisHeroProps) {
                 variant="brand"
                 type="submit"
                 disabled={isSubmitting}
-                className="px-6 py-3 h-auto whitespace-nowrap shadow-sm font-semibold rounded-lg disabled:opacity-100"
+                className="w-full sm:w-auto px-5 py-3 h-auto whitespace-nowrap shadow-sm font-semibold rounded-lg disabled:opacity-100"
               >
                 {isSubmitting ? (
                   <>

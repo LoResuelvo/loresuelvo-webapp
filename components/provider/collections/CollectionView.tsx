@@ -8,13 +8,13 @@ import { CollectionPending } from "./CollectionPending";
 
 export function CollectionView({ collections }: { collections: ProviderCollections }) {
   return <div className="min-w-0 space-y-7">
-    <section aria-label={t.providerActivity.period} className="rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="font-semibold">{t.providerActivity.period}</h2>
-      <p data-testid="collection-period">{statisticsRange(collections.period.from, collections.period.to)}</p>
-      <p className="mt-1 text-xs text-slate-600">{t.providerActivity.periodBoundsHelp}</p>
-      <p className="mt-2 text-xs text-slate-500">{t.providerActivity.calculatedAt} {statisticsDate(collections.calculatedAt)}</p>
-    </section>
     <CollectionResults results={collections.results} />
+    <section aria-label={t.providerActivity.period} className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1 rounded-lg bg-slate-50 px-3 py-2">
+      <h2 className="font-semibold text-slate-700">{t.providerActivity.period}</h2>
+      <p data-testid="collection-period" className="min-w-0 break-words text-sm text-slate-700">{statisticsRange(collections.period.from, collections.period.to)}</p>
+      <p className="text-xs text-slate-600">{t.providerActivity.periodBoundsHelp}</p>
+      <p className="text-xs text-slate-500">{t.providerActivity.calculatedAt} {statisticsDate(collections.calculatedAt)}</p>
+    </section>
     <CollectionEvolution intervals={collections.evolution} />
     {collections.comparison && <CollectionComparison comparison={collections.comparison} />}
     <CollectionPending pending={collections.currentPending} />

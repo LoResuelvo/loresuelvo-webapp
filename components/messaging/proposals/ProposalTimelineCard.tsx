@@ -39,12 +39,12 @@ export function ProposalTimelineCard({
       <div
         onClick={onClick}
         className={cn(
-          "w-full max-w-sm sm:max-w-md bg-white border border-slate-200 p-4 shadow-sm space-y-3 transition-shadow hover:shadow-md cursor-pointer",
+          "w-full max-w-sm sm:max-w-md bg-white border border-slate-200 p-3 shadow-sm space-y-2 transition-shadow hover:shadow-md cursor-pointer",
           isProvider ? "rounded-2xl rounded-tr-sm" : "rounded-2xl rounded-tl-sm",
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-7 h-7 rounded-lg bg-brand-primary/5 border border-brand-primary/10 flex items-center justify-center text-brand-primary shrink-0">
               <FileText className="w-4 h-4" />
@@ -59,7 +59,7 @@ export function ProposalTimelineCard({
         </div>
 
         {/* Content Details */}
-        <div className="bg-slate-50/90 rounded-xl p-3.5 border border-slate-150/60 space-y-2.5">
+        <div className="bg-slate-50/90 rounded-xl p-2.5 border border-slate-150/60 space-y-1.5">
           <div className="flex flex-col">
             <span className="text-caption font-semibold text-slate-400 uppercase tracking-wider">
               Monto

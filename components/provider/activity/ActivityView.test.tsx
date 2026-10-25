@@ -14,6 +14,9 @@ const activity: ProviderActivity = {
 describe("ActivityView", () => {
   it("shows API results, client split, contractual money and zero intervals", () => {
     render(<ActivityView activity={activity} />);
+    const results = screen.getByRole("region", { name: "Resultados del período" });
+    const period = screen.getByRole("region", { name: "Período consultado" });
+    expect(results.compareDocumentPosition(period) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText("Clientes nuevos").nextElementSibling).toHaveTextContent("2");
     expect(screen.getByText("Clientes recurrentes").nextElementSibling).toHaveTextContent("1");
     expect(screen.getByText("Valor pactado de trabajos finalizados").nextElementSibling).toHaveTextContent("120.000,00");

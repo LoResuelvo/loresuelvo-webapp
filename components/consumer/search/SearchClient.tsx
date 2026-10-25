@@ -31,7 +31,7 @@ export default function SearchClient({
         <ConsumerHeader session={session} />
         
         <main className="flex-1 p-4 sm:p-8 lg:p-10">
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-4xl mx-auto">
             
             <CategoryHeader categoryName={selectedCategory?.name ?? null} />
 
@@ -41,7 +41,7 @@ export default function SearchClient({
                 className="max-w-2xl mx-auto mt-8"
               />
             ) : (
-              <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-4">
                 {providers.map((provider) => {
                   return (
                     <ProviderCard

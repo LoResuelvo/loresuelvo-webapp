@@ -29,7 +29,9 @@ const mockReputation: ProviderReputation = {
 describe("ReputationClient", () => {
   it("renders reputation indicators and reviews on success", () => {
     render(<ReputationClient initialResult={{ success: true, data: mockReputation }} />);
-    expect(screen.getByTestId("reputation-indicators")).toBeInTheDocument();
+    const indicators = screen.getByTestId("reputation-indicators");
+    const scope = screen.getByRole("region", { name: t.providerReputation.scope });
+    expect(indicators.compareDocumentPosition(scope) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByTestId("reputation-reviews")).toBeInTheDocument();
     expect(screen.getByTestId("review-card")).toBeInTheDocument();
   });

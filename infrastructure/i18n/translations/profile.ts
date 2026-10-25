@@ -5,6 +5,12 @@ export const profile = {
   photoAlt: "Foto de perfil de",
   nameLabel: "Nombre",
   emailLabel: "Correo electrónico",
+  addressTitle: "Dirección registrada",
+  addressMissing: "No hay una dirección registrada para esta cuenta.",
+  streetLabel: "Calle",
+  streetNumberLabel: "Altura",
+  floorLabel: "Piso",
+  unitLabel: "Departamento",
   error: {
     title: "No se pudo cargar la configuración",
     description: "No pudimos consultar tu perfil en este momento. Intentá nuevamente.",

@@ -14,6 +14,8 @@ describe("CollectionView", () => {
   it("distinguishes seller collections and current pending balances with exact cents", () => {
     render(<CollectionView collections={collections} />);
     const results = screen.getByRole("region", { name: "Cobros verificados del período" });
+    const period = screen.getByRole("region", { name: "Período consultado" });
+    expect(results.compareDocumentPosition(period) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(results).getByText(/12\.000,01/)).toBeVisible();
     expect(within(results).getByText(/40\.000,03/)).toBeVisible();
     expect(screen.getByText(/No representan el saldo de tu cuenta bancaria/)).toBeVisible();

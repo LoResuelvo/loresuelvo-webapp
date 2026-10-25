@@ -39,46 +39,55 @@ export default function ContactItem({
   profilePhotoUrl,
 }: ContactItemProps) {
   return (
-    <div
-      role="listitem"
-      data-testid="contact-item"
-      onClick={() => onClick(providerId)}
-      className={`chat-list-item flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors cursor-pointer border-b border-slate-100 ${
-        isSelected ? "bg-brand-secondary/10" : ""
-      }`}
-      data-status={pending ? "pending" : "accepted"}
-    >
-      <Avatar
-        src={profilePhotoUrl}
-        alt={`${t.messaging.photoAlt} ${providerName}`}
-        size="md"
-        imgTestId="chat-list-profile-photo"
-      />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between">
+    <div role="listitem">
+      <button
+        type="button"
+        data-testid="contact-item"
+        data-status={pending ? "pending" : "accepted"}
+        onClick={() => onClick(providerId)}
+        aria-current={isSelected ? "true" : undefined}
+        className={`chat-list-item flex w-full min-w-0 items-center gap-3 border-b border-slate-100 p-4 text-left transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary ${
+          isSelected ? "bg-brand-secondary/10" : ""
+        }`}
+      >
+        <Avatar
+          src={profilePhotoUrl}
+          alt={`${t.messaging.photoAlt} ${providerName}`}
+          size="md"
+          imgTestId="chat-list-profile-photo"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <p
+              data-field="consumer-name"
+              data-testid="consumer-name"
+              className="min-w-0 flex-1 truncate font-semibold text-body text-brand-primary"
+            >
+              {providerName + " " + providerSurname}
+            </p>
+            <p
+              data-field="last-message-at"
+              data-testid="last-message-at"
+              className="shrink-0 whitespace-nowrap text-caption text-slate-400"
+            >
+              {lastMessageAt}
+            </p>
+          </div>
           <p
-            data-field="consumer-name"
-            data-testid="consumer-name"
-            className="font-semibold text-body text-brand-primary truncate"
+            data-field="last-message"
+            data-testid="last-message"
+            className="flex min-w-0 items-center gap-1.5 truncate text-small text-slate-500"
           >
-            {providerName + " " + providerSurname}
+            <MessagePreviewIcon message={lastMessage} />
+            <span className="min-w-0 truncate">{lastMessage}</span>
           </p>
-          <p data-field="last-message-at" data-testid="last-message-at" className="text-caption text-slate-400">{lastMessageAt}</p>
         </div>
-        <p
-          data-field="last-message"
-          data-testid="last-message"
-          className="text-small text-slate-500 truncate flex items-center gap-1.5"
-        >
-          <MessagePreviewIcon message={lastMessage} />
-          <span className="truncate">{lastMessage}</span>
-        </p>
-      </div>
-      {pending && (
-        <Badge variant="warning">
-          {t.messaging.pending}
-        </Badge>
-      )}
+        {pending && (
+          <Badge variant="warning" className="shrink-0 whitespace-nowrap">
+            {t.messaging.pending}
+          </Badge>
+        )}
+      </button>
     </div>
   );
 }

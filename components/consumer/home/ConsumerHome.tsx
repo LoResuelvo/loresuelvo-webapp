@@ -15,6 +15,7 @@ import { ProposalCarousel } from "./ProposalCarousel";
 import { getServiceProposalsAction } from "@/app/consumidor/mensajes/actions";
 import { Button } from "@/components/ui/button";
 import { useRealtimeProposalList } from "@/components/messaging/proposals/useRealtimeProposalList";
+import { useClock } from "@/hooks/useClock";
 
 const EMPTY_PROPOSALS: ServiceProposalSummary[] = [];
 
@@ -34,6 +35,7 @@ export default function ConsumerHome({
   initialProposalsError = false
 }: ConsumerHomeProps) {
   const router = useRouter();
+  const { now } = useClock();
   const initialProposals = useMemo(() => [
     ...initialPendingProposals,
     ...initialAcceptedProposals,
@@ -45,7 +47,10 @@ export default function ConsumerHome({
   );
 
   const pendingProposals = proposals.filter((proposal) => proposal.status === "pending");
-  const acceptedProposals = proposals.filter((proposal) => proposal.status === "accepted");
+  const currentTime = now().getTime();
+  const acceptedProposals = proposals
+    .filter((proposal) => proposal.status === "accepted" && Date.parse(proposal.scheduledOn) >= currentTime)
+    .sort((a, b) => Date.parse(a.scheduledOn) - Date.parse(b.scheduledOn));
 
   const handleViewConversation = (proposal: ServiceProposalSummary) => {
     router.push(`/consumidor/mensajes?provider_id=${proposal.counterpart.id}`);
@@ -56,8 +61,8 @@ export default function ConsumerHome({
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <ConsumerHeader session={session} />
-        <main className="flex-1 p-6 lg:p-10">
-          <div className="max-w-7xl mx-auto flex flex-col gap-10">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto flex flex-col gap-6 lg:gap-8">
             {/* 1. Hero a ancho completo en la parte superior */}
             <DiagnosisHero className="w-full" />
 

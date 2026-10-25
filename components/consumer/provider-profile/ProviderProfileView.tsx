@@ -21,7 +21,7 @@ interface ProviderProfileViewProps {
 function WorkOrderArticle({ workOrder }: { workOrder: ProviderProfileWorkOrder }) {
   return (
     <li className="min-w-0">
-      <article className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-5">
+      <article className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
         <h3 className="break-words text-subtitle font-bold text-brand-primary">
           {workOrder.description}
         </h3>
@@ -29,7 +29,7 @@ function WorkOrderArticle({ workOrder }: { workOrder: ProviderProfileWorkOrder }
           {ScheduledDateTime.formatDateOnly(workOrder.scheduledOn)}
         </p>
 
-        <section className="mt-5 min-w-0" aria-labelledby={`completion-report-${workOrder.id}`}>
+        <section className="mt-4 min-w-0" aria-labelledby={`completion-report-${workOrder.id}`}>
           <h4 id={`completion-report-${workOrder.id}`} className="text-small font-bold text-brand-primary">
             {t.consumerSearch.profile.completionReportLabel}
           </h4>
@@ -41,7 +41,7 @@ function WorkOrderArticle({ workOrder }: { workOrder: ProviderProfileWorkOrder }
           </p>
         </section>
 
-        <section className="mt-5 min-w-0" aria-labelledby={`review-${workOrder.id}`}>
+        <section className="mt-4 min-w-0 border-t border-slate-200 pt-3" aria-labelledby={`review-${workOrder.id}`}>
           <h4 id={`review-${workOrder.id}`} className="text-small font-bold text-brand-primary">
             {t.consumerSearch.profile.reviewLabel}
           </h4>
@@ -94,7 +94,7 @@ export default function ProviderProfileView({ provider, session, returnCategoryI
 
             <section
               aria-labelledby="provider-profile-title"
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10"
+              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
             >
               <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
                 <Avatar
@@ -109,7 +109,7 @@ export default function ProviderProfileView({ provider, session, returnCategoryI
                   <p className="text-small font-semibold uppercase tracking-wide text-brand-secondary">
                     {t.consumerSearch.profile.title}
                   </p>
-                  <h1 id="provider-profile-title" className="mt-1 break-words text-title font-bold text-brand-primary">
+                  <h1 id="provider-profile-title" className="mt-1 break-words text-heading font-bold text-brand-primary">
                     {displayName}
                   </h1>
                   <div className="mt-2">
@@ -130,7 +130,7 @@ export default function ProviderProfileView({ provider, session, returnCategoryI
 
             <section
               aria-labelledby="provider-coverage-title"
-              className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
+              className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
             >
               <h2 id="provider-coverage-title" className="text-subtitle font-bold text-brand-primary">
                 {t.consumerUx.providerProfile.coverageTitle}
@@ -155,7 +155,7 @@ export default function ProviderProfileView({ provider, session, returnCategoryI
 
             <section
               aria-labelledby="provider-rating-title"
-              className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
+              className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
             >
               <h2 id="provider-rating-title" className="text-subtitle font-bold text-brand-primary">
                 {t.consumerSearch.profile.ratingLabel}
@@ -179,7 +179,7 @@ export default function ProviderProfileView({ provider, session, returnCategoryI
 
             <section
               aria-labelledby="provider-work-history-title"
-              className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
+              className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
             >
               <h2 id="provider-work-history-title" className="text-subtitle font-bold text-brand-primary">
                 {t.consumerSearch.profile.historyTitle}

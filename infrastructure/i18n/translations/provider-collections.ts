@@ -8,7 +8,7 @@ export const providerCollections = {
   purpose: "Propósito", allPurposes: "Todos", booking_deposit: "Seña", service_balance: "Saldo",
   verifiedOn: "Fecha verificada", sellerAmount: "Importe del prestador", proposal: "Propuesta", workOrder: "Orden de trabajo",
   totalCount: "Transacciones del conjunto", totalAmount: "Importe total del conjunto",
-  detailHelp: "Totales de todas las transacciones del período y propósito. Cada consulta refleja su propia instantánea.",
+  detailHelp: "Totales de todas las transacciones con estos filtros, aunque la lista ocupe varias páginas.",
   detailError: "No pudimos consultar el detalle de tus cobros. Intentá nuevamente.",
   detailLoading: "Consultando detalle…",
   nextPage: "Siguiente página",

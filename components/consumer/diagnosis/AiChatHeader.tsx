@@ -18,10 +18,10 @@ export function AiChatHeader({ onBack, className }: AiChatHeaderProps) {
           <button
             type="button"
             onClick={onBack}
-            className="md:hidden p-2 -ml-2 text-slate-500 hover:text-brand-primary transition-colors"
+            className="md:hidden p-2 -ml-2 text-slate-500 hover:text-brand-primary transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
             aria-label={t.aiDiagnosis.backToList}
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-5 h-5" aria-hidden="true" />
           </button>
         )}
         <Avatar

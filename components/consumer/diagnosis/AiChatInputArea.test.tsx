@@ -32,6 +32,20 @@ describe("AiChatInputArea", () => {
     expect(screen.getByRole("button", { name: t.messaging.sendLabel })).toBeDisabled();
   });
 
+  it("keeps the composer limited to text and images and preserves multiline input", () => {
+    const onSend = vi.fn();
+    const { container } = render(
+      <AiChatInputArea
+        composer={{ value: "Hola", onChange: vi.fn(), onSend }}
+        files={{ attachments: [], onFileChange: vi.fn(), onRemove: vi.fn(), onPreview: vi.fn() }}
+      />
+    );
+    expect(screen.getAllByRole("button")).toHaveLength(2);
+    expect(container.querySelector('input[type="file"]')).toHaveAttribute("accept", "image/jpeg, image/png, image/webp");
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter", shiftKey: true });
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
   it("calls onChange when typing into textarea", () => {
     const handleChange = vi.fn();
     render(

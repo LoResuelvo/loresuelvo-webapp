@@ -64,7 +64,7 @@ export default function AiDiagnosisChat({
     <section
       role="region"
       aria-label="Chat con el asistente de diagnóstico"
-      className={cn("flex-1 flex flex-col bg-brand-neutral/30 min-h-0", className)}
+      className={cn("flex-1 flex flex-col bg-brand-neutral/30 min-h-0 min-w-0", className)}
     >
       <AiChatHeader onBack={handleBackToList} />
 

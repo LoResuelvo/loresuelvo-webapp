@@ -254,7 +254,7 @@ export function ParticipantClaimForm({
             aria-invalid={validationField === "reference"}
             aria-describedby={validationField === "reference" ? "claim-form-error" : undefined}
             disabled={submitting}
-            className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
+            className="min-h-11 w-full max-w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 truncate focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
             required
           >
             <option value="">{t.claims.referencePlaceholder}</option>
@@ -280,7 +280,7 @@ export function ParticipantClaimForm({
           aria-invalid={validationField === "reason"}
           aria-describedby={validationField === "reason" ? "claim-form-error" : undefined}
           disabled={submitting}
-          className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
+          className="min-h-11 w-full max-w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 truncate focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
           required
         >
           <option value="">{t.claims.reasonPlaceholder}</option>

@@ -36,15 +36,21 @@ function formatScheduledOn(value: string): string {
   return Number.isNaN(date.getTime()) ? value : REFERENCE_DATE_FORMATTER.format(date);
 }
 
+function truncate(text: string, maxLength: number): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  return `${trimmed.slice(0, maxLength).trimEnd()}…`;
+}
+
 export function formatClaimReferenceLabel(option: ClaimReferenceOption): string {
   const { context, reference } = option;
-  const parts = [`${getReferenceKindLabel(reference)}: ${context.title}`];
+  const parts = [`${getReferenceKindLabel(reference)}: ${truncate(context.title, 50)}`];
 
   if (context.description && context.description !== context.title) {
-    parts.push(context.description);
+    parts.push(truncate(context.description, 40));
   }
   if (context.person) {
-    parts.push(`${getPersonLabel(option)}: ${context.person}`);
+    parts.push(`${getPersonLabel(option)}: ${truncate(context.person, 30)}`);
   }
   if (context.scheduledOn) {
     parts.push(`${t.claims.referenceDate}: ${formatScheduledOn(context.scheduledOn)}`);

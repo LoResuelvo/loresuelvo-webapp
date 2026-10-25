@@ -279,6 +279,13 @@ Then("visualizo la calificación promedio del prestador", async function (this: 
   assert.ok(await ratingMetric.isVisible(), "No se visualiza la métrica de calificación");
 });
 
+Then("visualizo el acceso a mi desempeño", async function (this: CustomWorld) {
+  const link = this.page.getByRole("link", { name: "Ver mi desempeño", exact: true });
+  await link.waitFor({ state: "visible" });
+  assert.equal(await link.getAttribute("href"), ROUTES.provider.activity);
+  assert.equal(await this.page.getByText("+0% vs mes anterior", { exact: true }).count(), 0);
+});
+
 Then("visualizo el panel de ingresos", async function (this: CustomWorld) {
   const panel = this.page.getByRole("complementary", { name: "Panel de ingresos" });
   await panel.waitFor({ state: "visible" });

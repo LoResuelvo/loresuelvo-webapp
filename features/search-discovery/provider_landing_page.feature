@@ -43,13 +43,10 @@ Feature: Dashboard del Prestador
     And cada trabajo muestra la fecha y hora programada
     # And cada trabajo muestra la ubicación
 
-  Scenario: 04-HPP Verificar panel de ingresos
+  Scenario: 04-HPP Consultar desempeño desde Inicio
     Given que ingreso a la HomePage como prestador con métricas
     When se carga la pantalla principal
-    Then visualizo el panel de ingresos
-    And visualizo el título "INGRESOS DEL MES"
-    And visualizo el monto de ingresos
-    And visualizo el indicador de variación
+    Then visualizo el acceso a mi desempeño
 
   @wip
   Scenario: 05-HPP Verificar datos simulados cuando la API no está disponible

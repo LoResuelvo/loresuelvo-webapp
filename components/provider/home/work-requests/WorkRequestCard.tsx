@@ -12,28 +12,27 @@ interface WorkRequestCardProps {
 
 export default function WorkRequestCard({ request, onViewDetails }: WorkRequestCardProps) {
   return (
-    <li className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
-      <article className="flex items-center gap-4 relative">
-        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-brand-neutral text-brand-secondary shrink-0">
-          <User className="h-5 w-5" />
-        </div>
-        <div className="flex flex-col gap-3 flex-1 pr-[140px]">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <p
-                data-field="client-name"
-                className="text-body font-semibold text-brand-secondary"
-              >
-                {request.clientName}
-              </p>
-              <h2
-                data-field="problem-title"
-                className="mt-1 text-subtitle font-bold text-brand-primary"
-              >
-                {request.problemTitle}
-              </h2>
-            </div>
+    <li className="bg-white border border-slate-200 rounded-xl p-4 transition-colors hover:border-brand-secondary/40 sm:p-5">
+      <article className="flex min-w-0 flex-col gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-secondary/10 text-brand-secondary">
+            <User className="h-5 w-5" aria-hidden="true" />
           </div>
+          <p data-field="client-name" className="min-w-0 flex-1 break-words text-sm font-semibold text-brand-primary">
+            {request.clientName}
+          </p>
+          <span data-field="published-at" className="flex shrink-0 items-center gap-1 text-xs text-slate-500">
+            <Timer className="h-3.5 w-3.5" aria-hidden="true" />
+            {request.publishedAtLabel}
+          </span>
+        </div>
+        <div className="flex min-w-0 flex-col gap-3">
+          <h3
+            data-field="problem-title"
+            className="text-lg leading-snug font-semibold text-brand-primary"
+          >
+            {request.problemTitle}
+          </h3>
 
           <p
             data-field="description"
@@ -42,13 +41,13 @@ export default function WorkRequestCard({ request, onViewDetails }: WorkRequestC
             {request.description}
           </p>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <p
               data-field="location"
-              className="flex items-center gap-1.5 text-body font-medium text-slate-600"
+              className="flex items-center gap-1.5 text-sm text-slate-500 break-words"
             >
               <MapPin className="h-4 w-4 text-brand-secondary" aria-hidden="true" />
-              {request.location}
+              {request.location || t.providerHome.overview.missingLocation}
             </p>
             {request.images && request.images.length > 0 && (
               <span
@@ -62,14 +61,10 @@ export default function WorkRequestCard({ request, onViewDetails }: WorkRequestC
           </div>
         </div>
 
-        <div data-field="published-at" className="absolute right-4 top-4 flex items-center gap-1.5 text-small font-medium text-slate-500">
-          <Timer className="h-4 w-4" aria-hidden="true" />
-          {request.publishedAtLabel}
-        </div>
-
-        <div className="flex items-center justify-center min-w-[120px]">
+        <div className="flex justify-end border-t border-slate-100 pt-3">
           <Button
             variant="brandSecondary"
+            className="w-full sm:w-auto"
             type="button"
             onClick={onViewDetails}
           >

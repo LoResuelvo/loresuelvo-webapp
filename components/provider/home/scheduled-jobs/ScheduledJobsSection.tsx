@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { ROUTES } from "@/lib/routes";
 import { useState } from "react";
 import { t } from "@/infrastructure/i18n/translations";
 import { ServiceProposalSummary } from "@/domain/messaging/types";
@@ -35,15 +37,17 @@ export default function ScheduledJobsSection({ jobs }: ScheduledJobsSectionProps
         role="region"
         aria-labelledby="scheduled-jobs-title"
         aria-label={t.providerHome.scheduledJobsSection.ariaLabel}
-        className="max-w-4xl"
+        className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6"
       >
-        <div className="mb-5">
+        <div className="mb-5 border-b border-slate-100 pb-5">
           <h2
             id="scheduled-jobs-title"
-            className="text-title font-bold text-brand-primary"
+            className="font-heading text-xl font-semibold text-brand-primary"
           >
             {t.providerHome.scheduledJobsSection.title}
           </h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-500">{t.providerHome.overview.jobsDescription}</p>
+          <Link href={ROUTES.provider.jobs} className="mt-3 inline-flex min-h-10 items-center text-sm font-semibold text-brand-secondary underline-offset-4 hover:underline">{t.providerHome.overview.viewJobs}</Link>
         </div>
 
         {refreshError && (
@@ -61,7 +65,7 @@ export default function ScheduledJobsSection({ jobs }: ScheduledJobsSectionProps
         )}
 
         {scheduledJobs.length === 0 ? (
-          <p className="text-body-lg text-slate-500 text-center py-8">{t.providerHome.scheduledJobsSection.emptyState}</p>
+          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-sm leading-relaxed text-slate-500">{t.providerHome.scheduledJobsSection.emptyState}</p>
         ) : (
           <ul
             aria-label={t.providerHome.scheduledJobsSection.listLabel}

@@ -51,7 +51,6 @@ export default async function PrestadorHomePage() {
       categoryName={categoryName}
       workRequests={dashboard.workRequests}
       scheduledJobs={acceptedProposals}
-      metrics={dashboard.metrics}
     />
   );
 }

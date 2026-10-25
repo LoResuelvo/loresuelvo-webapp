@@ -1,4 +1,15 @@
 export const providerHome = {
+  overview: {
+    title: "Inicio",
+    description: "Revisá las solicitudes recibidas y organizá tus trabajos desde un mismo lugar.",
+    performanceTitle: "Tu desempeño",
+    performanceDescription: "Consultá tus ingresos, actividad y reseñas en el detalle de tu desempeño.",
+    performanceAction: "Ver mi desempeño",
+    requestsDescription: "Conocé qué necesitan tus clientes y continuá la conversación.",
+    jobsDescription: "Revisá los servicios que ya acordaste con tus clientes.",
+    viewJobs: "Ver trabajos",
+    missingLocation: "Dirección no informada",
+  },
   incomePanel: {
     ariaLabel: "Panel de ingresos",
     title: "INGRESOS DEL MES",

@@ -68,19 +68,20 @@ export default function WorkRequestsSection({ requests: initialRequests }: WorkR
         role="region"
         aria-labelledby="work-requests-title"
         aria-label={t.providerHome.workRequestsSection.ariaLabel}
-        className="max-w-4xl"
+        className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6"
       >
-        <div className="mb-5">
-          <h1
+        <div className="mb-5 border-b border-slate-100 pb-5">
+          <h2
             id="work-requests-title"
-            className="text-title font-bold text-brand-primary"
+            className="font-heading text-xl font-semibold text-brand-primary"
           >
             {t.providerHome.workRequestsSection.title}
-          </h1>
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-500">{t.providerHome.overview.requestsDescription}</p>
         </div>
 
         {requests.length === 0 ? (
-          <p className="text-body-lg text-slate-500 text-center py-8">{t.providerHome.workRequestsSection.emptyState}</p>
+          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-sm leading-relaxed text-slate-500">{t.providerHome.workRequestsSection.emptyState}</p>
         ) : (
           <ul
             aria-label={t.providerHome.workRequestsSection.listLabel}
